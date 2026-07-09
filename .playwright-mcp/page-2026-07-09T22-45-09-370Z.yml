@@ -1,0 +1,34 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e42] [cursor=pointer]
+  - alert [ref=e11]
+  - generic [ref=e44]:
+    - banner [ref=e45]:
+      - generic [ref=e46]: FUELBOARD
+      - generic [ref=e47]:
+        - 'button "Tema: Auto. Cambiar a Claro" [ref=e48]':
+          - generic [ref=e51]: Auto
+        - button "Salir" [ref=e53]
+    - main [ref=e54]:
+      - generic [ref=e55]:
+        - heading "Hoy" [level=1] [ref=e56]
+        - generic [ref=e57]:
+          - paragraph [ref=e58]: El registro diario (FuelGauge, comidas, añadir del plan, entrada rápida) vivirá aquí.
+          - paragraph [ref=e59]: Llega en la Fase 1.
+    - navigation "Navegación principal" [ref=e60]:
+      - list [ref=e61]:
+        - listitem [ref=e62]:
+          - link "Hoy" [ref=e63] [cursor=pointer]:
+            - /url: /hoy
+        - listitem [ref=e68]:
+          - link "Plan" [ref=e69] [cursor=pointer]:
+            - /url: /plan
+        - listitem [ref=e74]:
+          - link "Salud" [ref=e75] [cursor=pointer]:
+            - /url: /salud
+        - listitem [ref=e81]:
+          - link "MED" [ref=e82] [cursor=pointer]:
+            - /url: /med
+        - listitem [ref=e91]:
+          - link "Tendencia" [ref=e92] [cursor=pointer]:
+            - /url: /tendencia
+    - region "Notifications alt+T"

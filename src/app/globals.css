@@ -1,0 +1,209 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+  Fuelboard design tokens — fuente de verdad: docs/specs/05-DISENO.md §2/§3.
+  Nada de grises neutros puros: todo con matiz verde-frío (mundo de box de
+  CrossFit). El color de macro es un lenguaje FIJO en toda la app:
+  azul = kcal/acciones, verde = proteína, ámbar = hidratos, naranja = grasa/alerta.
+*/
+
+@theme inline {
+  /* shadcn semantic tokens → nuestros tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Tokens de marca Fuelboard (utilidades: bg-surface, text-protein, ...) */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-protein: var(--protein);
+  --color-carb: var(--carb);
+  --color-fat: var(--fat);
+  --color-phase: var(--phase);
+
+  /* Tipografía: display/condensed (Barlow) + cuerpo (Instrument Sans) */
+  --font-sans: var(--font-body);
+  --font-body: var(--font-body);
+  --font-display: var(--font-display);
+  --font-condensed: var(--font-condensed);
+  --font-heading: var(--font-display);
+  --font-mono: var(--font-body);
+
+  /* Radios: tarjetas radio 12 (05-DISENO §4) */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ── Tema claro «Morning session» ── */
+:root {
+  --bg: #f2f4ef;
+  --surface: #ffffff;
+  --surface-2: #edefea;
+  --ink: #181f1b;
+  --muted: #5d6862;
+  --line: #d9ded5;
+  --primary: #2247c9;
+  --protein: #1b8a50;
+  --carb: #b8860b;
+  --fat: #e8590c;
+  --phase: color-mix(in srgb, var(--primary) 12%, transparent);
+
+  --radius: 0.75rem; /* 12px */
+
+  /* Mapeo semántico shadcn */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--muted);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--fat);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--primary);
+
+  /* Gráficos: lenguaje de macro fijo */
+  --chart-1: var(--primary);
+  --chart-2: var(--protein);
+  --chart-3: var(--carb);
+  --chart-4: var(--fat);
+  --chart-5: var(--muted);
+
+  /* Sidebar (no usado en v1, mapeado por coherencia) */
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--primary);
+}
+
+/* Nota: shadcn usa --muted como FONDO tenue; nuestro --muted es color de
+   TEXTO. Reasignamos --muted a un fondo y conservamos --muted-foreground
+   como el gris-verde de texto. */
+:root {
+  --muted: var(--surface-2);
+}
+
+/* ── Tema oscuro «Night comp» ── (sin blancos puros: #E8EDE8 máximo) */
+.dark {
+  --bg: #0f1613;
+  --surface: #18221d;
+  --surface-2: #1f2b25;
+  --ink: #e8ede8;
+  --muted: #93a099;
+  --line: #2c3830;
+  --primary: #7b96ff;
+  --protein: #4cc98a;
+  --carb: #e0b341;
+  --fat: #f2894c;
+  --phase: color-mix(in srgb, var(--primary) 12%, transparent);
+
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary-foreground: #0f1613;
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--muted);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--ink);
+  --destructive: var(--fat);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--primary);
+
+  --chart-1: var(--primary);
+  --chart-2: var(--protein);
+  --chart-3: var(--carb);
+  --chart-4: var(--fat);
+  --chart-5: var(--muted);
+
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: #0f1613;
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--primary);
+
+  --muted: var(--surface-2);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body), system-ui, sans-serif;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer utilities {
+  /* Cifras tabulares obligatorias en TODA cifra (05-DISENO §3) */
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+  /* Títulos de tarjeta: condensed uppercase, tracking 1.5px, 13px */
+  .card-title {
+    font-family: var(--font-display), system-ui, sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+}

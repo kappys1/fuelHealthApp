@@ -1,0 +1,24 @@
+- generic [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - heading "FUELBOARD" [level=1] [ref=e5]
+        - paragraph [ref=e6]: Panel de combustible · Alex
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - generic [ref=e9]: Contraseña
+          - textbox "Contraseña" [ref=e10]: wrong-password
+        - button "Entrar" [ref=e21]
+  - generic [active]:
+    - menu "Next.js Dev Tools Items" [ref=e22]:
+      - generic [ref=e23]:
+        - menuitem "Route Static" [ref=e24] [cursor=pointer]:
+          - generic [ref=e25]: Route
+          - generic [ref=e26]: Static
+        - generic "Turbopack is enabled." [ref=e27]:
+          - generic [ref=e28]: Bundler
+          - generic [ref=e29]: Turbopack
+        - menuitem "Route Info" [ref=e30]
+      - menuitem "Preferences" [ref=e36]
+    - button "Close Next.js Dev Tools" [expanded] [ref=e41] [cursor=pointer]
+  - alert [ref=e11]
