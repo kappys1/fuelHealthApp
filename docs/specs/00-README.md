@@ -15,18 +15,20 @@ Este paquete es el resultado de un PoC funcional construido y validado en Claude
 | `05-DISENO.md` | Sistema de diseño (tokens claro/oscuro, tipografía, componentes, pantallas, estados) | Escribir cualquier UI |
 | `06-PLAN-IMPLEMENTACION.md` | Fases de construcción para Claude Code, tareas, tests de aceptación | Empezar |
 | `07-REFINAMIENTOS-PRO.md` | Comportamientos que hacen la app profesional (optimista, undo, añadido rápido universal, share target, degradación IA) — requisitos de v1, mapeados a fases | Cada fase |
+| `08-PROMPTS-CLAUDE-CODE.md` | Los prompts exactos a pegar en Claude Code, sesión a sesión, más prompts de mantenimiento | Cada sesión |
+| `09-FLUJOS-UX.md` | **Arquitectura de interacción: navegación de 4 pestañas, sheet único de añadir, flujos por momento de uso. SUSTITUYE la organización de pantallas implícita en el PRD** | Cualquier UI |
 
 ## Cómo usar esto con Claude Code (Opus 4.8)
 
 1. Crea el repo vacío y copia esta carpeta a `docs/specs/`.
-2. Primera sesión: pide a Claude Code que lea `00` a `06` completos y genere `CLAUDE.md` en la raíz resumiendo stack, convenciones y principios (sección "Principios" del PRD íntegra).
+2. Primera sesión: pide a Claude Code que lea `00` a `09` completos y genere `CLAUDE.md` en la raíz resumiendo stack, convenciones y principios (sección "Principios" del PRD íntegra).
 3. Ejecuta fase a fase según `06-PLAN-IMPLEMENTACION.md`. No mezcles fases: cada una termina con sus tests de aceptación en verde.
 4. Ante cualquier ambigüedad, la fuente de verdad es el PRD; si el PRD calla, decide lo más simple y anótalo en `docs/DECISIONS.md`.
 
 ## Supuestos tomados (modificables)
 
 - **Usuario único** (Alex). Auth simple: password + sesión con cookie (iron-session o Auth.js credentials). Sin registro público.
-- **Modelos IA**: `claude-sonnet-4-6` para visión y análisis complejos; `claude-haiku-4-5-20251001` para estimaciones de texto simples. Configurable por env var (ver 04-IA).
+- **IA agnóstica de proveedor** (Vercel AI SDK): por defecto Anthropic (`claude-sonnet-4-6` visión/análisis, `claude-haiku-4-5-20251001` texto), cambiable a otro proveedor por env vars sin tocar features (ver 02 y 04). Requisitos del modelo elegido: visión multimodal, JSON fiable, streaming.
 - **Idioma**: UI y prompts en español.
 - **Zona horaria**: Europe/Madrid para el concepto de "día".
 - **Coste objetivo IA**: <5 €/mes con uso diario (el mix Haiku/Sonnet del doc 04 lo cumple con margen).

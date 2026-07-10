@@ -1,19 +1,19 @@
 "use client";
 
-import { Activity, CalendarDays, HeartPulse, Ruler, TrendingUp } from "lucide-react";
+import { Activity, CalendarDays, MessageCircle, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// 4 pestañas (09-FLUJOS-UX §2). Ajustes NO es pestaña: va en el header.
 const TABS = [
   { href: "/hoy", label: "Hoy", Icon: Activity },
   { href: "/plan", label: "Plan", Icon: CalendarDays },
-  { href: "/salud", label: "Salud", Icon: HeartPulse },
-  { href: "/med", label: "MED", Icon: Ruler },
-  { href: "/tendencia", label: "Tendencia", Icon: TrendingUp },
+  { href: "/progreso", label: "Progreso", Icon: TrendingUp },
+  { href: "/chat", label: "Chat", Icon: MessageCircle },
 ] as const;
 
 /**
- * Nav inferior fija de 5 pestañas, estilo marcador (05-DISENO §4):
+ * Nav inferior fija de 4 pestañas, estilo marcador (05-DISENO §4):
  * etiquetas condensed uppercase, activa con subrayado grueso --primary,
  * respetando safe-area-inset-bottom.
  */

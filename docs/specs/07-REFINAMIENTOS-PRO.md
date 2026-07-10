@@ -22,8 +22,8 @@ Lo que separa una app profesional de un PoC portado no son más features: es el 
 
 ## 4. Confianza operativa (Fases 3-4)
 
-- **Salud con estado visible**: en la pestaña Salud, «Última sincronización: hace 2 h · endpoint ✓» (o «hace 6 días ⚠ — revisa la Automation de HAE»). El usuario nunca debe dudar de si sus datos están entrando.
-- **Degradación elegante de IA**: si Anthropic falla o no hay red, TODA la app sigue funcionando; los botones IA se deshabilitan con motivo («Sin conexión» / «IA no disponible: {error}») y la entrada manual queda siempre a un toque. Reintento automático 1 vez con backoff en errores 5xx/timeouts.
+- **Salud con estado visible**: en Ajustes, «Última sincronización: hace 2 h · endpoint ✓» (o «hace 6 días ⚠ — revisa la Automation de HAE»). El usuario nunca debe dudar de si sus datos están entrando.
+- **Degradación elegante de IA**: si el proveedor de IA falla o no hay red, TODA la app sigue funcionando; los botones IA se deshabilitan con motivo («Sin conexión» / «IA no disponible: {error}») y la entrada manual queda siempre a un toque. Reintento automático 1 vez con backoff en errores 5xx/timeouts.
 - **Import con vista previa**: CSV y restore de JSON muestran resumen («31 días, 10 métricas, 3 días machacan valores manuales») ANTES de aplicar, con confirmar/cancelar.
 - **Modo competición** (cuando fase = Competición): el gauge se simplifica (sin regañinas, sin «faltan»), y aparece una fila de chips de repostaje rápido — Plátano · Zumo 200 ml · Bebida deportiva 500 ml · Gel — de un toque, pensados para registrar entre WODs con las pulsaciones a 160.
 
