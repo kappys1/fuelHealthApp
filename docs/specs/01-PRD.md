@@ -3,7 +3,6 @@
 ## 1. Visión
 
 Una sola app que responda tres preguntas con datos, no sensaciones:
-
 1. **¿Estoy comiendo lo pautado?** (adherencia al plan del nutricionista, con presupuesto diario flexible)
 2. **¿Está funcionando?** (déficit/superávit REAL calculado desde el peso, no desde el reloj; evolución de composición corporal)
 3. **¿Qué ajusto?** (coach IA diario, preparación de visitas al nutricionista con preguntas fundamentadas en datos)
@@ -32,16 +31,18 @@ Una sola app que responda tres preguntas con datos, no sensaciones:
 
 ## 4. Requisitos funcionales
 
-Notación: **[Fx.y]** requisito · _(AC)_ criterio de aceptación.
+> Organización de pantallas y flujos: `09-FLUJOS-UX.md` manda sobre cualquier estructura implícita en este documento. Aquí se define el QUÉ; el 09, el CÓMO se usa.
+
+Notación: **[Fx.y]** requisito · *(AC)* criterio de aceptación.
 
 ### F1 · Plan de dieta
 
 - **[F1.1]** El plan tiene comidas fijas: Almuerzo, Comida, Merienda, Cena (+ categoría "Extra / fuera de plan" solo para registro). Cada comida contiene opciones agrupadas por **grupo** (Verdura, Hidratos, Proteína, Grasa, Otros, u "Opción única"). Semántica: en Comida/Cena se elige UNA opción por grupo; en Almuerzo UNA opción; en Merienda se toma el conjunto.
 - **[F1.2]** Cada opción: nombre, grupo, `baseG` (gramos pautados; null = unidades fijas como "4 huevos"), kcal, prot, carb, fat (para `baseG`). Plan semilla: el de Regenera actual (ver `03-DATOS §5`, tabla completa con valores).
 - **[F1.3]** Opciones editables: crear (con estimación IA de macros+grupo desde nombre+gramos, ver 04-IA §F-IA-3), editar, borrar.
-- **[F1.4]** Objetivos diarios editables: kcal, prot, carb, fat. kcal y prot vienen del nutricionista; carb y fat pueden **derivarse del propio plan** con un botón: día pautado medio = por comida, media de cada grupo (Almuerzo: media de opciones; Merienda: suma de todas), sumando también rango kcal min-max según elecciones. _(AC: con el plan semilla, el derivado da ~1.700-1.800 kcal medio y rango ~1.550-1.950.)_
-- **[F1.5]** **Historial de dietas versionado** (nuevo vs PoC): al cambiar objetivos o plan se crea una versión con fecha de vigencia; los días pasados se evalúan contra la versión vigente entonces. _(AC: cambiar kcal hoy no altera la adherencia calculada de la semana pasada.)_
-- **[F1.6]** **Importar dieta con IA**: subir foto o PDF de la pauta del nutricionista → la IA la convierte en comidas + opciones con grupo, gramos base y macros estimados (04-IA §F-IA-9) → vista previa editable → confirmar crea una nueva versión de dieta completa. Elimina el teclear la dieta a mano cuando Regenera la cambie. _(AC: con la foto real de la pauta actual, reconstruye las ~34 opciones con sus gramos.)_
+- **[F1.4]** Objetivos diarios editables: kcal, prot, carb, fat. kcal y prot vienen del nutricionista; carb y fat pueden **derivarse del propio plan** con un botón: día pautado medio = por comida, media de cada grupo (Almuerzo: media de opciones; Merienda: suma de todas), sumando también rango kcal min-max según elecciones. *(AC: con el plan semilla, el derivado da ~1.700-1.800 kcal medio y rango ~1.550-1.950.)*
+- **[F1.5]** **Historial de dietas versionado** (nuevo vs PoC): al cambiar objetivos o plan se crea una versión con fecha de vigencia; los días pasados se evalúan contra la versión vigente entonces. *(AC: cambiar kcal hoy no altera la adherencia calculada de la semana pasada.)*
+- **[F1.6]** **Importar dieta con IA**: subir foto o PDF de la pauta del nutricionista → la IA la convierte en comidas + opciones con grupo, gramos base y macros estimados (04-IA §F-IA-9) → vista previa editable → confirmar crea una nueva versión de dieta completa. Elimina el teclear la dieta a mano cuando Regenera la cambie. *(AC: con la foto real de la pauta actual, reconstruye las ~34 opciones con sus gramos.)*
 
 ### F2 · Registro diario de comidas
 
@@ -59,7 +60,7 @@ Notación: **[Fx.y]** requisito · _(AC)_ criterio de aceptación.
   - añadir **por separado** (1 entrada por componente, con gramos finales en el nombre) o **como 1 entrada** (suma).
 - **[F2.9]** **Edición en línea**: tocar cualquier entrada registrada abre formulario con descripción, comida (recategorizar), kcal y 3 macros; guardar/cancelar. Borrar con papelera.
 - **[F2.10]** Presupuesto del día siempre visible: kcal consumidas/objetivo con "X restantes" o "+X", barra principal; barra de proteína; mini-barras de hidratos y grasa; línea resumen "Faltan: X kcal · Y g prot · Z g hidr · W g grasa" o "Objetivos cubiertos ✓". **Comportamiento por fase**: en Carga/Competición/Recuperación, el exceso se muestra en color informativo (no de error) con nota "superar el objetivo es esperado en esta fase; este día no cuenta como desviación".
-- **[F2.11]** **Fotos guardadas**: al añadir entradas desde un análisis de foto, la imagen (ya reducida) se guarda en Vercel Blob y queda vinculada a la(s) entrada(s). En la lista, miniatura tocable que abre la foto completa; borrar la entrada borra el blob si ninguna otra entrada lo referencia. Valor: memoria visual de raciones («¿cuánto era 240 g de arroz?») y auditoría de estimaciones. _(AC: descartar un análisis sin añadir no guarda nada.)_
+- **[F2.11]** **Fotos guardadas**: al añadir entradas desde un análisis de foto, la imagen (ya reducida) se guarda en Vercel Blob y queda vinculada a la(s) entrada(s). En la lista, miniatura tocable que abre la foto completa; borrar la entrada borra el blob si ninguna otra entrada lo referencia. Valor: memoria visual de raciones («¿cuánto era 240 g de arroz?») y auditoría de estimaciones. *(AC: descartar un análisis sin añadir no guarda nada.)*
 
 ### F3 · Día (contexto no alimentario)
 
@@ -85,7 +86,7 @@ Notación: **[Fx.y]** requisito · _(AC)_ criterio de aceptación.
 
 ### F6 · Tendencia (analítica)
 
-- **[F6.1]** Serie de peso con **media móvil de 7 días** (ma7). Los pesos de días en fase Carga/Competición/Recuperación —y los **2 días siguientes a una Competición**— se **excluyen de la pendiente** (mejora vs PoC: el glucógeno de la carga distorsiona ~1-1,5 kg durante días, y el rebote tras competir persiste un par de días más).
+- **[F6.1]** Serie de peso con **media móvil de 7 días** (ma7). Los pesos de días en fase Carga/Competición/Recuperación se **excluyen de la pendiente** (mejora vs PoC: el glucógeno de la carga distorsiona ~1-1,5 kg durante días).
 - **[F6.2]** Tarjeta "Tu gasto y déficit reales · desde el peso" (jerarquía visual máxima): kg/semana (pendiente ma7), déficit kcal/día (`−kgSemana × 7700 ÷ 7`), TDEE real (`ingesta media días Normal + déficit`). Requiere ≥8 pesajes en ≥7 días; si no, estado vacío pidiendo pesaje diario en ayunas. Nota fija: "las kcal del reloj y las sesiones son contexto".
 - **[F6.3]** Adherencia últimos 14 días: días registrados; días dentro de ±10% kcal y días con proteína ≥90% del objetivo — ambos SOLO sobre días en fase Normal.
 - **[F6.4]** Gráficos: peso+ma7; barras de ingesta diaria con línea de referencia en el objetivo kcal.

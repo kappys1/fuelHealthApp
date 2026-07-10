@@ -38,7 +38,7 @@ Contraste AA mínimo en ambos temas. El color de macro es un **lenguaje fijo** e
 ## 4. Layout y navegación
 
 - Mobile-first, contenedor máx 560 px centrado en desktop (la app es una columna; no inventar layout de escritorio en v1).
-- **Nav inferior fija de 5 pestañas**: Hoy · Plan · Salud · MED · Tendencia. Estilo marcador: etiquetas condensed uppercase, activa con subrayado grueso `--primary`. Respetar `safe-area-inset-bottom`.
+- **Nav inferior fija de 4 pestañas** (09-FLUJOS-UX §2): Hoy · Plan · Progreso · Chat, con Ajustes en el header. Estilo marcador: etiquetas condensed uppercase, activa con subrayado grueso `--primary`. Respetar `safe-area-inset-bottom`.
 - Tarjetas: radio 12, borde 1px `--line`, padding 16, sin sombras (o mínimas en oscuro). Densidad: filas de lista a 40-44 px con separador `dashed`.
 - Targets táctiles ≥44 px; inputs numéricos con `inputmode="decimal"`.
 

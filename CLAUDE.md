@@ -5,21 +5,32 @@
 App personal (**usuario único: Alex**) de nutrición y rendimiento: recomposición
 corporal (perder grasa manteniendo/ganando músculo), rendimiento en CrossFit y
 control de hinchazón/retención. Integra dieta pautada por Regenera, entrenamiento
-(The Progrm), Apple Health/Watch, báscula Xiaomi y análisis con IA (Claude API).
+(The Progrm), Apple Health/Watch, báscula Xiaomi y análisis con IA.
 
 Es la **reconstrucción "bien hecha" de un PoC ya validado** en Claude Artifacts:
 todo lo especificado existe ya o fue una decisión razonada durante el PoC. No es
 lista de deseos.
 
-**Specs (fuente de verdad):** `docs/specs/` — documentos `00`–`07`.
-Léelos antes de tocar su área: `01-PRD` (todo), `02-ARQUITECTURA` (código),
-`03-DATOS` (schema/fórmulas), `04-IA` (features IA), `05-DISENO` (UI),
-`06-PLAN-IMPLEMENTACION` (empezar), `07-REFINAMIENTOS-PRO` (cada fase).
+## Specs (fuente de verdad) — `docs/specs/` (00–09)
+
+Léelos antes de tocar su área:
+- `00-README` (índice) · `01-PRD` (visión, principios, requisitos F1-F8) ·
+  `02-ARQUITECTURA` (stack/estructura/seguridad/env) · `03-DATOS` (schema, fórmulas,
+  ingesta HAE, migración PoC) · `04-IA` (features IA, prompts exactos) ·
+  `05-DISENO` (tokens, tipografía, componentes) · `06-PLAN-IMPLEMENTACION` (fases) ·
+  `07-REFINAMIENTOS-PRO` (comportamiento pro por fase) · `08-PROMPTS-CLAUDE-CODE`
+  (prompts por sesión) · `09-FLUJOS-UX` (arquitectura de interacción).
+
+**Jerarquía:** `09-FLUJOS-UX.md` **manda sobre la organización de pantallas** implícita
+en el PRD (los requisitos F1-F8 siguen todos vigentes; el 09 define cómo se organizan
+y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenido, el PRD.
 
 ## Estado actual
 
-- Repo **sin scaffold todavía**: por ahora solo existen los docs. El siguiente
-  paso es la **Fase 0** de `06-PLAN-IMPLEMENTACION.md`.
+- **Fase 0 (esqueleto) completa**: Next 16 + Tailwind4/shadcn tematizado (tokens
+  05-DISENO §2, contrastes AA verificados), Drizzle+Neon con schema y seed, auth
+  usuario único (iron-session), **nav de 4 pestañas + Ajustes en header**, deploy Vercel.
+- Siguiente: **Fase 1** de `06-PLAN-IMPLEMENTACION.md`.
 - Se trabaja **fase a fase**. **Nunca adelantar trabajo de fases futuras.** Cada
   fase termina con sus tests de aceptación en verde y deploy a Vercel funcionando.
 
@@ -27,64 +38,74 @@ Léelos antes de tocar su área: `01-PRD` (todo), `02-ARQUITECTURA` (código),
 
 | Capa | Elección | Notas |
 |---|---|---|
-| Framework | **Next.js 16** (App Router, TS estricto) | React 19.2, Node ≥20, Turbopack por defecto; Cache Components es opt-in (no asumir caching implícito de Next 14/15). Server Components por defecto; Client solo donde hay interacción. |
-| Hosting | **Vercel** | |
-| BD | **Postgres gestionado** (Neon o Supabase) | Solo Postgres; nada de features propietarias. |
+| Framework | **Next.js 16** (App Router, TS estricto) | React 19.2, Node ≥20, Turbopack por defecto. `middleware`→**`proxy.ts`**; `cookies()/headers()/params` son async. Server Components por defecto; Client solo con interacción. |
+| Hosting | **Vercel** | Proyecto `fuelboard` (cuenta kappys1). |
+| BD | **Postgres gestionado (Neon)** | Solo Postgres; nada propietario. |
 | ORM | **Drizzle** (`drizzle-kit`) | Migraciones versionadas en repo. |
-| Auth | **Auth.js (credentials) o iron-session** | Usuario único; password argon2 en env; cookie httpOnly; middleware protege todo salvo `/login` y `/api/health/ingest`. |
-| IA | **Vercel AI SDK (`ai`)** con adaptador de proveedor, SOLO en servidor | Capa agnóstica: hoy `@ai-sdk/anthropic`, mañana otro proveedor cambiando env vars (`AI_PROVIDER`, `AI_API_KEY`) sin tocar features. Requisitos del modelo: visión multimodal, JSON fiable y streaming (chat). API keys en env, nunca al cliente. |
-| Estado cliente | **TanStack Query** + estado local | Nada de Redux; la BD es la fuente de verdad. |
+| Auth | **iron-session** | Usuario único; password argon2 en env; cookie httpOnly; proxy protege todo salvo `/login`, `/api/auth/*` y `/api/health/ingest`. |
+| IA | **Vercel AI SDK (`ai`)**, SOLO en servidor | Agnóstica de proveedor por `AI_PROVIDER` (hoy `@ai-sdk/anthropic`). Keys en env, nunca al cliente. |
+| Estado cliente | **TanStack Query** + estado local | La BD es la fuente de verdad. |
 | Estilos | **Tailwind CSS 4 + CSS variables** (tokens de `05-DISENO`) | |
-| UI | **shadcn/ui** (Radix) tematizado con NUESTROS tokens | Componentes firma (FuelGauge, MealRow, PhotoAnalyzer) son custom. |
+| UI | **shadcn/ui** (Radix) tematizado con NUESTROS tokens | Componentes firma (FuelGauge, MealRow, PhotoAnalyzer) custom. **Bottom-sheets para TODO flujo de creación/edición**; páginas solo para las 4 pestañas (09 §6). |
 | Fotos | **Vercel Blob** | Acceso solo con sesión vía redirect firmado. |
 | Gráficos | **Recharts** | |
-| PWA | **Serwist** | Manifest + SW; cola offline con IndexedDB (`idb`). |
-| Validación | **Zod** en todos los boundaries | API routes, respuestas IA, ingest. |
-| Fechas | **date-fns + date-fns-tz** | "Día" = `Europe/Madrid`. PROHIBIDO `new Date().toISOString().slice(0,10)` para claves de día. |
-| Tests | **Vitest** (unidad: fórmulas, parsers) + **Playwright** (flujos críticos) | |
+| PWA | **Serwist** | Manifest + SW; cola offline (IndexedDB `idb`). |
+| Validación | **Zod** en todos los boundaries | |
+| Fechas | **date-fns + date-fns-tz** | "Día" = `Europe/Madrid` vía `lib/dates.ts`. PROHIBIDO `toISOString().slice(0,10)` para claves de día. |
+| Tests | **Vitest** (fórmulas, parsers, contraste) + **Playwright** (flujos críticos) | |
+
+## Navegación (09-FLUJOS-UX §2)
+
+**4 pestañas** (nav inferior): **Hoy · Plan · Progreso · Chat** + **Ajustes** (icono en el header).
+- **Progreso** fusiona *Tendencia | MED* (segmentos); "Preparar visita" vive en MED;
+  "Últimos días" al final de Tendencia.
+- **Ajustes**: tema, import CSV, estado del endpoint de Salud, export/restore, mapeo
+  sesión↔día. (Salud deja de ser pestaña.)
+- **Chat**: destino conversacional de "pregúntale a tus datos".
 
 ## Comandos
-
-> El repo aún no está scaffoldeado; estos son los scripts previstos y se fijan
-> definitivamente en Fase 0. **`pnpm typecheck && pnpm test` en verde antes de
-> cada commit.**
 
 ```bash
 pnpm dev              # servidor de desarrollo (Turbopack)
 pnpm build            # build de producción
 pnpm typecheck        # tsc --noEmit (TS estricto)
-pnpm test             # Vitest (unidad: analytics + parsers)
+pnpm test             # Vitest (analytics + parsers + contraste de tokens)
 pnpm test:e2e         # Playwright (flujos críticos)
 pnpm lint             # ESLint
+pnpm audit:contrast   # auditoría WCAG de los tokens (ambos temas)
 pnpm db:generate      # drizzle-kit: generar migración desde el schema
 pnpm db:migrate       # drizzle-kit: aplicar migraciones
-pnpm migrate:poc <archivo>   # importar fuelboard-export-*.json del PoC (idempotente)
+pnpm db:seed          # sembrar el plan Regenera (idempotente)
+pnpm hash-password '<pw>'     # hash argon2 para AUTH_PASSWORD_HASH
+pnpm migrate:poc <archivo>    # importar fuelboard-export-*.json del PoC (Fase 1)
 ```
 
 ## Convenciones del repo
 
-- **Prompts de IA congelados.** Los prompts de `04-IA.md` están probados en
-  producción; se usan **TAL CUAL** (solo interpolando variables). No "mejorarlos"
-  sin re-probar.
-- **`temperature: 0`** en toda llamada IA (excepción documentada: chat F-IA-8 usa
-  `0.3`). Misma entrada → misma salida.
-- **Toda llamada a la IA pasa por API routes propias** (`server/ai/`) vía el
-  Vercel AI SDK con el adaptador del proveedor configurado (`AI_PROVIDER`):
-  el servidor construye el prompt, valida la respuesta con Zod (1 reintento si el
-  JSON no parsea) y devuelve tipado. La API key nunca llega al cliente.
-- **Errores de IA siempre visibles** (mensaje del proveedor + HTTP status). Nunca
-  fallo silencioso.
-- **Analítica en `server/analytics/` como funciones puras y testeadas.** Ni una
-  fórmula en componentes. Igual para parsers de ingesta en `server/ingest/`.
-- **Fechas siempre en `Europe/Madrid`** vía utilidades de `lib/dates.ts`.
-- **Macros SIN decimales en UI** (guardar con 1 decimal está bien); los totales
-  cuadran con la suma visible (redondear al final, no por item).
+- **Estructura por momentos de uso (09 manda).** Bottom-sheets para crear/editar;
+  máximo una decisión por pantalla de sheet; defaults inteligentes en todo (comida
+  por hora, gramos = baseG, fecha = hoy). Nunca añadir otra tarjeta permanente a Hoy.
+- **Prompts de IA congelados.** Los de `04-IA.md` se usan **TAL CUAL** (solo interpolando
+  variables). No "mejorarlos" sin re-probar.
+- **`temperature: 0`** en toda llamada IA (excepción documentada: chat F-IA-8 usa `0.3`).
+- **Toda llamada a la IA pasa por API routes propias** (`server/ai/`) vía el Vercel AI
+  SDK: el servidor construye el prompt, valida con Zod (1 reintento si el JSON no parsea)
+  y devuelve tipado. La API key nunca llega al cliente.
+- **Errores de IA siempre visibles** (mensaje del proveedor + HTTP status). Nunca silencio.
+- **Analítica en `server/analytics/` como funciones puras y testeadas.** Ni una fórmula
+  en componentes. Igual para parsers de ingesta en `server/ingest/`.
+- **Fechas siempre en `Europe/Madrid`** vía `lib/dates.ts`.
+- **Macros SIN decimales en UI** (guardar con 1 decimal está bien); los totales cuadran
+  con la suma visible (redondear al final, no por item).
+- **Contraste AA obligatorio en ambos temas** (`pnpm audit:contrast`, gate en tests).
+- **Optimista + undo + autosave** (07): mutaciones instantáneas con TanStack Query;
+  borrar entrada = toast "Deshacer", no confirmación (excepto plan/plantilla/MED/restore).
 - **Migraciones de datos siempre versionadas.** Los datos son sagrados: 0 pérdidas.
-- **shadcn tematizado con los tokens de `05-DISENO`**: si una pantalla parece la
-  demo de shadcn, está mal tematizada.
+- **shadcn tematizado con los tokens de `05-DISENO`**: si una pantalla parece la demo de
+  shadcn, está mal tematizada.
 - **Commits pequeños.** `pnpm typecheck && pnpm test` en verde antes de cada commit.
-- **Ambigüedad:** fuente de verdad = el PRD; si el PRD calla, decide **lo más
-  simple** y anótalo en `docs/DECISIONS.md`.
+- **Ambigüedad:** fuente de verdad = 09 (estructura) / PRD (contenido); si callan,
+  decide **lo más simple** y anótalo en `docs/DECISIONS.md`.
 
 ## Principios de producto (NO negociables — copiados íntegros de `01-PRD.md` §3)
 
