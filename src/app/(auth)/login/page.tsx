@@ -70,7 +70,7 @@ export default function LoginPage() {
               inputMode="text"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="text-base"
+              className="h-11 bg-secondary text-base dark:bg-secondary"
               aria-invalid={error ? true : undefined}
             />
           </div>
@@ -78,7 +78,7 @@ export default function LoginPage() {
           {error && (
             <p
               role="alert"
-              className="mt-3 text-[13px] font-medium text-fat"
+              className="mt-3 text-[13px] font-medium text-destructive"
             >
               {error}
             </p>
@@ -87,7 +87,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={loading || password.length === 0}
-            className="mt-5 w-full"
+            className="mt-5 h-11 w-full text-[15px]"
           >
             {loading ? "Entrando…" : "Entrar"}
           </Button>

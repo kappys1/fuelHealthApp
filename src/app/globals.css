@@ -6,9 +6,10 @@
 
 /*
   Fuelboard design tokens — fuente de verdad: docs/specs/05-DISENO.md §2/§3.
-  Nada de grises neutros puros: todo con matiz verde-frío (mundo de box de
-  CrossFit). El color de macro es un lenguaje FIJO en toda la app:
-  azul = kcal/acciones, verde = proteína, ámbar = hidratos, naranja = grasa/alerta.
+  Contraste AA obligatorio en ambos temas (verificado con scripts/audit-contrast.mjs).
+  Lenguaje de macro FIJO: azul=kcal/acciones, verde=proteína, ámbar=hidratos,
+  naranja=grasa. Los colores de macro son RELLENOS (barras/chips/gráficos, ≥3:1);
+  el texto atenuado usa --muted-foreground (≥4.5:1), y los errores --destructive.
 */
 
 @theme inline {
@@ -28,6 +29,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -71,23 +73,26 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ── Tema claro «Morning session» ── */
+/* ── Tema claro «Morning session» (05-DISENO §2) ── */
 :root {
+  /* Paleta base del spec */
   --bg: #f2f4ef;
   --surface: #ffffff;
   --surface-2: #edefea;
   --ink: #181f1b;
-  --muted: #5d6862;
+  --muted-text: #5d6862; /* «--muted» del spec = color de TEXTO atenuado */
   --line: #d9ded5;
   --primary: #2247c9;
   --protein: #1b8a50;
-  --carb: #b8860b;
+  /* Ámbar «hidratos»: #B8860B del spec oscurecido a #B0800A para llegar a ≥3:1
+     también sobre --bg (WCAG 1.4.11); cambio visual mínimo, sigue ámbar. */
+  --carb: #b0800a;
   --fat: #e8590c;
   --phase: color-mix(in srgb, var(--primary) 12%, transparent);
 
   --radius: 0.75rem; /* 12px */
 
-  /* Mapeo semántico shadcn */
+  /* Mapeo semántico shadcn (sin colisiones) */
   --background: var(--bg);
   --foreground: var(--ink);
   --card: var(--surface);
@@ -97,10 +102,14 @@
   --primary-foreground: #ffffff;
   --secondary: var(--surface-2);
   --secondary-foreground: var(--ink);
-  --muted-foreground: var(--muted);
+  --muted: var(--surface-2); /* shadcn «muted» = FONDO tenue */
+  --muted-foreground: var(--muted-text); /* shadcn «muted-foreground» = texto atenuado */
   --accent: var(--surface-2);
   --accent-foreground: var(--ink);
-  --destructive: var(--fat);
+  /* Naranja de alerta legible como TEXTO (AA). El relleno de macro «grasa»
+     sigue siendo --fat (#E8590C); este es una variante más oscura para texto. */
+  --destructive: #b8480c;
+  --destructive-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
   --ring: var(--primary);
@@ -110,7 +119,7 @@
   --chart-2: var(--protein);
   --chart-3: var(--carb);
   --chart-4: var(--fat);
-  --chart-5: var(--muted);
+  --chart-5: var(--muted-text);
 
   /* Sidebar (no usado en v1, mapeado por coherencia) */
   --sidebar: var(--surface);
@@ -123,20 +132,13 @@
   --sidebar-ring: var(--primary);
 }
 
-/* Nota: shadcn usa --muted como FONDO tenue; nuestro --muted es color de
-   TEXTO. Reasignamos --muted a un fondo y conservamos --muted-foreground
-   como el gris-verde de texto. */
-:root {
-  --muted: var(--surface-2);
-}
-
-/* ── Tema oscuro «Night comp» ── (sin blancos puros: #E8EDE8 máximo) */
+/* ── Tema oscuro «Night comp» (05-DISENO §2) — sin blancos puros (#E8EDE8 máx) ── */
 .dark {
   --bg: #0f1613;
   --surface: #18221d;
   --surface-2: #1f2b25;
   --ink: #e8ede8;
-  --muted: #93a099;
+  --muted-text: #93a099;
   --line: #2c3830;
   --primary: #7b96ff;
   --protein: #4cc98a;
@@ -150,13 +152,15 @@
   --card-foreground: var(--ink);
   --popover: var(--surface);
   --popover-foreground: var(--ink);
-  --primary-foreground: #0f1613;
+  --primary-foreground: #0f1613; /* texto OSCURO sobre cobalto claro = par de máximo contraste */
   --secondary: var(--surface-2);
   --secondary-foreground: var(--ink);
-  --muted-foreground: var(--muted);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--muted-text);
   --accent: var(--surface-2);
   --accent-foreground: var(--ink);
-  --destructive: var(--fat);
+  --destructive: #f2894c; /* naranja claro sobre superficies oscuras: AA como texto */
+  --destructive-foreground: #0f1613;
   --border: var(--line);
   --input: var(--line);
   --ring: var(--primary);
@@ -165,7 +169,7 @@
   --chart-2: var(--protein);
   --chart-3: var(--carb);
   --chart-4: var(--fat);
-  --chart-5: var(--muted);
+  --chart-5: var(--muted-text);
 
   --sidebar: var(--surface);
   --sidebar-foreground: var(--ink);
@@ -175,8 +179,6 @@
   --sidebar-accent-foreground: var(--ink);
   --sidebar-border: var(--line);
   --sidebar-ring: var(--primary);
-
-  --muted: var(--surface-2);
 }
 
 @layer base {

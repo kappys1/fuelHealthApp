@@ -2,8 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Hay un lockfile en el directorio padre; fijamos la raíz a este proyecto
-  // para que el tracing de ficheros y Turbopack usen el root correcto.
-  turbopack: { root: import.meta.dirname },
+  // (los comandos de Next se ejecutan desde la raíz) para que el tracing de
+  // ficheros y Turbopack usen el root correcto.
+  turbopack: { root: process.cwd() },
   async headers() {
     return [
       {
