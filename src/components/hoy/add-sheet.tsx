@@ -340,24 +340,24 @@ function ScalableResult({
   const grams = g === "" ? 0 : Number(g.replace(",", "."));
   const scaled = scaledForStore(row, grams, row.baseG);
   return (
-    <div className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-surface-2">
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[14px]">{row.name}</div>
-        <div className="num text-[12px] text-muted-foreground">
-          {scaled.kcal} kcal · {displayMacro(scaled.prot)}P/{displayMacro(scaled.carb)}C/
-          {displayMacro(scaled.fat)}F
-        </div>
+    <div className="rounded-lg px-2 py-2 hover:bg-surface-2">
+      <div className="text-[14px]">{row.name}</div>
+      <div className="mt-1.5 flex items-center gap-2">
+        <Stepper value={g} onChange={setG} step={10} suffix="g" ariaLabel="Gramos" />
+        <button
+          type="button"
+          onClick={() =>
+            onAdd([{ meal, name: `${row.name} · ${grams} g`, ...scaled, source: "plan" }])
+          }
+          className="ml-auto shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          Añadir
+        </button>
       </div>
-      <Stepper value={g} onChange={setG} step={10} suffix="g" className="w-28" ariaLabel="Gramos" />
-      <button
-        type="button"
-        onClick={() =>
-          onAdd([{ meal, name: `${row.name} · ${grams} g`, ...scaled, source: "plan" }])
-        }
-        className="shrink-0 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-      >
-        Añadir
-      </button>
+      <div className="num mt-1.5 text-[12px] text-muted-foreground">
+        {scaled.kcal} kcal · {displayMacro(scaled.prot)}P/{displayMacro(scaled.carb)}C/
+        {displayMacro(scaled.fat)}F
+      </div>
     </div>
   );
 }
@@ -415,38 +415,38 @@ function PlanOptionRow({
   const fixed = option.baseG == null;
 
   return (
-    <div className="flex items-center gap-2 rounded-lg px-1 py-1.5">
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[14px]">{option.name}</div>
-        <div className="num text-[12px] text-muted-foreground">
-          {fixed ? option.kcal : scaled.kcal} kcal ·{" "}
-          {displayMacro(fixed ? option.prot : scaled.prot)}P/
-          {displayMacro(fixed ? option.carb : scaled.carb)}C/
-          {displayMacro(fixed ? option.fat : scaled.fat)}F
-        </div>
+    <div className="rounded-lg px-1 py-2">
+      <div className="text-[14px]">{option.name}</div>
+      <div className="mt-1.5 flex items-center gap-2">
+        {!fixed ? (
+          <Stepper value={g} onChange={setG} step={10} suffix="g" ariaLabel="Gramos" />
+        ) : null}
+        <button
+          type="button"
+          onClick={() =>
+            onAdd([
+              {
+                meal,
+                name: fixed ? option.name : `${option.name} · ${grams} g`,
+                kcal: fixed ? option.kcal : scaled.kcal,
+                prot: fixed ? option.prot : scaled.prot,
+                carb: fixed ? option.carb : scaled.carb,
+                fat: fixed ? option.fat : scaled.fat,
+                source: "plan",
+              },
+            ])
+          }
+          className="ml-auto shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+        >
+          Añadir
+        </button>
       </div>
-      {!fixed ? (
-        <Stepper value={g} onChange={setG} step={10} suffix="g" className="w-28" ariaLabel="Gramos" />
-      ) : null}
-      <button
-        type="button"
-        onClick={() =>
-          onAdd([
-            {
-              meal,
-              name: fixed ? option.name : `${option.name} · ${grams} g`,
-              kcal: fixed ? option.kcal : scaled.kcal,
-              prot: fixed ? option.prot : scaled.prot,
-              carb: fixed ? option.carb : scaled.carb,
-              fat: fixed ? option.fat : scaled.fat,
-              source: "plan",
-            },
-          ])
-        }
-        className="shrink-0 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-      >
-        Añadir
-      </button>
+      <div className="num mt-1.5 text-[12px] text-muted-foreground">
+        {fixed ? option.kcal : scaled.kcal} kcal ·{" "}
+        {displayMacro(fixed ? option.prot : scaled.prot)}P/
+        {displayMacro(fixed ? option.carb : scaled.carb)}C/
+        {displayMacro(fixed ? option.fat : scaled.fat)}F
+      </div>
     </div>
   );
 }

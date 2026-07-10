@@ -69,7 +69,6 @@ export function CheckinMatinal({
                   onChange={setWeight}
                   step={0.1}
                   suffix="kg"
-                  className="w-48"
                   ariaLabel="Peso"
                 />
               </div>
