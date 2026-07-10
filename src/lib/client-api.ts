@@ -1,4 +1,11 @@
 import type { MealKey } from "@/lib/macros";
+import type {
+  DayDumpResult,
+  EstimateResult,
+  PhotoResult,
+  PlanOptionAiResult,
+  WodResult,
+} from "@/server/ai/schemas";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { TodayPayload } from "@/server/db/queries/today";
 
@@ -130,5 +137,48 @@ export const api = {
     req<{ map: Record<string, string> }>("/api/settings/session-map", {
       method: "PATCH",
       body: JSON.stringify({ map }),
+    }),
+
+  // ── IA (Fase 2) — errores del proveedor + status propagados por req() ──
+  estimateText: (descripcion: string) =>
+    req<EstimateResult>("/api/ai/estimate", {
+      method: "POST",
+      body: JSON.stringify({ descripcion }),
+    }),
+
+  estimatePlanOption: (nombre: string, gramos?: number | null) =>
+    req<PlanOptionAiResult>("/api/ai/plan-option", {
+      method: "POST",
+      body: JSON.stringify({ nombre, gramos: gramos ?? null }),
+    }),
+
+  dayDump: (texto: string, date: string) =>
+    req<DayDumpResult>("/api/ai/day-dump", {
+      method: "POST",
+      body: JSON.stringify({ texto, date }),
+    }),
+
+  analyzePhoto: (input: {
+    imageBase64: string;
+    mediaType: string;
+    meal: MealKey;
+    note?: string | null;
+    date: string;
+  }) =>
+    req<PhotoResult>("/api/ai/photo", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  analyzeWod: (texto: string, date?: string) =>
+    req<WodResult>("/api/ai/wod", {
+      method: "POST",
+      body: JSON.stringify({ texto, date }),
+    }),
+
+  uploadPhoto: (imageBase64: string, mediaType: string) =>
+    req<{ url: string }>("/api/photos", {
+      method: "POST",
+      body: JSON.stringify({ imageBase64, mediaType }),
     }),
 };

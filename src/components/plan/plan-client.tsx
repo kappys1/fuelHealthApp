@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, Trash2, Wand2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -249,6 +249,35 @@ function OptionForm({
   const [carb, setCarb] = useState(String(option?.carb ?? ""));
   const [fat, setFat] = useState(String(option?.fat ?? ""));
   const [busy, setBusy] = useState(false);
+  const [estimating, setEstimating] = useState(false);
+
+  // F-IA-3 · estima macros y grupo del alimento. El grupo solo se autocompleta
+  // si el usuario lo dejó en el valor por defecto ("Opción única" = "vacío").
+  const estimate = async () => {
+    if (!name.trim()) {
+      toast.error("Escribe primero el nombre del alimento.");
+      return;
+    }
+    setEstimating(true);
+    try {
+      const r = await api.estimatePlanOption(
+        name.trim(),
+        baseG === "" ? null : Math.round(n(baseG)),
+      );
+      setKcal(String(Math.round(r.kcal)));
+      setProt(String(displayMacro(r.proteina_g)));
+      setCarb(String(displayMacro(r.carbohidratos_g)));
+      setFat(String(displayMacro(r.grasa_g)));
+      if (grp === "Opción única" && (GRP_ORDER as readonly string[]).includes(r.grupo)) {
+        setGrp(r.grupo as GrpKey);
+      }
+      toast("Estimado con IA. Revisa y guarda.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo estimar.");
+    } finally {
+      setEstimating(false);
+    }
+  };
 
   const submit = async () => {
     if (!name.trim()) {
@@ -287,6 +316,19 @@ function OptionForm({
         className="w-full rounded-lg border border-input bg-surface px-2.5 py-2 text-base outline-none focus-visible:border-ring"
         aria-label="Nombre"
       />
+      <button
+        type="button"
+        onClick={estimate}
+        disabled={estimating}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] disabled:opacity-60"
+      >
+        {estimating ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : (
+          <Sparkles className="size-4 text-primary" aria-hidden />
+        )}
+        Estimar macros y grupo con IA
+      </button>
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
           <span className="mb-1 block text-[12px] text-muted-foreground">Grupo</span>
