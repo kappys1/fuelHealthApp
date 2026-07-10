@@ -1,10 +1,28 @@
-import { SectionPlaceholder } from "@/components/section-placeholder";
+import { PlanClient } from "@/components/plan/plan-client";
+import { dayKey } from "@/lib/dates";
+import { getPlanContext } from "@/server/db/queries/plan";
 
-export default function PlanPage() {
+export const dynamic = "force-dynamic";
+
+export default async function PlanPage() {
+  const ctx = await getPlanContext(dayKey());
+
+  if (!ctx) {
+    return (
+      <div className="rounded-xl border border-dashed border-line bg-surface-2 p-6">
+        <p className="text-sm text-foreground">
+          No hay ninguna versión de dieta. Ejecuta el seed (`pnpm db:seed`) o la
+          migración del PoC.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <SectionPlaceholder title="Plan" phase="la Fase 1">
-      Objetivos editables, derivados del plan y CRUD de opciones del plan
-      Regenera.
-    </SectionPlaceholder>
+    <PlanClient
+      targets={ctx.targets}
+      derived={ctx.derived}
+      optionsByMeal={ctx.optionsByMeal}
+    />
   );
 }
