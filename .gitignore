@@ -53,3 +53,6 @@ pnpm-workspace.yaml
 /.playwright-mcp/
 /ajustes-dark.png
 /hoy-4tabs-dark.png
+
+# Export personal del PoC (datos de salud, artefacto de import)
+docs/fuelboard-export*.json
