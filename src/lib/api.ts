@@ -15,8 +15,23 @@ export function badRequest(message: string): Response {
 }
 
 export function serverError(err: unknown): Response {
-  const message = err instanceof Error ? err.message : "Error del servidor.";
-  return Response.json({ error: message }, { status: 500 });
+  return Response.json({ error: describeServerError(err) }, { status: 500 });
+}
+
+/** Mensaje visible que incluye la causa subyacente (Drizzle envuelve el error de
+ *  Neon en `.cause`; sin esto se ve solo "Failed query: select …"). */
+function describeServerError(err: unknown): string {
+  if (err instanceof Error) {
+    const cause = (err as { cause?: unknown }).cause;
+    const causeMsg =
+      cause instanceof Error
+        ? ` — ${cause.message}`
+        : typeof cause === "string"
+          ? ` — ${cause}`
+          : "";
+    return `${err.message}${causeMsg}`;
+  }
+  return "Error del servidor.";
 }
 
 /** Parsea y valida el body JSON contra un schema Zod. */

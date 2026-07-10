@@ -168,6 +168,7 @@ export function HoyClient({
         }}
         targetKcal={data.targets.kcal}
         currentKcal={roundKcal(totals.kcal)}
+        date={date}
         onAdd={t.addEntries}
       />
       <CheckinMatinal

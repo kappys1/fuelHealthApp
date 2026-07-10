@@ -1,7 +1,16 @@
 "use client";
 
-import { Camera, ChevronLeft, ClipboardList, PenLine, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+  Camera,
+  ChevronLeft,
+  ClipboardList,
+  Loader2,
+  PenLine,
+  RefreshCw,
+  Search,
+  Sparkles,
+} from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -17,16 +26,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Stepper } from "@/components/ui/stepper";
-import type { EntryInput } from "@/lib/client-api";
+import { api, type EntryInput } from "@/lib/client-api";
+import { processImage, type ProcessedImage } from "@/lib/image";
 import {
   displayMacro,
   type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
   GRP_ORDER,
+  roundKcal,
+  roundMacroStore,
+  scaleMacros,
   scaledForStore,
+  sumMacros,
 } from "@/lib/macros";
 import { cn } from "@/lib/utils";
+import type { PhotoResult } from "@/server/ai/schemas";
 import type { FavoriteDTO, RecentDTO } from "@/server/db/queries/lookups";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
 
@@ -34,6 +49,14 @@ interface Corpus {
   optionsByMeal: Record<string, PlanOptionDTO[]>;
   favorites: FavoriteDTO[];
   recents: RecentDTO[];
+}
+
+type Layer = "home" | "plan" | "photo" | "describe";
+
+/** Normaliza la comida devuelta por la IA a un MealKey válido (fallback extra). */
+function normalizeMeal(raw: string): MealKey {
+  const m = raw.toLowerCase().trim();
+  return (MEAL_ORDER as readonly string[]).includes(m) ? (m as MealKey) : "extra";
 }
 
 export function AddSheet({
@@ -44,6 +67,7 @@ export function AddSheet({
   corpus,
   targetKcal,
   currentKcal,
+  date,
   onAdd,
 }: {
   open: boolean;
@@ -53,9 +77,10 @@ export function AddSheet({
   corpus: Corpus;
   targetKcal: number;
   currentKcal: number;
+  date: string;
   onAdd: (entries: EntryInput[]) => void;
 }) {
-  const [layer, setLayer] = useState<"home" | "plan">("home");
+  const [layer, setLayer] = useState<Layer>("home");
   const [search, setSearch] = useState("");
   const [justAdded, setJustAdded] = useState<{ delta: number; total: number } | null>(
     null,
@@ -70,16 +95,7 @@ export function AddSheet({
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return [];
-    const hits: {
-      key: string;
-      name: string;
-      kcal: number;
-      prot: number;
-      carb: number;
-      fat: number;
-      source: string;
-      baseG: number | null;
-    }[] = [];
+    const hits: ResultRow[] = [];
     for (const f of corpus.favorites)
       if (f.name.toLowerCase().includes(q))
         hits.push({ key: `f${f.id}`, ...f, source: "fav", baseG: null });
@@ -108,18 +124,27 @@ export function AddSheet({
     onOpenChange(v);
   };
 
+  const back = () => setLayer("home");
+
+  const headerLabel: Record<Layer, string> = {
+    home: "Añadir",
+    plan: "Del plan",
+    photo: "Foto",
+    describe: "Describir",
+  };
+
   return (
     <Sheet open={open} onOpenChange={handleOpen}>
-      <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-y-auto">
+      <SheetContent side="bottom" className="max-h-[90dvh] gap-0 overflow-y-auto">
         <SheetHeader className="pb-2">
           <SheetTitle className="card-title text-muted-foreground">
-            {layer === "plan" ? (
+            {layer !== "home" ? (
               <button
                 type="button"
-                onClick={() => setLayer("home")}
+                onClick={back}
                 className="inline-flex items-center gap-1 text-foreground"
               >
-                <ChevronLeft className="size-4" aria-hidden /> Del plan
+                <ChevronLeft className="size-4" aria-hidden /> {headerLabel[layer]}
               </button>
             ) : (
               "Añadir"
@@ -166,7 +191,7 @@ export function AddSheet({
             setSearch={setSearch}
             results={results}
             favorites={corpus.favorites}
-            onGoPlan={() => setLayer("plan")}
+            onGoLayer={setLayer}
             onAddResult={(r) => {
               if (r.baseG != null) return; // se maneja con stepper inline abajo
               commit([
@@ -183,12 +208,16 @@ export function AddSheet({
             }}
             onAddScaled={commit}
           />
-        ) : (
+        ) : layer === "plan" ? (
           <PlanLayer
             meal={meal}
             options={corpus.optionsByMeal[meal] ?? []}
             onAdd={commit}
           />
+        ) : layer === "photo" ? (
+          <PhotoLayer meal={meal} date={date} onCommit={commit} />
+        ) : (
+          <DescribeLayer date={date} onCommit={commit} />
         )}
       </SheetContent>
     </Sheet>
@@ -212,7 +241,7 @@ function HomeLayer({
   setSearch,
   results,
   favorites,
-  onGoPlan,
+  onGoLayer,
   onAddResult,
   onAddScaled,
 }: {
@@ -221,7 +250,7 @@ function HomeLayer({
   setSearch: (v: string) => void;
   results: ResultRow[];
   favorites: FavoriteDTO[];
-  onGoPlan: () => void;
+  onGoLayer: (l: Layer) => void;
   onAddResult: (r: ResultRow) => void;
   onAddScaled: (e: EntryInput[]) => void;
 }) {
@@ -244,9 +273,7 @@ function HomeLayer({
       {search.trim() ? (
         <div className="space-y-1">
           {results.length === 0 ? (
-            <p className="px-1 py-2 text-[13px] text-muted-foreground">
-              Sin coincidencias locales. La estimación con IA llega en la Fase 2.
-            </p>
+            <EstimateFallback meal={meal} text={search.trim()} onAdd={onAddScaled} />
           ) : (
             results.map((r) =>
               r.baseG != null ? (
@@ -301,28 +328,116 @@ function HomeLayer({
         </div>
       ) : null}
 
-      {/* Tres accesos grandes: Foto (F2) · Del plan · Describir (F2) */}
+      {/* Tres accesos grandes: Foto · Del plan · Describir (IA) */}
       <div className="grid grid-cols-3 gap-2">
         <BigAccess
           icon={<Camera className="size-5" aria-hidden />}
           label="Foto"
-          badge="Fase 2"
-          disabled
-          onClick={() => toast("El análisis por foto llega en la Fase 2.")}
+          onClick={() => onGoLayer("photo")}
         />
         <BigAccess
           icon={<ClipboardList className="size-5" aria-hidden />}
           label="Del plan"
-          onClick={onGoPlan}
+          onClick={() => onGoLayer("plan")}
         />
         <BigAccess
           icon={<PenLine className="size-5" aria-hidden />}
           label="Describir"
-          badge="Fase 2"
-          disabled
-          onClick={() => toast("La descripción con IA llega en la Fase 2.")}
+          onClick={() => onGoLayer("describe")}
         />
       </div>
+    </div>
+  );
+}
+
+/** Fallback de la búsqueda universal sin match local → F-IA-2 (09 §4). */
+function EstimateFallback({
+  meal,
+  text,
+  onAdd,
+}: {
+  meal: MealKey;
+  text: string;
+  onAdd: (e: EntryInput[]) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [est, setEst] = useState<{ kcal: string; prot: string; carb: string; fat: string } | null>(
+    null,
+  );
+
+  const estimate = async () => {
+    setBusy(true);
+    try {
+      const r = await api.estimateText(text);
+      setEst({
+        kcal: String(roundKcal(r.kcal)),
+        prot: String(displayMacro(r.proteina_g)),
+        carb: String(displayMacro(r.carbohidratos_g)),
+        fat: String(displayMacro(r.grasa_g)),
+      });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo estimar.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const num = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
+
+  if (est) {
+    return (
+      <div className="rounded-lg border border-line bg-surface-2/50 p-3">
+        <div className="text-[14px]">{text}</div>
+        <div className="mt-2 grid grid-cols-4 gap-2">
+          <MiniField label="kcal" value={est.kcal} onChange={(v) => setEst({ ...est, kcal: v })} />
+          <MiniField label="Prot" value={est.prot} onChange={(v) => setEst({ ...est, prot: v })} />
+          <MiniField label="Hidr" value={est.carb} onChange={(v) => setEst({ ...est, carb: v })} />
+          <MiniField label="Grasa" value={est.fat} onChange={(v) => setEst({ ...est, fat: v })} />
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            onAdd([
+              {
+                meal,
+                name: text,
+                kcal: Math.round(num(est.kcal)),
+                prot: num(est.prot),
+                carb: num(est.carb),
+                fat: num(est.fat),
+                source: "ia",
+              },
+            ])
+          }
+          className="mt-3 w-full rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground"
+        >
+          Añadir
+        </button>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          Estimación de IA. Revisa y corrige antes de añadir.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 py-2">
+      <p className="px-1 text-[13px] text-muted-foreground">
+        Sin coincidencias locales.
+      </p>
+      <button
+        type="button"
+        onClick={estimate}
+        disabled={busy}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface-2 py-2.5 text-[14px] font-medium disabled:opacity-60"
+      >
+        {busy ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : (
+          <Sparkles className="size-4 text-primary" aria-hidden />
+        )}
+        Estimar «{text}» con IA
+      </button>
     </div>
   );
 }
@@ -451,35 +566,421 @@ function PlanOptionRow({
   );
 }
 
+// ── Capa Foto (F-IA-1) ──
+
+interface PhotoItemState {
+  nombre: string;
+  base: { gramos: number; kcal: number; prot: number; carb: number; fat: number };
+  grams: string; // string controlado: no se desmonta al vaciarlo
+}
+
+function PhotoLayer({
+  meal,
+  date,
+  onCommit,
+}: {
+  meal: MealKey;
+  date: string;
+  onCommit: (e: EntryInput[]) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [image, setImage] = useState<ProcessedImage | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [result, setResult] = useState<PhotoResult | null>(null);
+  const [items, setItems] = useState<PhotoItemState[]>([]);
+  const [adding, setAdding] = useState(false);
+
+  const pickFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const processed = await processImage(file);
+      setImage(processed);
+      setPreview(`data:${processed.mediaType};base64,${processed.base64}`);
+      setResult(null);
+      setItems([]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo cargar la foto.");
+    }
+  };
+
+  const analyze = async () => {
+    if (!image) return;
+    setAnalyzing(true);
+    try {
+      const r = await api.analyzePhoto({
+        imageBase64: image.base64,
+        mediaType: image.mediaType,
+        meal,
+        note: note.trim() || null,
+        date,
+      });
+      setResult(r);
+      setItems(
+        r.items.map((it) => ({
+          nombre: it.nombre,
+          base: {
+            gramos: it.gramos,
+            kcal: it.kcal,
+            prot: it.proteina_g,
+            carb: it.carbohidratos_g,
+            fat: it.grasa_g,
+          },
+          grams: String(it.gramos),
+        })),
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo analizar la foto.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // Recálculo proporcional en vivo (factor = g/baseG), SIN llamar a la IA.
+  const rows = items.map((it) => {
+    const grams = it.grams === "" ? 0 : Number(it.grams.replace(",", "."));
+    return {
+      it,
+      grams,
+      macros: scaleMacros(it.base, grams, it.base.gramos || null),
+    };
+  });
+  const total = sumMacros(rows.map((r) => r.macros));
+
+  const entryFromRow = (r: (typeof rows)[number], photoUrl: string | null): EntryInput => ({
+    meal,
+    name: r.grams > 0 ? `${r.it.nombre} · ${r.grams} g` : r.it.nombre,
+    kcal: roundKcal(r.macros.kcal),
+    prot: roundMacroStore(r.macros.prot),
+    carb: roundMacroStore(r.macros.carb),
+    fat: roundMacroStore(r.macros.fat),
+    source: "foto",
+    photoUrl,
+  });
+
+  const reset = () => {
+    setImage(null);
+    setPreview(null);
+    setNote("");
+    setResult(null);
+    setItems([]);
+  };
+
+  const add = async (mode: "separado" | "junto") => {
+    if (!image || rows.length === 0) return;
+    setAdding(true);
+    // Blob SOLO al añadir (02 §3.2): si se descarta el análisis, no se sube nada.
+    // La foto es SECUNDARIA: si la subida falla (p. ej. Blob sin configurar), se
+    // registra igualmente la comida sin miniatura (principios 3 y 7).
+    let url: string | null = null;
+    try {
+      url = (await api.uploadPhoto(image.base64, image.mediaType)).url;
+    } catch {
+      toast.warning("No se pudo guardar la miniatura; añado la comida sin foto.");
+    }
+    const entries: EntryInput[] =
+      mode === "separado"
+        ? rows.map((r) => entryFromRow(r, url))
+        : [
+            {
+              meal,
+              name: rows.map((r) => r.it.nombre).join(" + "),
+              kcal: roundKcal(total.kcal),
+              prot: roundMacroStore(total.prot),
+              carb: roundMacroStore(total.carb),
+              fat: roundMacroStore(total.fat),
+              source: "foto",
+              photoUrl: url,
+            },
+          ];
+    onCommit(entries);
+    reset();
+    setAdding(false);
+  };
+
+  return (
+    <div className="space-y-4 px-4 py-3">
+      {/* Cámara / galería: label nativo envolviendo input capture (05 §PhotoAnalyzer) */}
+      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-surface-2 py-6 text-[14px] text-muted-foreground">
+        <Camera className="size-5 text-primary" aria-hidden />
+        {image ? "Cambiar foto" : "Hacer o elegir foto"}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => pickFile(e.target.files?.[0])}
+        />
+      </label>
+
+      {preview ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={preview} alt="Foto de la comida" className="max-h-52 w-full rounded-lg object-cover" />
+      ) : null}
+
+      {image ? (
+        <label className="block">
+          <span className="mb-1 block text-[12px] text-muted-foreground">
+            Aclaraciones (prevalecen sobre la foto)
+          </span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder="p. ej. «el pan es integral», «es jamón serrano»"
+            className="w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+          />
+        </label>
+      ) : null}
+
+      {image ? (
+        <button
+          type="button"
+          onClick={analyze}
+          disabled={analyzing}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground disabled:opacity-60"
+        >
+          {analyzing ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : result ? (
+            <RefreshCw className="size-4" aria-hidden />
+          ) : (
+            <Sparkles className="size-4" aria-hidden />
+          )}
+          {analyzing
+            ? "Analizando…"
+            : result
+              ? "Reanalizar la foto con las aclaraciones"
+              : "Analizar foto"}
+        </button>
+      ) : null}
+
+      {result ? (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            {rows.map((row, i) => (
+              <PhotoItemRow
+                key={i}
+                item={row.it}
+                scaled={row.macros}
+                onGrams={(v) =>
+                  setItems((prev) =>
+                    prev.map((p, j) => (j === i ? { ...p, grams: v } : p)),
+                  )
+                }
+              />
+            ))}
+          </div>
+
+          {/* Total + veredicto */}
+          <div
+            className={cn(
+              "rounded-lg px-3 py-2",
+              result.encaja_plan ? "bg-protein/10" : "bg-fat/10",
+            )}
+          >
+            <div className="num text-[14px] font-semibold text-foreground">
+              Total: {roundKcal(total.kcal)} kcal · {displayMacro(total.prot)}P/
+              {displayMacro(total.carb)}C/{displayMacro(total.fat)}F
+            </div>
+            <div className="mt-0.5 text-[13px]">
+              <span className={result.encaja_plan ? "text-protein" : "text-fat"}>
+                {result.encaja_plan ? "✓ encaja" : "✗ fuera de plan"}
+              </span>{" "}
+              <span className="text-muted-foreground">— {result.comentario}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => add("separado")}
+              disabled={adding}
+              className="rounded-lg border border-line bg-surface-2 py-2.5 text-[14px] font-medium disabled:opacity-60"
+            >
+              Añadir por separado
+            </button>
+            <button
+              type="button"
+              onClick={() => add("junto")}
+              disabled={adding}
+              className="rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground disabled:opacity-60"
+            >
+              {adding ? "Añadiendo…" : "Añadir como una"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PhotoItemRow({
+  item,
+  scaled,
+  onGrams,
+}: {
+  item: PhotoItemState;
+  scaled: { kcal: number; prot: number; carb: number; fat: number };
+  onGrams: (v: string) => void;
+}) {
+  const hasGrams = item.base.gramos > 0;
+  return (
+    <div className="rounded-lg border border-line px-2.5 py-2">
+      <div className="text-[14px]">{item.nombre}</div>
+      <div className="mt-1.5 flex items-center gap-2">
+        {hasGrams ? (
+          <Stepper value={item.grams} onChange={onGrams} step={10} suffix="g" ariaLabel="Gramos" />
+        ) : null}
+        <span className="num ml-auto text-[12px] text-muted-foreground">
+          {roundKcal(scaled.kcal)} kcal · {displayMacro(scaled.prot)}P/
+          {displayMacro(scaled.carb)}C/{displayMacro(scaled.fat)}F
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ── Capa Describir (F-IA-4: una comida o el día entero) ──
+
+function DescribeLayer({
+  date,
+  onCommit,
+}: {
+  date: string;
+  onCommit: (e: EntryInput[]) => void;
+}) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [items, setItems] = useState<
+    { meal: MealKey; name: string; kcal: number; prot: number; carb: number; fat: number }[]
+  >([]);
+
+  const analyze = async () => {
+    if (!text.trim()) return;
+    setBusy(true);
+    try {
+      const r = await api.dayDump(text.trim(), date);
+      setItems(
+        r.items.map((it) => ({
+          meal: normalizeMeal(it.comida),
+          name: it.nombre,
+          kcal: roundKcal(it.kcal),
+          prot: roundMacroStore(it.proteina_g),
+          carb: roundMacroStore(it.carbohidratos_g),
+          fat: roundMacroStore(it.grasa_g),
+        })),
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo interpretar.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const totalKcal = items.reduce((a, it) => a + it.kcal, 0);
+
+  return (
+    <div className="space-y-3 px-4 py-3">
+      <label className="block">
+        <span className="mb-1 block text-[12px] text-muted-foreground">
+          Describe una comida o el día entero
+        </span>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={4}
+          placeholder="p. ej. «tortilla de 2 huevos con pan, un café con leche y un plátano»"
+          className="w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+        />
+      </label>
+      <button
+        type="button"
+        onClick={analyze}
+        disabled={busy || !text.trim()}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground disabled:opacity-60"
+      >
+        {busy ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : (
+          <Sparkles className="size-4" aria-hidden />
+        )}
+        {busy ? "Interpretando…" : "Interpretar con IA"}
+      </button>
+
+      {items.length > 0 ? (
+        <div className="space-y-2">
+          {items.map((it, i) => (
+            <div key={i} className="rounded-lg border border-line px-2.5 py-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="min-w-0 flex-1 truncate text-[14px]">{it.name}</span>
+                <span className="num shrink-0 text-[12px] text-muted-foreground">
+                  {it.kcal} kcal
+                </span>
+              </div>
+              <div className="num text-[12px] text-muted-foreground">
+                {MEAL_LABELS[it.meal]} · {displayMacro(it.prot)}P/{displayMacro(it.carb)}C/
+                {displayMacro(it.fat)}F
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onCommit(items.map((it) => ({ ...it, source: "ia" })))
+            }
+            className="w-full rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground"
+          >
+            Añadir todo ({totalKcal.toLocaleString("es-ES")} kcal)
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MiniField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] text-muted-foreground">{label}</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode="decimal"
+        className="num h-9 w-full rounded-lg border border-input bg-surface px-2 text-[14px] outline-none focus-visible:border-ring"
+        aria-label={label}
+      />
+    </label>
+  );
+}
+
 function BigAccess({
   icon,
   label,
-  badge,
-  disabled,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
-  badge?: string;
-  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "relative flex h-20 flex-col items-center justify-center gap-1 rounded-xl border border-line bg-surface-2 text-[13px]",
-        disabled && "opacity-60",
-      )}
+      className="relative flex h-20 flex-col items-center justify-center gap-1 rounded-xl border border-line bg-surface-2 text-[13px]"
     >
       <span className="text-primary">{icon}</span>
       <span>{label}</span>
-      {badge ? (
-        <span className="absolute top-1 right-1 rounded-full bg-line px-1.5 py-0.5 text-[10px] text-muted-foreground">
-          {badge}
-        </span>
-      ) : null}
     </button>
   );
 }

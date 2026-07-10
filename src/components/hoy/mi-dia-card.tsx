@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -10,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Stepper } from "@/components/ui/stepper";
+import { api } from "@/lib/client-api";
 import {
   BLOAT_LABELS,
   type BloatKey,
@@ -160,6 +162,7 @@ export function MiDiaCard({
                   ) : null}
                 </SelectContent>
               </Select>
+              <WodAnalyzer date={view.date} onPatch={onPatch} />
             </label>
 
             <label className="block">
@@ -244,3 +247,105 @@ export function MiDiaCard({
 }
 
 const displayHrv = (n: number) => Math.round(n);
+
+/** F-IA-5 · Analizar sesión pegada (WOD). El gasto es CONTEXTO (±25%), no la
+ *  verdad — la verdad del gasto es el peso (principio 1). */
+function WodAnalyzer({
+  date,
+  onPatch,
+}: {
+  date: string;
+  onPatch: (patch: DayPatch) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{
+    nombre: string;
+    duracion_min: number;
+    kcal_min: number;
+    kcal_max: number;
+    comentario: string;
+  } | null>(null);
+
+  const analyze = async () => {
+    if (!text.trim()) return;
+    setBusy(true);
+    try {
+      const r = await api.analyzeWod(text.trim(), date);
+      setResult(r);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo analizar el WOD.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const use = () => {
+    if (!result) return;
+    const kcal = Math.round((result.kcal_min + result.kcal_max) / 2);
+    onPatch({ sessionLabel: result.nombre, sessionKcal: kcal });
+    toast.success(`Sesión: ${result.nombre} · ~${kcal} kcal (contexto)`);
+    setOpen(false);
+    setText("");
+    setResult(null);
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-1.5 inline-flex items-center gap-1.5 text-[12px] text-primary"
+      >
+        <Sparkles className="size-3.5" aria-hidden /> Analizar WOD pegado
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-2 space-y-2 rounded-lg border border-line bg-surface-2/50 p-2.5">
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={3}
+        placeholder="Pega aquí el WOD / la sesión (fuerza, metcon, accesorios)…"
+        className="w-full rounded-lg border border-input bg-surface px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+      />
+      <button
+        type="button"
+        onClick={analyze}
+        disabled={busy || !text.trim()}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2 text-[13px] font-medium text-primary-foreground disabled:opacity-60"
+      >
+        {busy ? (
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : (
+          <Sparkles className="size-4" aria-hidden />
+        )}
+        {busy ? "Analizando…" : "Analizar"}
+      </button>
+
+      {result ? (
+        <div className="rounded-lg bg-surface px-2.5 py-2">
+          <div className="text-[13px] font-medium text-foreground">{result.nombre}</div>
+          <div className="num text-[12px] text-muted-foreground">
+            {Math.round(result.duracion_min)} min · {Math.round(result.kcal_min)}–
+            {Math.round(result.kcal_max)} kcal
+          </div>
+          <p className="mt-1 text-[12px] text-muted-foreground">{result.comentario}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Es contexto (±25%), no la verdad: el gasto real sale del peso.
+          </p>
+          <button
+            type="button"
+            onClick={use}
+            className="mt-2 w-full rounded-lg border border-line bg-surface-2 py-2 text-[13px] font-medium"
+          >
+            Usar como sesión de hoy
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}

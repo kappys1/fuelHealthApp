@@ -23,7 +23,9 @@ export const newEntryZ = z.object({
   carb: z.number().min(0).max(2000),
   fat: z.number().min(0).max(2000),
   source: sourceZ,
-  photoUrl: z.string().url().nullable().optional(),
+  // Ruta autenticada propia (/api/photos/view?p=…), no una URL absoluta pública:
+  // la store de fotos es privada y se sirve con sesión (02 §3.2).
+  photoUrl: z.string().min(1).max(600).nullable().optional(),
 });
 
 export const optionZ = z.object({
