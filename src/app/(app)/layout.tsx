@@ -5,6 +5,11 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Toaster } from "@/components/ui/sonner";
 import { getSession } from "@/lib/session";
 
+// La función corría por defecto en iad1 (Washington) → cada query a Neon
+// (eu-central-1, Frankfurt) cruzaba el Atlántico. La fijamos en fra1 para
+// co-localizarla con la BD. Medido: /hoy ~0,45 s (iad1) → ver DECISIONS.
+export const preferredRegion = "fra1";
+
 export default async function AppLayout({
   children,
 }: {
