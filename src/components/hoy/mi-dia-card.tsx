@@ -131,7 +131,6 @@ export function MiDiaCard({
               }
               step={0.1}
               suffix="%"
-              className="w-40"
               ariaLabel="Porcentaje de grasa"
             />
           </label>
