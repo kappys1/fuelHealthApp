@@ -5,6 +5,11 @@ const nextConfig: NextConfig = {
   // (los comandos de Next se ejecutan desde la raíz) para que el tracing de
   // ficheros y Turbopack usen el root correcto.
   turbopack: { root: process.cwd() },
+  // Dev: permitir que el móvil (misma wifi) cargue los recursos del dev server
+  // por la IP de red. Sin esto, Next 16 bloquea las peticiones cross-origin de
+  // dev y la página NO hidrata en el móvil (se ve pero los botones no responden).
+  // Solo afecta a `next dev`; en producción (Vercel) es irrelevante.
+  allowedDevOrigins: ["192.168.0.27"],
   async headers() {
     return [
       {
