@@ -38,7 +38,9 @@ export async function POST(request: Request) {
       task: "estimate",
       prompt: dayDumpPrompt(parsed.data.texto, kcal, prot),
       schema: dayDumpZ,
-      maxOutputTokens: 1500,
+      // Un volcado del día entero puede trocearse en muchos items; con el thinking
+      // de Gemini saliendo de este presupuesto, damos margen para no truncar el JSON.
+      maxOutputTokens: 2500,
     });
     return Response.json(result);
   } catch (err) {

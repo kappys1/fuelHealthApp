@@ -55,7 +55,11 @@ export async function POST(request: Request) {
       }),
       images: [image],
       schema: photoResultZ,
-      maxOutputTokens: 1500,
+      // En Gemini 3 los tokens de "thinking" salen de maxOutputTokens; con visión
+      // en thinkingLevel:"medium" (04-IA/DECISIONS #48), 1500 se agotaban pensando
+      // y el JSON quedaba vacío/truncado ("Output not generated"). 4096 da margen
+      // para el razonamiento + el desglose de la foto (≥3 items).
+      maxOutputTokens: 4096,
     });
     return Response.json(result);
   } catch (err) {
