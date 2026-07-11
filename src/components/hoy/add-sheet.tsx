@@ -701,7 +701,10 @@ function PhotoLayer({
 
   return (
     <div className="space-y-4 px-4 py-3">
-      {/* Cámara / galería: label nativo envolviendo input capture (05 §PhotoAnalyzer) */}
+      {/* Cámara / galería: label nativo envolviendo el input (05 §PhotoAnalyzer).
+          SIN `capture`: en móvil, `capture` FUERZA la cámara y oculta la galería;
+          sin él, iOS/Android ofrecen el selector nativo (Cámara · Fototeca ·
+          Archivos), que es lo que piden 09 §4 y F2.8 («cámara/galería»). */}
       <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-surface-2 py-6 text-[14px] text-muted-foreground">
         <Camera className="size-5 text-primary" aria-hidden />
         {image ? "Cambiar foto" : "Hacer o elegir foto"}
@@ -709,7 +712,6 @@ function PhotoLayer({
           ref={fileRef}
           type="file"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={(e) => pickFile(e.target.files?.[0])}
         />
