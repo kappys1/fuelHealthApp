@@ -1,10 +1,23 @@
 import { redirect } from "next/navigation";
+import { DataBackup } from "@/components/ajustes/data-backup";
+import { HealthImport } from "@/components/ajustes/health-import";
 import { SessionMapEditor } from "@/components/ajustes/session-map-editor";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getSession } from "@/lib/session";
+import { getHealthSyncView, type HealthSyncView } from "@/server/db/queries/health";
 import { getSessionByWeekday } from "@/server/db/queries/lookups";
 
 export const dynamic = "force-dynamic";
+
+function SyncStatus({ view }: { view: HealthSyncView }) {
+  const label = view.source === "endpoint" ? "endpoint" : "CSV";
+  return (
+    <p className={`text-sm ${view.stale ? "text-destructive" : "text-foreground"}`}>
+      Última sincronización: {view.ago} · {label} {view.stale ? "⚠" : "✓"}
+      {view.stale ? " — revisa la Automation de HAE" : ""}
+    </p>
+  );
+}
 
 // Cerrar sesión (Server Action).
 async function logout() {
@@ -30,7 +43,10 @@ function Row({
 }
 
 export default async function AjustesPage() {
-  const sessionMap = await getSessionByWeekday();
+  const [sessionMap, sync] = await Promise.all([
+    getSessionByWeekday(),
+    getHealthSyncView(),
+  ]);
 
   return (
     <section className="space-y-4">
@@ -45,18 +61,35 @@ export default async function AjustesPage() {
         </div>
       </Row>
 
-      <Row title="Datos">
-        <p className="text-sm text-foreground">
-          Importar CSV de Apple Health, exportar y restaurar copia.
-        </p>
-        <p className="mt-2 text-[12px] text-muted-foreground">Llega en la Fase 3.</p>
+      <Row title="Sincronización de Salud">
+        {sync ? (
+          <SyncStatus view={sync} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Sin sincronizaciones todavía. Configura una Automation de Health Auto
+            Export que haga POST a{" "}
+            <code className="rounded bg-surface-2 px-1 text-[12px]">
+              /api/health/ingest
+            </code>{" "}
+            con el token <code className="text-[12px]">HEALTH_INGEST_TOKEN</code>.
+          </p>
+        )}
       </Row>
 
-      <Row title="Sincronización de Salud">
-        <p className="text-sm text-foreground">
-          Estado del endpoint de Health Auto Export («última sync hace X»).
+      <Row title="Importar CSV de Apple Health">
+        <p className="mb-3 text-sm text-foreground">
+          Respaldo del endpoint: sube el CSV de Health Auto Export. Verás una vista
+          previa antes de aplicar.
         </p>
-        <p className="mt-2 text-[12px] text-muted-foreground">Llega en la Fase 3.</p>
+        <HealthImport />
+      </Row>
+
+      <Row title="Copia de seguridad">
+        <p className="mb-3 text-sm text-foreground">
+          Export completo en un clic; restaurar reemplaza todos los datos (con
+          confirmación).
+        </p>
+        <DataBackup />
       </Row>
 
       <Row title="Sesión por día de la semana">
