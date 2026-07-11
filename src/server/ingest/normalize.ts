@@ -110,8 +110,8 @@ export const headerIsKj = (headerNorm: string): boolean =>
 export const headerIsMl = (headerNorm: string): boolean =>
   headerNorm.includes("(ml)") || headerNorm.includes("ml)");
 
-/** Convierte un valor bruto de un campo a la unidad canónica (kcal, L, entero…). */
-export function canonicalize(
+/** Solo conversión de unidad (kJ→kcal, mL→L), SIN redondear. */
+export function convertUnits(
   field: HealthField,
   value: number,
   opts: { isKj?: boolean; isMl?: boolean },
@@ -123,8 +123,31 @@ export function canonicalize(
   if (field === "waterL" && opts.isMl) {
     v = v / 1000;
   }
+  return v;
+}
+
+/** Convierte un valor bruto de un campo a la unidad canónica (kcal, L, entero…). */
+export function canonicalize(
+  field: HealthField,
+  value: number,
+  opts: { isKj?: boolean; isMl?: boolean },
+): number {
+  const v = convertUnits(field, value, opts);
   return INTEGER_FIELDS.has(field) ? Math.round(v) : v;
 }
+
+/**
+ * Métricas ACUMULATIVAS: si una fuente manda varias muestras del mismo día se
+ * SUMAN (pasos, energía, agua, sueño = totales del día). El resto son
+ * instantáneas y se PROMEDIAN (HRV, FC reposo, VO2, peso, % grasa).
+ */
+export const CUMULATIVE_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>([
+  "steps",
+  "activeKcal",
+  "basalKcal",
+  "waterL",
+  "sleepH",
+]);
 
 /** Extrae 'YYYY-MM-DD' del inicio de un valor de fecha (o null si no lo hay). */
 export function extractDayKey(raw: string): string | null {
