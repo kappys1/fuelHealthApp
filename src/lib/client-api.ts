@@ -181,4 +181,36 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ imageBase64, mediaType }),
     }),
+
+  // ── Salud / datos (Fase 3) ──
+  importHealthCsv: (csv: string, apply: boolean) =>
+    req<HealthImportResult>("/api/health/import", {
+      method: "POST",
+      body: JSON.stringify({ csv, apply }),
+    }),
+
+  restore: (data: unknown, apply: boolean) =>
+    req<RestoreResult>("/api/import", {
+      method: "POST",
+      body: JSON.stringify({ data, apply }),
+    }),
 };
+
+export interface HealthImportResult {
+  preview: boolean;
+  rows: number;
+  days: number;
+  metrics: number;
+  fields: string[];
+  hadKj: boolean;
+  hadMl: boolean;
+  overwriteManual: number;
+  imported?: number;
+}
+
+export interface RestoreResult {
+  preview: boolean;
+  incoming?: Record<string, number>;
+  current?: Record<string, number>;
+  restored?: Record<string, number>;
+}
