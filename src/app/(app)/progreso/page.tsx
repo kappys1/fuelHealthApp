@@ -1,11 +1,13 @@
-import { SectionPlaceholder } from "@/components/section-placeholder";
+import { ProgresoClient } from "@/components/progreso/progreso-client";
+import { getTrendData } from "@/server/db/queries/trend";
 
-export default function ProgresoPage() {
+// La serie diaria se calcula en el servidor (co-localizado con Neon); la analítica
+// (pura) se recalcula en el cliente al cambiar el rango sin pedir datos de nuevo.
+export const dynamic = "force-dynamic";
+
+export default async function ProgresoPage() {
+  const { records, currentTarget, today } = await getTrendData();
   return (
-    <SectionPlaceholder title="Progreso" phase="las Fases 3–4">
-      Tendencia (gasto y déficit reales desde el peso, adherencia, gráficos y
-      «Últimos días») y MED (composición corporal + preparar visita), como
-      segmentos de esta pantalla.
-    </SectionPlaceholder>
+    <ProgresoClient records={records} currentTarget={currentTarget} today={today} />
   );
 }
