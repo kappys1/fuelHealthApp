@@ -16,7 +16,9 @@ import { parseHaeJson } from "@/server/ingest/hae-json";
 */
 
 export const dynamic = "force-dynamic";
-const MAX_BYTES = 1_000_000; // 1 MB (02-ARQUITECTURA §5)
+// HAE con muestras por hora + varios días genera JSON de varios MB; 1 MB (02 §5)
+// era demasiado justo. 4 MB deja margen bajo el límite de cuerpo de Vercel (~4,5).
+const MAX_BYTES = 4_000_000;
 
 export async function POST(request: Request) {
   const auth = request.headers.get("authorization");
@@ -43,7 +45,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { days, workouts } = parseHaeJson(json);
+    const { days, workouts, fields } = parseHaeJson(json);
     const imported = await applyHealthDays(days, "endpoint");
     const workoutsAdded = await insertWorkouts(workouts);
     await recordHealthSync({
@@ -51,7 +53,14 @@ export async function POST(request: Request) {
       source: "endpoint",
       imported,
     });
-    return NextResponse.json({ imported, workouts: workoutsAdded });
+    // Respuesta diagnóstica: qué métricas se reconocieron y qué quedó por día
+    // (así, desde el propio Automation, se ve al instante qué entró).
+    return NextResponse.json({
+      imported,
+      workouts: workoutsAdded,
+      fields,
+      days: days.map((d) => ({ ...d })),
+    });
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Error procesando la ingesta.";

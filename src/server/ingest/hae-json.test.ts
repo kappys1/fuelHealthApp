@@ -81,4 +81,34 @@ describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
     expect(parseHaeJson(null)).toEqual({ days: [], workouts: [], fields: [], hadKj: false });
     expect(parseHaeJson({ data: { metrics: "nope" } }).days).toEqual([]);
   });
+
+  it("agrega varias muestras del mismo día: suma acumulativas, promedia instantáneas", () => {
+    // HAE manda muestras por hora; el total real del día es la SUMA (no la última).
+    const r = parseHaeJson({
+      data: {
+        metrics: [
+          {
+            name: "step_count",
+            units: "count",
+            data: [
+              { date: "2026-07-11 08:00:00 +0200", qty: 5000 },
+              { date: "2026-07-11 14:00:00 +0200", qty: 6373 },
+              { date: "2026-07-11 22:00:00 +0200", qty: 105 },
+            ],
+          },
+          {
+            name: "heart_rate_variability",
+            units: "ms",
+            data: [
+              { date: "2026-07-11 03:00:00 +0200", qty: 60 },
+              { date: "2026-07-11 04:00:00 +0200", qty: 80 },
+            ],
+          },
+        ],
+      },
+    });
+    const d = r.days.find((x) => x.date === "2026-07-11");
+    expect(d?.steps).toBe(11478); // 5000 + 6373 + 105 (suma, no la última muestra)
+    expect(d?.hrvMs).toBe(70); // media de 60 y 80
+  });
 });
