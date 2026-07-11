@@ -58,7 +58,10 @@ const NAME_MATCHERS: ReadonlyArray<{ field: HealthField; needles: string[] }> = 
   { field: "waterL", needles: ["dietary_water", "water", "agua"] },
   {
     field: "weight",
-    needles: ["weight_body_mass", "body_mass", "body mass", "weight", "peso"],
+    // OJO: nada de «body_mass»/«body mass» a secas → colisionan con
+    // «lean_body_mass» / «Masa Corporal Magra». «weight» ya cubre
+    // «weight_body_mass» y «Weight & Body Mass»; «peso» cubre «Peso Corporal».
+    needles: ["weight_body_mass", "weight", "peso"],
   },
   { field: "bodyFatPct", needles: ["body_fat_percentage", "body fat", "grasa corporal"] },
 ];

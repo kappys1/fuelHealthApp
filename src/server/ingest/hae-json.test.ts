@@ -82,6 +82,20 @@ describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
     expect(parseHaeJson({ data: { metrics: "nope" } }).days).toEqual([]);
   });
 
+  it("NO confunde lean_body_mass con weight (colisión body_mass)", () => {
+    const r = parseHaeJson({
+      data: {
+        metrics: [
+          { name: "lean_body_mass", units: "kg", data: [{ date: "2026-07-11", qty: 62.2 }] },
+          { name: "weight_body_mass", units: "kg", data: [{ date: "2026-07-11", qty: 92.1 }] },
+        ],
+      },
+    });
+    const d = r.days.find((x) => x.date === "2026-07-11");
+    expect(d?.weight).toBeCloseTo(92.1, 6); // el peso real, no la masa magra
+    expect(r.fields).toEqual(["weight"]); // lean_body_mass se descarta
+  });
+
   it("agrega varias muestras del mismo día: suma acumulativas, promedia instantáneas", () => {
     // HAE manda muestras por hora; el total real del día es la SUMA (no la última).
     const r = parseHaeJson({
