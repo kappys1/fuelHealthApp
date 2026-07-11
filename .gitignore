@@ -56,3 +56,8 @@ pnpm-workspace.yaml
 
 # Export personal del PoC (datos de salud, artefacto de import)
 docs/fuelboard-export*.json
+
+# CSV real de Health Auto Export (datos de salud personales de Alex): se deja en
+# local para el test condicional de hae-csv, pero NUNCA se commitea.
+/HealthAutoExport-*.csv
+src/server/ingest/__fixtures__/hae-real.csv

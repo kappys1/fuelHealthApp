@@ -1,0 +1,84 @@
+import { describe, expect, it } from "vitest";
+import { parseHaeJson } from "./hae-json";
+
+describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
+  const payload = {
+    data: {
+      metrics: [
+        {
+          name: "active_energy",
+          units: "kJ",
+          data: [
+            { date: "2026-07-07 00:00:00 +0200", qty: 3472.72 },
+            { date: "2026-07-08 00:00:00 +0200", qty: 3472.72 },
+          ],
+        },
+        {
+          name: "step_count",
+          units: "count",
+          data: [{ date: "2026-07-07 00:00:00 +0200", qty: 13300 }],
+        },
+        {
+          name: "dietary_water",
+          units: "mL",
+          data: [{ date: "2026-07-07 00:00:00 +0200", qty: 3000 }],
+        },
+        {
+          name: "resting_heart_rate",
+          units: "bpm",
+          data: [{ date: "2026-07-07 00:00:00 +0200", qty: 47 }],
+        },
+      ],
+      workouts: [
+        {
+          name: "Functional Strength Training",
+          start: "2026-07-07 19:30:00 +0200",
+          duration: 95,
+          activeEnergyBurned: { qty: 2510, units: "kJ" },
+          avgHeartRate: { qty: 148 },
+        },
+      ],
+    },
+  };
+
+  const r = parseHaeJson(payload);
+
+  it("mapea nombres de métrica y convierte unidades", () => {
+    expect(r.hadKj).toBe(true);
+    const d7 = r.days.find((d) => d.date === "2026-07-07");
+    expect(d7?.activeKcal).toBe(830); // 3472.72 kJ → kcal
+    expect(d7?.steps).toBe(13300);
+    expect(d7?.waterL).toBeCloseTo(3, 6); // 3000 mL → 3 L
+    expect(d7?.restingHr).toBe(47);
+  });
+
+  it("agrupa por fecha (2 días de energía activa)", () => {
+    expect(r.days).toHaveLength(2);
+    expect(r.days.map((d) => d.date)).toEqual(["2026-07-07", "2026-07-08"]);
+  });
+
+  it("parsea workouts con energía en kJ → kcal", () => {
+    expect(r.workouts).toHaveLength(1);
+    const w = r.workouts[0]!;
+    expect(w.date).toBe("2026-07-07");
+    expect(w.durationMin).toBe(95);
+    expect(w.avgHr).toBe(148);
+    expect(w.activeKcal).toBe(600); // 2510 kJ / 4,184 ≈ 600
+  });
+
+  it("acepta el envoltorio { metrics } sin `data` y descarta métricas desconocidas", () => {
+    const r2 = parseHaeJson({
+      metrics: [
+        { name: "blood_glucose", units: "mg/dL", data: [{ date: "2026-01-01", qty: 90 }] },
+        { name: "weight_body_mass", units: "kg", data: [{ date: "2026-01-01", qty: 91.5 }] },
+      ],
+    });
+    expect(r2.fields).toEqual(["weight"]);
+    expect(r2.days[0]!.weight).toBeCloseTo(91.5, 6);
+  });
+
+  it("no lanza con entrada basura", () => {
+    expect(parseHaeJson(null)).toEqual({ days: [], workouts: [], fields: [], hadKj: false });
+    expect(parseHaeJson({ data: { metrics: "nope" } }).days).toEqual([]);
+  });
+});

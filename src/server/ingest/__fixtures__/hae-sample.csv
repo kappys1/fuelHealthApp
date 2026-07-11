@@ -1,0 +1,5 @@
+Fecha/Hora;Energía Activa (kJ);Energía en Reposo (kJ);Conteo de Pasos (recuentos);Peso (kg);Longitud del Paso al Caminar (cm);Variabilidad de la Frecuencia Cardíaca (ms);Análisis del Sueño [Dormido] (hr);Frecuencia Cardíaca en Reposo (latidos/min);VO2 Máx (ml/kg·min);Grasa Corporal (%);Agua (mL)
+2026-07-07 00:00:00;3472,72;8593,94;13300;;72,3;67,0;7,5;47;50,1;9,8;3000
+2026-07-08 00:00:00;3472,72;8593,94;13300;;71,8;67,0;7,5;47;50,1;9,8;3000
+2026-07-09 00:00:00;3472,72;8593,94;13300;;73,1;67,0;7,5;47;50,1;9,8;3000
+Total;;;;;;;;;;;
