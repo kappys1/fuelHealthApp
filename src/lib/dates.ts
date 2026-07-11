@@ -1,4 +1,4 @@
-import { addDays } from "date-fns";
+import { addDays, differenceInCalendarDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
 
@@ -42,4 +42,9 @@ export function isoWeekday(key: string): number {
 /** Valida una clave 'YYYY-MM-DD'. */
 export function isDayKey(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+/** Días de calendario entre dos claves de día (b − a). Positivo si b es posterior. */
+export function daysBetween(a: string, b: string): number {
+  return differenceInCalendarDays(keyToInstant(b), keyToInstant(a));
 }
