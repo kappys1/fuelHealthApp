@@ -16,6 +16,7 @@ import {
   type HealthDay,
   type HealthField,
   INTEGER_FIELDS,
+  MAX_FIELDS,
   normalizeKey,
   parseNumberEs,
 } from "./normalize";
@@ -109,8 +110,11 @@ export function parseHaeJson(input: unknown): JsonParseResult {
   const metrics = Array.isArray(metricsRaw) ? metricsRaw : [];
 
   // Acumulador por (fecha, campo): HAE suele mandar VARIAS muestras del mismo día
-  // (por hora). Se agregan: acumulativas → suma, instantáneas → media (03 §4.1).
-  const acc = new Map<string, Map<HealthField, { sum: number; count: number }>>();
+  // (por hora). Se agregan: acumulativas → suma, sueño → máximo, resto → media.
+  const acc = new Map<
+    string,
+    Map<HealthField, { sum: number; count: number; max: number }>
+  >();
   const order: string[] = [];
   const fields = new Set<HealthField>();
   let hadKj = false;
@@ -141,9 +145,11 @@ export function parseHaeJson(input: unknown): JsonParseResult {
         acc.set(date, dayAcc);
         order.push(date);
       }
-      const cur = dayAcc.get(field) ?? { sum: 0, count: 0 };
-      cur.sum += convertUnits(field, value, { isKj, isMl });
+      const converted = convertUnits(field, value, { isKj, isMl });
+      const cur = dayAcc.get(field) ?? { sum: 0, count: 0, max: -Infinity };
+      cur.sum += converted;
       cur.count += 1;
+      cur.max = Math.max(cur.max, converted);
       dayAcc.set(field, cur);
     }
     if (sawValue) fields.add(field);
@@ -155,8 +161,12 @@ export function parseHaeJson(input: unknown): JsonParseResult {
     const dayAcc = acc.get(date);
     if (!dayAcc) continue;
     const day: HealthDay = { date };
-    for (const [field, { sum, count }] of dayAcc) {
-      const v = CUMULATIVE_FIELDS.has(field) ? sum : sum / count;
+    for (const [field, { sum, count, max }] of dayAcc) {
+      const v = MAX_FIELDS.has(field)
+        ? max
+        : CUMULATIVE_FIELDS.has(field)
+          ? sum
+          : sum / count;
       day[field] = INTEGER_FIELDS.has(field) ? Math.round(v) : v;
     }
     byDate.set(date, day);

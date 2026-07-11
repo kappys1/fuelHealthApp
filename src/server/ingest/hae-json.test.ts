@@ -125,4 +125,24 @@ describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
     expect(d?.steps).toBe(11478); // 5000 + 6373 + 105 (suma, no la última muestra)
     expect(d?.hrvMs).toBe(70); // media de 60 y 80
   });
+
+  it("sueño troceado por fases → máximo (no suma), evita >24 h", () => {
+    const r = parseHaeJson({
+      data: {
+        metrics: [
+          {
+            name: "sleep_analysis",
+            units: "hr",
+            data: [
+              { date: "2026-07-10", qty: 7.5 }, // total dormido
+              { date: "2026-07-10", qty: 4.1 }, // fase core
+              { date: "2026-07-10", qty: 1.5 }, // fase profundo
+              { date: "2026-07-10", qty: 1.9 }, // fase REM
+            ],
+          },
+        ],
+      },
+    });
+    expect(r.days[0]?.sleepH).toBeCloseTo(7.5, 6); // máximo, no 15
+  });
 });
