@@ -27,10 +27,22 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
 
 ## Estado actual
 
-- **Fase 0 (esqueleto) completa**: Next 16 + Tailwind4/shadcn tematizado (tokens
-  05-DISENO §2, contrastes AA verificados), Drizzle+Neon con schema y seed, auth
-  usuario único (iron-session), **nav de 4 pestañas + Ajustes en header**, deploy Vercel.
-- Siguiente: **Fase 1** de `06-PLAN-IMPLEMENTACION.md`.
+- **Fases 0–3 completas y desplegadas** (Vercel `fuelboard`, región `fra1`):
+  - **F0**: Next 16 + Tailwind4/shadcn tematizado (tokens 05 §2, AA verificado),
+    Drizzle+Neon con schema+seed, auth iron-session, nav 4 pestañas + Ajustes.
+  - **F1**: Hoy (FuelGauge, timeline, Mi día, sheet de añadir, check-ins, exprés),
+    Plan (objetivos versionados, derivar, CRUD), migración PoC idempotente.
+  - **F2**: IA agnóstica (`server/ai/`, Vercel AI SDK v7 + Gemini, `Output.object`,
+    1 reintento, errores visibles); F-IA-1 foto (Blob privado + miniaturas), F-IA-2
+    estimar, F-IA-3 opción de plan, F-IA-4 volcado del día, F-IA-5 WOD.
+  - **F3**: parsers HAE (`server/ingest/` CSV+JSON, tabla EXACTA 03 §4.2, kJ→kcal,
+    mL→L, colisión peso/paso, tests), endpoint `/api/health/ingest` (Bearer,
+    tolerante, upsert por fecha), analítica pura (`server/analytics/` ma7/déficit/
+    adherencia, exclusión fases especiales), pantalla **Progreso · Tendencia**
+    (TrendCard invertida, adherencia, gráficos peso+ma7 e ingesta, popovers F6.6,
+    rango 14/30/90/todo, Últimos días; segmento MED en Fase 4) y **Ajustes**
+    (import CSV con vista previa, estado de sync, export/import-restore).
+- Siguiente: **Fase 4** de `06-PLAN-IMPLEMENTACION.md` (MED + Coach + Chat + PWA).
 - Se trabaja **fase a fase**. **Nunca adelantar trabajo de fases futuras.** Cada
   fase termina con sus tests de aceptación en verde y deploy a Vercel funcionando.
 
