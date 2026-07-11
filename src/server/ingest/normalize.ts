@@ -138,16 +138,20 @@ export function canonicalize(
 
 /**
  * Métricas ACUMULATIVAS: si una fuente manda varias muestras del mismo día se
- * SUMAN (pasos, energía, agua, sueño = totales del día). El resto son
- * instantáneas y se PROMEDIAN (HRV, FC reposo, VO2, peso, % grasa).
+ * SUMAN (pasos, energía, agua = totales del día). El resto son instantáneas y se
+ * PROMEDIAN (HRV, FC reposo, VO2, peso, % grasa). El sueño es aparte: Apple lo
+ * trocea por fases (sumarlas daría >24 h), así que se toma el MÁXIMO (mejor
+ * aproximación al total de la noche). Ver MAX_FIELDS.
  */
 export const CUMULATIVE_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>([
   "steps",
   "activeKcal",
   "basalKcal",
   "waterL",
-  "sleepH",
 ]);
+
+/** Métricas donde se toma el MÁXIMO de las muestras del día (sueño troceado). */
+export const MAX_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(["sleepH"]);
 
 /** Extrae 'YYYY-MM-DD' del inicio de un valor de fecha (o null si no lo hay). */
 export function extractDayKey(raw: string): string | null {
