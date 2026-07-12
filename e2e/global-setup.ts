@@ -1,24 +1,31 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loadEnvConfig } from "@next/env";
 import { sealData } from "iron-session";
 
 /*
   Autentica los tests sellando una cookie iron-session idéntica a la que emite
   /api/auth/login, sin necesitar el password en claro (no disponible; DECISIONS #54).
   Se usa la misma forma de sesión (SessionData) y el mismo AUTH_SECRET que la app.
+  Se lee .env.local a mano (sin @next/env) para no arrastrar deps al contexto de test.
 */
 
 const SESSION_COOKIE_NAME = "fuelboard_session";
 
-export default async function globalSetup() {
-  // Carga .env.local igual que Next (global-setup corre fuera del runtime de la app).
-  loadEnvConfig(process.cwd());
+function readAuthSecret(): string | null {
+  const envPath = path.join(process.cwd(), ".env.local");
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  if (!fs.existsSync(envPath)) return null;
+  const m = fs.readFileSync(envPath, "utf8").match(/^AUTH_SECRET\s*=\s*(.*)$/m);
+  if (!m || !m[1]) return null;
+  // dotenv-expand escapa los `$` como `\$` en .env.local (DECISIONS #29).
+  return m[1].trim().replace(/^["']|["']$/g, "").replace(/\\\$/g, "$");
+}
 
-  const password = process.env.AUTH_SECRET;
+export default async function globalSetup() {
+  const password = readAuthSecret();
   if (!password || password.length < 32) {
     throw new Error(
-      "AUTH_SECRET ausente o <32 chars: define AUTH_SECRET en .env.local para sellar la sesión de test.",
+      "AUTH_SECRET ausente o <32 chars: define AUTH_SECRET en .env.local (o en el entorno) para sellar la sesión de test.",
     );
   }
 
