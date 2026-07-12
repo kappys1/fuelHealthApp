@@ -488,7 +488,7 @@ function MiniInput({
           if (raw === "" || /^[0-9]*[.,]?[0-9]*$/.test(raw)) onChange(raw);
         }}
         onFocus={(e) => e.currentTarget.select()}
-        className="num h-9 w-full min-w-0 bg-transparent text-center text-[13px] outline-none"
+        className="num h-9 w-full min-w-0 bg-transparent text-center text-base outline-none"
         aria-label={label}
       />
     </label>

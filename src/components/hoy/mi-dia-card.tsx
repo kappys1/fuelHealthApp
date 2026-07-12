@@ -102,7 +102,7 @@ export function MiDiaCard({
               />
             </label>
             <div>
-              <span className="mb-1 block text-[12px] text-muted-foreground">
+              <span className="num mb-1 block text-[12px] text-muted-foreground">
                 Agua {day?.waterL != null ? `· ${day.waterL.toLocaleString("es-ES")} L` : ""}
               </span>
               <div className="flex gap-1.5">

@@ -101,6 +101,17 @@ export function HoyClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Título de documento dinámico (07 §6): "1.240 / 1.800 · Fuelboard" — visible en
+  // el multitarea. Solo para el día de hoy; se restaura al salir de la pestaña.
+  useEffect(() => {
+    if (!data || !isToday) return;
+    const consumed = roundKcal(dayTotals(data.view.entries).kcal);
+    document.title = `${consumed.toLocaleString("es-ES")} / ${data.targets.kcal.toLocaleString("es-ES")} · Fuelboard`;
+    return () => {
+      document.title = "Fuelboard";
+    };
+  }, [data, isToday]);
+
   if (!data) return null;
 
   const totals = dayTotals(data.view.entries);

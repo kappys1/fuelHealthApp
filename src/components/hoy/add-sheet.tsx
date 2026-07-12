@@ -1001,7 +1001,7 @@ function MiniField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         inputMode="decimal"
-        className="num h-9 w-full rounded-lg border border-input bg-surface px-2 text-[14px] outline-none focus-visible:border-ring"
+        className="num h-9 w-full rounded-lg border border-input bg-surface px-2 text-base outline-none focus-visible:border-ring"
         aria-label={label}
       />
     </label>

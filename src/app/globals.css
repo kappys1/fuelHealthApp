@@ -210,6 +210,20 @@
   }
 }
 
+/* Accesibilidad (05-DISENO §6): respetar prefers-reduced-motion. Las animaciones
+   propias (llenado del gauge, skeletons, spinners) se reducen a ~0 sin romper el
+   estado final. tw-animate-css lo respeta internamente; esto cubre lo custom. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Bloqueo de orientación (Fase 4): aviso "gira el teléfono" solo en móvil en
    horizontal (landscape + altura corta = teléfono, no tablet/escritorio). Clase
    CSS normal en vez de variante arbitraria de Tailwind (que generaba media-query
