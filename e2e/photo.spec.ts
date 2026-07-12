@@ -35,7 +35,7 @@ test.describe("Foto de comida", () => {
   });
 
   test("analiza una foto mockeada y añade el desglose", async ({ page }) => {
-    await page.goto("/hoy");
+    await page.goto("/hoy", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: /Añadir comida/ }).click();
 
     // Capa 1 → acceso «Foto».

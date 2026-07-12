@@ -19,8 +19,9 @@ test.describe("Check-in matinal", () => {
     // Sheet exprés de peso.
     await expect(page.getByRole("heading", { name: "Peso de hoy" })).toBeVisible();
 
-    // Fija el peso en el stepper.
-    const weight = page.getByLabel("Peso");
+    // Fija el peso en el stepper (input decimal dentro del sheet).
+    const weight = page.getByRole("dialog").locator('input[inputmode="decimal"]').first();
+    await weight.click();
     await weight.fill("92,5");
 
     // Hinchazón opcional.

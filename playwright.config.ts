@@ -31,6 +31,9 @@ export default defineConfig({
     baseURL,
     storageState: "e2e/.auth/state.json",
     trace: "on-first-retry",
+    // Bloquea el Service Worker (Serwist, solo prod): así page.route intercepta de
+    // forma fiable las llamadas de IA (el SW proxyaría el fetch y las evadiría).
+    serviceWorkers: "block",
     ...devices["iPhone 13"],
   },
   projects: [{ name: "mobile-safari", use: { ...devices["iPhone 13"] } }],
