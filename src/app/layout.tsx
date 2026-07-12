@@ -79,7 +79,7 @@ export default function RootLayout({
             (CSS puro: landscape + altura corta = teléfono, no tablet/escritorio). */}
         <div
           aria-hidden
-          className="fixed inset-0 z-[200] hidden flex-col items-center justify-center gap-3 bg-background px-8 text-center [@media(orientation:landscape)and(max-height:500px)]:flex"
+          className="rotate-gate fixed inset-0 z-[200] flex-col items-center justify-center gap-3 bg-background px-8 text-center"
         >
           <RotateCcw className="size-8 text-primary" />
           <p className="text-base font-semibold text-foreground">Gira el teléfono</p>
