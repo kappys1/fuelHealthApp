@@ -10,7 +10,7 @@ import {
   Search,
   Sparkles,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -28,6 +28,7 @@ import {
 import { Stepper } from "@/components/ui/stepper";
 import { api, type EntryInput } from "@/lib/client-api";
 import { processImage, type ProcessedImage } from "@/lib/image";
+import { useOnline } from "@/lib/use-online";
 import {
   displayMacro,
   type MealKey,
@@ -69,6 +70,7 @@ export function AddSheet({
   currentKcal,
   date,
   onAdd,
+  initialFile,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -79,8 +81,16 @@ export function AddSheet({
   currentKcal: number;
   date: string;
   onAdd: (entries: EntryInput[]) => void;
+  /** Imagen compartida al sistema (share target): abre directo en la capa de foto. */
+  initialFile?: File | null;
 }) {
   const [layer, setLayer] = useState<Layer>("home");
+
+  // Share target: al abrir con una imagen compartida, saltar a la capa de foto.
+  // Diferido para no encadenar renders síncronos dentro del efecto.
+  useEffect(() => {
+    if (open && initialFile) queueMicrotask(() => setLayer("photo"));
+  }, [open, initialFile]);
   const [search, setSearch] = useState("");
   const [justAdded, setJustAdded] = useState<{ delta: number; total: number } | null>(
     null,
@@ -215,7 +225,7 @@ export function AddSheet({
             onAdd={commit}
           />
         ) : layer === "photo" ? (
-          <PhotoLayer meal={meal} date={date} onCommit={commit} />
+          <PhotoLayer meal={meal} date={date} onCommit={commit} initialFile={initialFile} />
         ) : (
           <DescribeLayer date={date} onCommit={commit} />
         )}
@@ -360,6 +370,7 @@ function EstimateFallback({
   text: string;
   onAdd: (e: EntryInput[]) => void;
 }) {
+  const online = useOnline();
   const [busy, setBusy] = useState(false);
   const [est, setEst] = useState<{ kcal: string; prot: string; carb: string; fat: string } | null>(
     null,
@@ -428,7 +439,7 @@ function EstimateFallback({
       <button
         type="button"
         onClick={estimate}
-        disabled={busy}
+        disabled={busy || !online}
         className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-line bg-surface-2 py-2.5 text-[14px] font-medium disabled:opacity-60"
       >
         {busy ? (
@@ -438,6 +449,11 @@ function EstimateFallback({
         )}
         Estimar «{text}» con IA
       </button>
+      {!online ? (
+        <p className="px-1 text-[12px] text-muted-foreground">
+          Sin conexión: la estimación por IA no está disponible.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -578,11 +594,14 @@ function PhotoLayer({
   meal,
   date,
   onCommit,
+  initialFile,
 }: {
   meal: MealKey;
   date: string;
   onCommit: (e: EntryInput[]) => void;
+  initialFile?: File | null;
 }) {
+  const online = useOnline();
   const fileRef = useRef<HTMLInputElement>(null);
   const [image, setImage] = useState<ProcessedImage | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -604,6 +623,15 @@ function PhotoLayer({
       toast.error(err instanceof Error ? err.message : "No se pudo cargar la foto.");
     }
   };
+
+  // Share target: procesar la imagen compartida al montar la capa de foto.
+  const sharedRef = useRef(false);
+  useEffect(() => {
+    if (initialFile && !sharedRef.current) {
+      sharedRef.current = true;
+      void pickFile(initialFile);
+    }
+  }, [initialFile]);
 
   const analyze = async () => {
     if (!image) return;
@@ -738,25 +766,32 @@ function PhotoLayer({
       ) : null}
 
       {image ? (
-        <button
-          type="button"
-          onClick={analyze}
-          disabled={analyzing}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground disabled:opacity-60"
-        >
-          {analyzing ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : result ? (
-            <RefreshCw className="size-4" aria-hidden />
-          ) : (
-            <Sparkles className="size-4" aria-hidden />
-          )}
-          {analyzing
-            ? "Analizando…"
-            : result
-              ? "Reanalizar la foto con las aclaraciones"
-              : "Analizar foto"}
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={analyze}
+            disabled={analyzing || !online}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground disabled:opacity-60"
+          >
+            {analyzing ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : result ? (
+              <RefreshCw className="size-4" aria-hidden />
+            ) : (
+              <Sparkles className="size-4" aria-hidden />
+            )}
+            {analyzing
+              ? "Analizando…"
+              : result
+                ? "Reanalizar la foto con las aclaraciones"
+                : "Analizar foto"}
+          </button>
+          {!online ? (
+            <p className="text-center text-[12px] text-muted-foreground">
+              Sin conexión: el análisis por IA no está disponible.
+            </p>
+          ) : null}
+        </>
       ) : null}
 
       {result ? (
@@ -854,6 +889,7 @@ function DescribeLayer({
   date: string;
   onCommit: (e: EntryInput[]) => void;
 }) {
+  const online = useOnline();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<
@@ -901,7 +937,7 @@ function DescribeLayer({
       <button
         type="button"
         onClick={analyze}
-        disabled={busy || !text.trim()}
+        disabled={busy || !text.trim() || !online}
         className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground disabled:opacity-60"
       >
         {busy ? (
@@ -911,6 +947,12 @@ function DescribeLayer({
         )}
         {busy ? "Interpretando…" : "Interpretar con IA"}
       </button>
+      {!online ? (
+        <p className="text-[12px] text-muted-foreground">
+          Sin conexión: la interpretación por IA no está disponible. Puedes añadir
+          desde el plan o buscar.
+        </p>
+      ) : null}
 
       {items.length > 0 ? (
         <div className="space-y-2">
