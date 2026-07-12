@@ -1,4 +1,3 @@
-import { SerwistProvider } from "@serwist/turbopack/react";
 import type { Metadata, Viewport } from "next";
 import {
   Barlow_Condensed,
@@ -6,6 +5,7 @@ import {
   Instrument_Sans,
 } from "next/font/google";
 import "./globals.css";
+import { PwaRegister } from "@/components/pwa-register";
 import { Providers } from "./providers";
 
 // Display / cifras (Barlow Semi Condensed) — 05-DISENO §3
@@ -66,13 +66,9 @@ export default function RootLayout({
       className={`${display.variable} ${condensed.variable} ${body.variable} h-full antialiased`}
     >
       <body className="min-h-dvh">
-        <SerwistProvider
-          swUrl="/serwist/sw.js"
-          disable={process.env.NODE_ENV !== "production"}
-          reloadOnOnline={false}
-        >
+        <PwaRegister>
           <Providers>{children}</Providers>
-        </SerwistProvider>
+        </PwaRegister>
       </body>
     </html>
   );
