@@ -205,6 +205,10 @@ export const dayTemplates = pgTable("day_templates", {
 export const chatThreads = pgTable("chat_threads", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   title: text().notNull(),
+  // Resumen cacheado de los mensajes anteriores a los últimos 12 (F-IA-8 §6).
+  summary: text(),
+  // Nº de mensajes que cubre el resumen cacheado (para invalidarlo por lotes).
+  summaryMsgCount: integer("summary_msg_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

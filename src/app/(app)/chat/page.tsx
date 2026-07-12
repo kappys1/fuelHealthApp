@@ -1,10 +1,11 @@
-import { SectionPlaceholder } from "@/components/section-placeholder";
+import { ChatClient } from "@/components/chat/chat-client";
+import { listThreads } from "@/server/db/queries/chat";
 
-export default function ChatPage() {
-  return (
-    <SectionPlaceholder title="Chat" phase="la Fase 4">
-      Pregúntale a tus datos: conversación con la IA sobre tu plan, registros y
-      tendencia (hilos, chips sugeridas, sin prescribir dieta).
-    </SectionPlaceholder>
-  );
+// Chat sobre tus datos (F-IA-8). Los hilos llegan renderizados del servidor; el
+// contexto de cada respuesta se ensambla fresco en la route de streaming.
+export const dynamic = "force-dynamic";
+
+export default async function ChatPage() {
+  const threads = await listThreads();
+  return <ChatClient initialThreads={threads} />;
 }
