@@ -49,3 +49,13 @@ export const optionZ = z.object({
   carb: z.number().min(0).max(2000),
   fat: z.number().min(0).max(2000),
 });
+
+// Crear una versión de dieta COMPLETA desde importación (F-IA-9).
+export const dietVersionCreateZ = z.object({
+  effectiveFrom: dateZ,
+  kcal: z.number().int().min(0).max(20000),
+  prot: z.number().min(0).max(2000),
+  carb: z.number().min(0).max(2000).nullable(),
+  fat: z.number().min(0).max(2000).nullable(),
+  options: z.array(optionZ).max(200),
+});

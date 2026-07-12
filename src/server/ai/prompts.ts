@@ -122,3 +122,8 @@ export function chatSystemPrompt(args: {
 export function chatSummaryPrompt(transcript: string): string {
   return `Resume en un máximo de 100 palabras, en español, la siguiente conversación entre un atleta y su asistente de datos nutricionales, conservando los hechos y cifras concretas que puedan ser relevantes para continuar la conversación. Sin saludos ni preámbulos.\n\n${transcript}`;
 }
+
+// ── F-IA-9 · Importar dieta desde foto/PDF (bloque texto; imagen(es)/PDF los adjunta el cliente) ──
+export function dietImportPrompt(): string {
+  return `Eres un nutricionista. Esta imagen es la pauta dietética de un paciente. Extrae TODAS las comidas y sus opciones respetando la estructura: comidas (almuerzo/comida/merienda/cena), y en cada una las opciones con su grupo si existe (Verdura/Hidratos/Proteína/Grasa/Otros; si la comida es de opción única o conjunto, usa "Opción única"), el nombre, los gramos pautados (null si son unidades) y estima kcal, proteína, hidratos y grasa de cada ración con tablas de composición españolas. Extrae también, si aparecen, las kcal y proteína totales pautadas. Responde SOLO con JSON válido, sin markdown: {"kcal_totales": number|null, "proteina_total": number|null, "comidas": [{"comida": string, "opciones": [{"nombre": string, "grupo": string, "gramos": number|null, "kcal": number, "proteina_g": number, "carbohidratos_g": number, "grasa_g": number}]}]}`;
+}
