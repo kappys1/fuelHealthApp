@@ -209,3 +209,16 @@
     font-weight: 600;
   }
 }
+
+/* Bloqueo de orientación (Fase 4): aviso "gira el teléfono" solo en móvil en
+   horizontal (landscape + altura corta = teléfono, no tablet/escritorio). Clase
+   CSS normal en vez de variante arbitraria de Tailwind (que generaba media-query
+   sin espacios y no parseaba). */
+.rotate-gate {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .rotate-gate {
+    display: flex;
+  }
+}
