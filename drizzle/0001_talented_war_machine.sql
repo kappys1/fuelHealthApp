@@ -1,0 +1,1 @@
+ALTER TABLE "health_metrics" ADD COLUMN "extra" jsonb;

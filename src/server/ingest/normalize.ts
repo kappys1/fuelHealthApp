@@ -17,10 +17,12 @@ export interface HealthDay {
   waterL?: number | null;
   weight?: number | null;
   bodyFatPct?: number | null;
+  /** Métricas no tipadas de HAE (masa magra, ejercicio, SpO2, resp, temp…). */
+  extra?: Record<string, number>;
 }
 
-/** Campos numéricos de HealthDay (todos menos `date`). */
-export type HealthField = Exclude<keyof HealthDay, "date">;
+/** Campos numéricos tipados de HealthDay (todos menos `date` y `extra`). */
+export type HealthField = Exclude<keyof HealthDay, "date" | "extra">;
 
 /** Campos que se GUARDAN como enteros en health_metrics (03-DATOS §1). */
 export const INTEGER_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>([
@@ -152,6 +154,49 @@ export const CUMULATIVE_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(
 
 /** Métricas donde se toma el MÁXIMO de las muestras del día (sueño troceado). */
 export const MAX_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(["sleepH"]);
+
+// ── Métricas NO tipadas → columna `extra` (capturamos todo para el agente) ──
+
+/** Clave estable para una métrica extra: nombre HAE normalizado a snake_case. */
+export function extraKey(name: string): string {
+  return normalizeKey(name)
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+// Fragmentos de nombre que indican una métrica ACUMULATIVA (suma diaria).
+const EXTRA_SUM_FRAGMENTS = [
+  "energy",
+  "exercise_time",
+  "stand_time",
+  "stand_hour",
+  "move_time",
+  "move_minutes",
+  "flights",
+  "time_in_daylight",
+  "dietary",
+  "distance",
+  "step",
+  "push_count",
+  "swim",
+  "number_of",
+  "stroke_count",
+];
+
+/** Cómo agregar una métrica extra según su nombre (por defecto, media). */
+export function extraAgg(nameNorm: string): "sum" | "max" | "avg" {
+  if (nameNorm.includes("sleep")) return "max";
+  if (EXTRA_SUM_FRAGMENTS.some((f) => nameNorm.includes(f))) return "sum";
+  return "avg";
+}
+
+/** Conversión de unidad genérica para extras (kJ→kcal, mL→L) por la cadena `units`. */
+export function convertByUnits(value: number, units: string): number {
+  const u = normalizeKey(units);
+  if (u.includes("kj")) return value / KJ_PER_KCAL;
+  if (u === "ml" || u.startsWith("ml") || u.includes("(ml")) return value / 1000;
+  return value;
+}
 
 /** Extrae 'YYYY-MM-DD' del inicio de un valor de fecha (o null si no lo hay). */
 export function extractDayKey(raw: string): string | null {
