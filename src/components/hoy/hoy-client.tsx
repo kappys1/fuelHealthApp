@@ -3,9 +3,9 @@
 import { ChevronLeft, ChevronRight, Flame, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 import { AddSheet } from "@/components/hoy/add-sheet";
 import { CheckinCierre, CheckinMatinal, WeightExpressSheet } from "@/components/hoy/checkins";
+import { CoachSheet } from "@/components/hoy/coach-sheet";
 import { CompeticionRefuel } from "@/components/hoy/competicion-refuel";
 import { DayStatusLine } from "@/components/hoy/day-status-line";
 import { MealTimeline } from "@/components/hoy/meal-timeline";
@@ -49,6 +49,7 @@ export function HoyClient({
   const [matinalOpen, setMatinalOpen] = useState(false);
   const [cierreOpen, setCierreOpen] = useState(false);
   const [weightOpen, setWeightOpen] = useState(false);
+  const [coachOpen, setCoachOpen] = useState(false);
 
   const today = dayKey();
   const isToday = date === today;
@@ -105,7 +106,7 @@ export function HoyClient({
         targets={data.targets}
         entries={data.view.entries}
         phase={phase}
-        onCoach={() => toast("El coach ✨ llega en la Fase 4.")}
+        onCoach={() => setCoachOpen(true)}
       />
 
       <DayStatusLine
@@ -190,6 +191,7 @@ export function HoyClient({
         data={data}
         onPatch={t.patchDay}
       />
+      <CoachSheet open={coachOpen} onOpenChange={setCoachOpen} date={date} />
     </div>
   );
 }

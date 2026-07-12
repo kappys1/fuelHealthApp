@@ -1,0 +1,67 @@
+import { z } from "zod";
+import { ensureAuth, parseBody, serverError } from "@/lib/api";
+import { dayKey, shiftDayKey } from "@/lib/dates";
+import { retry } from "@/lib/retry";
+import { dateZ } from "@/lib/schemas";
+import { runText } from "@/server/ai/client";
+import { dayContext } from "@/server/ai/context";
+import { aiErrorResponse } from "@/server/ai/errors";
+import { coachPrompt } from "@/server/ai/prompts";
+import { getDayView, latestWeightOnOrBefore } from "@/server/db/queries/day";
+import { getPlanContext } from "@/server/db/queries/plan";
+
+const bodyZ = z.object({
+  date: dateZ.optional(),
+  mode: z.enum(["hoy", "ayer"]),
+});
+
+/*
+  F-IA-6 · Coach diario (tras el ✨ del FuelGauge). Modo "hoy" = día en curso;
+  "ayer" = fecha−1. Contexto completo del día (comidas, totales, peso, sesión,
+  fase, agua, hinchazón, NOTAS, métricas del reloj). Texto plano, máx 100 palabras.
+*/
+export async function POST(request: Request) {
+  const unauth = await ensureAuth();
+  if (unauth) return unauth;
+
+  const parsed = await parseBody(request, bodyZ);
+  if ("error" in parsed) return parsed.error;
+
+  const base = parsed.data.date ?? dayKey();
+  const targetDate = parsed.data.mode === "ayer" ? shiftDayKey(base, -1) : base;
+
+  let view: Awaited<ReturnType<typeof getDayView>>;
+  let plan: Awaited<ReturnType<typeof getPlanContext>>;
+  let peso: number | null;
+  try {
+    [view, plan, peso] = await Promise.all([
+      retry(() => getDayView(targetDate)),
+      retry(() => getPlanContext(targetDate)),
+      retry(() => latestWeightOnOrBefore(targetDate)),
+    ]);
+  } catch (err) {
+    return serverError(err);
+  }
+
+  const targets = plan?.targets ?? { kcal: 1800, prot: 110, carb: 0, fat: 0 };
+
+  try {
+    const text = await runText({
+      kind: "coach",
+      task: "coach",
+      prompt: coachPrompt({
+        mode: parsed.data.mode,
+        pesoReciente: peso ?? 92,
+        kcal: targets.kcal,
+        prot: targets.prot,
+        carb: targets.carb,
+        fat: targets.fat,
+        dayContext: dayContext(view),
+      }),
+      maxOutputTokens: 800,
+    });
+    return Response.json({ text });
+  } catch (err) {
+    return aiErrorResponse(err);
+  }
+}

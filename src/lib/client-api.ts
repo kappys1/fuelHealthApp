@@ -201,6 +201,12 @@ export const api = {
       body: "{}",
     }),
 
+  coach: (date: string, mode: "hoy" | "ayer") =>
+    req<{ text: string }>("/api/ai/coach", {
+      method: "POST",
+      body: JSON.stringify({ date, mode }),
+    }),
+
   uploadPhoto: (imageBase64: string, mediaType: string) =>
     req<{ url: string }>("/api/photos", {
       method: "POST",
