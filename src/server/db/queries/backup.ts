@@ -234,6 +234,7 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
         waterL: n(r.waterL),
         weight: n(r.weight),
         bodyFatPct: n(r.bodyFatPct),
+        extra: (r.extra ?? null) as Record<string, number> | null,
         source: (r.source ?? "csv") as typeof schema.healthSourceEnum.enumValues[number],
         updatedAt: dt(r.updatedAt),
       })),

@@ -96,8 +96,11 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
       const agg = entriesByDate.get(date);
       return {
         date,
-        // Precedencia health > manual (principio 6) para peso/agua/%grasa.
-        weight: health?.weight ?? day?.weight ?? null,
+        // Peso/%grasa/agua: tu valor MANUAL (edición del día) manda; la báscula
+        // (Apple Health) solo rellena los huecos. Protege el motor de déficit, que
+        // vive de pesajes en ayunas consistentes (principio 1). El resto de
+        // métricas del reloj no tienen equivalente manual.
+        weight: day?.weight ?? health?.weight ?? null,
         phase: (day?.phase as PhaseKey | null) ?? null,
         logged: (agg?.n ?? 0) > 0,
         kcal: agg?.kcal ?? 0,
@@ -111,8 +114,8 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
         hrvMs: health?.hrvMs ?? null,
         sleepH: health?.sleepH ?? null,
         restingHr: health?.restingHr ?? null,
-        bodyFatPct: health?.bodyFatPct ?? day?.bodyFatPct ?? null,
-        waterL: health?.waterL ?? day?.waterL ?? null,
+        bodyFatPct: day?.bodyFatPct ?? health?.bodyFatPct ?? null,
+        waterL: day?.waterL ?? health?.waterL ?? null,
         sessionLabel: day?.sessionLabel ?? null,
         bloat: (day?.bloat as BloatKey | null) ?? null,
       };

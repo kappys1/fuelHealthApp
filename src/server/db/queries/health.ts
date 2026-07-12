@@ -1,6 +1,6 @@
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { inArray } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/server/db";
 import { HEALTH_FIELDS, type HealthDay } from "@/server/ingest/normalize";
 import type { WorkoutRow } from "@/server/ingest/hae-json";
@@ -39,16 +39,33 @@ export async function applyHealthDays(
       const v = d[f];
       if (v != null) fields[f] = v;
     }
+    const hasExtra = d.extra != null && Object.keys(d.extra).length > 0;
     // Un día sin ninguna métrica (solo fecha) no aporta nada.
-    if (Object.keys(fields).length === 0) continue;
+    if (Object.keys(fields).length === 0 && !hasExtra) continue;
 
     const now = new Date();
+    // `extra` se FUSIONA (jsonb `||`) para no perder claves de importaciones
+    // previas cuando una llega parcial.
+    const extraMerge = hasExtra
+      ? {
+          extra: sql`coalesce(${schema.healthMetrics.extra}, '{}'::jsonb) || ${JSON.stringify(
+            d.extra,
+          )}::jsonb`,
+        }
+      : {};
+
     await db
       .insert(schema.healthMetrics)
-      .values({ date: d.date, source, updatedAt: now, ...fields })
+      .values({
+        date: d.date,
+        source,
+        updatedAt: now,
+        ...fields,
+        ...(hasExtra ? { extra: d.extra } : {}),
+      })
       .onConflictDoUpdate({
         target: schema.healthMetrics.date,
-        set: { source, updatedAt: now, ...fields },
+        set: { source, updatedAt: now, ...fields, ...extraMerge },
       });
     imported++;
   }
