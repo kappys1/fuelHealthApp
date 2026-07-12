@@ -42,7 +42,18 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
     (TrendCard invertida, adherencia, gráficos peso+ma7 e ingesta, popovers F6.6,
     rango 14/30/90/todo, Últimos días; segmento MED en Fase 4) y **Ajustes**
     (import CSV con vista previa, estado de sync, export/import-restore).
-- Siguiente: **Fase 4** de `06-PLAN-IMPLEMENTACION.md` (MED + Coach + Chat + PWA).
+  - **F4** (implementada, pendiente de deploy + verificación en el iPhone de Alex):
+    segmento **MED** en Progreso (CRUD retroactivo, difs `actual−anterior` con color
+    semántico, gráfico doble eje, `analytics/medDeltas` testeado), **Coach** (F-IA-6)
+    tras el ✨ del FuelGauge en sheet, **Chat** (F-IA-8: hilos, streaming, chips,
+    contexto fresco, resumen cacheado, guardarraíles), **Preparar visita** (F-IA-7),
+    **Importar dieta foto/PDF** (F-IA-9, PDF nativo a Gemini, vista previa editable),
+    **PWA** (Serwist/Turbopack, manifest+shortcuts+share target, cola offline `idb`
+    con replay, botones IA offline). Infra IA reusable en `server/ai/context.ts`.
+  - **Requisitos de deploy de F4**: (1) `AI_MODEL_COACH` en `.env.local` y Vercel
+    (coach/chat/visita); (2) `pnpm db:migrate` (migración 0002: `chat_threads.summary`
+    /`summary_msg_count`); (3) `pnpm install` respeta `pnpm.ignoredBuiltDependencies`.
+- Siguiente: **Fase 5** (pulido, Playwright de los 3 flujos, validación con uso real).
 - Se trabaja **fase a fase**. **Nunca adelantar trabajo de fases futuras.** Cada
   fase termina con sus tests de aceptación en verde y deploy a Vercel funcionando.
 
