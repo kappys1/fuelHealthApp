@@ -36,6 +36,12 @@ export interface HealthDTO {
   sleepH: number | null;
   restingHr: number | null;
   vo2max: number | null;
+  // Métricas de báscula (para auto-rellenar Peso/%grasa/agua en «Mi día»).
+  weight: number | null;
+  bodyFatPct: number | null;
+  waterL: number | null;
+  /** Resto de métricas de Apple Health (masa magra, ejercicio, SpO2, resp, temp…). */
+  extra: Record<string, number> | null;
 }
 
 export interface DayView {
@@ -60,6 +66,10 @@ export async function getDayView(date: string): Promise<DayView> {
       sleepH: schema.healthMetrics.sleepH,
       restingHr: schema.healthMetrics.restingHr,
       vo2max: schema.healthMetrics.vo2max,
+      weight: schema.healthMetrics.weight,
+      bodyFatPct: schema.healthMetrics.bodyFatPct,
+      waterL: schema.healthMetrics.waterL,
+      extra: schema.healthMetrics.extra,
     })
     .from(schema.healthMetrics)
     .where(eq(schema.healthMetrics.date, date));
