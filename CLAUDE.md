@@ -27,7 +27,8 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
 
 ## Estado actual
 
-- **Fases 0–3 completas y desplegadas** (Vercel `fuelboard`, región `fra1`):
+- **Fases 0–5 completas, desplegadas y en uso** (Vercel `fuelboard`, región `fra1`) —
+  **v1 completa** (resumen en `docs/CHANGELOG-v1.md`):
   - **F0**: Next 16 + Tailwind4/shadcn tematizado (tokens 05 §2, AA verificado),
     Drizzle+Neon con schema+seed, auth iron-session, nav 4 pestañas + Ajustes.
   - **F1**: Hoy (FuelGauge, timeline, Mi día, sheet de añadir, check-ins, exprés),
@@ -42,7 +43,7 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
     (TrendCard invertida, adherencia, gráficos peso+ma7 e ingesta, popovers F6.6,
     rango 14/30/90/todo, Últimos días; segmento MED en Fase 4) y **Ajustes**
     (import CSV con vista previa, estado de sync, export/import-restore).
-  - **F4** (implementada, pendiente de deploy + verificación en el iPhone de Alex):
+  - **F4** (completa, desplegada y en uso en el iPhone de Alex):
     segmento **MED** en Progreso (CRUD retroactivo, difs `actual−anterior` con color
     semántico, gráfico doble eje, `analytics/medDeltas` testeado), **Coach** (F-IA-6)
     tras el ✨ del FuelGauge en sheet, **Chat** (F-IA-8: hilos, streaming, chips,
@@ -53,7 +54,18 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
   - **Requisitos de deploy de F4**: (1) `AI_MODEL_COACH` en `.env.local` y Vercel
     (coach/chat/visita); (2) `pnpm db:migrate` (migración 0002: `chat_threads.summary`
     /`summary_msg_count`); (3) `pnpm install` respeta `pnpm.ignoredBuiltDependencies`.
-- Siguiente: **Fase 5** (pulido, Playwright de los 3 flujos, validación con uso real).
+  - **F5** (pulido y validación): auditoría de diseño (título de documento dinámico,
+    inputs a 16px sin zoom iOS, loadings sin CLS, `prefers-reduced-motion`) y de flujos
+    (fase post-especial auto-sugerida, peso exprés cableado al shortcut, hueco horario
+    del aviso de peso, plantilla en bottom-sheet); **Playwright** de los 4 flujos
+    críticos (registrar día, foto con IA mockeada, check-in matinal, import CSV) en
+    verde contra rama de test de Neon (`serviceWorkers:"block"`, auth por cookie
+    sellada; ver `e2e/README.md`); **región de función fijada a `fra1`** (verificado en
+    vivo; antes se ignoraba en Hobby → `iad1`); **LCP real ~0,5 s** (el 4,2 s de
+    Lighthouse es lab, slow-4G simulado, documentado); **coste IA ~€1,6–1,9/mes** (< 5 €;
+    `AI_MODEL_COACH` = Gemini 3.5 Flash).
+- **v1 completa.** Siguiente: **uso real** hasta la MED de agosto (validar la predicción
+  de Tendencia contra los pliegues del nutri) y **backlog v1.1** (`docs/CHANGELOG-v1.md`).
 - Se trabaja **fase a fase**. **Nunca adelantar trabajo de fases futuras.** Cada
   fase termina con sus tests de aceptación en verde y deploy a Vercel funcionando.
 
