@@ -45,8 +45,9 @@ export async function POST() {
         tendencia: trendSummary(deficit),
         filas: dayLines(records, 21),
       }),
-      // 200 palabras (~350 tokens) + margen; con thinking "low" no se trunca.
-      maxOutputTokens: 2048,
+      // Presupuesto amplio: thinking "medium" (análisis) + 200 palabras de texto
+      // deben caber sin truncar. Los tokens de thinking cuentan aquí (DECISIONS #48).
+      maxOutputTokens: 4096,
     });
     return Response.json({ text });
   } catch (err) {

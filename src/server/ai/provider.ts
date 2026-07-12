@@ -83,14 +83,15 @@ export function determinismSettings(task: Task): DeterminismSettings {
         },
       };
     }
-    // Coach / preparar-visita (F-IA-6/7): thinking "low". El default de Gemini 3
-    // consume MUCHOS tokens pensando y, con el maxOutputTokens acotado, truncaba la
-    // respuesta (se veía cortada a media frase). "low" deja presupuesto para el
-    // texto completo (misma clase de problema que en visión, DECISIONS #48/#52).
+    // Coach / preparar-visita (F-IA-6/7): thinking "medium" — es análisis (mejores
+    // preguntas, mejor conexión de datos), NO estimación. El default de Gemini 3
+    // gastaba tanto pensando que truncaba la respuesta; la clave NO es pensar menos
+    // sino ACOTAR el thinking a "medium" y dar maxOutputTokens de sobra en la route
+    // para que quepan razonamiento + texto completo (DECISIONS #48/#52).
     return {
       temperature: 0,
       providerOptions: {
-        google: { thinkingConfig: { thinkingLevel: "low" } },
+        google: { thinkingConfig: { thinkingLevel: "medium" } },
       },
     };
   }

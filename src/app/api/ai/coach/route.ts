@@ -58,8 +58,8 @@ export async function POST(request: Request) {
         fat: targets.fat,
         dayContext: dayContext(view),
       }),
-      // 100 palabras + tokens de thinking (low): margen para no truncar.
-      maxOutputTokens: 1200,
+      // 100 palabras + thinking "medium": presupuesto amplio para no truncar.
+      maxOutputTokens: 3072,
     });
     return Response.json({ text });
   } catch (err) {
