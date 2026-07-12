@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
 import { DietImport } from "./diet-import";
+import { TrainingImport } from "./training-import";
 
 const n = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
 
@@ -73,8 +74,9 @@ export function PlanClient({
     <div className="space-y-5 pb-8">
       <h1 className="card-title text-muted-foreground">Plan</h1>
 
-      {/* Importar dieta desde foto/PDF (F-IA-9), destacado arriba (09 §5b) */}
+      {/* Importar dieta (F-IA-9) y semana de entreno (F-IA-10), destacados arriba */}
       <DietImport />
+      <TrainingImport />
 
       {/* Objetivos */}
       <section className="rounded-xl border border-line bg-surface p-4">

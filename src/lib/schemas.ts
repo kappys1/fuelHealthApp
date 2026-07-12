@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRAINING_TIPOS } from "@/lib/training";
 
 // Zod compartido de los boundaries (API routes). Coincide con los enums del schema.
 export const mealZ = z.enum(["almuerzo", "comida", "merienda", "cena", "extra"]);
@@ -58,4 +59,27 @@ export const dietVersionCreateZ = z.object({
   carb: z.number().min(0).max(2000).nullable(),
   fat: z.number().min(0).max(2000).nullable(),
   options: z.array(optionZ).max(200),
+});
+
+// Crear un plan de entrenamiento COMPLETO desde importación (F-IA-10).
+export const trainingSourceZ = z.enum(["pdf", "foto", "texto"]);
+export const trainingTipoZ = z.enum(TRAINING_TIPOS);
+export const trainingSessionCreateZ = z.object({
+  key: z.string().max(40),
+  nombre: z.string().min(1).max(200),
+  tipo: trainingTipoZ,
+  contenido: z.string().max(4000),
+  kcalMin: z.number().int().min(0).max(20000).nullable(),
+  kcalMax: z.number().int().min(0).max(20000).nullable(),
+  duracionMin: z.number().int().min(0).max(1000).nullable(),
+});
+export const trainingPlanCreateZ = z.object({
+  programa: z.string().min(1).max(120),
+  etiqueta: z.string().min(1).max(120),
+  source: trainingSourceZ,
+  sessions: z.array(trainingSessionCreateZ).min(1).max(20),
+  // sessionIndex apunta al índice de `sessions` (orden de la vista previa).
+  assignments: z
+    .array(z.object({ sessionIndex: z.number().int().min(0), date: dateZ }))
+    .max(31),
 });

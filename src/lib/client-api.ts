@@ -6,8 +6,10 @@ import type {
   EstimateResult,
   PhotoResult,
   PlanOptionAiResult,
+  TrainingImportResult,
   WodResult,
 } from "@/server/ai/schemas";
+import type { TrainingTipo } from "@/lib/training";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
 import type { DayPatch, MedInput } from "@/server/db/queries/mutations";
@@ -134,6 +136,36 @@ export const api = {
     }[];
   }) =>
     req<{ version: unknown }>("/api/plan/version", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // Entreno · importar semana (F-IA-10)
+  importTraining: (payload: {
+    files?: { base64: string; mediaType: string }[];
+    texto?: string;
+  }) =>
+    req<TrainingImportResult>("/api/ai/training-import", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  createTrainingPlan: (payload: {
+    programa: string;
+    etiqueta: string;
+    source: "pdf" | "foto" | "texto";
+    sessions: {
+      key: string;
+      nombre: string;
+      tipo: TrainingTipo;
+      contenido: string;
+      kcalMin: number | null;
+      kcalMax: number | null;
+      duracionMin: number | null;
+    }[];
+    assignments: { sessionIndex: number; date: string }[];
+  }) =>
+    req<{ ok: true; assigned: number; skipped: number }>("/api/training/plan", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
