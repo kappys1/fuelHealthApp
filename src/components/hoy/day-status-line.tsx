@@ -41,7 +41,7 @@ export function DayStatusLine({
   let msg: string | null = null;
   let action: (() => void) | null = null;
 
-  if (hour < 11 && !hasWeight) {
+  if (hour < 12 && !hasWeight) {
     msg = "Falta el peso de hoy";
     action = onWeight;
   } else if (hour >= 12 && hour < 21 && !hasComida) {

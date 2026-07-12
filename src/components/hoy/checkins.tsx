@@ -80,6 +80,7 @@ export function CheckinMatinal({
                   setStep(1);
                 }}
               />
+              <SkipLink onClick={() => setStep(1)} />
             </div>
           ) : null}
 

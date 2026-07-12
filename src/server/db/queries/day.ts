@@ -139,6 +139,16 @@ export async function latestWeightOnOrBefore(date: string): Promise<number | nul
   return rows[0]?.weight ?? null;
 }
 
+/** Fase registrada en una fecha (para sugerir la fase de hoy tras un día especial, 09 §5). */
+export async function phaseOnDate(date: string): Promise<PhaseKey | null> {
+  const [row] = await db
+    .select({ phase: schema.days.phase })
+    .from(schema.days)
+    .where(eq(schema.days.date, date))
+    .limit(1);
+  return (row?.phase as PhaseKey | null) ?? null;
+}
+
 /** Existe la fila days de una fecha (para saber si el día "está empezado"). */
 export async function dayExists(date: string): Promise<boolean> {
   const [row] = await db
