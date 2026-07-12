@@ -1,6 +1,7 @@
 import type { MealKey } from "@/lib/macros";
 import type {
   DayDumpResult,
+  DietImportResult,
   EstimateResult,
   PhotoResult,
   PlanOptionAiResult,
@@ -106,6 +107,35 @@ export const api = {
 
   deleteTemplate: (id: number) =>
     req<{ ok: true }>(`/api/templates/${id}`, { method: "DELETE" }),
+
+  // Plan · importar dieta (F-IA-9)
+  importDiet: (files: { base64: string; mediaType: string }[]) =>
+    req<DietImportResult>("/api/ai/diet-import", {
+      method: "POST",
+      body: JSON.stringify({ files }),
+    }),
+
+  createDietVersion: (payload: {
+    effectiveFrom: string;
+    kcal: number;
+    prot: number;
+    carb: number | null;
+    fat: number | null;
+    options: {
+      meal: MealKey;
+      grp: string;
+      name: string;
+      baseG: number | null;
+      kcal: number;
+      prot: number;
+      carb: number;
+      fat: number;
+    }[];
+  }) =>
+    req<{ version: unknown }>("/api/plan/version", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   // Plan
   patchTargets: (t: {

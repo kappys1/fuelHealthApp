@@ -253,6 +253,54 @@ export async function createVersionWithTargets(t: TargetsInput) {
   return version;
 }
 
+/**
+ * Crea una versión de dieta COMPLETA desde una importación (F-IA-9): inserta la
+ * versión + todas sus opciones. Distinta de createVersionWithTargets (que copia
+ * las opciones vigentes); aquí las opciones vienen de la pauta importada. Nada se
+ * persiste hasta que el usuario confirma la vista previa.
+ */
+export interface ImportedVersion {
+  effectiveFrom: string;
+  kcal: number;
+  prot: number;
+  carb: number | null;
+  fat: number | null;
+  options: OptionInput[];
+}
+
+export async function createDietVersionFull(v: ImportedVersion) {
+  const [version] = await db
+    .insert(schema.dietVersions)
+    .values({
+      effectiveFrom: v.effectiveFrom,
+      kcalTarget: v.kcal,
+      protTarget: v.prot,
+      carbTarget: v.carb,
+      fatTarget: v.fat,
+      note: "imported:photo",
+    })
+    .returning();
+  if (!version) throw new Error("No se pudo crear la versión de dieta.");
+
+  if (v.options.length > 0) {
+    await db.insert(schema.planOptions).values(
+      v.options.map((o, i) => ({
+        dietVersionId: version.id,
+        meal: o.meal,
+        grp: o.grp as GrpEnum,
+        name: o.name,
+        baseG: o.baseG,
+        kcal: o.kcal,
+        prot: o.prot,
+        carb: o.carb,
+        fat: o.fat,
+        sort: i,
+      })),
+    );
+  }
+  return version;
+}
+
 // ── templates (F2.6) ──
 export async function saveTemplateFromDate(name: string, date: string) {
   const entries = await db

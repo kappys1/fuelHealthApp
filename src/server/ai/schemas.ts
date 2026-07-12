@@ -69,3 +69,25 @@ export const wodZ = z.object({
   comentario: z.string(),
 });
 export type WodResult = z.infer<typeof wodZ>;
+
+// ── F-IA-9 · Importar dieta desde foto/PDF ──
+export const dietImportOptionZ = z.object({
+  nombre: z.string(),
+  grupo: z.string(),
+  gramos: num.nullable(),
+  kcal: num,
+  proteina_g: num,
+  carbohidratos_g: num,
+  grasa_g: num,
+});
+export const dietImportComidaZ = z.object({
+  comida: z.string(),
+  opciones: z.array(dietImportOptionZ),
+});
+export const dietImportZ = z.object({
+  kcal_totales: num.nullable(),
+  proteina_total: num.nullable(),
+  comidas: z.array(dietImportComidaZ),
+});
+export type DietImportResult = z.infer<typeof dietImportZ>;
+export type DietImportOption = z.infer<typeof dietImportOptionZ>;
