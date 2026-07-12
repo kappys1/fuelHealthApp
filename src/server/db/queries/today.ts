@@ -1,11 +1,12 @@
-import { isoWeekday } from "@/lib/dates";
-import type { SessionByWeekday } from "@/lib/macros";
+import { isoWeekday, shiftDayKey } from "@/lib/dates";
+import { PHASE_NEXT, type PhaseKey, type SessionByWeekday } from "@/lib/macros";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
 import {
   type DayView,
   getDayView,
   getStreak,
   latestWeightOnOrBefore,
+  phaseOnDate,
 } from "./day";
 import {
   type FavoriteDTO,
@@ -41,23 +42,43 @@ export interface TodayPayload {
   defaultSession: string;
   /** Último peso conocido (para precargar el check-in matinal, 09 §5). */
   lastWeight: number | null;
+  /**
+   * Fase sugerida para hoy si ayer fue especial y hoy aún no tiene fase (09 §5:
+   * Carga→Competición→Recuperación→Normal). `null` si no hay sugerencia.
+   */
+  suggestedPhase: PhaseKey | null;
 }
 
 export async function getTodayPayload(date: string): Promise<TodayPayload> {
-  const [view, plan, favorites, recents, templates, streak, sessionByWeekday, lastWeight] =
-    await Promise.all([
-      getDayView(date),
-      getPlanContext(date),
-      listFavorites(),
-      recentDistinctEntries(50),
-      listTemplates(),
-      getStreak(),
-      getSessionByWeekday(),
-      latestWeightOnOrBefore(date),
-    ]);
+  const [
+    view,
+    plan,
+    favorites,
+    recents,
+    templates,
+    streak,
+    sessionByWeekday,
+    lastWeight,
+    prevPhase,
+  ] = await Promise.all([
+    getDayView(date),
+    getPlanContext(date),
+    listFavorites(),
+    recentDistinctEntries(50),
+    listTemplates(),
+    getStreak(),
+    getSessionByWeekday(),
+    latestWeightOnOrBefore(date),
+    phaseOnDate(shiftDayKey(date, -1)),
+  ]);
 
   const wd = String(isoWeekday(date));
   const defaultSession = sessionByWeekday[wd] ?? "Descanso";
+
+  // Sugerir la siguiente fase solo si hoy aún no la tiene y ayer fue especial
+  // (todas las PhaseKey son especiales; Normal se guarda como null).
+  const suggestedPhase =
+    view.day?.phase == null && prevPhase != null ? PHASE_NEXT[prevPhase] : null;
 
   return {
     date,
@@ -79,5 +100,6 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     sessionByWeekday,
     defaultSession,
     lastWeight,
+    suggestedPhase,
   };
 }

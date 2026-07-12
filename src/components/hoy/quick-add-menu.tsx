@@ -7,6 +7,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import type { TemplateDTO } from "@/server/db/queries/lookups";
 
 /** Menú «⋯» del timeline (09 §4): copiar ayer, guardar/aplicar/borrar plantilla. */
@@ -24,6 +30,15 @@ export function QuickAddMenu({
   onDeleteTemplate: (id: number) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [nameOpen, setNameOpen] = useState(false);
+  const [name, setName] = useState("");
+
+  const saveTemplate = () => {
+    const trimmed = name.trim();
+    if (trimmed) onSaveTemplate(trimmed);
+    setName("");
+    setNameOpen(false);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -51,9 +66,9 @@ export function QuickAddMenu({
         <button
           type="button"
           onClick={() => {
-            const name = window.prompt("Nombre de la plantilla:");
-            if (name?.trim()) onSaveTemplate(name.trim());
             setOpen(false);
+            setName("");
+            setNameOpen(true);
           }}
           className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2"
         >
@@ -92,6 +107,38 @@ export function QuickAddMenu({
           </div>
         ) : null}
       </PopoverContent>
+
+      {/* Nombrar plantilla en sheet propio (09 §6: crear/editar = bottom-sheet). */}
+      <Sheet open={nameOpen} onOpenChange={setNameOpen}>
+        <SheetContent side="bottom" className="gap-0">
+          <SheetHeader>
+            <SheetTitle className="card-title text-muted-foreground">
+              Guardar día como plantilla
+            </SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4 px-4 py-4">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveTemplate();
+              }}
+              autoFocus
+              placeholder="Nombre de la plantilla"
+              aria-label="Nombre de la plantilla"
+              className="w-full rounded-lg border border-input bg-surface-2 px-3 py-2.5 text-base outline-none focus-visible:border-ring"
+            />
+            <button
+              type="button"
+              onClick={saveTemplate}
+              disabled={!name.trim()}
+              className="w-full rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground disabled:opacity-40"
+            >
+              Guardar
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </Popover>
   );
 }

@@ -30,9 +30,12 @@ const BLOATS: BloatKey[] = ["ninguna", "leve", "moderada", "alta"];
 export function MiDiaCard({
   view,
   onPatch,
+  suggestedPhase = null,
 }: {
   view: DayView;
   onPatch: (patch: DayPatch) => void;
+  /** Fase sugerida tras un día especial (09 §5); valor propuesto, un toque para aplicar. */
+  suggestedPhase?: PhaseKey | null;
 }) {
   const day = view.day;
   const health = view.health;
@@ -193,6 +196,15 @@ export function MiDiaCard({
                   ))}
                 </SelectContent>
               </Select>
+              {suggestedPhase && day?.phase == null ? (
+                <button
+                  type="button"
+                  onClick={() => onPatch({ phase: suggestedPhase })}
+                  className="mt-1.5 text-left text-[12px] font-medium text-primary"
+                >
+                  Sugerida hoy: {PHASE_LABELS[suggestedPhase]} · aplicar
+                </button>
+              ) : null}
             </label>
           </div>
 

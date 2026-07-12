@@ -51,11 +51,14 @@ export function HoyClient({
   const [addMeal, setAddMeal] = useState<MealKey>(() =>
     searchParams.get("add") === "1" ? mealByHour() : "comida",
   );
-  const [matinalOpen, setMatinalOpen] = useState(
+  const [matinalOpen, setMatinalOpen] = useState(false);
+  const [cierreOpen, setCierreOpen] = useState(false);
+  // Shortcut del manifest «Peso de hoy» → sheet exprés de peso (09 §5b: abre
+  // directamente ESTE sheet). La línea de estado matinal abre el check-in de 3
+  // pasos (09 §5); ver DECISIONS.md.
+  const [weightOpen, setWeightOpen] = useState(
     () => searchParams.get("checkin") === "weight",
   );
-  const [cierreOpen, setCierreOpen] = useState(false);
-  const [weightOpen, setWeightOpen] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
   const [sharedFile, setSharedFile] = useState<File | null>(null);
 
@@ -197,7 +200,11 @@ export function HoyClient({
         onDeleteTemplate={t.deleteTemplate}
       />
 
-      <MiDiaCard view={data.view} onPatch={t.patchDay} />
+      <MiDiaCard
+        view={data.view}
+        onPatch={t.patchDay}
+        suggestedPhase={data.suggestedPhase}
+      />
 
       {/* Botón primario fijo «+ Añadir comida» (09 §3) */}
       <button
