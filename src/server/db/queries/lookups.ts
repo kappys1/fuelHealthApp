@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import type { MealKey, SessionByWeekday } from "@/lib/macros";
 import { DEFAULT_SESSION_BY_WEEKDAY } from "@/lib/macros";
+import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
 import { db, schema } from "@/server/db";
 import type { TemplateItem } from "@/server/db/schema";
 
@@ -102,4 +103,13 @@ export const SESSION_MAP_KEY = "sessionByWeekday";
 export async function getSessionByWeekday(): Promise<SessionByWeekday> {
   const stored = await getSetting<SessionByWeekday>(SESSION_MAP_KEY);
   return { ...DEFAULT_SESSION_BY_WEEKDAY, ...(stored ?? {}) };
+}
+
+export const ATHLETE_PROFILE_KEY = "athleteProfile";
+
+/** Perfil de atleta (doc 10 A1). Merge superficial sobre defaults: campos nuevos
+ *  añadidos en el futuro caen al default sin migración. */
+export async function getAthleteProfile(): Promise<AthleteProfile> {
+  const stored = await getSetting<Partial<AthleteProfile>>(ATHLETE_PROFILE_KEY);
+  return { ...DEFAULT_ATHLETE_PROFILE, ...(stored ?? {}) };
 }

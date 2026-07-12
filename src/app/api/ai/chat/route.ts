@@ -5,6 +5,7 @@ import { dayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
 import { computeAdherence } from "@/server/analytics/adherence";
 import { computeDeficit } from "@/server/analytics/deficit";
+import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
 import {
   dayLines,
@@ -79,6 +80,9 @@ export async function POST(request: Request) {
     const lastWeight =
       [...trend.records].reverse().find((r) => r.weight != null)?.weight ?? 92;
 
+    // ATHLETE_CONTEXT dinámico (doc 10 A2) + mapeo para el calendario del día en curso.
+    const atleta = await retry(() => getAthleteContexts(today, lastWeight));
+
     // Historial: últimos 12 verbatim; los anteriores, resumen cacheado por lotes.
     const all = detail.messages;
     const prior = all.slice(0, Math.max(0, all.length - CHAT_WINDOW));
@@ -103,13 +107,16 @@ export async function POST(request: Request) {
     }
 
     system = chatSystemPrompt({
-      pesoReciente: lastWeight,
+      atleta: atleta.full,
       planSummary: plan
         ? planSummary(plan.targets, plan.optionsByMeal)
         : "Sin plan de dieta configurado.",
       trendAdherence: trendAndAdherence(deficit, adherence),
       meds: medLines(meds),
-      days30: dayLines(trend.records, 30),
+      days30: dayLines(trend.records, 30, {
+        sessionByWeekday: atleta.sessionByWeekday,
+        today,
+      }),
       priorSummary: prior.length > 0 ? priorSummary : null,
     });
 

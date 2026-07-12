@@ -1,4 +1,5 @@
 import type { MealKey } from "@/lib/macros";
+import type { AthleteProfile } from "@/lib/profile";
 import type {
   DayDumpResult,
   DietImportResult,
@@ -187,6 +188,12 @@ export const api = {
     req<{ map: Record<string, string> }>("/api/settings/session-map", {
       method: "PATCH",
       body: JSON.stringify({ map }),
+    }),
+
+  saveAthleteProfile: (profile: AthleteProfile) =>
+    req<{ profile: AthleteProfile }>("/api/settings/athlete-profile", {
+      method: "PATCH",
+      body: JSON.stringify({ profile }),
     }),
 
   // ── IA (Fase 2) — errores del proveedor + status propagados por req() ──

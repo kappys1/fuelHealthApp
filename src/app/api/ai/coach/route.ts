@@ -3,11 +3,12 @@ import { ensureAuth, parseBody, serverError } from "@/lib/api";
 import { dayKey, shiftDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
 import { dateZ } from "@/lib/schemas";
+import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
 import { dayContext } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { coachPrompt } from "@/server/ai/prompts";
-import { getDayView, latestWeightOnOrBefore } from "@/server/db/queries/day";
+import { getDayView } from "@/server/db/queries/day";
 import { getPlanContext } from "@/server/db/queries/plan";
 
 const bodyZ = z.object({
@@ -32,12 +33,12 @@ export async function POST(request: Request) {
 
   let view: Awaited<ReturnType<typeof getDayView>>;
   let plan: Awaited<ReturnType<typeof getPlanContext>>;
-  let peso: number | null;
+  let atleta: Awaited<ReturnType<typeof getAthleteContexts>>;
   try {
-    [view, plan, peso] = await Promise.all([
+    [view, plan, atleta] = await Promise.all([
       retry(() => getDayView(targetDate)),
       retry(() => getPlanContext(targetDate)),
-      retry(() => latestWeightOnOrBefore(targetDate)),
+      retry(() => getAthleteContexts(targetDate)),
     ]);
   } catch (err) {
     return serverError(err);
@@ -50,13 +51,16 @@ export async function POST(request: Request) {
       kind: "coach",
       task: "coach",
       prompt: coachPrompt({
+        atleta: atleta.full,
         mode: parsed.data.mode,
-        pesoReciente: peso ?? 92,
         kcal: targets.kcal,
         prot: targets.prot,
         carb: targets.carb,
         fat: targets.fat,
-        dayContext: dayContext(view),
+        dayContext: dayContext(view, {
+          sessionByWeekday: atleta.sessionByWeekday,
+          date: targetDate,
+        }),
       }),
       // 100 palabras + thinking "medium": presupuesto amplio para no truncar.
       maxOutputTokens: 3072,

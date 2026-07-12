@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ensureAuth, parseBody, serverError } from "@/lib/api";
 import { retry } from "@/lib/retry";
 import { dateZ } from "@/lib/schemas";
+import { getAthleteContexts } from "@/server/ai/athlete";
 import { runStructured } from "@/server/ai/client";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { dayDumpPrompt } from "@/server/ai/prompts";
@@ -22,8 +23,12 @@ export async function POST(request: Request) {
   if ("error" in parsed) return parsed.error;
 
   let plan;
+  let atleta: Awaited<ReturnType<typeof getAthleteContexts>>;
   try {
-    plan = await retry(() => getPlanContext(parsed.data.date));
+    [plan, atleta] = await Promise.all([
+      retry(() => getPlanContext(parsed.data.date)),
+      retry(() => getAthleteContexts(parsed.data.date)),
+    ]);
   } catch (err) {
     return serverError(err);
   }
@@ -36,7 +41,7 @@ export async function POST(request: Request) {
       // "estimate" (thinking low) por la regla de determinismo.
       kind: "vision",
       task: "estimate",
-      prompt: dayDumpPrompt(parsed.data.texto, kcal, prot),
+      prompt: dayDumpPrompt(parsed.data.texto, kcal, prot, atleta.compact),
       schema: dayDumpZ,
       // Un volcado del día entero puede trocearse en muchos items; con el thinking
       // de Gemini saliendo de este presupuesto, damos margen para no truncar el JSON.

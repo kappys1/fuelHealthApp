@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { ensureAuth, parseBody } from "@/lib/api";
+import { ensureAuth, parseBody, serverError } from "@/lib/api";
+import { retry } from "@/lib/retry";
+import { getAthleteContexts } from "@/server/ai/athlete";
 import { runStructured } from "@/server/ai/client";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { planOptionPrompt } from "@/server/ai/prompts";
@@ -18,11 +20,23 @@ export async function POST(request: Request) {
   const parsed = await parseBody(request, bodyZ);
   if ("error" in parsed) return parsed.error;
 
+  // Contexto compacto del atleta (doc 10 A2), sin sesgar la estimación de macros.
+  let atleta: Awaited<ReturnType<typeof getAthleteContexts>>;
+  try {
+    atleta = await retry(() => getAthleteContexts());
+  } catch (err) {
+    return serverError(err);
+  }
+
   try {
     const result = await runStructured({
       kind: "text",
       task: "estimate",
-      prompt: planOptionPrompt(parsed.data.nombre, parsed.data.gramos ?? null),
+      prompt: planOptionPrompt(
+        parsed.data.nombre,
+        parsed.data.gramos ?? null,
+        atleta.compact,
+      ),
       schema: planOptionAiZ,
       maxOutputTokens: 500,
     });
