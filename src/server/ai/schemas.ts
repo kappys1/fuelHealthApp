@@ -91,3 +91,23 @@ export const dietImportZ = z.object({
 });
 export type DietImportResult = z.infer<typeof dietImportZ>;
 export type DietImportOption = z.infer<typeof dietImportOptionZ>;
+
+// ── F-IA-10 · Importar semana de entrenamiento ──
+// `tipo` se valida como string y se normaliza contra el enum en el cliente/route
+// (el modelo puede devolver "Halterofilia", "gimnásticos", etc.).
+export const trainingImportSessionZ = z.object({
+  clave: z.string(),
+  nombre: z.string(),
+  tipo: z.string(),
+  contenido: z.string(),
+  duracion_min: num,
+  kcal_min: num,
+  kcal_max: num,
+});
+export const trainingImportZ = z.object({
+  programa: z.string().nullable(),
+  etiqueta: z.string().nullable(),
+  sesiones: z.array(trainingImportSessionZ),
+});
+export type TrainingImportResult = z.infer<typeof trainingImportZ>;
+export type TrainingImportSession = z.infer<typeof trainingImportSessionZ>;
