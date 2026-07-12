@@ -12,10 +12,17 @@ config({ path: ".env.local" });
 async function main() {
   // Import diferido: primero cargamos el env.
   const { runStructured } = await import("../src/server/ai/client");
-  const { estimatePrompt } = await import("../src/server/ai/prompts");
+  const { estimatePrompt, athleteContextCompact } = await import(
+    "../src/server/ai/prompts"
+  );
   const { estimateZ } = await import("../src/server/ai/schemas");
+  const { DEFAULT_ATHLETE_PROFILE } = await import("../src/lib/profile");
 
   const desc = "200 ml café con leche desnatada";
+  // Contexto compacto (doc 10 A2) desde el perfil por defecto + peso 92 (lo que
+  // enviaría producción). Comparar con DECISIONS #65: la cláusula anti-sesgo debe
+  // mantener las cifras estables pese a añadir el contexto del perfil.
+  const contexto = athleteContextCompact(DEFAULT_ATHLETE_PROFILE, 92);
   console.log(`Proveedor=${process.env.AI_PROVIDER} · modelo texto=${process.env.AI_MODEL_TEXT}`);
   console.log(`Estimando "${desc}" 3 veces…\n`);
 
@@ -24,7 +31,7 @@ async function main() {
     const r = await runStructured({
       kind: "text",
       task: "estimate",
-      prompt: estimatePrompt(desc),
+      prompt: estimatePrompt(desc, contexto),
       schema: estimateZ,
       maxOutputTokens: 500,
     });

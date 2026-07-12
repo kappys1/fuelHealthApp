@@ -19,6 +19,7 @@ El PRD define QUÉ hace la app (requisitos F1-F8: todos siguen vigentes). Este d
 
 - **Progreso** fusiona Tendencia y MED como segmentos de una misma pantalla (`Tendencia | MED`), porque responden la misma pregunta («¿funciona?»). Preparar visita vive en el segmento MED. La tabla «Últimos días» vive al final de Tendencia.
 - **Salud deja de ser pestaña**: import CSV, estado del endpoint («última sync hace 2 h ✓»), export/restore y tema son **Ajustes** — operaciones de mantenimiento, no destinos diarios.
+- **Perfil del atleta** (doc 10 A1) vive en **Ajustes** junto al mapeo de sesiones: campos simples, suplementos y lesiones como chips, y sección «Objetivo» (vigente destacado + «Cambiar objetivo» que añade una entrada fechada + historial plegado). Es la fuente del `ATHLETE_CONTEXT` de la IA (principio 9).
 - **Chat** es pestaña propia: es el destino conversacional de «pregúntale a tus datos».
 
 ## 3. Pantalla Hoy (rediseñada — task-first)

@@ -1,4 +1,11 @@
-import { BLOAT_LABELS, MEAL_LABELS, MEAL_ORDER, phaseLabel } from "@/lib/macros";
+import { dayKey, isoWeekday } from "@/lib/dates";
+import {
+  BLOAT_LABELS,
+  MEAL_LABELS,
+  MEAL_ORDER,
+  phaseLabel,
+  type SessionByWeekday,
+} from "@/lib/macros";
 import type { AdherenceResult } from "@/server/analytics/adherence";
 import type { DeficitResult } from "@/server/analytics/deficit";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
@@ -18,8 +25,13 @@ const num = (n: number, d = 0) =>
 /**
  * Una línea por día (F-IA-7 / F-IA-8): kcal y macros o «sin registro», peso,
  * sesión, fase, hinchazón, notas entrecomilladas, agua, sueño, HRV.
+ * `calendarFallback`: si el día no tiene sesión registrada, la sesión que toca
+ * según el calendario semanal (doc 10 A4; se usa solo para el día en curso).
  */
-export function dayLine(r: DailyRecord): string {
+export function dayLine(
+  r: DailyRecord,
+  calendarFallback?: string | null,
+): string {
   const parts: string[] = [r.date];
   parts.push(
     r.logged
@@ -28,6 +40,8 @@ export function dayLine(r: DailyRecord): string {
   );
   if (r.weight != null) parts.push(`peso ${num(r.weight, 1)} kg`);
   if (r.sessionLabel) parts.push(r.sessionLabel);
+  else if (calendarFallback)
+    parts.push(`sin sesión registrada (calendario: ${calendarFallback})`);
   parts.push(`fase ${phaseLabel(r.phase)}`);
   if (r.bloat) parts.push(`hinchazón ${BLOAT_LABELS[r.bloat].toLowerCase()}`);
   if (r.waterL != null) parts.push(`agua ${num(r.waterL, 1)} L`);
@@ -37,11 +51,27 @@ export function dayLine(r: DailyRecord): string {
   return parts.join(" · ");
 }
 
-/** Últimos `n` días (con datos) como bloque de líneas. */
-export function dayLines(records: readonly DailyRecord[], n: number): string {
+/**
+ * Últimos `n` días (con datos) como bloque de líneas. `calendar` (doc 10 A4):
+ * para el día en curso sin sesión registrada, anota la sesión que toca según el
+ * calendario semanal (mismo tratamiento que el coach para chat/visita).
+ */
+export function dayLines(
+  records: readonly DailyRecord[],
+  n: number,
+  calendar?: { sessionByWeekday: SessionByWeekday; today: string },
+): string {
   const rows = records.slice(-n);
   if (rows.length === 0) return "Sin registros todavía.";
-  return rows.map(dayLine).join("\n");
+  return rows
+    .map((r) => {
+      const fallback =
+        calendar && r.date === calendar.today
+          ? (calendar.sessionByWeekday[String(isoWeekday(r.date))] ?? "Descanso")
+          : null;
+      return dayLine(r, fallback);
+    })
+    .join("\n");
 }
 
 /** Historial MED completo (se compara solo consigo mismo, principio 5). */
@@ -102,7 +132,10 @@ export function planSummary(
  * macros por item, totales, peso, sesión (+kcal), fase, agua, hinchazón, notas y
  * métricas del reloj (pasos, activas, basales, HRV, sueño).
  */
-export function dayContext(view: DayView): string {
+export function dayContext(
+  view: DayView,
+  calendar?: { sessionByWeekday: SessionByWeekday; date: string },
+): string {
   const { day, health, entries } = view;
   const lines: string[] = [];
 
@@ -126,6 +159,17 @@ export function dayContext(view: DayView): string {
     );
     lines.push(
       `Totales: ${Math.round(tot.kcal)} kcal · ${Math.round(tot.prot)} g prot · ${Math.round(tot.carb)} g hidr · ${Math.round(tot.fat)} g grasa.`,
+    );
+  }
+
+  // Sesión sin registrar: emitir la que toca según el calendario semanal para que
+  // el coach no rellene el hueco asumiendo entreno (doc 10 A4 · bug del descanso).
+  if (!day?.sessionLabel && calendar) {
+    const label =
+      calendar.sessionByWeekday[String(isoWeekday(calendar.date))] ?? "Descanso";
+    const when = calendar.date === dayKey() ? "hoy toca" : "ese día tocaba";
+    lines.push(
+      `Sesión: sin registrar (según tu calendario semanal, ${when}: ${label}).`,
     );
   }
 

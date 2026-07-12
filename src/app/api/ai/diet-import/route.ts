@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { badRequest, ensureAuth, parseBody } from "@/lib/api";
+import { badRequest, ensureAuth, parseBody, serverError } from "@/lib/api";
+import { retry } from "@/lib/retry";
+import { getAthleteContexts } from "@/server/ai/athlete";
 import { runStructured } from "@/server/ai/client";
 import { normalizeImage } from "@/server/ai/image";
 import { aiErrorResponse } from "@/server/ai/errors";
@@ -34,11 +36,19 @@ export async function POST(request: Request) {
     return badRequest(err instanceof Error ? err.message : "Archivo inválido.");
   }
 
+  // Contexto compacto del atleta (doc 10 A2), sin sesgar la extracción de macros.
+  let atleta: Awaited<ReturnType<typeof getAthleteContexts>>;
+  try {
+    atleta = await retry(() => getAthleteContexts());
+  } catch (err) {
+    return serverError(err);
+  }
+
   try {
     const result = await runStructured({
       kind: "vision",
       task: "vision",
-      prompt: dietImportPrompt(),
+      prompt: dietImportPrompt(atleta.compact),
       images,
       schema: dietImportZ,
       // Extracción grande (~34 opciones) + tokens de "thinking" de visión: 3000 del

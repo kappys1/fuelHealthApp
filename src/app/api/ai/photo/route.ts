@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ensureAuth, badRequest, parseBody, serverError } from "@/lib/api";
 import { retry } from "@/lib/retry";
 import { dateZ, mealZ } from "@/lib/schemas";
+import { getAthleteContexts } from "@/server/ai/athlete";
 import { runStructured } from "@/server/ai/client";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { normalizeImage } from "@/server/ai/image";
@@ -33,11 +34,15 @@ export async function POST(request: Request) {
     return badRequest(err instanceof Error ? err.message : "Imagen inválida.");
   }
 
-  // Contexto del plan (BD): errores de BD se reportan como tales, no como "IA:".
-  // retry() absorbe el arranque en frío de Neon (scale-to-zero).
+  // Contexto del plan + perfil (BD): errores de BD se reportan como tales, no como
+  // "IA:". retry() absorbe el arranque en frío de Neon (scale-to-zero).
   let plan;
+  let atleta: Awaited<ReturnType<typeof getAthleteContexts>>;
   try {
-    plan = await retry(() => getPlanContext(date));
+    [plan, atleta] = await Promise.all([
+      retry(() => getPlanContext(date)),
+      retry(() => getAthleteContexts(date)),
+    ]);
   } catch (err) {
     return serverError(err);
   }
@@ -47,6 +52,9 @@ export async function POST(request: Request) {
       kind: "vision",
       task: "vision", // visión: thinking por defecto (regla de determinismo 04-IA)
       prompt: photoPrompt({
+        // Compacto con excepción de escala (doc 10 A2): la altura/complexión SÍ
+        // sirve de referencia de tamaño de ración en la foto.
+        contexto: atleta.compactPhoto,
         meal,
         kcalObjetivo: plan?.targets.kcal ?? 1800,
         protObjetivo: plan?.targets.prot ?? 110,

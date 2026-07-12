@@ -1,11 +1,17 @@
 import { redirect } from "next/navigation";
+import { AthleteProfileEditor } from "@/components/ajustes/athlete-profile-editor";
 import { DataBackup } from "@/components/ajustes/data-backup";
 import { HealthImport } from "@/components/ajustes/health-import";
 import { SessionMapEditor } from "@/components/ajustes/session-map-editor";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { dayKey } from "@/lib/dates";
+import { trainingDaysPerWeek } from "@/lib/profile";
 import { getSession } from "@/lib/session";
 import { getHealthSyncView, type HealthSyncView } from "@/server/db/queries/health";
-import { getSessionByWeekday } from "@/server/db/queries/lookups";
+import {
+  getAthleteProfile,
+  getSessionByWeekday,
+} from "@/server/db/queries/lookups";
 
 export const dynamic = "force-dynamic";
 
@@ -43,14 +49,28 @@ function Row({
 }
 
 export default async function AjustesPage() {
-  const [sessionMap, sync] = await Promise.all([
+  const [sessionMap, sync, profile] = await Promise.all([
     getSessionByWeekday(),
     getHealthSyncView(),
+    getAthleteProfile(),
   ]);
+  const trainingDays = trainingDaysPerWeek(sessionMap);
 
   return (
     <section className="space-y-4">
       <h1 className="card-title text-muted-foreground">Ajustes</h1>
+
+      <Row title="Perfil del atleta">
+        <p className="mb-3 text-sm text-foreground">
+          La IA usa este perfil en todas sus respuestas (nada va a fuego). La edad
+          y los días de entreno se calculan solos.
+        </p>
+        <AthleteProfileEditor
+          initial={profile}
+          today={dayKey()}
+          trainingDays={trainingDays}
+        />
+      </Row>
 
       <Row title="Tema">
         <div className="flex items-center justify-between gap-3">
