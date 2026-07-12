@@ -46,11 +46,18 @@ export function MiDiaCard({
       day.waterL != null);
   const [open, setOpen] = useState(!hasContent);
 
-  const weight = day?.weight ?? null;
+  // Valor EFECTIVO = manual (tu edición) ?? báscula (Apple Health). Así el peso y
+  // el % grasa se AUTO-RELLENAN de la báscula y siguen siendo editables (tu edición
+  // manda ese día). Ver también la precedencia en getTrendData.
+  const effWeight = day?.weight ?? health?.weight ?? null;
+  const weightFromScale = day?.weight == null && health?.weight != null;
+  const effFat = day?.bodyFatPct ?? health?.bodyFatPct ?? null;
+  const fatFromScale = day?.bodyFatPct == null && health?.bodyFatPct != null;
+
   const summary = [
     day?.sessionLabel,
     phaseLabel(day?.phase),
-    weight != null ? `${weight.toLocaleString("es-ES")} kg` : null,
+    effWeight != null ? `${effWeight.toLocaleString("es-ES")} kg` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -82,10 +89,10 @@ export function MiDiaCard({
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="mb-1 block text-[12px] text-muted-foreground">
-                Peso (kg, ayunas)
+                Peso (kg, ayunas){weightFromScale ? " · de la báscula" : ""}
               </span>
               <Stepper
-                value={weight != null ? String(weight) : ""}
+                value={effWeight != null ? String(effWeight) : ""}
                 onChange={(v) =>
                   onPatch({ weight: v === "" ? null : Number(v.replace(",", ".")) })
                 }
@@ -125,9 +132,10 @@ export function MiDiaCard({
           <label className="block">
             <span className="mb-1 block text-[12px] text-muted-foreground">
               % grasa (báscula — solo tendencia mensual)
+              {fatFromScale ? " · de la báscula" : ""}
             </span>
             <Stepper
-              value={day?.bodyFatPct != null ? String(day.bodyFatPct) : ""}
+              value={effFat != null ? String(effFat) : ""}
               onChange={(v) =>
                 onPatch({ bodyFatPct: v === "" ? null : Number(v.replace(",", ".")) })
               }
@@ -224,20 +232,11 @@ export function MiDiaCard({
             />
           </label>
 
-          {/* Línea «Del reloj» */}
+          {/* Línea «Del reloj» (incluye extras: masa magra, ejercicio, recuperación) */}
           {health ? (
             <p className="num text-[12px] text-muted-foreground">
               Del reloj:{" "}
-              {[
-                health.steps != null ? `${health.steps.toLocaleString("es-ES")} pasos` : null,
-                health.activeKcal != null ? `${health.activeKcal} kcal act.` : null,
-                health.basalKcal != null ? `${health.basalKcal} basal` : null,
-                health.hrvMs != null ? `HRV ${displayHrv(health.hrvMs)}` : null,
-                health.sleepH != null ? `${health.sleepH.toLocaleString("es-ES")} h sueño` : null,
-                health.restingHr != null ? `FC ${health.restingHr}` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ") || "sin datos del reloj"}
+              {relojLine(health) || "sin datos del reloj"}
             </p>
           ) : null}
         </div>
@@ -247,6 +246,31 @@ export function MiDiaCard({
 }
 
 const displayHrv = (n: number) => Math.round(n);
+const r1 = (n: number) => n.toLocaleString("es-ES", { maximumFractionDigits: 1 });
+
+/** Línea «Del reloj»: métricas tipadas + las extras interesantes (masa magra,
+ *  ejercicio, SpO2, frecuencia respiratoria, temperatura de muñeca). */
+function relojLine(health: NonNullable<DayView["health"]>): string {
+  const x = health.extra ?? {};
+  return [
+    health.steps != null ? `${health.steps.toLocaleString("es-ES")} pasos` : null,
+    health.activeKcal != null ? `${health.activeKcal} kcal act.` : null,
+    health.basalKcal != null ? `${health.basalKcal} basal` : null,
+    x.apple_exercise_time != null ? `${Math.round(x.apple_exercise_time)} min ejerc.` : null,
+    health.hrvMs != null ? `HRV ${displayHrv(health.hrvMs)}` : null,
+    health.sleepH != null && health.sleepH > 0 ? `${r1(health.sleepH)} h sueño` : null,
+    health.restingHr != null ? `FC ${health.restingHr}` : null,
+    x.lean_body_mass != null ? `magra ${r1(x.lean_body_mass)} kg` : null,
+    x.blood_oxygen_saturation != null ? `SpO₂ ${r1(x.blood_oxygen_saturation)}%` : null,
+    x.respiratory_rate != null ? `resp ${r1(x.respiratory_rate)}` : null,
+    x.apple_sleeping_wrist_temperature != null
+      ? `temp ${r1(x.apple_sleeping_wrist_temperature)}°`
+      : null,
+    health.vo2max != null ? `VO₂ ${r1(health.vo2max)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 /** F-IA-5 · Analizar sesión pegada (WOD). El gasto es CONTEXTO (±25%), no la
  *  verdad — la verdad del gasto es el peso (principio 1). */
