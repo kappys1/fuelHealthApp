@@ -118,6 +118,7 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
         waterL: day?.waterL ?? health?.waterL ?? null,
         sessionLabel: day?.sessionLabel ?? null,
         bloat: (day?.bloat as BloatKey | null) ?? null,
+        notes: day?.notes ?? null,
       };
     });
 

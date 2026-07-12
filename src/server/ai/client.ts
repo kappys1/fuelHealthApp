@@ -69,6 +69,31 @@ export async function runStructured<T>(opts: RunOptions<T>): Promise<T> {
   );
 }
 
+export interface RunTextOptions {
+  kind: ModelKind;
+  task: Task;
+  prompt: string;
+  images?: AiImage[];
+  maxOutputTokens: number;
+}
+
+/*
+  Respuesta en TEXTO plano (coach F-IA-6, preparar-visita F-IA-7): no hay schema
+  ni Output.object. Los errores del proveedor (APICallError) burbujean a la route
+  (errors.ts los hace visibles). El chat (F-IA-8) va por streaming aparte.
+*/
+export async function runText(opts: RunTextOptions): Promise<string> {
+  const model = resolveModel(opts.kind);
+  const settings = determinismSettings(opts.task);
+  const { text } = await generateText({
+    model,
+    messages: buildMessages(opts.prompt, opts.images),
+    maxOutputTokens: opts.maxOutputTokens,
+    ...settings,
+  });
+  return text;
+}
+
 function buildMessages(prompt: string, images?: AiImage[]): ModelMessage[] {
   if (!images || images.length === 0) {
     return [{ role: "user", content: prompt }];

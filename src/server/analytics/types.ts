@@ -45,4 +45,6 @@ export interface DailyRecord extends AnalyticsRecord {
   waterL: number | null;
   sessionLabel: string | null;
   bloat: BloatKey | null;
+  /** Notas del día (dictado de cierre, 09 §5) — usadas por el coach y el chat. */
+  notes: string | null;
 }
