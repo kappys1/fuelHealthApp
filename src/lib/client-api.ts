@@ -7,6 +7,7 @@ import type {
   WodResult,
 } from "@/server/ai/schemas";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
+import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
 import type { DayPatch, MedInput } from "@/server/db/queries/mutations";
 import type { TodayPayload } from "@/server/db/queries/today";
 
@@ -206,6 +207,17 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ date, mode }),
     }),
+
+  // Chat (F-IA-8) — el envío de mensajes va por streaming (ver components/chat).
+  listThreads: () => req<{ threads: ThreadDTO[] }>("/api/chat/threads"),
+
+  getThread: (id: number) =>
+    req<{ id: number; title: string; messages: MessageDTO[] }>(
+      `/api/chat/threads/${id}`,
+    ),
+
+  deleteThread: (id: number) =>
+    req<{ ok: true }>(`/api/chat/threads/${id}`, { method: "DELETE" }),
 
   uploadPhoto: (imageBase64: string, mediaType: string) =>
     req<{ url: string }>("/api/photos", {

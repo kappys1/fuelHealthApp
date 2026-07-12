@@ -24,6 +24,15 @@ import { HowCalculated } from "./how-calculated";
 const parseKg = (s: string): number | null =>
   s.trim() === "" ? null : Number(s.replace(",", "."));
 
+/** Quita el `delta` derivado; el estado base guarda solo la medición. */
+const stripDelta = (r: MedWithDelta): MedMeasurement => ({
+  id: r.id,
+  date: r.date,
+  fatKg: r.fatKg,
+  muscleKg: r.muscleKg,
+  weightKg: r.weightKg,
+});
+
 const kg = (n: number | null, d = 1) =>
   n == null ? "—" : n.toLocaleString("es-ES", { maximumFractionDigits: d });
 
@@ -40,7 +49,7 @@ const shortLabel = (date: string) => labelForKey(date).replace(/^\S+\s/, "");
 export function Med({ initialMed }: { initialMed: MedWithDelta[] }) {
   // Estado base sin deltas; las diferencias se recalculan (analytics puro).
   const [rows, setRows] = useState<MedMeasurement[]>(() =>
-    initialMed.map(({ delta: _d, ...r }) => r),
+    initialMed.map(stripDelta),
   );
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<MedMeasurement | null>(null);
@@ -62,7 +71,7 @@ export function Med({ initialMed }: { initialMed: MedWithDelta[] }) {
   const refresh = async () => {
     try {
       const { med } = await api.listMed();
-      setRows(med.map(({ delta: _d, ...r }) => r));
+      setRows(med.map(stripDelta));
     } catch {
       /* la mutación ya actualizó el estado local; el refetch es best-effort */
     }
