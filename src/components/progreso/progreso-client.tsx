@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { DailyRecord, DayTarget } from "@/server/analytics/types";
+import { Med } from "./med";
 import { Tendencia } from "./tendencia";
 
 /*
@@ -20,10 +22,12 @@ export function ProgresoClient({
   records,
   currentTarget,
   today,
+  med,
 }: {
   records: DailyRecord[];
   currentTarget: DayTarget;
   today: string;
+  med: MedWithDelta[];
 }) {
   const [segment, setSegment] = useState<Segment>("tendencia");
 
@@ -60,13 +64,7 @@ export function ProgresoClient({
       {segment === "tendencia" ? (
         <Tendencia records={records} currentTarget={currentTarget} today={today} />
       ) : (
-        <div className="rounded-xl border border-dashed border-line bg-surface-2 p-6">
-          <p className="text-sm text-foreground">
-            MED: composición corporal (grasa, músculo, peso), diferencias entre
-            mediciones y «Preparar visita».
-          </p>
-          <p className="mt-2 text-[12px] text-muted-foreground">Llega en la Fase 4.</p>
-        </div>
+        <Med initialMed={med} />
       )}
     </section>
   );

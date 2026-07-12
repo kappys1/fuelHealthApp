@@ -28,6 +28,17 @@ export const newEntryZ = z.object({
   photoUrl: z.string().min(1).max(600).nullable().optional(),
 });
 
+// MED (F5.1): fecha + grasa/músculo/peso en kg. Cada campo opcional (una MED
+// puede no traer todos los valores); la fecha es libre (entrada retroactiva).
+const medKgZ = z.number().min(0).max(500).nullable();
+export const medInputZ = z.object({
+  date: dateZ,
+  fatKg: medKgZ,
+  muscleKg: medKgZ,
+  weightKg: medKgZ,
+});
+export const medPatchZ = medInputZ.partial();
+
 export const optionZ = z.object({
   meal: mealZ,
   grp: grpZ,

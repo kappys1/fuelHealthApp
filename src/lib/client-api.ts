@@ -6,7 +6,8 @@ import type {
   PlanOptionAiResult,
   WodResult,
 } from "@/server/ai/schemas";
-import type { DayPatch } from "@/server/db/queries/mutations";
+import type { MedWithDelta } from "@/server/analytics/medDeltas";
+import type { DayPatch, MedInput } from "@/server/db/queries/mutations";
 import type { TodayPayload } from "@/server/db/queries/today";
 
 /*
@@ -132,6 +133,24 @@ export const api = {
   deleteOption: (id: number) =>
     req<{ ok: true }>(`/api/plan/options/${id}`, { method: "DELETE" }),
 
+  // MED (F5.1)
+  addMed: (m: MedInput) =>
+    req<{ med: MedWithDelta }>("/api/med", {
+      method: "POST",
+      body: JSON.stringify(m),
+    }),
+
+  updateMed: (id: number, patch: Partial<MedInput>) =>
+    req<{ med: MedWithDelta }>(`/api/med/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+
+  deleteMed: (id: number) =>
+    req<{ ok: true }>(`/api/med/${id}`, { method: "DELETE" }),
+
+  listMed: () => req<{ med: MedWithDelta[] }>("/api/med"),
+
   // Settings
   saveSessionMap: (map: Record<string, string>) =>
     req<{ map: Record<string, string> }>("/api/settings/session-map", {
@@ -174,6 +193,12 @@ export const api = {
     req<WodResult>("/api/ai/wod", {
       method: "POST",
       body: JSON.stringify({ texto, date }),
+    }),
+
+  prepareVisit: () =>
+    req<{ text: string }>("/api/ai/prepare-visit", {
+      method: "POST",
+      body: "{}",
     }),
 
   uploadPhoto: (imageBase64: string, mediaType: string) =>

@@ -299,3 +299,29 @@ export async function applyTemplate(id: number, date: string) {
 export async function deleteTemplate(id: number) {
   await db.delete(schema.dayTemplates).where(eq(schema.dayTemplates.id, id));
 }
+
+// ── med_measurements (F5.1) — CRUD; entrada retroactiva (fecha libre) ──
+export interface MedInput {
+  date: string;
+  fatKg: number | null;
+  muscleKg: number | null;
+  weightKg: number | null;
+}
+
+export async function addMed(m: MedInput) {
+  const [row] = await db.insert(schema.medMeasurements).values(m).returning();
+  return row;
+}
+
+export async function updateMed(id: number, patch: Partial<MedInput>) {
+  const [row] = await db
+    .update(schema.medMeasurements)
+    .set(patch)
+    .where(eq(schema.medMeasurements.id, id))
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteMed(id: number) {
+  await db.delete(schema.medMeasurements).where(eq(schema.medMeasurements.id, id));
+}
