@@ -1,3 +1,4 @@
+import { RotateCcw } from "lucide-react";
 import type { Metadata, Viewport } from "next";
 import {
   Barlow_Condensed,
@@ -72,6 +73,20 @@ export default function RootLayout({
         <PwaRegister>
           <Providers>{children}</Providers>
         </PwaRegister>
+        {/* Bloqueo de orientación: la app está pensada en vertical. El manifest
+            (orientation: portrait) lo fija en Android instalado; en navegador/iOS
+            no se puede forzar, así que en móvil en horizontal mostramos este aviso
+            (CSS puro: landscape + altura corta = teléfono, no tablet/escritorio). */}
+        <div
+          aria-hidden
+          className="fixed inset-0 z-[200] hidden flex-col items-center justify-center gap-3 bg-background px-8 text-center [@media(orientation:landscape)and(max-height:500px)]:flex"
+        >
+          <RotateCcw className="size-8 text-primary" />
+          <p className="text-base font-semibold text-foreground">Gira el teléfono</p>
+          <p className="text-[13px] text-muted-foreground">
+            Fuelboard está pensado para usarse en vertical.
+          </p>
+        </div>
       </body>
     </html>
   );
