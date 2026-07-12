@@ -2,6 +2,7 @@ import { Settings } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BottomNav } from "@/components/bottom-nav";
+import { OfflineSync } from "@/components/offline-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { getSession } from "@/lib/session";
 
@@ -43,6 +44,7 @@ export default async function AppLayout({
 
       <BottomNav />
       <Toaster />
+      <OfflineSync />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { api, type EntryInput } from "@/lib/client-api";
+import { enqueue, isOffline } from "@/lib/offline-queue";
 import type { MealKey } from "@/lib/macros";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { EntryDTO } from "@/server/db/queries/day";
@@ -52,10 +53,21 @@ export function useToday(date: string, initial: TodayPayload) {
         ...p,
         view: { ...p.view, entries: [...p.view.entries, ...optimistic] },
       }));
+      // Sin conexión: encolar y conservar el optimista (07 §2 / cola offline).
+      if (isOffline()) {
+        await enqueue({ kind: "addEntries", date, entries, ts: Date.now() });
+        toast("Sin conexión: se guardará al reconectar", { duration: 2500 });
+        return;
+      }
       try {
         await api.addEntries(date, entries);
         refetch();
       } catch (err) {
+        if (isOffline()) {
+          await enqueue({ kind: "addEntries", date, entries, ts: Date.now() });
+          toast("Sin conexión: se guardará al reconectar", { duration: 2500 });
+          return;
+        }
         toast.error(err instanceof Error ? err.message : "No se pudo añadir.");
         refetch();
       }
@@ -130,10 +142,20 @@ export function useToday(date: string, initial: TodayPayload) {
     const patch = pending.current;
     pending.current = {};
     if (Object.keys(patch).length === 0) return;
+    if (isOffline()) {
+      await enqueue({ kind: "patchDay", date, patch, ts: Date.now() });
+      toast("Sin conexión: se guardará al reconectar", { duration: 2000 });
+      return;
+    }
     try {
       await api.patchDay(date, patch);
       toast.success("Guardado ✓", { duration: 1200 });
     } catch (err) {
+      if (isOffline()) {
+        await enqueue({ kind: "patchDay", date, patch, ts: Date.now() });
+        toast("Sin conexión: se guardará al reconectar", { duration: 2000 });
+        return;
+      }
       toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
       refetch();
     }

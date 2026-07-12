@@ -1,8 +1,8 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Flame, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { AddSheet } from "@/components/hoy/add-sheet";
 import { CheckinCierre, CheckinMatinal, WeightExpressSheet } from "@/components/hoy/checkins";
 import { CoachSheet } from "@/components/hoy/coach-sheet";
@@ -41,15 +41,23 @@ export function HoyClient({
   initial: TodayPayload;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const t = useToday(date, initial);
   const data = t.data;
 
-  const [addOpen, setAddOpen] = useState(false);
-  const [addMeal, setAddMeal] = useState<MealKey>("comida");
-  const [matinalOpen, setMatinalOpen] = useState(false);
+  // Atajos del manifest (?add=1 · ?checkin=weight): se resuelven en el estado
+  // inicial (sin setState en efecto → sin renders en cascada).
+  const [addOpen, setAddOpen] = useState(() => searchParams.get("add") === "1");
+  const [addMeal, setAddMeal] = useState<MealKey>(() =>
+    searchParams.get("add") === "1" ? mealByHour() : "comida",
+  );
+  const [matinalOpen, setMatinalOpen] = useState(
+    () => searchParams.get("checkin") === "weight",
+  );
   const [cierreOpen, setCierreOpen] = useState(false);
   const [weightOpen, setWeightOpen] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
+  const [sharedFile, setSharedFile] = useState<File | null>(null);
 
   const today = dayKey();
   const isToday = date === today;
@@ -58,6 +66,40 @@ export function HoyClient({
     setAddMeal(meal);
     setAddOpen(true);
   };
+
+  // Share target (?share=1): recupera la imagen compartida del cache del SW y abre
+  // la capa de foto. La escritura de estado va en el callback async (no síncrona en
+  // el efecto). Al terminar limpia la URL para no reabrir en un re-render.
+  useEffect(() => {
+    const add = searchParams.get("add");
+    const checkin = searchParams.get("checkin");
+    const share = searchParams.get("share");
+    if (!add && !checkin && !share) return;
+
+    if (share === "1") {
+      void (async () => {
+        try {
+          const cache = await caches.open("fuelboard-shared");
+          const res = await cache.match("/shared-image");
+          if (res) {
+            const blob = await res.blob();
+            await cache.delete("/shared-image");
+            setSharedFile(
+              new File([blob], "compartida.jpg", {
+                type: blob.type || "image/jpeg",
+              }),
+            );
+            setAddMeal(mealByHour());
+            setAddOpen(true);
+          }
+        } catch {
+          /* sin cache/soporte: degradar sin romper */
+        }
+      })();
+    }
+    window.history.replaceState(null, "", isToday ? "/hoy" : `/hoy?date=${date}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!data) return null;
 
@@ -159,7 +201,10 @@ export function HoyClient({
       {/* Sheets */}
       <AddSheet
         open={addOpen}
-        onOpenChange={setAddOpen}
+        onOpenChange={(v) => {
+          setAddOpen(v);
+          if (!v) setSharedFile(null);
+        }}
         meal={addMeal}
         setMeal={setAddMeal}
         corpus={{
@@ -171,6 +216,7 @@ export function HoyClient({
         currentKcal={roundKcal(totals.kcal)}
         date={date}
         onAdd={t.addEntries}
+        initialFile={sharedFile}
       />
       <CheckinMatinal
         open={matinalOpen}
