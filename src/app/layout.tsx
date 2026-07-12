@@ -1,3 +1,4 @@
+import { SerwistProvider } from "@serwist/turbopack/react";
 import type { Metadata, Viewport } from "next";
 import {
   Barlow_Condensed,
@@ -32,6 +33,17 @@ export const metadata: Metadata = {
   description:
     "Telemetría personal de combustible: nutrición y rendimiento para recomposición y CrossFit.",
   applicationName: "Fuelboard",
+  // PWA (Fase 4): manifest lo genera app/manifest.ts. Meta de Apple para que la
+  // instalación en iOS abra en modo standalone con la barra de estado integrada.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Fuelboard",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -54,7 +66,13 @@ export default function RootLayout({
       className={`${display.variable} ${condensed.variable} ${body.variable} h-full antialiased`}
     >
       <body className="min-h-dvh">
-        <Providers>{children}</Providers>
+        <SerwistProvider
+          swUrl="/serwist/sw.js"
+          disable={process.env.NODE_ENV !== "production"}
+          reloadOnOnline={false}
+        >
+          <Providers>{children}</Providers>
+        </SerwistProvider>
       </body>
     </html>
   );

@@ -8,9 +8,17 @@ import { SESSION_COOKIE_NAME } from "@/lib/session";
  * /login. La verificación autoritativa (descifrar la sesión) la hace el layout
  * de (app) vía getSession(); aquí solo evitamos pintar pantallas protegidas.
  *
- * Exento de sesión: /login, /api/auth/*, /api/health/ingest (token propio).
+ * Exento de sesión: /login, /api/auth/*, /api/health/ingest (token propio), y los
+ * artefactos PWA (el SW y la página offline deben servirse sin sesión para que el
+ * precache y el arranque offline funcionen).
  */
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health/ingest"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/api/auth",
+  "/api/health/ingest",
+  "/serwist",
+  "/offline",
+];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
