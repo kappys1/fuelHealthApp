@@ -1,8 +1,8 @@
 /*
   Test de consistencia de la Fase 2 (AC 06): "200 ml café con leche desnatada"
   estimado 3 veces seguidas debe dar valores iguales o casi iguales. Con Gemini
-  3.x NO se fija temperature (regla de determinismo 04-IA); se usa thinking_level
-  low en estimación. Uso:
+  se fija temperature: 0 (decodificación voraz) + thinking_level low en
+  estimación, para máxima consistencia (principio 2). Uso:
     corepack pnpm@11.9.0 exec tsx scripts/ai-consistency.ts
 */
 import { config } from "dotenv";

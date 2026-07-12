@@ -42,12 +42,14 @@ export function resolveModel(kind: ModelKind): LanguageModel {
 export type Task = "estimate" | "vision" | "coach";
 
 /**
- * Ajustes de determinismo por proveedor (04-IA):
- * - Anthropic/OpenAI: `temperature: 0` SIEMPRE (misma entrada → misma salida).
- * - Google (Gemini 3.x): NO tocar temperature (Google lo desaconseja); usar
- *   `thinkingLevel: "low"` en estimación y el default en visión/coach. La menor
- *   garantía de determinismo se compensa con las cláusulas de consistencia que
- *   los prompts ya llevan ("la variante más común, de forma consistente").
+ * Ajustes de determinismo por proveedor (04-IA / principio 2 «consistencia»):
+ * - `temperature: 0` SIEMPRE, TAMBIÉN en Google. El default de Gemini es 1.0
+ *   (muy aleatorio): la misma entrada daba resultados dispares (p. ej. el
+ *   analizador de WOD variaba de 150 a 240 min). Gemini soporta temperature 0
+ *   (decodificación voraz) → misma entrada ≈ misma salida. Esto REVIERTE la
+ *   decisión previa de "no fijar temperature en Google".
+ * - Google además usa `thinkingLevel` por tarea (low en estimación, medium en
+ *   visión) para equilibrar coste/latencia.
  */
 export interface DeterminismSettings {
   temperature?: number;
@@ -63,6 +65,7 @@ export function determinismSettings(task: Task): DeterminismSettings {
     // (inviable en móvil); "medium" + alta resolución equilibra calidad/latencia.
     if (task === "vision") {
       return {
+        temperature: 0,
         providerOptions: {
           google: {
             thinkingConfig: { thinkingLevel: "medium" },
@@ -74,12 +77,13 @@ export function determinismSettings(task: Task): DeterminismSettings {
     // Estimación de texto (F-IA-2/3/4/5): "low" (coste/latencia bajos).
     if (task === "estimate") {
       return {
+        temperature: 0,
         providerOptions: {
           google: { thinkingConfig: { thinkingLevel: "low" } },
         },
       };
     }
-    return {}; // coach (Fase 4): thinking por defecto del modelo
+    return { temperature: 0 }; // coach (Fase 4): thinking por defecto del modelo
   }
   // Anthropic / OpenAI
   return { temperature: 0 };
