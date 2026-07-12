@@ -66,15 +66,50 @@ describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
     expect(w.activeKcal).toBe(600); // 2510 kJ / 4,184 ≈ 600
   });
 
-  it("acepta el envoltorio { metrics } sin `data` y descarta métricas desconocidas", () => {
+  it("acepta el envoltorio { metrics } sin `data`; las no tipadas van a extra", () => {
     const r2 = parseHaeJson({
       metrics: [
         { name: "blood_glucose", units: "mg/dL", data: [{ date: "2026-01-01", qty: 90 }] },
         { name: "weight_body_mass", units: "kg", data: [{ date: "2026-01-01", qty: 91.5 }] },
       ],
     });
-    expect(r2.fields).toEqual(["weight"]);
+    expect(r2.fields).toEqual(["weight"]); // solo campos tipados
     expect(r2.days[0]!.weight).toBeCloseTo(91.5, 6);
+    expect(r2.days[0]!.extra?.blood_glucose).toBe(90); // desconocida → extra, no se pierde
+  });
+
+  it("captura todas las métricas no tipadas en extra con agregación correcta", () => {
+    const r = parseHaeJson({
+      data: {
+        metrics: [
+          {
+            name: "lean_body_mass",
+            units: "kg",
+            data: [
+              { date: "2026-07-11", qty: 62 },
+              { date: "2026-07-11", qty: 64 },
+            ],
+          },
+          {
+            name: "apple_exercise_time",
+            units: "min",
+            data: [
+              { date: "2026-07-11", qty: 30 },
+              { date: "2026-07-11", qty: 45 },
+            ],
+          },
+          {
+            name: "blood_oxygen_saturation",
+            units: "%",
+            data: [{ date: "2026-07-11", qty: 97 }],
+          },
+        ],
+      },
+    });
+    const d = r.days.find((x) => x.date === "2026-07-11");
+    expect(d?.extra?.lean_body_mass).toBeCloseTo(63, 6); // media (instantánea)
+    expect(d?.extra?.apple_exercise_time).toBe(75); // suma (acumulativa)
+    expect(d?.extra?.blood_oxygen_saturation).toBe(97);
   });
 
   it("no lanza con entrada basura", () => {

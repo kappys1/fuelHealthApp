@@ -139,6 +139,12 @@ export const healthMetrics = pgTable("health_metrics", {
   waterL: real("water_l"),
   weight: real(),
   bodyFatPct: real("body_fat_pct"),
+  // Catch-all de métricas de Apple Health que no modelamos como columnas (masa
+  // magra, tiempo de ejercicio, SpO2, frecuencia respiratoria, temperatura de
+  // muñeca, etc.): se guardan TODAS para que el coach/chat/entrenador (fases
+  // siguientes) puedan usarlas aunque hoy no se muestren. Clave = nombre HAE
+  // normalizado; valor = agregado del día.
+  extra: jsonb().$type<Record<string, number>>(),
   source: healthSourceEnum().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()

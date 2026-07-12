@@ -10,9 +10,12 @@
   Nunca lanza sobre datos malformados: lo que no se entiende, se descarta.
 */
 import {
+  convertByUnits,
   convertUnits,
   CUMULATIVE_FIELDS,
   extractDayKey,
+  extraAgg,
+  extraKey,
   type HealthDay,
   type HealthField,
   INTEGER_FIELDS,
@@ -109,12 +112,19 @@ export function parseHaeJson(input: unknown): JsonParseResult {
   const metricsRaw = dataNode?.metrics;
   const metrics = Array.isArray(metricsRaw) ? metricsRaw : [];
 
-  // Acumulador por (fecha, campo): HAE suele mandar VARIAS muestras del mismo día
-  // (por hora). Se agregan: acumulativas → suma, sueño → máximo, resto → media.
-  const acc = new Map<
-    string,
-    Map<HealthField, { sum: number; count: number; max: number }>
-  >();
+  // Acumulador por (fecha, clave). HAE manda VARIAS muestras/día (por hora); se
+  // agregan según la métrica: acumulativas → suma, sueño → máximo, resto → media.
+  // Las métricas NO tipadas se guardan igualmente bajo la clave "x:<nombre>" para
+  // acabar en la columna `extra` (capturamos TODO para el agente).
+  type AggKind = "sum" | "max" | "avg";
+  interface Cell {
+    sum: number;
+    count: number;
+    max: number;
+    agg: AggKind;
+    typed: boolean;
+  }
+  const acc = new Map<string, Map<string, Cell>>();
   const order: string[] = [];
   const fields = new Set<HealthField>();
   let hadKj = false;
@@ -122,12 +132,28 @@ export function parseHaeJson(input: unknown): JsonParseResult {
   for (const mRaw of metrics) {
     const m = asRecord(mRaw);
     if (!m) continue;
-    const field = matchField(normalizeKey(String(m.name ?? "")));
-    if (!field) continue;
+    const rawName = String(m.name ?? "");
+    const nameNorm = normalizeKey(rawName);
+    const field = matchField(nameNorm);
     const units = String(m.units ?? "");
-    const isKj = (field === "activeKcal" || field === "basalKcal") && isKjUnit(units);
-    const isMl = field === "waterL" && isMlUnit(units);
     const points = Array.isArray(m.data) ? m.data : [];
+
+    // Clave del acumulador + cómo agregar + si es campo tipado.
+    let accKey: string;
+    let agg: AggKind;
+    if (field) {
+      accKey = field;
+      agg = MAX_FIELDS.has(field) ? "max" : CUMULATIVE_FIELDS.has(field) ? "sum" : "avg";
+    } else {
+      const k = extraKey(rawName);
+      if (!k) continue; // métrica sin nombre → se ignora
+      accKey = `x:${k}`;
+      agg = extraAgg(nameNorm);
+    }
+    const typed = !!field;
+    const isKj = typed && (field === "activeKcal" || field === "basalKcal") && isKjUnit(units);
+    const isMl = typed && field === "waterL" && isMlUnit(units);
+
     let sawValue = false;
     for (const ptRaw of points) {
       const pt = asRecord(ptRaw);
@@ -137,7 +163,10 @@ export function parseHaeJson(input: unknown): JsonParseResult {
       const value = pointValue(pt);
       if (value == null) continue;
       sawValue = true;
-      if (isKj) hadKj = true;
+      const converted = typed
+        ? convertUnits(field, value, { isKj, isMl })
+        : convertByUnits(value, units);
+      if (isKj || (!typed && normalizeKey(units).includes("kj"))) hadKj = true;
 
       let dayAcc = acc.get(date);
       if (!dayAcc) {
@@ -145,30 +174,32 @@ export function parseHaeJson(input: unknown): JsonParseResult {
         acc.set(date, dayAcc);
         order.push(date);
       }
-      const converted = convertUnits(field, value, { isKj, isMl });
-      const cur = dayAcc.get(field) ?? { sum: 0, count: 0, max: -Infinity };
+      const cur = dayAcc.get(accKey) ?? { sum: 0, count: 0, max: -Infinity, agg, typed };
       cur.sum += converted;
       cur.count += 1;
       cur.max = Math.max(cur.max, converted);
-      dayAcc.set(field, cur);
+      dayAcc.set(accKey, cur);
     }
-    if (sawValue) fields.add(field);
+    if (sawValue && field) fields.add(field);
   }
 
-  // Finaliza: suma (acumulativas) o media (instantáneas); redondea enteros.
+  // Finaliza: aplica la agregación; campos tipados → columnas, resto → extra.
   const byDate = new Map<string, HealthDay>();
   for (const date of order) {
     const dayAcc = acc.get(date);
     if (!dayAcc) continue;
     const day: HealthDay = { date };
-    for (const [field, { sum, count, max }] of dayAcc) {
-      const v = MAX_FIELDS.has(field)
-        ? max
-        : CUMULATIVE_FIELDS.has(field)
-          ? sum
-          : sum / count;
-      day[field] = INTEGER_FIELDS.has(field) ? Math.round(v) : v;
+    const extra: Record<string, number> = {};
+    for (const [key, c] of dayAcc) {
+      const v = c.agg === "max" ? c.max : c.agg === "sum" ? c.sum : c.sum / c.count;
+      if (c.typed) {
+        const f = key as HealthField;
+        day[f] = INTEGER_FIELDS.has(f) ? Math.round(v) : v;
+      } else {
+        extra[key.slice(2)] = Math.round(v * 1000) / 1000;
+      }
     }
+    if (Object.keys(extra).length > 0) day.extra = extra;
     byDate.set(date, day);
   }
 
