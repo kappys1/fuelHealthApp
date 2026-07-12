@@ -38,6 +38,8 @@ export async function exportAll(): Promise<FullExport> {
     settings,
     chatThreads,
     chatMessages,
+    trainingPlans,
+    trainingSessions,
   ] = await Promise.all([
     db.select().from(schema.dietVersions),
     db.select().from(schema.planOptions),
@@ -51,6 +53,8 @@ export async function exportAll(): Promise<FullExport> {
     db.select().from(schema.settings),
     db.select().from(schema.chatThreads),
     db.select().from(schema.chatMessages),
+    db.select().from(schema.trainingPlans),
+    db.select().from(schema.trainingSessions),
   ]);
 
   return {
@@ -70,6 +74,8 @@ export async function exportAll(): Promise<FullExport> {
       settings,
       chatThreads,
       chatMessages,
+      trainingPlans,
+      trainingSessions,
     },
   };
 }
@@ -92,6 +98,8 @@ const importSchema = z.object({
     settings: z.array(anyRow).default([]),
     chatThreads: z.array(anyRow).default([]),
     chatMessages: z.array(anyRow).default([]),
+    trainingPlans: z.array(anyRow).default([]),
+    trainingSessions: z.array(anyRow).default([]),
   }),
 });
 
@@ -141,6 +149,10 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
   await db.delete(schema.mealEntries);
   await db.delete(schema.planOptions);
   await db.delete(schema.days);
+  // training_sessions se borra tras days (days.session_ref → training_sessions);
+  // luego training_plans (padre).
+  await db.delete(schema.trainingSessions);
+  await db.delete(schema.trainingPlans);
   await db.delete(schema.healthMetrics);
   await db.delete(schema.workouts);
   await db.delete(schema.medMeasurements);
@@ -166,7 +178,43 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
     if (row && r.id != null) versionMap.set(Number(r.id), row.id);
   }
 
-  // 3) days (PK = date, sin identidad).
+  // 2b) training_plans + training_sessions (remapea ids; deben ir ANTES de days,
+  // porque days.session_ref → training_sessions).
+  const planMap = new Map<number, number>();
+  for (const r of data.trainingPlans) {
+    const [row] = await db
+      .insert(schema.trainingPlans)
+      .values({
+        importedAt: dt(r.importedAt),
+        programa: String(r.programa ?? ""),
+        etiqueta: String(r.etiqueta ?? ""),
+        validFrom: String(r.validFrom),
+        validTo: s(r.validTo),
+        source: (r.source ?? "pdf") as typeof schema.trainingSourceEnum.enumValues[number],
+      })
+      .returning({ id: schema.trainingPlans.id });
+    if (row && r.id != null) planMap.set(Number(r.id), row.id);
+  }
+  const sessionMap = new Map<number, number>();
+  for (const r of data.trainingSessions) {
+    const [row] = await db
+      .insert(schema.trainingSessions)
+      .values({
+        planId: planMap.get(Number(r.planId)) ?? Number(r.planId),
+        key: String(r.key ?? ""),
+        nombre: String(r.nombre ?? ""),
+        tipo: (r.tipo ?? "otro") as typeof schema.trainingTipoEnum.enumValues[number],
+        contenido: String(r.contenido ?? ""),
+        kcalMin: n(r.kcalMin),
+        kcalMax: n(r.kcalMax),
+        duracionMin: n(r.duracionMin),
+        sort: Number(r.sort ?? 0),
+      })
+      .returning({ id: schema.trainingSessions.id });
+    if (row && r.id != null) sessionMap.set(Number(r.id), row.id);
+  }
+
+  // 3) days (PK = date, sin identidad; session_ref remapeado a la sesión nueva).
   if (data.days.length) {
     await db.insert(schema.days).values(
       data.days.map((r) => ({
@@ -176,6 +224,10 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
         bodyFatPct: n(r.bodyFatPct),
         sessionLabel: s(r.sessionLabel),
         sessionKcal: n(r.sessionKcal),
+        sessionRef:
+          r.sessionRef == null
+            ? null
+            : (sessionMap.get(Number(r.sessionRef)) ?? Number(r.sessionRef)),
         phase: (r.phase ?? null) as typeof schema.phaseEnum.enumValues[number] | null,
         bloat: (r.bloat ?? null) as typeof schema.bloatEnum.enumValues[number] | null,
         notes: s(r.notes),
