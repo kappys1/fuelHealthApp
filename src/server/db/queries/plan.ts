@@ -69,6 +69,17 @@ export async function getVersionForDate(
   return earliest[0] ?? null;
 }
 
+/** Todas las versiones de dieta por effective_from ascendente (Historial, doc 10 B4). */
+export async function listAllDietVersions(): Promise<DietVersionDTO[]> {
+  return (await db
+    .select()
+    .from(schema.dietVersions)
+    .orderBy(
+      asc(schema.dietVersions.effectiveFrom),
+      asc(schema.dietVersions.id),
+    )) as DietVersionDTO[];
+}
+
 function groupByMeal(options: PlanOptionDTO[]): Record<MealKey, PlanOptionDTO[]> {
   const out = Object.fromEntries(
     MEAL_ORDER.map((m) => [m, [] as PlanOptionDTO[]]),

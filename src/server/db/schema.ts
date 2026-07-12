@@ -66,6 +66,25 @@ export const healthSourceEnum = pgEnum("health_source", ["endpoint", "csv"]);
 
 export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
 
+// Tipo de sesión de entrenamiento (doc 10 B1) — GENÉRICO (cualquier deporte);
+// `key`/`nombre` son libres (T1-T6 en The Progrm, "Series umbral" en running…).
+export const trainingTipoEnum = pgEnum("training_tipo", [
+  "fuerza",
+  "halterofilia",
+  "gimnasticos",
+  "metabolico",
+  "aerobico",
+  "mixto",
+  "descanso",
+  "otro",
+]);
+
+export const trainingSourceEnum = pgEnum("training_source", [
+  "pdf",
+  "foto",
+  "texto",
+]);
+
 // ── diet_versions ──
 export const dietVersions = pgTable("diet_versions", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -102,6 +121,12 @@ export const days = pgTable("days", {
   bodyFatPct: real("body_fat_pct"),
   sessionLabel: text("session_label"),
   sessionKcal: integer("session_kcal"),
+  // Sesión real del plan de entreno importado (doc 10 B1). Se conserva junto a
+  // sessionLabel/sessionKcal (label desnormalizado). onDelete "set null": borrar
+  // un plan NUNCA borra datos del día (los días son sagrados, principio 7).
+  sessionRef: integer("session_ref").references(() => trainingSessions.id, {
+    onDelete: "set null",
+  }),
   phase: phaseEnum(),
   bloat: bloatEnum(),
   notes: text(),
@@ -233,4 +258,35 @@ export const chatMessages = pgTable("chat_messages", {
 export const settings = pgTable("settings", {
   key: text().primaryKey(),
   value: jsonb().notNull(),
+});
+
+// ── training_plans / training_sessions (doc 10 B1) ──
+// Semana de entrenamiento importada (PDF/foto/texto). `validFrom/validTo` acotan
+// el periodo (null = abierta); la sesión de cada día se referencia desde
+// days.sessionRef. Agnóstico de deporte (ver trainingTipoEnum).
+export const trainingPlans = pgTable("training_plans", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  importedAt: timestamp("imported_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  programa: text().notNull(),
+  etiqueta: text().notNull(),
+  validFrom: date("valid_from", { mode: "string" }).notNull(),
+  validTo: date("valid_to", { mode: "string" }),
+  source: trainingSourceEnum().notNull(),
+});
+
+export const trainingSessions = pgTable("training_sessions", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  planId: integer("plan_id")
+    .notNull()
+    .references(() => trainingPlans.id, { onDelete: "cascade" }),
+  key: text().notNull(),
+  nombre: text().notNull(),
+  tipo: trainingTipoEnum().notNull(),
+  contenido: text().notNull(),
+  kcalMin: integer("kcal_min"),
+  kcalMax: integer("kcal_max"),
+  duracionMin: integer("duracion_min"),
+  sort: integer().notNull().default(0),
 });
