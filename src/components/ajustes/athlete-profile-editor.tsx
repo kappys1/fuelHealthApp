@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,30 @@ import {
   currentObjective,
   deriveAge,
 } from "@/lib/profile";
+import { cn } from "@/lib/utils";
+
+/** Input del perfil a 44px (target táctil 05-DISENO §4; hoy el base es 32px). */
+function PInput({ className, ...props }: React.ComponentProps<typeof Input>) {
+  return <Input className={cn("h-11", className)} {...props} />;
+}
+
+/** Sub-sección con encabezado y separador fino (aire, no un muro de campos). */
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3 border-t border-line pt-4 first:border-t-0 first:pt-0">
+      <h4 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </h4>
+      {children}
+    </div>
+  );
+}
 
 /*
   Perfil de atleta (doc 10 A1). Campos simples + suplementos/lesiones como chips +
@@ -29,7 +54,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block space-y-1">
+    <label className="block space-y-1.5">
       <span className="text-[13px] font-medium text-foreground">{label}</span>
       {children}
       {hint ? <span className="block text-[12px] text-muted-foreground">{hint}</span> : null}
@@ -150,137 +175,157 @@ export function AthleteProfileEditor({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Deporte">
-          <Input
-            value={p.deporte}
-            onChange={(e) => set("deporte", e.target.value)}
-          />
-        </Field>
-        <Field label="Nivel">
-          <Input value={p.nivel} onChange={(e) => set("nivel", e.target.value)} />
-        </Field>
-        <Field label="Programa">
-          <Input
-            value={p.programa}
-            onChange={(e) => set("programa", e.target.value)}
-          />
-        </Field>
-        <Field label="Franja de entreno">
-          <Input
-            value={p.franjaEntreno}
-            onChange={(e) => set("franjaEntreno", e.target.value)}
-          />
-        </Field>
-        <Field label="Fecha de nacimiento" hint={edad != null ? `${edad} años` : "edad no derivable"}>
-          <Input
-            type="date"
-            value={p.fechaNacimiento ?? ""}
-            onChange={(e) => set("fechaNacimiento", e.target.value || null)}
-          />
-        </Field>
-        <Field label="Altura (cm)">
-          <Input
-            type="number"
-            inputMode="numeric"
-            value={p.alturaCm ?? ""}
-            onChange={(e) =>
-              set("alturaCm", e.target.value === "" ? null : Number(e.target.value))
-            }
-          />
-        </Field>
-      </div>
+    <div className="space-y-5">
+      <Section title="Deporte y entreno">
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Deporte">
+            <PInput
+              value={p.deporte}
+              onChange={(e) => set("deporte", e.target.value)}
+            />
+          </Field>
+          <Field label="Nivel">
+            <PInput
+              value={p.nivel}
+              onChange={(e) => set("nivel", e.target.value)}
+            />
+          </Field>
+          <Field label="Programa">
+            <PInput
+              value={p.programa}
+              onChange={(e) => set("programa", e.target.value)}
+            />
+          </Field>
+          <Field label="Franja de entreno">
+            <PInput
+              value={p.franjaEntreno}
+              onChange={(e) => set("franjaEntreno", e.target.value)}
+            />
+          </Field>
+        </div>
+        <p className="text-[12px] text-muted-foreground">
+          Entrena {trainingDays} días/semana (derivado del mapeo de sesiones).
+        </p>
+      </Section>
 
-      <p className="text-[12px] text-muted-foreground">
-        Entrena {trainingDays} días/semana (derivado del mapeo de sesiones).
-      </p>
-
-      <Field label="Nota clínica">
-        <Input
-          value={p.notaClinica ?? ""}
-          onChange={(e) => set("notaClinica", e.target.value || null)}
-          placeholder="ej. le cuesta la grasa abdominal baja"
-        />
-      </Field>
-
-      <div className="space-y-1.5">
-        <span className="text-[13px] font-medium text-foreground">Suplementos</span>
-        <Chips
-          items={p.suplementos}
-          onRemove={(v) =>
-            set(
-              "suplementos",
-              p.suplementos.filter((x) => x !== v),
-            )
-          }
-          empty="Ninguno."
-        />
-        <div className="flex gap-2">
-          <Input
-            value={suplInput}
-            onChange={(e) => setSuplInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                addChip(suplInput, p.suplementos, "suplementos", () =>
-                  setSuplInput(""),
-                );
+      <Section title="Datos">
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            label="Fecha de nacimiento"
+            hint={edad != null ? `${edad} años` : "edad no derivable"}
+          >
+            <PInput
+              type="date"
+              value={p.fechaNacimiento ?? ""}
+              onChange={(e) => set("fechaNacimiento", e.target.value || null)}
+            />
+          </Field>
+          <Field label="Altura (cm)">
+            <PInput
+              type="number"
+              inputMode="numeric"
+              value={p.alturaCm ?? ""}
+              onChange={(e) =>
+                set(
+                  "alturaCm",
+                  e.target.value === "" ? null : Number(e.target.value),
+                )
               }
-            }}
-            placeholder="Añadir suplemento…"
+            />
+          </Field>
+        </div>
+        <Field label="Nota clínica">
+          <PInput
+            value={p.notaClinica ?? ""}
+            onChange={(e) => set("notaClinica", e.target.value || null)}
+            placeholder="ej. le cuesta la grasa abdominal baja"
           />
-          <button
-            type="button"
-            onClick={() =>
-              addChip(suplInput, p.suplementos, "suplementos", () =>
-                setSuplInput(""),
+        </Field>
+      </Section>
+
+      <Section title="Suplementos y lesiones">
+        <div className="space-y-1.5">
+          <span className="text-[13px] font-medium text-foreground">
+            Suplementos
+          </span>
+          <Chips
+            items={p.suplementos}
+            onRemove={(v) =>
+              set(
+                "suplementos",
+                p.suplementos.filter((x) => x !== v),
               )
             }
-            className="shrink-0 rounded-lg border border-line bg-surface-2 px-3 text-sm text-foreground hover:text-primary"
-          >
-            Añadir
-          </button>
+            empty="Ninguno."
+          />
+          <div className="flex gap-2">
+            <PInput
+              value={suplInput}
+              onChange={(e) => setSuplInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addChip(suplInput, p.suplementos, "suplementos", () =>
+                    setSuplInput(""),
+                  );
+                }
+              }}
+              placeholder="Añadir suplemento…"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                addChip(suplInput, p.suplementos, "suplementos", () =>
+                  setSuplInput(""),
+                )
+              }
+              className="h-11 shrink-0 rounded-lg border border-line bg-surface-2 px-3 text-sm text-foreground hover:text-primary"
+            >
+              Añadir
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="space-y-1.5">
-        <span className="text-[13px] font-medium text-foreground">Lesiones</span>
-        <Chips
-          items={lesiones}
-          onRemove={(v) =>
-            set(
-              "lesiones",
-              lesiones.filter((x) => x !== v),
-            )
-          }
-          empty="Ninguna."
-        />
-        <div className="flex gap-2">
-          <Input
-            value={lesionInput}
-            onChange={(e) => setLesionInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
+        <div className="space-y-1.5">
+          <span className="text-[13px] font-medium text-foreground">Lesiones</span>
+          <Chips
+            items={lesiones}
+            onRemove={(v) =>
+              set(
+                "lesiones",
+                lesiones.filter((x) => x !== v),
+              )
+            }
+            empty="Ninguna."
+          />
+          <div className="flex gap-2">
+            <PInput
+              value={lesionInput}
+              onChange={(e) => setLesionInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addChip(lesionInput, lesiones, "lesiones", () =>
+                    setLesionInput(""),
+                  );
+                }
+              }}
+              placeholder="Añadir lesión…"
+            />
+            <button
+              type="button"
+              onClick={() =>
                 addChip(lesionInput, lesiones, "lesiones", () =>
                   setLesionInput(""),
-                );
+                )
               }
-            }}
-            placeholder="Añadir lesión…"
-          />
-          <button
-            type="button"
-            onClick={() =>
-              addChip(lesionInput, lesiones, "lesiones", () => setLesionInput(""))
-            }
-            className="shrink-0 rounded-lg border border-line bg-surface-2 px-3 text-sm text-foreground hover:text-primary"
-          >
-            Añadir
-          </button>
+              className="h-11 shrink-0 rounded-lg border border-line bg-surface-2 px-3 text-sm text-foreground hover:text-primary"
+            >
+              Añadir
+            </button>
+          </div>
         </div>
-      </div>
+      </Section>
 
       {/* Objetivo (doc 10 A1): vigente destacado + cambiar + historial plegado. */}
       <div className="space-y-2 rounded-lg border border-line bg-surface-2 p-3">
@@ -312,24 +357,24 @@ export function AthleteProfileEditor({
         )}
 
         {changingObj ? (
-          <div className="space-y-2 border-t border-line pt-2">
+          <div className="space-y-3 border-t border-line pt-3">
             <Field label="Nuevo objetivo">
-              <Input
+              <PInput
                 value={objText}
                 onChange={(e) => setObjText(e.target.value)}
                 placeholder="ej. mantenimiento tras la competición"
               />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <Field label="Desde">
-                <Input
+                <PInput
                   type="date"
                   value={objDate}
                   onChange={(e) => setObjDate(e.target.value)}
                 />
               </Field>
               <Field label="Peso objetivo (kg, opcional)">
-                <Input
+                <PInput
                   type="number"
                   inputMode="decimal"
                   value={objPeso}
