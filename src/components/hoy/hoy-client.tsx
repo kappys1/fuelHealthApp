@@ -123,7 +123,14 @@ export function HoyClient({
   const go = (delta: number) => router.push(`/hoy?date=${shiftDayKey(date, delta)}`);
 
   return (
-    <div className="space-y-3 pb-4">
+    // El botón fijo «+ Añadir comida» flota sobre la nav (~safe-area+116px de alto
+    // total desde abajo). `main` ya aporta pb-24 (96px) para la nav; aquí solo se
+    // suma lo justo para que «Mi día» no quede tapada al hacer scroll, sin dejar
+    // un hueco enorme.
+    <div
+      className="space-y-3"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 44px)" }}
+    >
       {/* Cabecera: fecha navegable + racha (09 §3) */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
