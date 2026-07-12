@@ -50,6 +50,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // El teclado reduce el viewport (en vez de superponerse): así el bottom-sheet de
+  // añadir queda POR ENCIMA del teclado en iOS y su input enfocado se ve.
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#F2F4EF" },
     { media: "(prefers-color-scheme: dark)", color: "#0F1613" },

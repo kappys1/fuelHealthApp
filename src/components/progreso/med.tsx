@@ -10,6 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Markdown } from "@/components/ui/markdown";
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/lib/client-api";
 import { dayKey, labelForKey } from "@/lib/dates";
@@ -338,9 +339,10 @@ function VisitSheet({
           ) : null}
 
           {text ? (
-            <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-foreground">
-              {text}
-            </div>
+            <Markdown
+              text={text}
+              className="space-y-2 text-[14px] leading-relaxed text-foreground"
+            />
           ) : null}
         </div>
       </SheetContent>

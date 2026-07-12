@@ -128,7 +128,10 @@ export async function POST(request: Request) {
       system,
       messages: modelMessages,
       temperature: 0.3,
-      maxOutputTokens: 1000,
+      // thinking "low" para latencia y para no agotar el presupuesto de salida en
+      // respuestas largas (mismo motivo que coach/visita).
+      providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } },
+      maxOutputTokens: 1500,
       onFinish: async ({ text }) => {
         if (!text.trim()) return;
         try {

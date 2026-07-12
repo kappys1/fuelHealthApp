@@ -83,7 +83,16 @@ export function determinismSettings(task: Task): DeterminismSettings {
         },
       };
     }
-    return { temperature: 0 }; // coach (Fase 4): thinking por defecto del modelo
+    // Coach / preparar-visita (F-IA-6/7): thinking "low". El default de Gemini 3
+    // consume MUCHOS tokens pensando y, con el maxOutputTokens acotado, truncaba la
+    // respuesta (se veía cortada a media frase). "low" deja presupuesto para el
+    // texto completo (misma clase de problema que en visión, DECISIONS #48/#52).
+    return {
+      temperature: 0,
+      providerOptions: {
+        google: { thinkingConfig: { thinkingLevel: "low" } },
+      },
+    };
   }
   // Anthropic / OpenAI
   return { temperature: 0 };
