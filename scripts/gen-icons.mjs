@@ -1,0 +1,8 @@
+import sharp from "sharp";
+const icon = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0F1613"/><rect x="86" y="150" width="150" height="44" rx="12" fill="#3B82F6"/><rect x="86" y="234" width="110" height="44" rx="12" fill="#3B82F6" opacity="0.75"/><rect x="86" y="318" width="150" height="44" rx="12" fill="#E8590C"/><circle cx="356" cy="256" r="96" fill="none" stroke="#3B82F6" stroke-width="34" stroke-linecap="round" stroke-dasharray="360 240" transform="rotate(135 356 256)"/><circle cx="356" cy="256" r="14" fill="#F2F4EF"/></svg>`;
+const mask = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#0F1613"/><rect x="146" y="186" width="110" height="34" rx="10" fill="#3B82F6"/><rect x="146" y="240" width="80" height="34" rx="10" fill="#3B82F6" opacity="0.75"/><rect x="146" y="294" width="110" height="34" rx="10" fill="#E8590C"/><circle cx="330" cy="256" r="66" fill="none" stroke="#3B82F6" stroke-width="24" stroke-linecap="round" stroke-dasharray="248 165" transform="rotate(135 330 256)"/><circle cx="330" cy="256" r="10" fill="#F2F4EF"/></svg>`;
+await sharp(Buffer.from(icon)).resize(192,192).png().toFile("public/icons/icon-192.png");
+await sharp(Buffer.from(icon)).resize(512,512).png().toFile("public/icons/icon-512.png");
+await sharp(Buffer.from(icon)).resize(180,180).png().toFile("public/icons/apple-touch-icon.png");
+await sharp(Buffer.from(mask)).resize(512,512).png().toFile("public/icons/maskable-512.png");
+console.log("icons ok");
