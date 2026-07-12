@@ -22,7 +22,12 @@ export default async function AppLayout({
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[560px] flex-col">
-      <header className="flex items-center justify-between border-b border-line px-4 py-3">
+      {/* pt con safe-area: en PWA standalone (status bar translúcida) el contenido
+          fluye bajo el reloj/notch; sin esto el wordmark lo pisa. */}
+      <header
+        className="flex items-center justify-between border-b border-line px-4 pb-3"
+        style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
+      >
         <Link
           href="/hoy"
           className="text-lg font-bold tracking-tight text-primary"

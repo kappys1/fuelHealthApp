@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Markdown } from "@/components/ui/markdown";
 import { api } from "@/lib/client-api";
 import { useOnline } from "@/lib/use-online";
 import { cn } from "@/lib/utils";
@@ -321,13 +322,17 @@ function Bubble({
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed whitespace-pre-wrap",
+          "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed",
           isUser
-            ? "bg-primary text-primary-foreground"
+            ? "bg-primary whitespace-pre-wrap text-primary-foreground"
             : "border border-line bg-surface text-foreground",
         )}
       >
-        {content || (streaming ? "…" : "")}
+        {isUser || streaming ? (
+          <span className="whitespace-pre-wrap">{content || (streaming ? "…" : "")}</span>
+        ) : (
+          <Markdown text={content} className="space-y-2" />
+        )}
         {!isUser && !streaming && content ? (
           <button
             type="button"

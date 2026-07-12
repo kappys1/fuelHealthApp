@@ -45,7 +45,8 @@ export async function POST() {
         tendencia: trendSummary(deficit),
         filas: dayLines(records, 21),
       }),
-      maxOutputTokens: 1200,
+      // 200 palabras (~350 tokens) + margen; con thinking "low" no se trunca.
+      maxOutputTokens: 2048,
     });
     return Response.json({ text });
   } catch (err) {

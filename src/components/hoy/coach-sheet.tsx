@@ -3,6 +3,7 @@
 import { ArrowLeft, Check, Copy, Loader2, Sparkles, WifiOff } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Markdown } from "@/components/ui/markdown";
 import {
   Sheet,
   SheetContent,
@@ -140,9 +141,10 @@ export function CoachSheet({
                 </div>
               ) : text ? (
                 <>
-                  <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-foreground">
-                    {text}
-                  </div>
+                  <Markdown
+                    text={text}
+                    className="space-y-2 text-[14px] leading-relaxed text-foreground"
+                  />
                   <button
                     type="button"
                     onClick={copy}
