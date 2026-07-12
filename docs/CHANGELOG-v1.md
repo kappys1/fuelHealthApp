@@ -150,3 +150,24 @@ share target, cola offline `idb` con replay, botones IA deshabilitados offline).
 La validación definitiva de v1 es empírica: **comparar la predicción de Tendencia (gasto/
 déficit desde la pendiente del peso) con los pliegues de la MED del nutricionista de agosto**
 (principio 1: la báscula es la fuente de verdad del gasto).
+
+## 5. Validación de agosto — protocolo
+
+Cierre empírico de v1 con las features que **ya existen** (Preparar visita, MED, Tendencia) —
+sin código nuevo. Criterio de éxito: `01-PRD §6 · Métricas de éxito`.
+
+1. **El día antes de la visita** — ejecutar **Preparar visita** (F-IA-7) y anotar la
+   **predicción de la Tendencia** (TrendCard «Tu gasto y déficit reales · desde el peso»,
+   F6.2): **kg/semana** (pendiente ma7), **déficit kcal/día** (`−kgSemana × 7700 ÷ 7`) y
+   **TDEE real**. Requiere ≥8 pesajes en ≥7 días; excluye días de fase especial.
+2. **Tras la consulta** — registrar la **MED nueva** en Progreso · MED (F5.1): grasa kg,
+   músculo kg, peso, con su fecha.
+3. **Contrastar predicción vs pliegues** — comparar la pérdida de grasa / déficit predicho
+   por Tendencia con el cambio real de la MED (`actual − anterior`, F5.2).
+   **Criterio de éxito (`01-PRD §6`): la predicción de déficit cae dentro de ±30% de la MED.**
+
+Notas: cada fuente se compara consigo misma (principio 5: báscula vs báscula, MED vs MED;
+nunca cruzar valores absolutos entre fuentes). Una MED cerca de carga/competición tiene ruido
+de hidratación/glucógeno (F5.4) → no es tendencia. Si el resultado cae fuera de ±30%, es
+**input para la visita/ajuste con Regenera**, no un fallo de la app (principio 8: el sistema
+informa, el nutricionista decide).
