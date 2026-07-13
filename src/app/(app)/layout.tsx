@@ -45,7 +45,10 @@ export default async function AppLayout({
         </Link>
       </header>
 
-      <main className="flex-1 px-4 pt-4 pb-24">{children}</main>
+      {/* flex-col para que una página pueda estirarse al alto disponible (Chat:
+          hilo con `flex-1 min-h-0` → el composer queda sobre la nav sin cálculos
+          mágicos). El resto de páginas apilan en bloque como siempre. */}
+      <main className="flex flex-1 flex-col px-4 pt-4 pb-24">{children}</main>
 
       <BottomNav />
       <Toaster />
