@@ -108,6 +108,7 @@ export async function POST(request: Request) {
 
     system = chatSystemPrompt({
       atleta: atleta.full,
+      today,
       planSummary: plan
         ? planSummary(plan.targets, plan.optionsByMeal)
         : "Sin plan de dieta configurado.",

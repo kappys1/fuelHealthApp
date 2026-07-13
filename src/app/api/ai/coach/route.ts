@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { ensureAuth, parseBody, serverError } from "@/lib/api";
 import { dayKey, shiftDayKey } from "@/lib/dates";
+import { MEAL_ORDER } from "@/lib/macros";
 import { retry } from "@/lib/retry";
 import { dateZ } from "@/lib/schemas";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
-import { dayContext } from "@/server/ai/context";
+import { dayContext, pendingPlanOptions } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { coachPrompt } from "@/server/ai/prompts";
 import { getDayView } from "@/server/db/queries/day";
@@ -46,12 +47,24 @@ export async function POST(request: Request) {
 
   const targets = plan?.targets ?? { kcal: 1800, prot: 110, carb: 0, fat: 0 };
 
+  // Comidas del plan que aún le quedan (F01 Fase 1): en curso = las sin entrada
+  // registrada; día terminado = todas (las sugerencias del coach son "para hoy").
+  const loggedMeals = new Set(view.entries.map((e) => e.meal));
+  const pendingMeals = MEAL_ORDER.filter(
+    (m) => m !== "extra" && (parsed.data.mode === "ayer" || !loggedMeals.has(m)),
+  );
+  const planPendiente = plan
+    ? pendingPlanOptions(plan.optionsByMeal, pendingMeals)
+    : "";
+
   try {
     const text = await runText({
       kind: "coach",
       task: "coach",
       prompt: coachPrompt({
         atleta: atleta.full,
+        today: base,
+        targetDate,
         mode: parsed.data.mode,
         kcal: targets.kcal,
         prot: targets.prot,
@@ -61,6 +74,7 @@ export async function POST(request: Request) {
           sessionByWeekday: atleta.sessionByWeekday,
           date: targetDate,
         }),
+        planPendiente,
       }),
       // 100 palabras + thinking "medium": presupuesto amplio para no truncar.
       maxOutputTokens: 3072,

@@ -50,6 +50,7 @@ export async function POST() {
       task: "coach",
       prompt: prepareVisitPrompt({
         atleta: atleta.full,
+        today,
         kcal: currentTarget.kcal,
         prot: currentTarget.prot,
         meds: medLines(meds),

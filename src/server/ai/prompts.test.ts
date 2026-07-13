@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { weekdayName } from "@/lib/dates";
 import { DEFAULT_SESSION_BY_WEEKDAY } from "@/lib/macros";
 import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
 import type { DayView } from "@/server/db/queries/day";
-import { dayContext } from "./context";
+import type { PlanOptionDTO } from "@/server/db/queries/plan";
+import { dayContext, pendingPlanOptions } from "./context";
 import {
   athleteContext,
   athleteContextCompact,
+  chatSystemPrompt,
   coachPrompt,
+  prepareVisitPrompt,
 } from "./prompts";
 
 /*
@@ -62,11 +66,14 @@ describe("ATHLETE_CONTEXT dinámico (doc 10 A2)", () => {
 describe("guardarraíles del coach (doc 10 A3)", () => {
   const base = {
     atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    targetDate: TODAY,
     kcal: 1800,
     prot: 110,
     carb: 200,
     fat: 60,
     dayContext: "Comidas: ninguna registrada aún.",
+    planPendiente: "",
   };
 
   it("anti-suplementación: solo los del perfil, no prescribe", () => {
@@ -80,6 +87,102 @@ describe("guardarraíles del coach (doc 10 A3)", () => {
     expect(p).toContain(
       "Si la sesión de hoy es Descanso o no hay sesión, NO asumas que va a entrenar",
     );
+  });
+});
+
+describe("fecha en los prompts conversacionales (F01 Fase 0)", () => {
+  const base = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    kcal: 1800,
+    prot: 110,
+    carb: 200,
+    fat: 60,
+    dayContext: "Comidas: ninguna registrada aún.",
+    planPendiente: "",
+  };
+
+  it("AC2: el system prompt del chat contiene la línea `HOY es {hoy}`", () => {
+    const p = chatSystemPrompt({
+      atleta: base.atleta,
+      today: TODAY,
+      planSummary: "—",
+      trendAdherence: "—",
+      meds: "—",
+      days30: "—",
+    });
+    expect(p).toContain(`HOY es ${TODAY}`);
+    expect(p).toContain(weekdayName(TODAY)); // nombre del día real, sin hardcodear
+  });
+
+  it("el coach ancla el día evaluado por paridad (hoy=hoy, ayer=día evaluado)", () => {
+    const hoy = coachPrompt({ ...base, today: TODAY, targetDate: TODAY, mode: "hoy" });
+    expect(hoy).toContain(`HOY es ${TODAY}`);
+
+    const ayerKey = "2026-07-11";
+    const ayer = coachPrompt({
+      ...base,
+      today: TODAY,
+      targetDate: ayerKey,
+      mode: "ayer",
+    });
+    expect(ayer).toContain(`HOY es ${TODAY}`);
+    expect(ayer).toContain(`Analizas AYER, ${ayerKey}`);
+  });
+
+  it("preparar-visita ancla la fecha", () => {
+    const p = prepareVisitPrompt({
+      atleta: base.atleta,
+      today: TODAY,
+      kcal: 1800,
+      prot: 110,
+      meds: "—",
+      tendencia: "—",
+      filas: "—",
+    });
+    expect(p).toContain(`HOY es ${TODAY}`);
+  });
+});
+
+describe("el coach conoce el plan (F01 Fase 1)", () => {
+  const opts: PlanOptionDTO[] = [
+    {
+      id: 1,
+      meal: "cena",
+      grp: "Proteína",
+      name: "Pavo a la plancha",
+      baseG: 150,
+      kcal: 165,
+      prot: 32,
+      carb: 0,
+      fat: 4,
+      sort: 0,
+    },
+  ];
+
+  it("AC4: el prompt incluye las opciones del plan pendientes", () => {
+    const pendiente = pendingPlanOptions({ cena: opts }, ["cena"]);
+    expect(pendiente).toContain("Pavo a la plancha");
+
+    const p = coachPrompt({
+      atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+      today: TODAY,
+      targetDate: TODAY,
+      mode: "hoy",
+      kcal: 1800,
+      prot: 110,
+      carb: 200,
+      fat: 60,
+      dayContext: "Comidas: ninguna registrada aún.",
+      planPendiente: pendiente,
+    });
+    expect(p).toContain("OPCIONES DEL PLAN PENDIENTES:");
+    expect(p).toContain("Pavo a la plancha");
+    expect(p).toContain("fuera de tu pauta"); // guardarraíl de prioridad del plan
+  });
+
+  it("pendingPlanOptions omite comidas ya registradas y sin opciones", () => {
+    const pendiente = pendingPlanOptions({ cena: opts }, ["almuerzo"]);
+    expect(pendiente).toBe(""); // 'cena' no está en pending; 'almuerzo' no tiene opciones
   });
 });
 
