@@ -135,10 +135,21 @@ share target, cola offline `idb` con replay, botones IA deshabilitados offline).
 
 ## 3. Backlog v1.1 (NO hecho en v1 — de `06` y `07`)
 
+- **Coach consciente del contexto** (perfil editable + día de entreno/descanso) — brief
+  completo con diagnóstico y plan en **[`BACKLOG-coach-perfil-entreno.md`](./BACKLOG-coach-perfil-entreno.md)**:
+  - **Nivel 1 (arreglo, sin migración)**: perfil de atleta editable en Ajustes (suplementos,
+    objetivo, nota clínica… → `athleteContext` deja de estar hardcodeado) + el Coach usa el
+    calendario para saber si hoy es descanso + guardarraíl anti-suplementación en F-IA-6.
+    Resuelve dos fallos reales: el Coach asumía entreno en día libre y recomendaba whey (que
+    Alex no toma).
+  - **Nivel 2 (feature v1.2)**: **F-IA-10 «Importar semana de The Progrm»** (PDF→IA extrae
+    T1–T6 y se asignan a días, reutilizando F-IA-9). Sesión real por día → **absorbe el ítem
+    «Workouts por sesión» de abajo**.
 - **Base de datos de alimentos** (OpenFoodFacts/BEDCA) para recurrentes, con IA de fallback.
 - **Sodio y fibra** estructurados + **correlaciones de hinchazón automáticas**
   («3 de 4 días con hinchazón ≥Moderada incluían sandía» — co-ocurrencia, observación no diagnóstico).
-- **Workouts por sesión** → modelo de coste por tipo de día.
+- **Workouts por sesión** → modelo de coste por tipo de día. _(Lo absorbe el Nivel 2 del
+  brief del Coach, arriba.)_
 - **Import del XML nativo** de Apple Salud.
 - **Passkeys**.
 - **Recordatorio de pesaje** (notificación local PWA).
