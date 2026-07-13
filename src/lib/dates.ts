@@ -39,6 +39,11 @@ export function isoWeekday(key: string): number {
   return Number(formatInTimeZone(keyToInstant(key), APP_TZ, "i"));
 }
 
+/** Nombre del día de la semana en español ('2026-07-13' → "lunes"). */
+export function weekdayName(key: string): string {
+  return formatInTimeZone(keyToInstant(key), APP_TZ, "EEEE", { locale: es });
+}
+
 /** Valida una clave 'YYYY-MM-DD'. */
 export function isDayKey(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);

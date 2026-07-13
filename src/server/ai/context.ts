@@ -1,6 +1,7 @@
 import { dayKey, isoWeekday } from "@/lib/dates";
 import {
   BLOAT_LABELS,
+  type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
   phaseLabel,
@@ -13,6 +14,7 @@ import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { DailyRecord } from "@/server/analytics/types";
 import type { DayView } from "@/server/db/queries/day";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
+import { planOptionsList } from "./prompts";
 
 /*
   Ensamblado de CONTEXTO para las features conversacionales de IA (coach F-IA-6,
@@ -124,6 +126,27 @@ export function planSummary(
       .map((o) => (o.baseG != null ? `${o.name} (${o.baseG} g)` : o.name))
       .join(", ");
     lines.push(`${MEAL_LABELS[meal]}: ${names}.`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Opciones del plan de las comidas AÚN pendientes del día (F01 Fase 1, coach
+ * F-IA-6): una línea por comida pendiente con sus opciones pautadas (nombre,
+ * gramos, kcal, prot). Así el coach sugiere DENTRO de la dieta en vez de inventar
+ * comida. Vacío si no queda ninguna comida del plan pendiente. `pending` = claves
+ * de comida que aún no tienen entrada registrada (día en curso) o todas (día nuevo).
+ */
+export function pendingPlanOptions(
+  optionsByMeal: Record<string, PlanOptionDTO[]>,
+  pending: readonly MealKey[],
+): string {
+  const lines: string[] = [];
+  for (const meal of MEAL_ORDER) {
+    if (meal === "extra" || !pending.includes(meal)) continue;
+    const opts = optionsByMeal[meal] ?? [];
+    if (opts.length === 0) continue;
+    lines.push(`${MEAL_LABELS[meal]}: ${planOptionsList(opts)}`);
   }
   return lines.join("\n");
 }
