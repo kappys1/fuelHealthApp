@@ -66,6 +66,34 @@ share target, cola offline `idb` con replay, botones IA deshabilitados offline).
 - **Coste IA**: **~€1,6–1,9/mes** (objetivo < 5 €), driver Chat/Coach (`AI_MODEL_COACH` =
   Gemini 3.5 Flash).
 
+### v1.1 · Perfil de atleta + IA consciente (doc 10 · Fase A)
+Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en prompts.
+- **Perfil de atleta** editable en Ajustes (setting `athleteProfile`, jsonb, sin migración):
+  deporte/nivel/programa/franja, altura, fecha de nacimiento (edad derivada), suplementos y
+  lesiones (chips), nota clínica e **historial de objetivos** (vigente + cambiar + plegado).
+  `diasEntrenoSemana` se deriva del mapeo de sesiones.
+- **`ATHLETE_CONTEXT` dinámico** desde el perfil (plantilla congelada, valores interpolados):
+  completo en coach/WOD/visita/chat; **compacto + cláusula anti-sesgo** en todas las
+  estimaciones (F-IA-1/2/3/4/9), con excepción de escala en foto.
+- **Guardarraíles del Coach** (anti-suplementación + anti-entreno-fantasma) y **Coach/Chat/
+  Visita miran el calendario** (`sessionByWeekday`): arregla el bug del domingo/descanso.
+- Café ×3 estable (kcal idéntica); Ajustes reorganizado en grupos (Atleta/App/Cuenta) e
+  inputs a 44px.
+
+### v1.2 · Plan de entrenamiento importable + Historial (doc 10 · Fase B)
+- **Migración 0003** (aditiva): `training_plans`, `training_sessions` (tipo genérico,
+  agnóstico de deporte), `days.session_ref`. Export/restore actualizado (0 pérdidas).
+- **F-IA-10 · Importar semana** (PDF/foto/texto) en Plan: vista previa editable → asignar
+  cada sesión a un día → crea el plan y rellena los días. Verificado con `TP1_Week_29.pdf`
+  (6 sesiones) y un plan de running en texto (agnosticismo).
+- **Integración**: el dropdown de sesión (Mi día/check-in) usa las **sesiones reales** de la
+  semana; el Coach/Chat/Visita citan la sesión real (nombre, tipo, gasto).
+- **Plan en segmentos `Dieta | Entrenos`**: la pestaña Entrenos gestiona la semana vigente
+  (ver/editar con **kcal editable**, reasignar día, borrar).
+- **Historial** (3er segmento de Progreso): timeline de solo lectura, inmutable, que mezcla
+  objetivos + dietas + entrenos + MEDs; rango + filtros; detalle inline (MED/objetivo) o en
+  sheet (dieta/entreno) con «ir al actual».
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
@@ -135,16 +163,10 @@ share target, cola offline `idb` con replay, botones IA deshabilitados offline).
 
 ## 3. Backlog v1.1 (NO hecho en v1 — de `06` y `07`)
 
-- **Coach consciente del contexto** (perfil editable + día de entreno/descanso) — brief
-  completo con diagnóstico y plan en **[`BACKLOG-coach-perfil-entreno.md`](./BACKLOG-coach-perfil-entreno.md)**:
-  - **Nivel 1 (arreglo, sin migración)**: perfil de atleta editable en Ajustes (suplementos,
-    objetivo, nota clínica… → `athleteContext` deja de estar hardcodeado) + el Coach usa el
-    calendario para saber si hoy es descanso + guardarraíl anti-suplementación en F-IA-6.
-    Resuelve dos fallos reales: el Coach asumía entreno en día libre y recomendaba whey (que
-    Alex no toma).
-  - **Nivel 2 (feature v1.2)**: **F-IA-10 «Importar semana de The Progrm»** (PDF→IA extrae
-    T1–T6 y se asignan a días, reutilizando F-IA-9). Sesión real por día → **absorbe el ítem
-    «Workouts por sesión» de abajo**.
+- ✅ **Coach consciente del contexto** (perfil + día de entreno/descanso) — **HECHO en v1.1/
+  v1.2** (doc 10, ver secciones arriba). Nivel 1 (perfil + calendario + guardarraíles) = Fase A;
+  Nivel 2 (F-IA-10 importar semana + sesión real por día + Historial unificado) = Fase B.
+  **Absorbe el ítem «Workouts por sesión» de abajo.**
 - **Base de datos de alimentos** (OpenFoodFacts/BEDCA) para recurrentes, con IA de fallback.
 - **Sodio y fibra** estructurados + **correlaciones de hinchazón automáticas**
   («3 de 4 días con hinchazón ≥Moderada incluían sandía» — co-ocurrencia, observación no diagnóstico).
