@@ -89,6 +89,7 @@ describe("dayContext mira el calendario (doc 10 A4)", () => {
     day: null,
     health: null,
     entries: [],
+    session: null,
   };
 
   it("sin sesión registrada emite la que toca según el calendario semanal", () => {
