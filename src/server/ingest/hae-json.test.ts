@@ -180,4 +180,37 @@ describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
     });
     expect(r.days[0]?.sleepH).toBeCloseTo(7.5, 6); // máximo, no 15
   });
+
+  it("sueño: muestra basura de Apple Health (>16 h) se descarta, no contamina el máximo", () => {
+    const r = parseHaeJson({
+      data: {
+        metrics: [
+          {
+            name: "sleep_analysis",
+            units: "hr",
+            data: [
+              { date: "2026-07-12", qty: 35.354 }, // «InBed» fantasma → basura
+              { date: "2026-07-12", qty: 7.2 }, // sueño real
+            ],
+          },
+        ],
+      },
+    });
+    expect(r.days[0]?.sleepH).toBeCloseTo(7.2, 6); // el outlier NO gana el máximo
+  });
+
+  it("sueño: si solo llega basura, queda 0 (sobrescribe un valor malo guardado)", () => {
+    const r = parseHaeJson({
+      data: {
+        metrics: [
+          {
+            name: "sleep_analysis",
+            units: "hr",
+            data: [{ date: "2026-07-12", qty: 35.354 }],
+          },
+        ],
+      },
+    });
+    expect(r.days[0]?.sleepH).toBe(0);
+  });
 });
