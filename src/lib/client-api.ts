@@ -170,6 +170,31 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  updateTrainingSession: (
+    id: number,
+    patch: {
+      nombre?: string;
+      tipo?: TrainingTipo;
+      contenido?: string;
+      kcalMin?: number | null;
+      kcalMax?: number | null;
+      duracionMin?: number | null;
+    },
+  ) =>
+    req<{ ok: true }>(`/api/training/sessions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+
+  reassignTrainingSession: (id: number, date: string | null) =>
+    req<{ ok: true }>(`/api/training/sessions/${id}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ date }),
+    }),
+
+  deleteTrainingPlan: (id: number) =>
+    req<{ ok: true }>(`/api/training/plan/${id}`, { method: "DELETE" }),
+
   // Plan
   patchTargets: (t: {
     kcal: number;

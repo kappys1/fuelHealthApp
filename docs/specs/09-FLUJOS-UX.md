@@ -22,6 +22,7 @@ El PRD define QUÉ hace la app (requisitos F1-F8: todos siguen vigentes). Este d
 - **Ajustes se organiza en 3 grupos** (con encabezado de sección): **Atleta** (perfil), **App** (tema, sync de Salud, import CSV, copia de seguridad, mapeo de sesiones) y **Cuenta** (cerrar sesión). Separa "quién soy" de "cómo se comporta la app"; un solo icono en el header (no se añade uno de perfil: destino de uso raro, no gana chrome permanente).
 - **Perfil del atleta** (doc 10 A1) vive en el grupo **Atleta** de Ajustes: sub-secciones aireadas (Deporte y entreno · Datos · Suplementos y lesiones · Objetivo), inputs a 44px (target táctil 05 §4), suplementos/lesiones como chips, y «Objetivo» (vigente destacado + «Cambiar objetivo» que añade una entrada fechada + historial plegado). Es la fuente del `ATHLETE_CONTEXT` de la IA (principio 9).
 - **Chat** es pestaña propia: es el destino conversacional de «pregúntale a tus datos».
+- **Plan en 2 segmentos (doc 10 B3b)**: `Dieta | Entrenos` (mismo patrón que Progreso). *Dieta* = objetivos + opciones + importar dieta. *Entrenos* = la semana vigente (ver/editar sesiones con kcal editable, reasignar día, borrar) + importar semana.
 
 ## 3. Pantalla Hoy (rediseñada — task-first)
 
