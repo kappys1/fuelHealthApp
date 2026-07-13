@@ -22,6 +22,7 @@ import {
   getPlanContext,
   type PlanOptionDTO,
 } from "./plan";
+import { getTrainingPlanContext, type TrainingSessionDTO } from "./training";
 
 /**
  * Payload agregado de la pantalla Hoy: lo que el RSC pasa como initialData y lo
@@ -38,6 +39,8 @@ export interface TodayPayload {
   templates: TemplateDTO[];
   streak: number;
   sessionByWeekday: SessionByWeekday;
+  /** Sesiones reales del plan de entreno que cubre esta fecha (doc 10 B3); [] si no hay. */
+  trainingSessions: TrainingSessionDTO[];
   /** Sesión sugerida para esta fecha por el mapeo día-semana (09 §5). */
   defaultSession: string;
   /** Último peso conocido (para precargar el check-in matinal, 09 §5). */
@@ -60,6 +63,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     sessionByWeekday,
     lastWeight,
     prevPhase,
+    trainingPlan,
   ] = await Promise.all([
     getDayView(date),
     getPlanContext(date),
@@ -70,10 +74,12 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     getSessionByWeekday(),
     latestWeightOnOrBefore(date),
     phaseOnDate(shiftDayKey(date, -1)),
+    getTrainingPlanContext(date),
   ]);
 
   const wd = String(isoWeekday(date));
   const defaultSession = sessionByWeekday[wd] ?? "Descanso";
+  const trainingSessions = trainingPlan?.sessions ?? [];
 
   // Sugerir la siguiente fase solo si hoy aún no la tiene y ayer fue especial
   // (todas las PhaseKey son especiales; Normal se guarda como null).
@@ -98,6 +104,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     templates,
     streak,
     sessionByWeekday,
+    trainingSessions,
     defaultSession,
     lastWeight,
     suggestedPhase,

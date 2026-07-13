@@ -22,6 +22,8 @@ export interface DayPatch {
   bodyFatPct?: number | null;
   sessionLabel?: string | null;
   sessionKcal?: number | null;
+  /** FK a la sesión real del plan de entreno (doc 10 B3); null = genérica/manual. */
+  sessionRef?: number | null;
   phase?: PhaseKey | null;
   bloat?: BloatKey | null;
   notes?: string | null;

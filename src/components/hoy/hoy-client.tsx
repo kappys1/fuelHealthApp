@@ -210,6 +210,7 @@ export function HoyClient({
       <MiDiaCard
         view={data.view}
         onPatch={t.patchDay}
+        trainingSessions={data.trainingSessions}
         suggestedPhase={data.suggestedPhase}
       />
 

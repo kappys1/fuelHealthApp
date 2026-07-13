@@ -15,6 +15,7 @@ import {
   roundKcal,
   SESSIONS,
 } from "@/lib/macros";
+import { orderedSessionOptions, sessionPatchFor } from "@/lib/training";
 import { cn } from "@/lib/utils";
 import { dayTotals } from "@/server/analytics/dayTotals";
 import type { DayPatch } from "@/server/db/queries/mutations";
@@ -116,30 +117,28 @@ export function CheckinMatinal({
               <p className="text-[15px] text-foreground">
                 Sesión de hoy{" "}
                 <span className="text-muted-foreground">
-                  (sugerida: {data.defaultSession})
+                  {sessionSuggestion(data)}
                 </span>
               </p>
               <div className="max-h-[40dvh] space-y-1.5 overflow-y-auto">
-                {[data.defaultSession, ...SESSIONS.filter((s) => s !== data.defaultSession)].map(
-                  (s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => {
-                        onPatch({ sessionLabel: s });
-                        close();
-                      }}
-                      className={cn(
-                        "w-full rounded-lg border px-3 py-3 text-left text-[14px]",
-                        (data.view.day?.sessionLabel ?? data.defaultSession) === s
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-line bg-surface-2",
-                      )}
-                    >
-                      {s}
-                    </button>
-                  ),
-                )}
+                {sessionChoices(data).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      onPatch(sessionPatchFor(s, data.trainingSessions));
+                      close();
+                    }}
+                    className={cn(
+                      "w-full rounded-lg border px-3 py-3 text-left text-[14px]",
+                      (data.view.day?.sessionLabel ?? data.defaultSession) === s
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-line bg-surface-2",
+                    )}
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
               <SkipLink label="Terminar" onClick={close} />
             </div>
@@ -316,6 +315,23 @@ export function WeightExpressSheet({
       </SheetContent>
     </Sheet>
   );
+}
+
+/** Opciones de sesión del check-in (doc 10 B3): las reales de la semana si hay
+ *  plan; si no, la sugerida por el mapeo + las genéricas. */
+function sessionChoices(data: TodayPayload): string[] {
+  const planNames = data.trainingSessions.map((s) => s.nombre);
+  if (planNames.length > 0) return orderedSessionOptions(planNames);
+  return [
+    data.defaultSession,
+    ...SESSIONS.filter((s) => s !== data.defaultSession),
+  ];
+}
+
+function sessionSuggestion(data: TodayPayload): string {
+  return data.trainingSessions.length > 0
+    ? "(según tu semana importada)"
+    : `(sugerida: ${data.defaultSession})`;
 }
 
 function BigNext({ label = "Siguiente", onClick }: { label?: string; onClick: () => void }) {

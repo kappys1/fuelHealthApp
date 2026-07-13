@@ -71,6 +71,7 @@ Listo en ≤15 segundos. Cada paso es saltable; guardar en cada paso (si lo aban
 
 **Defaults inteligentes (regla: la app nunca pregunta lo que puede saber):**
 - **Sesión por día de la semana**: mapeo configurable en Ajustes (L→T1, M→T2, X→T3, J→T4, V→T5, S→T6, D→Descanso, editable — The Progrm es semanal). El check-in solo pide confirmar.
+- **Dropdown de sesión (doc 10 B3)**: si hay una semana de entreno importada que cubre la fecha, el selector (Mi día + check-in) muestra **sus sesiones reales** + Competición/Descanso (las genéricas T1–T6 se ocultan); sin semana importada, la lista genérica. Off-plan → analizador de WOD (F-IA-5). Elegir una sesión del plan ancla la sesión real del día (nombre + gasto), que el Coach/Chat/Visita citan.
 - **Peso**: precargado con el último; **agua**: chips +250 ml / +500 ml / botella (750), no un campo de litros; **comida del sheet**: por hora; **gramos**: baseG; **fase**: Normal salvo que ayer fuera Carga/Competición (entonces sugiere la siguiente lógica: Carga→Competición→Recuperación→Normal).
 - Todo default es un valor propuesto visible y cambiable en un toque — nunca un valor oculto.
 
