@@ -22,13 +22,15 @@ export function PlanScreen({
   derived,
   optionsByMeal,
   week,
+  initialSegment = "dieta",
 }: {
   targets: EffectiveTargets;
   derived: DerivedTargets;
   optionsByMeal: Record<string, PlanOptionDTO[]>;
   week: TrainingWeekView | null;
+  initialSegment?: Segment;
 }) {
-  const [segment, setSegment] = useState<Segment>("dieta");
+  const [segment, setSegment] = useState<Segment>(initialSegment);
 
   return (
     <section className="space-y-4">

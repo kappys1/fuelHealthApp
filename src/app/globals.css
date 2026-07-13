@@ -88,6 +88,8 @@
      también sobre --bg (WCAG 1.4.11); cambio visual mínimo, sigue ámbar. */
   --carb: #b0800a;
   --fat: #e8590c;
+  /* Acento MED (Historial, doc 10 B4): morado oscurecido para contraste sobre blanco. */
+  --med-accent: #8a4bbf;
   --phase: color-mix(in srgb, var(--primary) 12%, transparent);
 
   --radius: 0.75rem; /* 12px */
@@ -144,6 +146,7 @@
   --protein: #4cc98a;
   --carb: #e0b341;
   --fat: #f2894c;
+  --med-accent: #c48fe0;
   --phase: color-mix(in srgb, var(--primary) 12%, transparent);
 
   --background: var(--bg);

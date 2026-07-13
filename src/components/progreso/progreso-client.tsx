@@ -3,18 +3,20 @@
 import { useState } from "react";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { DailyRecord, DayTarget } from "@/server/analytics/types";
+import type { HistorialEntry } from "@/server/db/queries/history";
+import { Historial } from "./historial";
 import { Med } from "./med";
 import { Tendencia } from "./tendencia";
 
 /*
-  Pantalla Progreso (09-FLUJOS-UX §2): dos segmentos de una misma pantalla —
-  Tendencia | MED — porque responden la misma pregunta («¿funciona?»). Tendencia
-  está completa (Fase 3); MED (composición corporal + preparar visita) llega en
-  la Fase 4.
+  Pantalla Progreso (09-FLUJOS-UX §2): segmentos de una misma pantalla —
+  Tendencia | MED | Historial. Tendencia y MED responden «¿funciona?»; Historial
+  (doc 10 B4) es «cómo he llegado hasta aquí» (timeline de solo lectura).
 */
 const SEGMENTS = [
   { key: "tendencia", label: "Tendencia" },
   { key: "med", label: "MED" },
+  { key: "historial", label: "Historial" },
 ] as const;
 type Segment = (typeof SEGMENTS)[number]["key"];
 
@@ -23,11 +25,13 @@ export function ProgresoClient({
   currentTarget,
   today,
   med,
+  historial,
 }: {
   records: DailyRecord[];
   currentTarget: DayTarget;
   today: string;
   med: MedWithDelta[];
+  historial: HistorialEntry[];
 }) {
   const [segment, setSegment] = useState<Segment>("tendencia");
 
@@ -63,8 +67,10 @@ export function ProgresoClient({
 
       {segment === "tendencia" ? (
         <Tendencia records={records} currentTarget={currentTarget} today={today} />
-      ) : (
+      ) : segment === "med" ? (
         <Med initialMed={med} />
+      ) : (
+        <Historial entries={historial} today={today} />
       )}
     </section>
   );

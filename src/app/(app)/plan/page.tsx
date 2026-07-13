@@ -5,8 +5,14 @@ import { getTrainingWeekView } from "@/server/db/queries/training";
 
 export const dynamic = "force-dynamic";
 
-export default async function PlanPage() {
+export default async function PlanPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const today = dayKey();
+  const { tab } = await searchParams;
+  const initialSegment = tab === "entrenos" ? "entrenos" : "dieta";
   const [ctx, week] = await Promise.all([
     getPlanContext(today),
     getTrainingWeekView(today),
@@ -29,6 +35,7 @@ export default async function PlanPage() {
       derived={ctx.derived}
       optionsByMeal={ctx.optionsByMeal}
       week={week}
+      initialSegment={initialSegment}
     />
   );
 }
