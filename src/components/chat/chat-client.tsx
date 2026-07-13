@@ -37,20 +37,38 @@ interface UIMessage extends Omit<MessageDTO, "id" | "createdAt"> {
 let tmp = 0;
 const tmpId = () => `t${tmp++}`;
 
-export function ChatClient({ initialThreads }: { initialThreads: ThreadDTO[] }) {
+export function ChatClient({
+  initialThreads,
+  initialThreadId = null,
+}: {
+  initialThreads: ThreadDTO[];
+  initialThreadId?: number | null;
+}) {
   const online = useOnline();
   const [threads, setThreads] = useState<ThreadDTO[]>(initialThreads);
-  const [activeId, setActiveId] = useState<number | null>(null);
-  const [view, setView] = useState<"list" | "thread">("list");
+  const [activeId, setActiveId] = useState<number | null>(initialThreadId);
+  const [view, setView] = useState<"list" | "thread">(
+    initialThreadId != null ? "thread" : "list",
+  );
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, streaming]);
+
+  // Puente Coach → Chat (F01 Fase 2): al entrar con ?thread=<id>, abre ese hilo
+  // (sembrado con la pregunta + la respuesta del coach) y enfoca el input.
+  const openedRef = useRef(false);
+  useEffect(() => {
+    if (initialThreadId == null || openedRef.current) return;
+    openedRef.current = true;
+    openThread(initialThreadId).then(() => inputRef.current?.focus());
+  }, [initialThreadId]);
 
   const openThread = async (id: number) => {
     setActiveId(id);
@@ -258,6 +276,7 @@ export function ChatClient({ initialThreads }: { initialThreads: ThreadDTO[] }) 
       <div className="border-t border-line pt-2">
         <div className="flex items-end gap-2">
           <textarea
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
