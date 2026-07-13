@@ -34,7 +34,10 @@ export function DayStatusLine({
 
   const hour = madridHour();
   const day = data.view.day;
-  const hasWeight = day?.weight != null;
+  // Peso de hoy = manual O báscula (Apple Health). Si la báscula ya sincronizó
+  // el peso, el día está cubierto (principio 6: datos reales > manuales) y no se
+  // pide. Debe coincidir con el peso EFECTIVO que muestra «Mi día» (mi-dia-card).
+  const hasWeight = day?.weight != null || data.view.health?.weight != null;
   const hasComida = data.view.entries.some((e) => e.meal === "comida");
   const dayClosed = day?.notes != null && day?.bloat != null;
 

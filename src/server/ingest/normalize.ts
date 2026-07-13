@@ -140,10 +140,10 @@ export function canonicalize(
 
 /**
  * Métricas ACUMULATIVAS: si una fuente manda varias muestras del mismo día se
- * SUMAN (pasos, energía, agua = totales del día). El resto son instantáneas y se
- * PROMEDIAN (HRV, FC reposo, VO2, peso, % grasa). El sueño es aparte: Apple lo
- * trocea por fases (sumarlas daría >24 h), así que se toma el MÁXIMO (mejor
- * aproximación al total de la noche). Ver MAX_FIELDS.
+ * SUMAN (pasos, energía, agua = totales del día). Las instantáneas restantes se
+ * PROMEDIAN (HRV, FC reposo, VO2, % grasa). El sueño es aparte: Apple lo trocea
+ * por fases (sumarlas daría >24 h), así que se toma el MÁXIMO (mejor
+ * aproximación al total de la noche). Ver MAX_FIELDS y FIRST_FIELDS.
  */
 export const CUMULATIVE_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>([
   "steps",
@@ -154,6 +154,14 @@ export const CUMULATIVE_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(
 
 /** Métricas donde se toma el MÁXIMO de las muestras del día (sueño troceado). */
 export const MAX_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(["sleepH"]);
+
+/**
+ * Métricas donde se toma la PRIMERA muestra del día (la de hora más temprana),
+ * no la media: el peso es «mañana, ayunas» (principio 5). Si te pesas más veces
+ * a lo largo del día (más pesado tras comer/beber), promediar inflaría el valor
+ * y no cuadraría con la báscula. La pesada de la mañana es la que manda.
+ */
+export const FIRST_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(["weight"]);
 
 /**
  * Máximo de sueño fisiológicamente plausible por día (h). Por encima es un
