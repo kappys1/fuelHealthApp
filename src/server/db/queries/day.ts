@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, lte } from "drizzle-orm";
 import type { BloatKey, MealKey, PhaseKey } from "@/lib/macros";
 import { dayKey, shiftDayKey } from "@/lib/dates";
 import type { TrainingTipo } from "@/lib/training";
@@ -63,6 +63,48 @@ export interface DayView {
   entries: EntryDTO[];
   /** Sesión real del plan asignada al día (doc 10 B3), si `day.sessionRef` apunta a una. */
   session: DaySessionInfo | null;
+}
+
+/** Comida por item con su fecha (para el detalle por día del chat, F02). */
+export interface DatedEntry {
+  date: string;
+  meal: MealKey;
+  name: string;
+  kcal: number;
+  prot: number;
+  carb: number;
+  fat: number;
+}
+
+/**
+ * Comidas por item en el rango de días [from, to] (claves 'YYYY-MM-DD'), en UNA
+ * query, ordenadas por fecha y orden de inserción. Alimenta el detalle por día
+ * del contexto del chat (F02) sin hacer N lecturas por día.
+ */
+export async function mealEntriesInRange(
+  from: string,
+  to: string,
+): Promise<DatedEntry[]> {
+  const rows = await db
+    .select({
+      date: schema.mealEntries.date,
+      meal: schema.mealEntries.meal,
+      name: schema.mealEntries.name,
+      kcal: schema.mealEntries.kcal,
+      prot: schema.mealEntries.prot,
+      carb: schema.mealEntries.carb,
+      fat: schema.mealEntries.fat,
+    })
+    .from(schema.mealEntries)
+    .where(
+      and(gte(schema.mealEntries.date, from), lte(schema.mealEntries.date, to)),
+    )
+    .orderBy(
+      asc(schema.mealEntries.date),
+      asc(schema.mealEntries.createdAt),
+      asc(schema.mealEntries.id),
+    );
+  return rows.map((r) => ({ ...r, meal: r.meal as MealKey }));
 }
 
 export async function getDayView(date: string): Promise<DayView> {

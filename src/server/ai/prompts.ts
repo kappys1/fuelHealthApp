@@ -185,11 +185,15 @@ export function chatSystemPrompt(args: {
   trendAdherence: string;
   meds: string;
   days30: string;
+  /** Detalle por item de los últimos 7 días (F02); "" si no hay comidas. */
+  mealsDetail?: string;
   priorSummary?: string | null;
 }): string {
   // Línea de fecha primero (F01 Fase 0): sin ella, con el último dato fechado
   // hoy, el modelo alucinaba un «hoy» posterior y días inexistentes.
-  const base = `HOY es ${args.today} (${weekdayName(args.today)}).\n${args.atleta} Respondes SOLO con base en los datos proporcionados. Si los datos no lo cubren, dilo. Observas y explicas; NO prescribes cambios de dieta ni suplementación — eso corresponde a su nutricionista (puedes sugerir qué preguntarle). Respuestas concisas, en español, con cifras concretas de sus datos.`;
+  // Guardarraíl anti-invención (F02): si le falta un dato, lo dice y lo pide; no
+  // se inventa comidas ni cifras (bug real: se inventó un «día pautado estándar»).
+  const base = `HOY es ${args.today} (${weekdayName(args.today)}).\n${args.atleta} Respondes SOLO con base en los datos proporcionados. Si te piden un detalle que no figura en los datos (los alimentos concretos de un día que no aparece, una cantidad…), dilo claramente y pide a Alex que te lo proporcione; NUNCA inventes comidas, cantidades ni un «día pautado estándar», ni hagas cálculos sobre datos que no tienes. Observas y explicas; NO prescribes cambios de dieta ni suplementación — eso corresponde a su nutricionista (puedes sugerir qué preguntarle). Respuestas concisas, en español, con cifras concretas de sus datos.`;
   const sections = [
     base,
     `DIETA VIGENTE:\n${args.planSummary}`,
@@ -197,6 +201,11 @@ export function chatSystemPrompt(args: {
     `MEDICIONES DEL NUTRICIONISTA (pliegues):\n${args.meds}`,
     `ÚLTIMOS 30 DÍAS (1 línea/día):\n${args.days30}`,
   ];
+  if (args.mealsDetail?.trim()) {
+    sections.push(
+      `COMIDAS POR ITEM (últimos 7 días; para días fuera de este rango, pide el detalle a Alex):\n${args.mealsDetail.trim()}`,
+    );
+  }
   if (args.priorSummary?.trim()) {
     sections.push(`RESUMEN DE LA CONVERSACIÓN PREVIA:\n${args.priorSummary.trim()}`);
   }

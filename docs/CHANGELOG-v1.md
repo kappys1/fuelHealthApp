@@ -105,6 +105,14 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   siembra un hilo (pregunta + texto del coach) y lo abre con el input enfocado, sin llamada
   IA propia. Plantillas F-IA-6/7/8 sincronizadas a `04-IA.md`.
 
+### v1.4 · El Chat conoce lo que has comido (F02)
+- **Guardarraíl anti-invención** (`chatSystemPrompt`, F-IA-8): si le falta un dato, lo dice y
+  pide a Alex que se lo proporcione; no inventa comidas, cantidades ni un «día pautado
+  estándar». Arregla el fallo real (13-jul): el Chat se inventaba una cena estándar y restaba.
+- **Detalle por item de los últimos 7 días** (rolling): el Chat ve QUÉ comió en cada comida
+  (mismo grano que el Coach vía `recentMealsDetail`), no solo los totales por día. Una query
+  de rango (`mealEntriesInRange`); días 8-30 siguen en totales. Sin schema ni migración.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

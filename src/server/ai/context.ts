@@ -12,7 +12,7 @@ import type { AdherenceResult } from "@/server/analytics/adherence";
 import type { DeficitResult } from "@/server/analytics/deficit";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { DailyRecord } from "@/server/analytics/types";
-import type { DayView } from "@/server/db/queries/day";
+import type { DatedEntry, DayView } from "@/server/db/queries/day";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
 import { planOptionsList } from "./prompts";
 
@@ -73,6 +73,34 @@ export function dayLines(
           ? (calendar.sessionByWeekday[String(isoWeekday(r.date))] ?? "Descanso")
           : null;
       return dayLine(r, fallback);
+    })
+    .join("\n");
+}
+
+/**
+ * Detalle de comidas por item de los últimos días (F02): además de los totales
+ * por día (dayLines), el chat ve QUÉ comió en cada comida, con el mismo grano que
+ * el coach. Agrupado por fecha, hoy primero. Vacío ("") si no hay comidas en el
+ * rango → el prompt omite la sección y el guardarraíl anti-invención cubre el resto.
+ */
+export function recentMealsDetail(entries: readonly DatedEntry[]): string {
+  if (entries.length === 0) return "";
+  const byDate = new Map<string, DatedEntry[]>();
+  for (const e of entries) {
+    const arr = byDate.get(e.date) ?? [];
+    arr.push(e);
+    byDate.set(e.date, arr);
+  }
+  const dates = [...byDate.keys()].sort().reverse(); // hoy primero
+  return dates
+    .map((d) => {
+      const items = (byDate.get(d) ?? [])
+        .map(
+          (e) =>
+            `- [${e.meal}] ${e.name}: ${Math.round(e.kcal)} kcal (${Math.round(e.prot)}P/${Math.round(e.carb)}C/${Math.round(e.fat)}F)`,
+        )
+        .join("\n");
+      return `${d}:\n${items}`;
     })
     .join("\n");
 }

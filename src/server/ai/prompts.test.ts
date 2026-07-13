@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { weekdayName } from "@/lib/dates";
 import { DEFAULT_SESSION_BY_WEEKDAY } from "@/lib/macros";
 import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
-import type { DayView } from "@/server/db/queries/day";
+import type { DatedEntry, DayView } from "@/server/db/queries/day";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
-import { dayContext, pendingPlanOptions } from "./context";
+import { dayContext, pendingPlanOptions, recentMealsDetail } from "./context";
 import {
   athleteContext,
   athleteContextCompact,
@@ -183,6 +183,47 @@ describe("el coach conoce el plan (F01 Fase 1)", () => {
   it("pendingPlanOptions omite comidas ya registradas y sin opciones", () => {
     const pendiente = pendingPlanOptions({ cena: opts }, ["almuerzo"]);
     expect(pendiente).toBe(""); // 'cena' no está en pending; 'almuerzo' no tiene opciones
+  });
+});
+
+describe("el chat conoce lo que has comido (F02)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+
+  it("AC3: el system prompt lleva el guardarraíl anti-invención", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("NUNCA inventes comidas, cantidades ni un «día pautado estándar»");
+    expect(p).toContain("pide a Alex que te lo proporcione");
+  });
+
+  it("AC4: incluye la sección de detalle por item cuando hay comidas", () => {
+    const ayer = "2026-07-11";
+    const entries: DatedEntry[] = [
+      { date: ayer, meal: "cena", name: "Pavo", kcal: 200, prot: 30, carb: 0, fat: 5 },
+      { date: TODAY, meal: "merienda", name: "Sandía", kcal: 120, prot: 2, carb: 28, fat: 0 },
+      { date: TODAY, meal: "merienda", name: "Pan", kcal: 160, prot: 5, carb: 30, fat: 1 },
+    ];
+    const detail = recentMealsDetail(entries);
+    // Agrupado por día, HOY primero.
+    expect(detail.indexOf(TODAY)).toBeLessThan(detail.indexOf(ayer));
+    expect(detail).toContain("[merienda] Sandía");
+    expect(detail).toContain("[merienda] Pan");
+
+    const p = chatSystemPrompt({ ...chatArgs, mealsDetail: detail });
+    expect(p).toContain("COMIDAS POR ITEM (últimos 7 días");
+    expect(p).toContain("Sandía");
+  });
+
+  it("recentMealsDetail vacío no añade sección al prompt", () => {
+    expect(recentMealsDetail([])).toBe("");
+    const p = chatSystemPrompt({ ...chatArgs, mealsDetail: "" });
+    expect(p).not.toContain("COMIDAS POR ITEM");
   });
 });
 
