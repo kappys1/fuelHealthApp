@@ -22,6 +22,7 @@ import {
   MAX_FIELDS,
   normalizeKey,
   parseNumberEs,
+  sanitizeSleepH,
 } from "./normalize";
 
 export interface WorkoutRow {
@@ -163,9 +164,12 @@ export function parseHaeJson(input: unknown): JsonParseResult {
       const value = pointValue(pt);
       if (value == null) continue;
       sawValue = true;
-      const converted = typed
+      let converted = typed
         ? convertUnits(field, value, { isKj, isMl })
         : convertByUnits(value, units);
+      // Sueño: descarta outliers imposibles (muestra «InBed» fantasma de Apple
+      // Health) → 0, para que el máximo no se contamine. Ver sanitizeSleepH.
+      if (field === "sleepH") converted = sanitizeSleepH(converted);
       if (isKj || (!typed && normalizeKey(units).includes("kj"))) hadKj = true;
 
       let dayAcc = acc.get(date);

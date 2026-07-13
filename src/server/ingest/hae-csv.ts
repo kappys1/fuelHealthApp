@@ -23,6 +23,7 @@ import {
   mergeHealthDay,
   normalizeKey,
   parseNumberEs,
+  sanitizeSleepH,
 } from "./normalize";
 
 export interface CsvParseResult {
@@ -132,10 +133,12 @@ export function parseHaeCsv(text: string): CsvParseResult {
       if (value == null) continue;
       if (col.isKj) hadKj = true;
       if (col.isMl) hadMl = true;
-      day[col.field] = canonicalize(col.field, value, {
+      const canon = canonicalize(col.field, value, {
         isKj: col.isKj,
         isMl: col.isMl,
       });
+      // Sueño: descarta totales imposibles (>16 h) → 0. Ver sanitizeSleepH.
+      day[col.field] = col.field === "sleepH" ? sanitizeSleepH(canon) : canon;
     }
 
     const prev = byDate.get(date);

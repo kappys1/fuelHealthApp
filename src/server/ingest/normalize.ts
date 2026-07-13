@@ -155,6 +155,25 @@ export const CUMULATIVE_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(
 /** Métricas donde se toma el MÁXIMO de las muestras del día (sueño troceado). */
 export const MAX_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(["sleepH"]);
 
+/**
+ * Máximo de sueño fisiológicamente plausible por día (h). Por encima es un
+ * artefacto de Apple Health (una muestra «InBed»/sesión de sueño fantasma que
+ * abarca >24 h), NO un dato real. Como el sueño se agrega por MÁXIMO, un solo
+ * outlier así contaminaría el día entero.
+ */
+export const MAX_SLEEP_H = 16;
+
+/**
+ * Sanea una muestra o total de sueño: fuera de [0, MAX_SLEEP_H] → 0.
+ * Se devuelve 0 (no null) a propósito: al agregar por máximo, el 0 deja pasar
+ * cualquier muestra legítima del mismo día y, si solo había basura, el resultado
+ * es 0 (que la UI/IA tratan como «sin dato»). Además 0 SÍ sobrescribe un valor
+ * basura ya guardado (el upsert por-campo se salta los null, no el 0).
+ */
+export function sanitizeSleepH(v: number): number {
+  return v >= 0 && v <= MAX_SLEEP_H ? v : 0;
+}
+
 // ── Métricas NO tipadas → columna `extra` (capturamos todo para el agente) ──
 
 /** Clave estable para una métrica extra: nombre HAE normalizado a snake_case. */
