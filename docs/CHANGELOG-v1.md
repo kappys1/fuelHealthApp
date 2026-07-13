@@ -94,6 +94,17 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   objetivos + dietas + entrenos + MEDs; rango + filtros; detalle inline (MED/objetivo) o en
   sheet (dieta/entreno) con «ir al actual».
 
+### v1.3 · Coach fiable + puente al Chat (F01)
+- **Fase 0 · Fecha en el prompt**: Chat, Coach y Preparar-visita empiezan por «HOY es
+  {fecha} ({día})» desde `dayKey()` (Europe/Madrid). Arregla la alucinación del Chat (bug
+  13-jul: «hoy 18-jul» + días inexistentes) que envenenaba cada «¿cómo voy hoy?».
+- **Fase 1 · El Coach conoce el plan**: el Coach recibe las opciones pautadas de las comidas
+  que aún le quedan al día (`pendingPlanOptions`); prioriza el plan y marca «fuera de tu
+  pauta» si sale de él. Arregla la «crema de arroz» inventada fuera de la dieta.
+- **Fase 2 · Puente Coach → Chat (A1)**: botón «Seguir en el chat» en el sheet del Coach que
+  siembra un hilo (pregunta + texto del coach) y lo abre con el input enfocado, sin llamada
+  IA propia. Plantillas F-IA-6/7/8 sincronizadas a `04-IA.md`.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

@@ -1,5 +1,5 @@
 # F01 · Coach fiable + puente al Chat
-**Estado**: aprobada · **Tamaño**: feature (3 fases; 2 quick-fix de prompt + 1 puente UI)
+**Estado**: implementada (v1.3, desplegada; AC 🖐 pendientes de validación de Alex) · **Tamaño**: feature (3 fases; 2 quick-fix de prompt + 1 puente UI)
 **Fecha**: 2026-07-13 · **Origen**: caso real 2026-07-13 (uso en el iPhone de Alex) + HANDOFF §B3
 
 ## Motivación (caso real)
