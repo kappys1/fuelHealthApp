@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowLeft, Check, Copy, Loader2, Sparkles, WifiOff } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Copy,
+  Loader2,
+  Sparkles,
+  WifiOff,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Markdown } from "@/components/ui/markdown";
@@ -30,17 +39,20 @@ export function CoachSheet({
   date: string;
 }) {
   const online = useOnline();
+  const router = useRouter();
   const [mode, setMode] = useState<Mode | null>(null);
   const [loading, setLoading] = useState(false);
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [bridging, setBridging] = useState(false);
 
   const reset = () => {
     setMode(null);
     setText(null);
     setError(null);
     setCopied(false);
+    setBridging(false);
   };
 
   const run = async (m: Mode) => {
@@ -66,6 +78,23 @@ export function CoachSheet({
       setTimeout(() => setCopied(false), 1500);
     } catch {
       toast.error("No se pudo copiar.");
+    }
+  };
+
+  // Puente Coach → Chat (F01 Fase 2 · A1): siembra un hilo con la pregunta y el
+  // texto del coach como respuesta del asistente, y abre el Chat en ese hilo.
+  const continueInChat = async () => {
+    if (!text || !mode || bridging) return;
+    setBridging(true);
+    try {
+      const userMessage = mode === "hoy" ? "¿Cómo voy hoy?" : "Analizar ayer";
+      const { threadId } = await api.seedChatThread(userMessage, text);
+      onOpenChange(false);
+      reset();
+      router.push(`/chat?thread=${threadId}`);
+    } catch (err) {
+      setBridging(false);
+      toast.error(err instanceof Error ? err.message : "No se pudo abrir el chat.");
     }
   };
 
@@ -145,18 +174,33 @@ export function CoachSheet({
                     text={text}
                     className="space-y-2 text-[14px] leading-relaxed text-foreground"
                   />
-                  <button
-                    type="button"
-                    onClick={copy}
-                    className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-[13px] text-foreground"
-                  >
-                    {copied ? (
-                      <Check className="size-4 text-protein" aria-hidden />
-                    ) : (
-                      <Copy className="size-4" aria-hidden />
-                    )}
-                    {copied ? "Copiado" : "Copiar"}
-                  </button>
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={copy}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-[13px] text-foreground"
+                    >
+                      {copied ? (
+                        <Check className="size-4 text-protein" aria-hidden />
+                      ) : (
+                        <Copy className="size-4" aria-hidden />
+                      )}
+                      {copied ? "Copiado" : "Copiar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={continueInChat}
+                      disabled={bridging}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium text-primary hover:bg-surface-2 disabled:opacity-50"
+                    >
+                      {bridging ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <ArrowRight className="size-4" aria-hidden />
+                      )}
+                      Seguir en el chat
+                    </button>
+                  </div>
                 </>
               ) : null}
             </>

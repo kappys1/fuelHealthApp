@@ -305,6 +305,13 @@ export const api = {
   // Chat (F-IA-8) — el envío de mensajes va por streaming (ver components/chat).
   listThreads: () => req<{ threads: ThreadDTO[] }>("/api/chat/threads"),
 
+  // Puente Coach → Chat (F01 Fase 2): siembra un hilo (user + assistant) sin IA.
+  seedChatThread: (userMessage: string, assistantMessage: string) =>
+    req<{ threadId: number }>("/api/chat/threads", {
+      method: "POST",
+      body: JSON.stringify({ userMessage, assistantMessage }),
+    }),
+
   getThread: (id: number) =>
     req<{ id: number; title: string; messages: MessageDTO[] }>(
       `/api/chat/threads/${id}`,
