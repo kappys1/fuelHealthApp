@@ -1,11 +1,16 @@
-import { PlanClient } from "@/components/plan/plan-client";
+import { PlanScreen } from "@/components/plan/plan-screen";
 import { dayKey } from "@/lib/dates";
 import { getPlanContext } from "@/server/db/queries/plan";
+import { getTrainingWeekView } from "@/server/db/queries/training";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlanPage() {
-  const ctx = await getPlanContext(dayKey());
+  const today = dayKey();
+  const [ctx, week] = await Promise.all([
+    getPlanContext(today),
+    getTrainingWeekView(today),
+  ]);
 
   if (!ctx) {
     return (
@@ -19,10 +24,11 @@ export default async function PlanPage() {
   }
 
   return (
-    <PlanClient
+    <PlanScreen
       targets={ctx.targets}
       derived={ctx.derived}
       optionsByMeal={ctx.optionsByMeal}
+      week={week}
     />
   );
 }
