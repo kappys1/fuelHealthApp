@@ -49,24 +49,18 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
 
 ## Parte B · Backlog de features
 
-### B1 · PRIORITARIO — Coach consciente del contexto (perfil + entreno/descanso)
+### B1 · ✅ HECHO (v1.1 + v1.2) — Coach consciente del contexto (perfil + entreno + historial)
 
-**→ Brief detallado con diagnóstico y plan en
-[`BACKLOG-coach-perfil-entreno.md`](./BACKLOG-coach-perfil-entreno.md).** Resumen:
+**Implementado según [`docs/specs/10-PERFIL-ENTRENO-HISTORICO.md`](./specs/10-PERFIL-ENTRENO-HISTORICO.md)** (brief original en
+[`BACKLOG-coach-perfil-entreno.md`](./BACKLOG-coach-perfil-entreno.md)). Resumen de lo entregado:
 
-- **Perfil de atleta editable** (setting `athleteProfile`, tarjeta en Ajustes) que **deja de
-  estar hardcodeado** y se **referencia en TODOS los prompts de IA** (no solo el Coach), para
-  que la IA conozca siempre todos los datos. Incluye campo `programa` para poder **adaptar la
-  app a distintas programaciones/sesiones en el futuro**. Resuelve el bug real de recomendar
-  suplementos que Alex no toma (whey) + añade el guardarraíl anti-suplementación (principio 8).
-- **El Coach usa el calendario** para saber si hoy es descanso (hoy asume entreno en día
-  libre). Arreglo barato sin migración.
-- **F-IA-10 «Importar semana de The Progrm»** (feature mayor, v1.2): subir el PDF semanal →
-  IA extrae Training 1–6 (reutiliza F-IA-9) → asignar a días marcando descansos. Debe:
-  - **alimentar el dropdown** de «qué entreno he hecho hoy» con las sesiones reales de la
-    semana (hoy es la lista fija `SESSIONS`);
-  - construir un **histórico de entrenos** (y, unificado con `diet_versions`, de dietas).
-  - Absorbe el ítem antiguo «Workouts por sesión → modelo de coste por tipo de día».
+- ✅ **Perfil de atleta editable** (`athleteProfile`, tarjeta en Ajustes) — `ATHLETE_CONTEXT`
+  dinámico en TODOS los prompts (principio 9), con guardarraíles del Coach. **(Fase A)**
+- ✅ **Coach/Chat/Visita usan el calendario** (día de descanso ya no asume entreno). **(Fase A)**
+- ✅ **F-IA-10 «Importar semana»** (PDF/foto/texto, agnóstico de deporte) → asignar a días;
+  el **dropdown** de sesión usa las sesiones reales; **Plan · pestaña Entrenos** gestiona la
+  semana; **Historial** unificado (entrenos + dietas + objetivos + MEDs) en Progreso. **(Fase B)**
+- Absorbe el ítem antiguo «Workouts por sesión → modelo de coste por tipo de día».
 
 ### B2 · Backlog v1.1 previo (de specs 06/07, ya listado en `CHANGELOG-v1.md`)
 
@@ -83,8 +77,8 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
 
 > Espacio para que Alex vaya añadiendo. Candidatas mencionadas hasta ahora:
 
-- **Histórico unificado** consultable de **entrenos + dietas** (deriva de B1/F-IA-10 y de
-  `diet_versions`): ver la evolución de programación y pauta a lo largo del tiempo.
+- ✅ **Histórico unificado** de entrenos + dietas + objetivos + MEDs — **HECHO** (v1.2, segmento
+  Historial en Progreso).
 - _(añadir aquí las que surjan)_
 
 ---
