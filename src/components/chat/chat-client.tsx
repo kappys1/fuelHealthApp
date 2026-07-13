@@ -228,7 +228,7 @@ export function ChatClient({
   const empty = messages.length === 0 && streaming == null;
 
   return (
-    <section className="flex h-[calc(100dvh-9.5rem)] flex-col">
+    <section className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 pb-2">
         <button
           type="button"
@@ -243,7 +243,7 @@ export function ChatClient({
         </span>
       </div>
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto pb-3">
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-3">
         {empty ? (
           <div className="pt-4">
             <p className="text-[13px] text-muted-foreground">
@@ -279,16 +279,12 @@ export function ChatClient({
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send(input);
-              }
-            }}
-            rows={1}
+            // En móvil Enter = salto de línea (respuestas multilínea); se envía
+            // SOLO con el botón. Antes Enter enviaba y no dejaba escribir párrafos.
+            rows={2}
             placeholder={online ? "Pregunta sobre tus datos…" : "Sin conexión"}
             disabled={!online || sending}
-            className="max-h-32 min-h-11 flex-1 resize-none rounded-xl border border-input bg-surface px-3 py-2.5 text-base outline-none focus-visible:border-ring disabled:opacity-60"
+            className="max-h-40 min-h-11 flex-1 resize-none rounded-xl border border-input bg-surface px-3 py-2.5 text-base outline-none focus-visible:border-ring disabled:opacity-60"
           />
           <button
             type="button"

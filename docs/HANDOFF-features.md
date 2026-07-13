@@ -88,10 +88,13 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   pendientes: [`docs/specs/features/02-chat-detalle-comidas-antiinvencion.md`](./specs/features/02-chat-detalle-comidas-antiinvencion.md).
   Guardarraíl anti-invención (no se inventa un «día pautado estándar») + detalle por item de
   los últimos 7 días en el contexto del Chat. Surgió del uso real de F01 (puente Coach→Chat).
-- 🐞 **BUG · «Copiar» no funciona** (2026-07-13) — en el sheet del Coach (y a verificar en las
-  burbujas del Chat) el botón de copiar no copia. Sospecha: `navigator.clipboard` en la PWA de
-  iOS (contexto seguro / gesto perdido). Pendiente de reproducir y diagnosticar (bug puro, no
-  entra en la spec F01).
+- ✅ **BUG · «Copiar»** (2026-07-13) — RESUELTO: funciona sobre HTTPS/PWA (era contexto no
+  seguro en local). Confirmado por Alex en producción.
+- ✅ **BUG · Chat: input tapado por la nav + sin multilínea** (2026-07-13) — RESUELTO: la vista
+  de hilo usaba una altura fija mágica (`100dvh−9.5rem`) que ignoraba el `safe-area-inset-top`
+  del iPhone → el composer caía bajo la bottom-nav. Ahora `main` es flex-col y el hilo usa
+  `flex-1 min-h-0` (respeta el `pb-24` de la nav, sin números mágicos). Y `Enter` pasa a ser
+  salto de línea (multilínea); se envía solo con el botón.
 - _(añadir aquí las que surjan)_
 
 ---
