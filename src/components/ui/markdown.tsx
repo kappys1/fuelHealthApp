@@ -34,6 +34,23 @@ function renderInline(text: string): ReactNode[] {
 const isListItem = (l: string) => /^\s*([-*]|\d+\.)\s+/.test(l);
 const isHeading = (l: string) => /^#{1,4}\s+/.test(l);
 
+// Fila separadora de tabla GFM: | :--- | ---: | (≥2 columnas de guiones).
+const isTableSep = (l: string) =>
+  /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(l);
+
+// Celdas de una fila «| a | b |» → ["a","b"] (quita los bordes).
+const splitCells = (l: string) =>
+  l
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => c.trim());
+
+type Align = "left" | "right" | "center";
+const alignClass = (a: Align | undefined) =>
+  a === "right" ? "text-right" : a === "center" ? "text-center" : "text-left";
+
 export function Markdown({ text, className }: { text: string; className?: string }) {
   const lines = text.replace(/\r/g, "").split("\n");
   const blocks: ReactNode[] = [];
@@ -55,6 +72,60 @@ export function Markdown({ text, className }: { text: string; className?: string
         </p>,
       );
       i++;
+      continue;
+    }
+
+    // Tabla GFM: fila con `|` seguida de una fila separadora (| :--- | :--- |).
+    // La IA (coach/chat) las usa para el balance del día; sin esto salían crudas.
+    if (line.includes("|") && isTableSep(lines[i + 1] ?? "")) {
+      const header = splitCells(line);
+      const aligns: Align[] = splitCells(lines[i + 1] ?? "").map((c) => {
+        const l = c.startsWith(":");
+        const r = c.endsWith(":");
+        return l && r ? "center" : r ? "right" : "left";
+      });
+      i += 2;
+      const rows: string[][] = [];
+      while (
+        i < lines.length &&
+        (lines[i] ?? "").includes("|") &&
+        (lines[i] ?? "").trim() !== ""
+      ) {
+        rows.push(splitCells(lines[i] ?? ""));
+        i++;
+      }
+      blocks.push(
+        <div key={key++} className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px]">
+            <thead>
+              <tr>
+                {header.map((c, ci) => (
+                  <th
+                    key={ci}
+                    className={`border border-line bg-surface-2 px-2 py-1 font-semibold ${alignClass(aligns[ci])}`}
+                  >
+                    {renderInline(c)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, ri) => (
+                <tr key={ri}>
+                  {r.map((c, ci) => (
+                    <td
+                      key={ci}
+                      className={`border border-line px-2 py-1 ${alignClass(aligns[ci])}`}
+                    >
+                      {renderInline(c)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      );
       continue;
     }
 
@@ -85,7 +156,8 @@ export function Markdown({ text, className }: { text: string; className?: string
       i < lines.length &&
       (lines[i] ?? "").trim() !== "" &&
       !isListItem(lines[i] ?? "") &&
-      !isHeading(lines[i] ?? "")
+      !isHeading(lines[i] ?? "") &&
+      !((lines[i] ?? "").includes("|") && isTableSep(lines[i + 1] ?? ""))
     ) {
       para.push(lines[i] ?? "");
       i++;
