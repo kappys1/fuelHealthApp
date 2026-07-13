@@ -4,6 +4,7 @@ import {
   orderedSessionOptions,
   planSpanFromAssignments,
   sessionKcal,
+  sessionPatchFor,
   TRAINING_TIPO_LABELS,
   TRAINING_TIPOS,
 } from "./training";
@@ -32,23 +33,39 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
     expect(planSpanFromAssignments([])).toBeNull();
   });
 
-  it("orderedSessionOptions: sesiones del plan primero, luego Competición/Descanso, luego genéricas", () => {
+  it("orderedSessionOptions: con plan = sesiones reales + Competición/Descanso, SIN genéricas", () => {
     const opts = orderedSessionOptions(["Snatch + WOD", "Aeróbico Z2"]);
-    expect(opts[0]).toBe("Snatch + WOD");
-    expect(opts[1]).toBe("Aeróbico Z2");
-    expect(opts[2]).toBe("Competición");
-    expect(opts[3]).toBe("Descanso");
-    // Las genéricas van después y no se duplican.
-    expect(opts).toContain(SESSIONS[0]);
-    expect(new Set(opts).size).toBe(opts.length);
+    expect(opts).toEqual([
+      "Snatch + WOD",
+      "Aeróbico Z2",
+      "Competición",
+      "Descanso",
+    ]);
+    // Los T1–T6 genéricos NO aparecen cuando hay plan (eran el ruido).
+    expect(opts).not.toContain(SESSIONS[0]);
   });
 
-  it("orderedSessionOptions: sin plan, solo Competición/Descanso + genéricas (sin duplicar)", () => {
-    const opts = orderedSessionOptions([]);
-    expect(opts[0]).toBe("Competición");
-    expect(opts[1]).toBe("Descanso");
-    // SESSIONS ya incluye Competición/Descanso → no se duplican.
-    expect(new Set(opts).size).toBe(opts.length);
+  it("orderedSessionOptions: sin plan = lista genérica SESSIONS", () => {
+    expect(orderedSessionOptions([])).toEqual([...SESSIONS]);
+  });
+
+  it("sessionPatchFor: sesión del plan ancla sessionRef + kcal media", () => {
+    const sessions = [
+      { id: 7, nombre: "Snatch + WOD", kcalMin: 600, kcalMax: 800 },
+    ];
+    expect(sessionPatchFor("Snatch + WOD", sessions)).toEqual({
+      sessionLabel: "Snatch + WOD",
+      sessionRef: 7,
+      sessionKcal: 700,
+    });
+  });
+
+  it("sessionPatchFor: label genérico → sessionRef null y kcal null", () => {
+    expect(sessionPatchFor("Descanso", [])).toEqual({
+      sessionLabel: "Descanso",
+      sessionRef: null,
+      sessionKcal: null,
+    });
   });
 
   it("TRAINING_TIPO_LABELS cubre todos los tipos", () => {

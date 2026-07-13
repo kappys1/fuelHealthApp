@@ -18,11 +18,12 @@ import {
   PHASE_LABELS,
   type PhaseKey,
   phaseLabel,
-  SESSIONS,
 } from "@/lib/macros";
+import { orderedSessionOptions, sessionPatchFor } from "@/lib/training";
 import { cn } from "@/lib/utils";
-import type { DayPatch } from "@/server/db/queries/mutations";
 import type { DayView } from "@/server/db/queries/day";
+import type { DayPatch } from "@/server/db/queries/mutations";
+import type { TrainingSessionDTO } from "@/server/db/queries/training";
 
 const NONE = "__none__";
 const BLOATS: BloatKey[] = ["ninguna", "leve", "moderada", "alta"];
@@ -30,15 +31,21 @@ const BLOATS: BloatKey[] = ["ninguna", "leve", "moderada", "alta"];
 export function MiDiaCard({
   view,
   onPatch,
+  trainingSessions = [],
   suggestedPhase = null,
 }: {
   view: DayView;
   onPatch: (patch: DayPatch) => void;
+  /** Sesiones reales de la semana importada para esta fecha (doc 10 B3). */
+  trainingSessions?: TrainingSessionDTO[];
   /** Fase sugerida tras un día especial (09 §5); valor propuesto, un toque para aplicar. */
   suggestedPhase?: PhaseKey | null;
 }) {
   const day = view.day;
   const health = view.health;
+  const sessionOptions = orderedSessionOptions(
+    trainingSessions.map((s) => s.nombre),
+  );
   const hasContent =
     !!day &&
     (day.weight != null ||
@@ -155,7 +162,11 @@ export function MiDiaCard({
               <Select
                 value={day?.sessionLabel ?? NONE}
                 onValueChange={(v) =>
-                  onPatch({ sessionLabel: v === NONE ? null : v })
+                  onPatch(
+                    v === NONE
+                      ? { sessionLabel: null, sessionRef: null, sessionKcal: null }
+                      : sessionPatchFor(v, trainingSessions),
+                  )
                 }
               >
                 <SelectTrigger className="h-10 w-full">
@@ -163,12 +174,12 @@ export function MiDiaCard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>Sin sesión</SelectItem>
-                  {SESSIONS.map((s) => (
+                  {sessionOptions.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s}
                     </SelectItem>
                   ))}
-                  {day?.sessionLabel && !SESSIONS.includes(day.sessionLabel as never) ? (
+                  {day?.sessionLabel && !sessionOptions.includes(day.sessionLabel) ? (
                     <SelectItem value={day.sessionLabel}>{day.sessionLabel}</SelectItem>
                   ) : null}
                 </SelectContent>

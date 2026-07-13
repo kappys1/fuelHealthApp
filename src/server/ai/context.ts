@@ -6,6 +6,7 @@ import {
   phaseLabel,
   type SessionByWeekday,
 } from "@/lib/macros";
+import { TRAINING_TIPO_LABELS } from "@/lib/training";
 import type { AdherenceResult } from "@/server/analytics/adherence";
 import type { DeficitResult } from "@/server/analytics/deficit";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
@@ -176,7 +177,16 @@ export function dayContext(
   const ctx: string[] = [];
   const weight = day?.weight ?? health?.weight ?? null;
   if (weight != null) ctx.push(`peso ${num(weight, 1)} kg`);
-  if (day?.sessionLabel) {
+  if (view.session) {
+    // Sesión REAL del plan de entreno (doc 10 B3): nombre + tipo + gasto estimado.
+    const s = view.session;
+    const tipo = TRAINING_TIPO_LABELS[s.tipo];
+    ctx.push(
+      day?.sessionKcal != null
+        ? `sesión ${s.nombre} · ${tipo} (~${day.sessionKcal} kcal, contexto ±25%)`
+        : `sesión ${s.nombre} · ${tipo}`,
+    );
+  } else if (day?.sessionLabel) {
     ctx.push(
       day.sessionKcal != null
         ? `sesión ${day.sessionLabel} (~${day.sessionKcal} kcal, contexto ±25%)`

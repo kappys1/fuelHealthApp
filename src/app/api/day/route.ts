@@ -30,6 +30,7 @@ const patchZ = z.object({
       bodyFatPct: z.number().min(0).max(100).nullable(),
       sessionLabel: z.string().max(200).nullable(),
       sessionKcal: z.number().int().min(0).max(20000).nullable(),
+      sessionRef: z.number().int().min(0).nullable(),
       phase: phaseZ.nullable(),
       bloat: bloatZ.nullable(),
       notes: z.string().max(4000).nullable(),

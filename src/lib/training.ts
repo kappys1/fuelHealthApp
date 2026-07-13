@@ -63,13 +63,16 @@ export function planSpanFromAssignments(
 }
 
 /**
- * Opciones del dropdown de sesión (doc 10 B3): primero las sesiones reales del plan
- * vigente (por nombre), luego Competición/Descanso, luego la lista genérica SESSIONS
- * como fallback. Deduplica conservando el primer orden.
+ * Opciones del dropdown de sesión (doc 10 B3):
+ * - CON semana importada → sus sesiones reales (por nombre) + Competición + Descanso.
+ *   Las genéricas T1–T6 se ocultan (eran ruido cuando ya hay plan).
+ * - SIN semana → la lista genérica SESSIONS (T1–T6 + Competición + Descanso).
+ * Deduplica conservando el orden.
  */
 export function orderedSessionOptions(
   planSessionNames: readonly string[],
 ): string[] {
+  if (planSessionNames.length === 0) return [...SESSIONS];
   const out: string[] = [];
   const seen = new Set<string>();
   const add = (v: string) => {
@@ -82,6 +85,30 @@ export function orderedSessionOptions(
   for (const n of planSessionNames) add(n);
   add("Competición");
   add("Descanso");
-  for (const s of SESSIONS) add(s);
   return out;
+}
+
+/**
+ * Patch de día al elegir una sesión en el dropdown (doc 10 B3). Si el label es una
+ * sesión real del plan, ancla `sessionRef` + su kcal estimada; si es genérica/
+ * Competición/Descanso, `sessionRef` = null (y limpia la kcal estimada del plan).
+ */
+export function sessionPatchFor(
+  label: string,
+  sessions: readonly {
+    id: number;
+    nombre: string;
+    kcalMin: number | null;
+    kcalMax: number | null;
+  }[],
+): { sessionLabel: string; sessionRef: number | null; sessionKcal: number | null } {
+  const s = sessions.find((x) => x.nombre === label);
+  if (s) {
+    return {
+      sessionLabel: s.nombre,
+      sessionRef: s.id,
+      sessionKcal: sessionKcal(s.kcalMin, s.kcalMax),
+    };
+  }
+  return { sessionLabel: label, sessionRef: null, sessionKcal: null };
 }

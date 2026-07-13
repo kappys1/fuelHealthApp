@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, isNotNull, lte } from "drizzle-orm";
 import type { BloatKey, MealKey, PhaseKey } from "@/lib/macros";
 import { dayKey, shiftDayKey } from "@/lib/dates";
+import type { TrainingTipo } from "@/lib/training";
 import { db, schema } from "@/server/db";
 
 export interface EntryDTO {
@@ -23,9 +24,20 @@ export interface DayDTO {
   bodyFatPct: number | null;
   sessionLabel: string | null;
   sessionKcal: number | null;
+  sessionRef: number | null;
   phase: PhaseKey | null;
   bloat: BloatKey | null;
   notes: string | null;
+}
+
+/** Detalle de la sesión real del plan asignada al día (doc 10 B3). */
+export interface DaySessionInfo {
+  id: number;
+  key: string;
+  nombre: string;
+  tipo: TrainingTipo;
+  kcalMin: number | null;
+  kcalMax: number | null;
 }
 
 export interface HealthDTO {
@@ -49,6 +61,8 @@ export interface DayView {
   day: DayDTO | null;
   health: HealthDTO | null;
   entries: EntryDTO[];
+  /** Sesión real del plan asignada al día (doc 10 B3), si `day.sessionRef` apunta a una. */
+  session: DaySessionInfo | null;
 }
 
 export async function getDayView(date: string): Promise<DayView> {
@@ -94,11 +108,29 @@ export async function getDayView(date: string): Promise<DayView> {
       r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
   }));
 
+  // Sesión real del plan (doc 10 B3): si el día apunta a una training_session.
+  let session: DaySessionInfo | null = null;
+  if (dayRow?.sessionRef != null) {
+    const [s] = await db
+      .select({
+        id: schema.trainingSessions.id,
+        key: schema.trainingSessions.key,
+        nombre: schema.trainingSessions.nombre,
+        tipo: schema.trainingSessions.tipo,
+        kcalMin: schema.trainingSessions.kcalMin,
+        kcalMax: schema.trainingSessions.kcalMax,
+      })
+      .from(schema.trainingSessions)
+      .where(eq(schema.trainingSessions.id, dayRow.sessionRef));
+    session = (s as DaySessionInfo) ?? null;
+  }
+
   return {
     date,
     day: (dayRow as DayDTO) ?? null,
     health: (healthRow as HealthDTO) ?? null,
     entries,
+    session,
   };
 }
 

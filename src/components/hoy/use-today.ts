@@ -289,6 +289,7 @@ function emptyDay(date: string) {
     bodyFatPct: null,
     sessionLabel: null,
     sessionKcal: null,
+    sessionRef: null,
     phase: null,
     bloat: null,
     notes: null,
