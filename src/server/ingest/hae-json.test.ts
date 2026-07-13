@@ -161,6 +161,29 @@ describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
     expect(d?.hrvMs).toBe(70); // media de 60 y 80
   });
 
+  it("peso con varias pesadas/día → la PRIMERA (mañana, ayunas), no la media", () => {
+    // Pesada de la mañana en ayunas (93,6) + otra más tarde tras beber/comer (94,2).
+    // La media (93,9) inflaría el valor y no cuadraría con la báscula. Manda la de
+    // la mañana. Las muestras llegan desordenadas a propósito.
+    const r = parseHaeJson({
+      data: {
+        metrics: [
+          {
+            name: "weight_body_mass",
+            units: "kg",
+            data: [
+              { date: "2026-07-13 19:40:00 +0200", qty: 94.2 },
+              { date: "2026-07-13 08:12:00 +0200", qty: 93.6 },
+              { date: "2026-07-13 13:05:00 +0200", qty: 94.0 },
+            ],
+          },
+        ],
+      },
+    });
+    const d = r.days.find((x) => x.date === "2026-07-13");
+    expect(d?.weight).toBeCloseTo(93.6, 6); // primera del día, no la media (93,9)
+  });
+
   it("sueño troceado por fases → máximo (no suma), evita >24 h", () => {
     const r = parseHaeJson({
       data: {

@@ -16,6 +16,7 @@ import {
   extractDayKey,
   extraAgg,
   extraKey,
+  FIRST_FIELDS,
   type HealthDay,
   type HealthField,
   INTEGER_FIELDS,
@@ -114,14 +115,17 @@ export function parseHaeJson(input: unknown): JsonParseResult {
   const metrics = Array.isArray(metricsRaw) ? metricsRaw : [];
 
   // Acumulador por (fecha, clave). HAE manda VARIAS muestras/día (por hora); se
-  // agregan según la métrica: acumulativas → suma, sueño → máximo, resto → media.
-  // Las métricas NO tipadas se guardan igualmente bajo la clave "x:<nombre>" para
-  // acabar en la columna `extra` (capturamos TODO para el agente).
-  type AggKind = "sum" | "max" | "avg";
+  // agregan según la métrica: acumulativas → suma, sueño → máximo, peso → primera
+  // muestra del día (mañana), resto → media. Las métricas NO tipadas se guardan
+  // bajo la clave "x:<nombre>" para acabar en `extra` (capturamos TODO).
+  type AggKind = "sum" | "max" | "avg" | "first";
   interface Cell {
     sum: number;
     count: number;
     max: number;
+    // Muestra más temprana del día vista hasta ahora (para agg "first").
+    firstRaw: string; // fecha/hora bruta de esa muestra
+    firstVal: number; // valor de esa muestra
     agg: AggKind;
     typed: boolean;
   }
@@ -144,7 +148,13 @@ export function parseHaeJson(input: unknown): JsonParseResult {
     let agg: AggKind;
     if (field) {
       accKey = field;
-      agg = MAX_FIELDS.has(field) ? "max" : CUMULATIVE_FIELDS.has(field) ? "sum" : "avg";
+      agg = FIRST_FIELDS.has(field)
+        ? "first"
+        : MAX_FIELDS.has(field)
+          ? "max"
+          : CUMULATIVE_FIELDS.has(field)
+            ? "sum"
+            : "avg";
     } else {
       const k = extraKey(rawName);
       if (!k) continue; // métrica sin nombre → se ignora
@@ -159,7 +169,8 @@ export function parseHaeJson(input: unknown): JsonParseResult {
     for (const ptRaw of points) {
       const pt = asRecord(ptRaw);
       if (!pt) continue;
-      const date = extractDayKey(String(pt.date ?? pt.Date ?? ""));
+      const rawDate = String(pt.date ?? pt.Date ?? "");
+      const date = extractDayKey(rawDate);
       if (!date) continue;
       const value = pointValue(pt);
       if (value == null) continue;
@@ -178,10 +189,25 @@ export function parseHaeJson(input: unknown): JsonParseResult {
         acc.set(date, dayAcc);
         order.push(date);
       }
-      const cur = dayAcc.get(accKey) ?? { sum: 0, count: 0, max: -Infinity, agg, typed };
+      const cur = dayAcc.get(accKey) ?? {
+        sum: 0,
+        count: 0,
+        max: -Infinity,
+        firstRaw: rawDate,
+        firstVal: converted,
+        agg,
+        typed,
+      };
       cur.sum += converted;
       cur.count += 1;
       cur.max = Math.max(cur.max, converted);
+      // Primera muestra del día = la de hora más temprana. Comparación lexicográfica
+      // de la fecha/hora bruta: HAE la manda como 'YYYY-MM-DD HH:MM:SS ±ZZZZ'
+      // (zero-padded), que ordena por tiempo dentro del mismo día.
+      if (rawDate < cur.firstRaw) {
+        cur.firstRaw = rawDate;
+        cur.firstVal = converted;
+      }
       dayAcc.set(accKey, cur);
     }
     if (sawValue && field) fields.add(field);
@@ -195,7 +221,14 @@ export function parseHaeJson(input: unknown): JsonParseResult {
     const day: HealthDay = { date };
     const extra: Record<string, number> = {};
     for (const [key, c] of dayAcc) {
-      const v = c.agg === "max" ? c.max : c.agg === "sum" ? c.sum : c.sum / c.count;
+      const v =
+        c.agg === "max"
+          ? c.max
+          : c.agg === "first"
+            ? c.firstVal
+            : c.agg === "sum"
+              ? c.sum
+              : c.sum / c.count;
       if (c.typed) {
         const f = key as HealthField;
         day[f] = INTEGER_FIELDS.has(f) ? Math.round(v) : v;
