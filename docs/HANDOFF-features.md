@@ -79,11 +79,11 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
 
 - ✅ **Histórico unificado** de entrenos + dietas + objetivos + MEDs — **HECHO** (v1.2, segmento
   Historial en Progreso).
-- 📝 **Coach fiable + puente al Chat** (2026-07-13) — **APROBADA**, pendiente de implementar:
+- ✅ **Coach fiable + puente al Chat** (2026-07-13) — **HECHO** (v1.3), desplegado; pendiente
+  de validación con el pulgar de Alex en producción (AC 🖐):
   [`docs/specs/features/01-coach-fiable-y-puente-chat.md`](./specs/features/01-coach-fiable-y-puente-chat.md).
-  Bug de fecha (el Chat alucinaba «hoy 18-jul» siendo 13) + bug de la crema de arroz (el Coach
-  recomendaba comida fuera de la dieta) + botón «Seguir en el chat →» para repreguntar sobre el
-  contexto del Coach (opción A1).
+  Fase 0 (fecha en el prompt: se acabó el «hoy 18-jul»), Fase 1 (el Coach conoce el plan: se
+  acabó la crema de arroz fuera de dieta) y Fase 2 (botón «Seguir en el chat», opción A1).
 - 🐞 **BUG · «Copiar» no funciona** (2026-07-13) — en el sheet del Coach (y a verificar en las
   burbujas del Chat) el botón de copiar no copia. Sospecha: `navigator.clipboard` en la PWA de
   iOS (contexto seguro / gesto perdido). Pendiente de reproducir y diagnosticar (bug puro, no
