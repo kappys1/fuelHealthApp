@@ -1,7 +1,7 @@
 import { streamText } from "ai";
 import { z } from "zod";
 import { ensureAuth, parseBody, serverError } from "@/lib/api";
-import { dayKey } from "@/lib/dates";
+import { dayKey, shiftDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
 import { computeAdherence } from "@/server/analytics/adherence";
 import { computeDeficit } from "@/server/analytics/deficit";
@@ -11,11 +11,13 @@ import {
   dayLines,
   medLines,
   planSummary,
+  recentMealsDetail,
   trendAndAdherence,
 } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { chatSummaryPrompt, chatSystemPrompt } from "@/server/ai/prompts";
 import { resolveModel } from "@/server/ai/provider";
+import { mealEntriesInRange } from "@/server/db/queries/day";
 import {
   addChatMessage,
   CHAT_WINDOW,
@@ -67,11 +69,15 @@ export async function POST(request: Request) {
   let system: string;
   let modelMessages: { role: "user" | "assistant"; content: string }[];
   try {
-    const [plan, trend, meds, detail] = await Promise.all([
+    // Detalle por item de los últimos 7 días (F02): el chat ve QUÉ comió, no solo
+    // los totales; días fuera del rango los pide (guardarraíl anti-invención).
+    const detailFrom = shiftDayKey(today, -6);
+    const [plan, trend, meds, detail, recentEntries] = await Promise.all([
       retry(() => getPlanContext(today)),
       retry(() => getTrendData(today)),
       retry(() => listMed()),
       retry(() => getThread(threadId)),
+      retry(() => mealEntriesInRange(detailFrom, today)),
     ]);
     if (!detail) return serverError(new Error("Hilo no encontrado."));
 
@@ -118,6 +124,7 @@ export async function POST(request: Request) {
         sessionByWeekday: atleta.sessionByWeekday,
         today,
       }),
+      mealsDetail: recentMealsDetail(recentEntries),
       priorSummary: prior.length > 0 ? priorSummary : null,
     });
 

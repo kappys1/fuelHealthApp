@@ -84,6 +84,10 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   [`docs/specs/features/01-coach-fiable-y-puente-chat.md`](./specs/features/01-coach-fiable-y-puente-chat.md).
   Fase 0 (fecha en el prompt: se acabó el «hoy 18-jul»), Fase 1 (el Coach conoce el plan: se
   acabó la crema de arroz fuera de dieta) y Fase 2 (botón «Seguir en el chat», opción A1).
+- ✅ **El Chat conoce lo que has comido** (2026-07-13) — **HECHO** (v1.4), desplegado; AC 🖐
+  pendientes: [`docs/specs/features/02-chat-detalle-comidas-antiinvencion.md`](./specs/features/02-chat-detalle-comidas-antiinvencion.md).
+  Guardarraíl anti-invención (no se inventa un «día pautado estándar») + detalle por item de
+  los últimos 7 días en el contexto del Chat. Surgió del uso real de F01 (puente Coach→Chat).
 - 🐞 **BUG · «Copiar» no funciona** (2026-07-13) — en el sheet del Coach (y a verificar en las
   burbujas del Chat) el botón de copiar no copia. Sospecha: `navigator.clipboard` en la PWA de
   iOS (contexto seguro / gesto perdido). Pendiente de reproducir y diagnosticar (bug puro, no
