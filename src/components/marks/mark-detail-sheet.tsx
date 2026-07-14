@@ -1,7 +1,14 @@
 "use client";
 
-import { Pencil, Plus, TrendingDown, TrendingUp, Trash2 } from "lucide-react";
-import { useState } from "react";
+import {
+  Pencil,
+  Plus,
+  RotateCcw,
+  TrendingDown,
+  TrendingUp,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { MarkChart } from "@/components/charts/mark-chart";
 import {
@@ -38,6 +45,7 @@ export function MarkDetailSheet({
   onAddEntry,
   onUpdateEntry,
   onDeleteEntry,
+  onRestoreEntry,
   onDeleteMark,
   onClose,
 }: {
@@ -53,11 +61,37 @@ export function MarkDetailSheet({
     patch: { value: number; recordedOn: string; note: string | null },
   ) => Promise<void>;
   onDeleteEntry: (markId: number, entry: MarkEntryDTO) => void;
+  onRestoreEntry: (markId: number, entry: MarkEntryDTO) => void;
   onDeleteMark: (markId: number) => Promise<void>;
   onClose: () => void;
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  // Undo INLINE (dentro del sheet): un toast de Sonner se renderiza fuera del sheet
+  // modal y no recibe clics (react-remove-scroll). El registro recién borrado se
+  // guarda aquí para ofrecer «Deshacer» durante 6 s dentro del propio sheet.
+  const [justDeleted, setJustDeleted] = useState<MarkEntryDTO | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+    };
+  }, []);
+
+  const handleDelete = (entry: MarkEntryDTO) => {
+    onDeleteEntry(mark.id, entry);
+    setJustDeleted(entry);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setJustDeleted(null), 6000);
+  };
+
+  const handleUndo = () => {
+    if (!justDeleted) return;
+    onRestoreEntry(mark.id, justDeleted);
+    setJustDeleted(null);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+  };
 
   const asc = sortEntriesAsc(mark.entries);
   const desc = [...asc].reverse();
@@ -170,6 +204,21 @@ export function MarkDetailSheet({
               </button>
             </div>
 
+            {justDeleted ? (
+              <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2">
+                <span className="text-[12.5px] text-muted-foreground">
+                  Registro eliminado
+                </span>
+                <button
+                  type="button"
+                  onClick={handleUndo}
+                  className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-[12.5px] font-semibold text-primary-foreground"
+                >
+                  <RotateCcw className="size-3.5" aria-hidden /> Deshacer
+                </button>
+              </div>
+            ) : null}
+
             {adding ? (
               <EntryForm
                 measureType={mark.measureType}
@@ -228,7 +277,7 @@ export function MarkDetailSheet({
                     <button
                       type="button"
                       aria-label="Borrar registro"
-                      onClick={() => onDeleteEntry(mark.id, e)}
+                      onClick={() => handleDelete(e)}
                       className="shrink-0 text-muted-foreground hover:text-destructive"
                     >
                       <Trash2 className="size-4" aria-hidden />
