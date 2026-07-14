@@ -17,6 +17,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { MarksRail } from "@/components/marks/marks-rail";
 import { labelForKey, shiftDayKey } from "@/lib/dates";
 import {
   type GrpKey,
@@ -31,6 +32,7 @@ import type {
   HistorialEntry,
   HistorialKind,
 } from "@/server/db/queries/history";
+import type { MarkDTO } from "@/server/db/queries/marks";
 
 const num = (n: number, d = 0) =>
   n.toLocaleString("es-ES", { maximumFractionDigits: d });
@@ -72,9 +74,11 @@ const TYPE_FILTERS: { key: HistorialKind | "all"; label: string }[] = [
 export function Historial({
   entries,
   today,
+  marks,
 }: {
   entries: HistorialEntry[];
   today: string;
+  marks: MarkDTO[];
 }) {
   const [range, setRange] = useState<Range>("all");
   const [from, setFrom] = useState("");
@@ -101,6 +105,9 @@ export function Historial({
         Cómo has llegado hasta aquí. Solo lectura — el pasado no se edita, solo se
         consulta.
       </p>
+
+      {/* Carril de marcas (F03): consulta rápida; abre el mismo sheet de detalle. */}
+      <MarksRail initialMarks={marks} today={today} />
 
       {/* rango temporal */}
       <div className="flex gap-1.5 overflow-x-auto pb-0.5">

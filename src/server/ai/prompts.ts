@@ -172,8 +172,13 @@ export function prepareVisitPrompt(args: {
   meds: string;
   tendencia: string;
   filas: string;
+  /** Marcas de rendimiento (F03; "" si no hay) — evidencia, nunca prescripción. */
+  marks?: string;
 }): string {
-  return `HOY es ${args.today} (${weekdayName(args.today)}). ${args.atleta} Pauta actual del nutricionista (Regenera): ${args.kcal} kcal, ${args.prot} g proteína.\n\nMediciones del nutricionista (pliegues):\n${args.meds}\n\n${args.tendencia}\n\nRegistro de los últimos días:\n${args.filas}\n\nPrepara su visita al nutricionista: (1) análisis breve de la evolución según estos datos, (2) 4-6 preguntas concretas y bien fundamentadas para hacerle en consulta (ajuste de kcal/proteína, hinchazón, carga de competición, timing con el entreno…), basadas SOLO en lo que muestran los datos, señalando el dato que motiva cada pregunta. Máximo 200 palabras, en español, sin saludos.`;
+  const marksBlock = args.marks?.trim()
+    ? `\n\nMarcas de rendimiento (PRs y progresión):\n${args.marks.trim()}`
+    : "";
+  return `HOY es ${args.today} (${weekdayName(args.today)}). ${args.atleta} Pauta actual del nutricionista (Regenera): ${args.kcal} kcal, ${args.prot} g proteína.\n\nMediciones del nutricionista (pliegues):\n${args.meds}\n\n${args.tendencia}\n\nRegistro de los últimos días:\n${args.filas}${marksBlock}\n\nPrepara su visita al nutricionista: (1) análisis breve de la evolución según estos datos, (2) 4-6 preguntas concretas y bien fundamentadas para hacerle en consulta (ajuste de kcal/proteína, hinchazón, carga de competición, timing con el entreno…), basadas SOLO en lo que muestran los datos, señalando el dato que motiva cada pregunta. Si citas una marca de rendimiento, hazlo como evidencia observada, sin atribuir su cambio a la nutrición. Máximo 200 palabras, en español, sin saludos.`;
 }
 
 // ── F-IA-8 · Chat sobre tus datos (system prompt; se regenera cada turno) ──
@@ -187,13 +192,16 @@ export function chatSystemPrompt(args: {
   days30: string;
   /** Detalle por item de los últimos 7 días (F02); "" si no hay comidas. */
   mealsDetail?: string;
+  /** Marcas de rendimiento (F03; "" si no hay). */
+  marks?: string;
   priorSummary?: string | null;
 }): string {
   // Línea de fecha primero (F01 Fase 0): sin ella, con el último dato fechado
   // hoy, el modelo alucinaba un «hoy» posterior y días inexistentes.
   // Guardarraíl anti-invención (F02): si le falta un dato, lo dice y lo pide; no
   // se inventa comidas ni cifras (bug real: se inventó un «día pautado estándar»).
-  const base = `HOY es ${args.today} (${weekdayName(args.today)}).\n${args.atleta} Respondes SOLO con base en los datos proporcionados. Si te piden un detalle que no figura en los datos (los alimentos concretos de un día que no aparece, una cantidad…), dilo claramente y pide a Alex que te lo proporcione; NUNCA inventes comidas, cantidades ni un «día pautado estándar», ni hagas cálculos sobre datos que no tienes. Observas y explicas; NO prescribes cambios de dieta ni suplementación — eso corresponde a su nutricionista (puedes sugerir qué preguntarle). Respuestas concisas, en español, con cifras concretas de sus datos.`;
+  // Guardarraíl anti-sobreatribución (F03): no cruzar causalidad nutrición↔marca.
+  const base = `HOY es ${args.today} (${weekdayName(args.today)}).\n${args.atleta} Respondes SOLO con base en los datos proporcionados. Si te piden un detalle que no figura en los datos (los alimentos concretos de un día que no aparece, una cantidad…), dilo claramente y pide a Alex que te lo proporcione; NUNCA inventes comidas, cantidades ni un «día pautado estándar», ni hagas cálculos sobre datos que no tienes. Observas y explicas; NO prescribes cambios de dieta ni suplementación — eso corresponde a su nutricionista (puedes sugerir qué preguntarle). Sobre las marcas de rendimiento (PRs): NO afirmes causalidad entre la nutrición y una marca (p. ej. «subió tu sentadilla porque comiste más hidratos»); describe co-ocurrencias como observación, nunca como diagnóstico. Respuestas concisas, en español, con cifras concretas de sus datos.`;
   const sections = [
     base,
     `DIETA VIGENTE:\n${args.planSummary}`,
@@ -201,6 +209,9 @@ export function chatSystemPrompt(args: {
     `MEDICIONES DEL NUTRICIONISTA (pliegues):\n${args.meds}`,
     `ÚLTIMOS 30 DÍAS (1 línea/día):\n${args.days30}`,
   ];
+  if (args.marks?.trim()) {
+    sections.push(`MARCAS DE RENDIMIENTO (PRs y progresión):\n${args.marks.trim()}`);
+  }
   if (args.mealsDetail?.trim()) {
     sections.push(
       `COMIDAS POR ITEM (últimos 7 días; para días fuera de este rango, pide el detalle a Alex):\n${args.mealsDetail.trim()}`,

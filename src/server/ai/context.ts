@@ -7,7 +7,17 @@ import {
   phaseLabel,
   type SessionByWeekday,
 } from "@/lib/macros";
+import {
+  bestEntry,
+  formatMarkValue,
+  formatNumber,
+  formatSeconds,
+  latestEntry,
+  MEASURE_TYPE_LABELS,
+  sortEntriesAsc,
+} from "@/lib/marks";
 import { TRAINING_TIPO_LABELS } from "@/lib/training";
+import type { MarkDTO } from "@/server/db/queries/marks";
 import type { AdherenceResult } from "@/server/analytics/adherence";
 import type { DeficitResult } from "@/server/analytics/deficit";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
@@ -103,6 +113,41 @@ export function recentMealsDetail(entries: readonly DatedEntry[]): string {
       return `${d}:\n${items}`;
     })
     .join("\n");
+}
+
+/**
+ * Marcas de rendimiento (F03) para el contexto de Chat/Visita (NO Coach diario):
+ * cada marca con su última entrada, récord y progresión reciente (últimas 5), para
+ * que la IA pueda hablar de PROGRESIÓN bajo demanda. Es interpolación de datos
+ * (principio 9); el guardarraíl anti-sobreatribución vive en el prompt. Vacío si no
+ * hay marcas con registros → el prompt omite la sección.
+ */
+export function marksContext(marks: readonly MarkDTO[]): string {
+  const lines: string[] = [];
+  for (const m of marks) {
+    if (m.entries.length === 0) continue;
+    const asc = sortEntriesAsc(m.entries);
+    const latest = latestEntry(asc);
+    const best = bestEntry(m.measureType, asc);
+    if (!latest || !best) continue;
+    const recent = asc.slice(-5);
+    const prog =
+      m.measureType === "time"
+        ? recent.map((e) => formatSeconds(e.value)).join("→")
+        : `${recent.map((e) => formatNumber(e.value)).join("→")} ${m.unit}`;
+    const parts = [
+      `${m.name} (${MEASURE_TYPE_LABELS[m.measureType]})`,
+      `última ${formatMarkValue(m.measureType, latest.value, m.unit)} (${latest.recordedOn})`,
+    ];
+    if (best.id !== latest.id) {
+      parts.push(
+        `récord ${formatMarkValue(m.measureType, best.value, m.unit)} (${best.recordedOn})`,
+      );
+    }
+    parts.push(`progresión: ${prog}`);
+    lines.push(`- ${parts.join("; ")}.`);
+  }
+  return lines.join("\n");
 }
 
 /** Historial MED completo (se compara solo consigo mismo, principio 5). */

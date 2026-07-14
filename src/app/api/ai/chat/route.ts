@@ -10,6 +10,7 @@ import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
 import {
   dayLines,
+  marksContext,
   medLines,
   planSummary,
   recentMealsDetail,
@@ -19,6 +20,7 @@ import { aiErrorResponse } from "@/server/ai/errors";
 import { chatSummaryPrompt, chatSystemPrompt } from "@/server/ai/prompts";
 import { resolveModel } from "@/server/ai/provider";
 import { mealEntriesInRange } from "@/server/db/queries/day";
+import { listMarksWithEntries } from "@/server/db/queries/marks";
 import {
   addChatMessage,
   CHAT_WINDOW,
@@ -75,12 +77,13 @@ export async function POST(request: Request) {
     // Detalle por item de los últimos 7 días (F02): el chat ve QUÉ comió, no solo
     // los totales; días fuera del rango los pide (guardarraíl anti-invención).
     const detailFrom = shiftDayKey(today, -6);
-    const [plan, trend, meds, detail, recentEntries] = await Promise.all([
+    const [plan, trend, meds, detail, recentEntries, marks] = await Promise.all([
       retry(() => getPlanContext(today)),
       retry(() => getTrendData(today)),
       retry(() => listMed()),
       retry(() => getThread(threadId)),
       retry(() => mealEntriesInRange(detailFrom, today)),
+      retry(() => listMarksWithEntries()),
     ]);
     if (!detail) return serverError(new Error("Hilo no encontrado."));
 
@@ -128,6 +131,7 @@ export async function POST(request: Request) {
         today,
       }),
       mealsDetail: recentMealsDetail(recentEntries),
+      marks: marksContext(marks),
       priorSummary: prior.length > 0 ? priorSummary : null,
     });
 

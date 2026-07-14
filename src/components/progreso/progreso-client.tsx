@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { DailyRecord, DayTarget } from "@/server/analytics/types";
 import type { HistorialEntry } from "@/server/db/queries/history";
+import type { MarkDTO } from "@/server/db/queries/marks";
 import { Historial } from "./historial";
 import { Med } from "./med";
 import { Tendencia } from "./tendencia";
@@ -26,12 +27,14 @@ export function ProgresoClient({
   today,
   med,
   historial,
+  marks,
 }: {
   records: DailyRecord[];
   currentTarget: DayTarget;
   today: string;
   med: MedWithDelta[];
   historial: HistorialEntry[];
+  marks: MarkDTO[];
 }) {
   const [segment, setSegment] = useState<Segment>("tendencia");
 
@@ -70,7 +73,7 @@ export function ProgresoClient({
       ) : segment === "med" ? (
         <Med initialMed={med} />
       ) : (
-        <Historial entries={historial} today={today} />
+        <Historial entries={historial} today={today} marks={marks} />
       )}
     </section>
   );
