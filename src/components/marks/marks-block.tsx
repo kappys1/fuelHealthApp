@@ -1,7 +1,14 @@
 "use client";
 
-import { ChevronRight, Plus, TrendingDown, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import {
+  ChevronRight,
+  Plus,
+  Search,
+  TrendingDown,
+  TrendingUp,
+  X,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   formatMarkValue,
   latestChange,
@@ -37,8 +44,17 @@ export function MarksBlock({
   } = useMarks(initialMarks);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
 
   const detailMark = marks.find((m) => m.id === detailId) ?? null;
+
+  // Filtro en vivo por nombre sobre las marcas ya cargadas (cliente, <50 ms):
+  // escala a cualquier volumen sin ir al servidor (F04).
+  const q = query.trim().toLowerCase();
+  const visible = useMemo(
+    () => (q ? marks.filter((m) => m.name.toLowerCase().includes(q)) : marks),
+    [marks, q],
+  );
 
   return (
     <section className="rounded-xl border border-line bg-surface">
@@ -64,13 +80,48 @@ export function MarksBlock({
           Fran, 5k…).
         </p>
       ) : (
-        <ul className="divide-y divide-line">
-          {marks.map((m) => (
-            <li key={m.id}>
-              <MarkRow mark={m} onOpen={() => setDetailId(m.id)} />
-            </li>
-          ))}
-        </ul>
+        <>
+          {/* Buscador en vivo (F04): filtra la lista por nombre sobre lo cargado. */}
+          <div className="border-b border-line px-4 py-2.5">
+            <div className="flex items-center gap-2 rounded-lg border border-input bg-surface-2 px-3">
+              <Search
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden
+              />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar marca (snatch, Fran…)"
+                className="h-10 w-full bg-transparent text-base outline-none"
+                aria-label="Buscar marca"
+              />
+              {query ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label="Limpiar búsqueda"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="size-4" aria-hidden />
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {visible.length === 0 ? (
+            <p className="px-4 py-6 text-center text-[12px] text-muted-foreground">
+              Sin marcas para «{query.trim()}».
+            </p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {visible.map((m) => (
+                <li key={m.id}>
+                  <MarkRow mark={m} onOpen={() => setDetailId(m.id)} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
       {registerOpen ? (
