@@ -1,5 +1,5 @@
 # F03 · Marcas (PRs / registros de rendimiento)
-**Estado**: propuesta · **Tamaño**: feature
+**Estado**: implementada (Fases 1-3) · **Tamaño**: feature
 **Fecha**: 2026-07-13 · **Origen**: HANDOFF §B3 (idea de Alex, 2026-07-13) + caso real de The Progrm ("5×3 @ 85% RM").
 
 ## Motivación (caso real)

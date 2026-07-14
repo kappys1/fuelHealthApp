@@ -4,7 +4,13 @@ import { DEFAULT_SESSION_BY_WEEKDAY } from "@/lib/macros";
 import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
 import type { DatedEntry, DayView } from "@/server/db/queries/day";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
-import { dayContext, pendingPlanOptions, recentMealsDetail } from "./context";
+import type { MarkDTO } from "@/server/db/queries/marks";
+import {
+  dayContext,
+  marksContext,
+  pendingPlanOptions,
+  recentMealsDetail,
+} from "./context";
 import {
   athleteContext,
   athleteContextCompact,
@@ -224,6 +230,68 @@ describe("el chat conoce lo que has comido (F02)", () => {
     expect(recentMealsDetail([])).toBe("");
     const p = chatSystemPrompt({ ...chatArgs, mealsDetail: "" });
     expect(p).not.toContain("COMIDAS POR ITEM");
+  });
+});
+
+describe("el chat/visita conocen tus marcas (F03)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+  const marks: MarkDTO[] = [
+    {
+      id: 1,
+      name: "Sentadilla 1RM",
+      measureType: "weight",
+      unit: "kg",
+      entries: [
+        { id: 1, markId: 1, value: 100, recordedOn: "2026-05-01", note: null },
+        { id: 2, markId: 1, value: 110, recordedOn: "2026-06-01", note: null },
+      ],
+    },
+    // Marca sin registros: se omite del contexto.
+    { id: 2, name: "Fran", measureType: "time", unit: "min", entries: [] },
+  ];
+
+  it("marksContext resume última + récord + progresión, omite las vacías", () => {
+    const c = marksContext(marks);
+    expect(c).toContain("Sentadilla 1RM");
+    expect(c).toContain("última 110 kg (2026-06-01)");
+    expect(c).toContain("progresión: 100→110 kg");
+    expect(c).not.toContain("Fran"); // sin registros → fuera
+  });
+
+  it("el chat lleva el guardarraíl anti-sobreatribución + la sección de marcas", () => {
+    const p = chatSystemPrompt({ ...chatArgs, marks: marksContext(marks) });
+    expect(p).toContain("NO afirmes causalidad entre la nutrición y una marca");
+    expect(p).toContain("MARCAS DE RENDIMIENTO");
+    expect(p).toContain("Sentadilla 1RM");
+  });
+
+  it("sin marcas no añade la sección al chat", () => {
+    const p = chatSystemPrompt({ ...chatArgs, marks: "" });
+    expect(p).not.toContain("MARCAS DE RENDIMIENTO");
+    // el guardarraíl se mantiene siempre (aunque no haya marcas hoy)
+    expect(p).toContain("NO afirmes causalidad entre la nutrición y una marca");
+  });
+
+  it("la visita cita las marcas como evidencia, sin prescribir", () => {
+    const p = prepareVisitPrompt({
+      atleta: chatArgs.atleta,
+      today: TODAY,
+      kcal: 1800,
+      prot: 110,
+      meds: "—",
+      tendencia: "—",
+      filas: "—",
+      marks: marksContext(marks),
+    });
+    expect(p).toContain("Marcas de rendimiento (PRs y progresión)");
+    expect(p).toContain("sin atribuir su cambio a la nutrición");
   });
 });
 

@@ -4,9 +4,10 @@ import { retry } from "@/lib/retry";
 import { computeDeficit } from "@/server/analytics/deficit";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
-import { dayLines, medLines, trendSummary } from "@/server/ai/context";
+import { dayLines, marksContext, medLines, trendSummary } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { prepareVisitPrompt } from "@/server/ai/prompts";
+import { listMarksWithEntries } from "@/server/db/queries/marks";
 import { listMed } from "@/server/db/queries/med";
 import { getTrendData } from "@/server/db/queries/trend";
 
@@ -22,10 +23,12 @@ export async function POST() {
   const today = dayKey();
   let trend: Awaited<ReturnType<typeof getTrendData>>;
   let meds: Awaited<ReturnType<typeof listMed>>;
+  let marks: Awaited<ReturnType<typeof listMarksWithEntries>>;
   try {
-    [trend, meds] = await Promise.all([
+    [trend, meds, marks] = await Promise.all([
       retry(() => getTrendData()),
       retry(() => listMed()),
+      retry(() => listMarksWithEntries()),
     ]);
   } catch (err) {
     return serverError(err);
@@ -59,6 +62,7 @@ export async function POST() {
           sessionByWeekday: atleta.sessionByWeekday,
           today,
         }),
+        marks: marksContext(marks),
       }),
       // Presupuesto amplio: thinking "medium" (análisis) + 200 palabras de texto
       // deben caber sin truncar. Los tokens de thinking cuentan aquí (DECISIONS #48).

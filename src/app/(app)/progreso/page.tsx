@@ -1,5 +1,6 @@
 import { ProgresoClient } from "@/components/progreso/progreso-client";
 import { getHistorialData } from "@/server/db/queries/history";
+import { listMarksWithEntries } from "@/server/db/queries/marks";
 import { listMed } from "@/server/db/queries/med";
 import { getTrendData } from "@/server/db/queries/trend";
 
@@ -8,11 +9,13 @@ import { getTrendData } from "@/server/db/queries/trend";
 export const dynamic = "force-dynamic";
 
 export default async function ProgresoPage() {
-  const [{ records, currentTarget, today }, med, historial] = await Promise.all([
-    getTrendData(),
-    listMed(),
-    getHistorialData(),
-  ]);
+  const [{ records, currentTarget, today }, med, historial, marks] =
+    await Promise.all([
+      getTrendData(),
+      listMed(),
+      getHistorialData(),
+      listMarksWithEntries(),
+    ]);
   return (
     <ProgresoClient
       records={records}
@@ -20,6 +23,7 @@ export default async function ProgresoPage() {
       today={today}
       med={med}
       historial={historial}
+      marks={marks}
     />
   );
 }
