@@ -28,6 +28,10 @@ function isTextEntry(el: EventTarget | null): boolean {
 export function useKeyboardOpen(): boolean {
   const [open, setOpen] = useState(false);
   useEffect(() => {
+    // Solo en dispositivos táctiles (móvil/tablet) el foco abre un teclado que
+    // tapa pantalla. En escritorio (ratón) no hay teclado en pantalla → no
+    // escondemos la nav al enfocar un input.
+    if (!window.matchMedia("(pointer: coarse)").matches) return;
     const onIn = (e: FocusEvent) => {
       if (isTextEntry(e.target)) setOpen(true);
     };
