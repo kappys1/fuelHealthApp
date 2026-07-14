@@ -240,9 +240,9 @@
   }
 }
 
-/* Teclado abierto (Chat/inputs): la nav inferior se desliza fuera (bottom-nav.tsx)
-   y el `main` suelta el hueco reservado a la nav, así el composer queda pegado al
-   teclado en vez de dejar la barra flotando encima. */
-body.kb-open [data-app-main] {
-  padding-bottom: 0.5rem;
+/* Alto de la nav inferior (contenido 56px + borde 1px + safe-area). Lo usa el
+   panel fijo del hilo de Chat para anclar el composer justo encima de la nav.
+   (El `top` del panel se mide por JS, no con var CSS: ver chat-client.tsx.) */
+:root {
+  --nav-h: calc(57px + env(safe-area-inset-bottom));
 }
