@@ -7,8 +7,9 @@ import {
   TrendingDown,
   TrendingUp,
   Trash2,
+  X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { MarkChart } from "@/components/charts/mark-chart";
 import {
@@ -71,26 +72,18 @@ export function MarkDetailSheet({
   // modal y no recibe clics (react-remove-scroll). El registro recién borrado se
   // guarda aquí para ofrecer «Deshacer» durante 6 s dentro del propio sheet.
   const [justDeleted, setJustDeleted] = useState<MarkEntryDTO | null>(null);
-  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (undoTimer.current) clearTimeout(undoTimer.current);
-    };
-  }, []);
-
+  // Sin auto-desaparición: en móvil un target que se esfuma antes de acertar a
+  // tocarlo es peor. El aviso se mantiene hasta que deshaces o lo descartas (×).
   const handleDelete = (entry: MarkEntryDTO) => {
     onDeleteEntry(mark.id, entry);
     setJustDeleted(entry);
-    if (undoTimer.current) clearTimeout(undoTimer.current);
-    undoTimer.current = setTimeout(() => setJustDeleted(null), 6000);
   };
 
   const handleUndo = () => {
     if (!justDeleted) return;
     onRestoreEntry(mark.id, justDeleted);
     setJustDeleted(null);
-    if (undoTimer.current) clearTimeout(undoTimer.current);
   };
 
   const asc = sortEntriesAsc(mark.entries);
@@ -205,17 +198,27 @@ export function MarkDetailSheet({
             </div>
 
             {justDeleted ? (
-              <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2">
-                <span className="text-[12.5px] text-muted-foreground">
+              <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2 py-1.5 pl-3 pr-1.5">
+                <span className="text-[13px] text-muted-foreground">
                   Registro eliminado
                 </span>
-                <button
-                  type="button"
-                  onClick={handleUndo}
-                  className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-[12.5px] font-semibold text-primary-foreground"
-                >
-                  <RotateCcw className="size-3.5" aria-hidden /> Deshacer
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleUndo}
+                    className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-primary px-4 text-[14px] font-semibold text-primary-foreground"
+                  >
+                    <RotateCcw className="size-4" aria-hidden /> Deshacer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setJustDeleted(null)}
+                    aria-label="Descartar"
+                    className="inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground"
+                  >
+                    <X className="size-4" aria-hidden />
+                  </button>
+                </div>
               </div>
             ) : null}
 
