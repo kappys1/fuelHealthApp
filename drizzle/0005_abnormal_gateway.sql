@@ -1,0 +1,1 @@
+ALTER TABLE "performance_marks" ADD COLUMN "family" text;

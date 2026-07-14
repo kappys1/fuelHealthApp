@@ -45,7 +45,12 @@ export function MarkRegisterSheet({
   presetMark?: MarkDTO;
   today: string;
   onCreateMark: (
-    mark: { name: string; measureType: MeasureType; unit: string },
+    mark: {
+      name: string;
+      measureType: MeasureType;
+      unit: string;
+      family?: string | null;
+    },
     entry: { value: number; recordedOn: string; note: string | null },
   ) => Promise<void>;
   onAddEntry: (
@@ -55,15 +60,27 @@ export function MarkRegisterSheet({
   onClose: () => void;
 }) {
   const listId = useId();
+  const familyListId = useId();
   const [name, setName] = useState(presetMark?.name ?? "");
   const [measureType, setMeasureType] = useState<MeasureType>(
     presetMark?.measureType ?? "weight",
   );
   const [unit, setUnit] = useState(presetMark?.unit ?? DEFAULT_UNIT.weight);
+  const [family, setFamily] = useState("");
   const [valueStr, setValueStr] = useState("");
   const [date, setDate] = useState(today);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Familias existentes (únicas, no vacías) para autocompletar al crear una marca.
+  const families = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of existingMarks) {
+      const f = m.family?.trim();
+      if (f) set.add(f);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "es"));
+  }, [existingMarks]);
 
   // Marca existente que coincide por nombre (case-insensitive) — determina si
   // añadimos entrada a una marca o creamos una nueva.
@@ -110,7 +127,12 @@ export function MarkRegisterSheet({
         toast.success("Registro añadido.");
       } else {
         await onCreateMark(
-          { name: name.trim(), measureType: effType, unit: effUnit.trim() },
+          {
+            name: name.trim(),
+            measureType: effType,
+            unit: effUnit.trim(),
+            family: family.trim() || null,
+          },
           entry,
         );
         toast.success("Marca creada.");
@@ -199,6 +221,31 @@ export function MarkRegisterSheet({
                 />
               </label>
             </div>
+          ) : null}
+
+          {/* Familia (opcional): etiqueta libre con autocompletado. Solo al crear
+              una marca nueva; se captura ahora para el futuro filtro/agrupación. */}
+          {isNew ? (
+            <label className="block">
+              <span className="mb-1 block text-[12px] text-muted-foreground">
+                Familia (opcional)
+              </span>
+              <input
+                value={family}
+                onChange={(e) => setFamily(e.target.value)}
+                list={familyListId}
+                placeholder="Snatch, Squat, Carrera…"
+                className="h-11 w-full rounded-lg border border-input bg-surface px-3 text-base outline-none focus-visible:border-ring"
+                aria-label="Familia"
+              />
+              {families.length ? (
+                <datalist id={familyListId}>
+                  {families.map((f) => (
+                    <option key={f} value={f} />
+                  ))}
+                </datalist>
+              ) : null}
+            </label>
           ) : null}
 
           {/* Valor */}

@@ -225,7 +225,12 @@ export const api = {
     req<{ ok: true }>(`/api/plan/options/${id}`, { method: "DELETE" }),
 
   // Marcas / registros de rendimiento (F03)
-  createMark: (mark: { name: string; measureType: MeasureType; unit: string }) =>
+  createMark: (mark: {
+    name: string;
+    measureType: MeasureType;
+    unit: string;
+    family?: string | null;
+  }) =>
     req<{ id: number }>("/api/marks", {
       method: "POST",
       body: JSON.stringify(mark),
