@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ensureAuth, parseBody, serverError } from "@/lib/api";
 import { dayKey, shiftDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
+import { CHAT_MAX_CHARS } from "@/lib/schemas";
 import { computeAdherence } from "@/server/analytics/adherence";
 import { computeDeficit } from "@/server/analytics/deficit";
 import { getAthleteContexts } from "@/server/ai/athlete";
@@ -41,7 +42,9 @@ import { getTrendData } from "@/server/db/queries/trend";
 */
 const bodyZ = z.object({
   threadId: z.number().int().positive().nullable().optional(),
-  message: z.string().min(1).max(2000),
+  // CHAT_MAX_CHARS: cabe un menú de comedor entero pegado en el mensaje (el caso
+  // real de "¿qué cojo hoy?"). Antes 2000 → rechazaba menús con 400 silencioso.
+  message: z.string().min(1).max(CHAT_MAX_CHARS),
 });
 
 export async function POST(request: Request) {

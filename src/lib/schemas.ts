@@ -17,6 +17,10 @@ export const bloatZ = z.enum(["ninguna", "leve", "moderada", "alta"]);
 export const sourceZ = z.enum(["plan", "foto", "manual", "ia", "fav", "plantilla"]);
 export const dateZ = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida.");
 
+// Tope del mensaje del chat: cabe un menú de comedor entero pegado. Compartido
+// para que cliente (aviso en vivo) y servidor (validación) no se desincronicen.
+export const CHAT_MAX_CHARS = 8000;
+
 export const newEntryZ = z.object({
   meal: mealZ,
   name: z.string().min(1).max(600),
