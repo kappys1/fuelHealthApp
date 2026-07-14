@@ -55,12 +55,19 @@ export function ChatClient({
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [loadingThread, setLoadingThread] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, streaming]);
+  const scrollToBottom = () => {
+    // rAF: espera al layout (el markdown cambia de alto tras montar) para medir
+    // bien scrollHeight; si no, al abrir un hilo se quedaba a media altura.
+    requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  };
+  useEffect(scrollToBottom, [messages, streaming]);
 
   // Puente Coach → Chat (F01 Fase 2): al entrar con ?thread=<id>, abre ese hilo
   // (sembrado con la pregunta + la respuesta del coach) y enfoca el input.
@@ -76,13 +83,17 @@ export function ChatClient({
     setView("thread");
     setMessages([]);
     setStreaming(null);
+    setLoadingThread(true);
     try {
       const t = await api.getThread(id);
       setMessages(
         t.messages.map((m) => ({ id: String(m.id), role: m.role, content: m.content })),
       );
+      scrollToBottom();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo abrir el hilo.");
+    } finally {
+      setLoadingThread(false);
     }
   };
 
@@ -230,7 +241,7 @@ export function ChatClient({
     );
   }
 
-  const empty = messages.length === 0 && streaming == null;
+  const empty = messages.length === 0 && streaming == null && !loadingThread;
   const over = input.length - CHAT_MAX_CHARS; // > 0 si se pasa del tope
   const tooLong = over > 0;
   const nearLimit = input.length > CHAT_MAX_CHARS * 0.9;
@@ -252,6 +263,12 @@ export function ChatClient({
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-3">
+        {loadingThread ? (
+          <div className="flex justify-center pt-8 text-muted-foreground">
+            <Loader2 className="size-5 animate-spin" aria-label="Cargando conversación" />
+          </div>
+        ) : null}
+
         {empty ? (
           <div className="pt-4">
             <p className="text-[13px] text-muted-foreground">
