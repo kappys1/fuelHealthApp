@@ -21,7 +21,7 @@ export default async function AppLayout({
   if (!session.authenticated) redirect("/login");
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[560px] flex-col">
+    <div className="mx-auto flex h-dvh w-full max-w-[560px] flex-col overflow-hidden">
       {/* pt con safe-area: en PWA standalone (status bar translúcida) el contenido
           fluye bajo el reloj/notch; sin esto el wordmark lo pisa. */}
       <header
@@ -45,10 +45,14 @@ export default async function AppLayout({
         </Link>
       </header>
 
-      {/* flex-col para que una página pueda estirarse al alto disponible (Chat:
-          hilo con `flex-1 min-h-0` → el composer queda sobre la nav sin cálculos
-          mágicos). El resto de páginas apilan en bloque como siempre. */}
-      <main data-app-main className="flex flex-1 flex-col px-4 pt-4 pb-24">
+      {/* Altura DEFINIDA en el wrapper (`h-dvh`) + `main` como único scroller:
+          así el hilo de Chat (`flex-1 min-h-0` con su propio overflow) se acota de
+          verdad → composer fijo abajo y scroll interno, sin cálculos mágicos. El
+          resto de páginas simplemente scrollean dentro de `main`. */}
+      <main
+        data-app-main
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-4 pb-24"
+      >
         {children}
       </main>
 

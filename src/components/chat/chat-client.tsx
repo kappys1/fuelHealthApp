@@ -60,11 +60,14 @@ export function ChatClient({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollToBottom = () => {
-    // rAF: espera al layout (el markdown cambia de alto tras montar) para medir
-    // bien scrollHeight; si no, al abrir un hilo se quedaba a media altura.
+    // Doble rAF: el markdown reajusta su alto tras montar, así que medimos
+    // scrollHeight un frame después del layout; si no, al abrir un hilo se
+    // quedaba a media altura.
     requestAnimationFrame(() => {
-      const el = scrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
+      requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
     });
   };
   useEffect(scrollToBottom, [messages, streaming]);
