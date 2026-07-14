@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Markdown } from "@/components/ui/markdown";
 import { api } from "@/lib/client-api";
+import { CHAT_MAX_CHARS } from "@/lib/schemas";
 import { useOnline } from "@/lib/use-online";
 import { cn } from "@/lib/utils";
 import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
@@ -113,6 +114,10 @@ export function ChatClient({
   const send = async (text: string) => {
     const message = text.trim();
     if (!message || sending) return;
+    if (message.length > CHAT_MAX_CHARS) {
+      toast.error(`Mensaje demasiado largo (máx. ${CHAT_MAX_CHARS} caracteres).`);
+      return;
+    }
     setInput("");
     setMessages((m) => [...m, { id: tmpId(), role: "user", content: message }]);
     setStreaming("");
@@ -226,6 +231,9 @@ export function ChatClient({
   }
 
   const empty = messages.length === 0 && streaming == null;
+  const over = input.length - CHAT_MAX_CHARS; // > 0 si se pasa del tope
+  const tooLong = over > 0;
+  const nearLimit = input.length > CHAT_MAX_CHARS * 0.9;
 
   return (
     <section className="flex min-h-0 flex-1 flex-col">
@@ -289,7 +297,7 @@ export function ChatClient({
           <button
             type="button"
             onClick={() => send(input)}
-            disabled={!online || sending || !input.trim()}
+            disabled={!online || sending || !input.trim() || tooLong}
             aria-label="Enviar"
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-50"
           >
@@ -300,6 +308,18 @@ export function ChatClient({
             )}
           </button>
         </div>
+        {tooLong ? (
+          <p className="mt-1.5 text-[12px] font-medium text-destructive" role="alert">
+            Mensaje demasiado largo: quita {over.toLocaleString("es-ES")} caracter
+            {over === 1 ? "" : "es"} ({input.length.toLocaleString("es-ES")}/
+            {CHAT_MAX_CHARS.toLocaleString("es-ES")}).
+          </p>
+        ) : nearLimit ? (
+          <p className="mt-1.5 text-right text-[12px] text-muted-foreground">
+            {input.length.toLocaleString("es-ES")}/
+            {CHAT_MAX_CHARS.toLocaleString("es-ES")}
+          </p>
+        ) : null}
         {!online ? (
           <p className="mt-1.5 flex items-center gap-1.5 text-[12px] text-muted-foreground">
             <WifiOff className="size-3.5" aria-hidden /> Sin conexión: el chat necesita
