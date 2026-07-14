@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bestEntry,
+  doubleReference,
   formatMarkValue,
   formatSeconds,
   higherIsBetter,
@@ -119,6 +120,48 @@ describe("percentOf (calculadora de marcas de peso)", () => {
   });
   it("70 % de 100 = 70", () => {
     expect(percentOf(100, 70)).toBe(70);
+  });
+});
+
+describe("doubleReference (calculadora doble última/récord, F04)", () => {
+  it("récord por encima de la última → distintas (dos referencias)", () => {
+    // récord 110 (feb) por encima de la última 103 (abr) → distinct.
+    const entries = [
+      e(1, 100, "2026-01-01"),
+      e(2, 110, "2026-02-01"),
+      e(3, 103, "2026-04-01"),
+    ];
+    expect(doubleReference("weight", entries)).toEqual({
+      last: 103,
+      record: 110,
+      distinct: true,
+    });
+  });
+  it("la última ES el récord → una sola línea (distinct false)", () => {
+    const entries = [e(1, 100, "2026-01-01"), e(2, 112, "2026-02-01")];
+    expect(doubleReference("weight", entries)).toEqual({
+      last: 112,
+      record: 112,
+      distinct: false,
+    });
+  });
+  it("una sola entrada → una sola línea", () => {
+    expect(doubleReference("weight", [e(1, 103, "2026-01-01")])).toEqual({
+      last: 103,
+      record: 103,
+      distinct: false,
+    });
+  });
+  it("aplicando % a ambas: 85 % de 103 = 87,55 y de 110 = 93,5 (AC 1)", () => {
+    const ref = doubleReference("weight", [
+      e(1, 110, "2026-02-01"),
+      e(2, 103, "2026-04-01"),
+    ])!;
+    expect(percentOf(ref.last, 85)).toBeCloseTo(87.55, 5);
+    expect(percentOf(ref.record, 85)).toBe(93.5);
+  });
+  it("sin entradas → null", () => {
+    expect(doubleReference("weight", [])).toBeNull();
   });
 });
 
