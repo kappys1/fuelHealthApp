@@ -85,6 +85,16 @@ export const trainingSourceEnum = pgEnum("training_source", [
   "texto",
 ]);
 
+// Tipo de medida de una marca de rendimiento (F03 · marcas). Fija la DIRECCIÓN de
+// "mejor" (peso/reps/distancia → más es mejor; tiempo → menos es mejor) y la unidad
+// por defecto. Debe coincidir 1:1 con MEASURE_TYPES en src/lib/marks.ts.
+export const markMeasureEnum = pgEnum("mark_measure", [
+  "weight",
+  "time",
+  "reps",
+  "distance",
+]);
+
 // ── diet_versions ──
 export const dietVersions = pgTable("diet_versions", {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -289,4 +299,33 @@ export const trainingSessions = pgTable("training_sessions", {
   kcalMax: integer("kcal_max"),
   duracionMin: integer("duracion_min"),
   sort: integer().notNull().default(0),
+});
+
+// ── performance_marks / mark_entries (F03 · marcas / registros de rendimiento) ──
+// Marca agnóstica de deporte (nombre libre, sin catálogo): 1RM sentadilla, Fran
+// (tiempo), 5k, dominadas máximas… `measureType` fija dirección de "mejor" + unidad.
+// "Última" y "mejor" NO se guardan: se derivan en lectura (lib/marks.ts) → sin
+// desincronización. Para el tiempo, `value` se guarda en SEGUNDOS.
+export const performanceMarks = pgTable("performance_marks", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  name: text().notNull(),
+  measureType: markMeasureEnum("measure_type").notNull(),
+  unit: text().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const markEntries = pgTable("mark_entries", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  markId: integer("mark_id")
+    .notNull()
+    .references(() => performanceMarks.id, { onDelete: "cascade" }),
+  value: real().notNull(),
+  // Día de la marca ('YYYY-MM-DD' Europe/Madrid vía lib/dates; nunca toISOString).
+  recordedOn: date("recorded_on", { mode: "string" }).notNull(),
+  note: text(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

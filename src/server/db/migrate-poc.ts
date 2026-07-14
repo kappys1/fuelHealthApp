@@ -27,6 +27,9 @@ import * as schema from "./schema";
     (date+fat+muscle+weight) → no clobbera MEDs metidas a mano, idempotente.
   - favorites: upsert por (meal, name). day_templates: upsert por name.
 
+  NO-OP: el export del PoC no contiene marcas/registros de rendimiento (F03) — esa
+  feature nace en la app real. La migración no toca performance_marks/mark_entries.
+
   Uso: pnpm migrate:poc <archivo.json>
 */
 

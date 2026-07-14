@@ -1,5 +1,7 @@
 import type { MealKey } from "@/lib/macros";
+import type { MeasureType } from "@/lib/marks";
 import type { AthleteProfile } from "@/lib/profile";
+import type { MarkEntryDTO } from "@/server/db/queries/marks";
 import type {
   DayDumpResult,
   DietImportResult,
@@ -221,6 +223,37 @@ export const api = {
 
   deleteOption: (id: number) =>
     req<{ ok: true }>(`/api/plan/options/${id}`, { method: "DELETE" }),
+
+  // Marcas / registros de rendimiento (F03)
+  createMark: (mark: { name: string; measureType: MeasureType; unit: string }) =>
+    req<{ id: number }>("/api/marks", {
+      method: "POST",
+      body: JSON.stringify(mark),
+    }),
+
+  deleteMark: (id: number) =>
+    req<{ ok: true }>(`/api/marks/${id}`, { method: "DELETE" }),
+
+  addMarkEntry: (
+    markId: number,
+    entry: { value: number; recordedOn: string; note?: string | null },
+  ) =>
+    req<{ entry: MarkEntryDTO }>(`/api/marks/${markId}/entries`, {
+      method: "POST",
+      body: JSON.stringify(entry),
+    }),
+
+  updateMarkEntry: (
+    id: number,
+    patch: { value?: number; recordedOn?: string; note?: string | null },
+  ) =>
+    req<{ ok: true }>(`/api/marks/entries/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+
+  deleteMarkEntry: (id: number) =>
+    req<{ ok: true }>(`/api/marks/entries/${id}`, { method: "DELETE" }),
 
   // MED (F5.1)
   addMed: (m: MedInput) =>

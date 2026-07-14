@@ -1,5 +1,6 @@
 import { PlanScreen } from "@/components/plan/plan-screen";
 import { dayKey } from "@/lib/dates";
+import { listMarksWithEntries } from "@/server/db/queries/marks";
 import { getPlanContext } from "@/server/db/queries/plan";
 import { getTrainingWeekView } from "@/server/db/queries/training";
 
@@ -13,9 +14,10 @@ export default async function PlanPage({
   const today = dayKey();
   const { tab } = await searchParams;
   const initialSegment = tab === "entrenos" ? "entrenos" : "dieta";
-  const [ctx, week] = await Promise.all([
+  const [ctx, week, marks] = await Promise.all([
     getPlanContext(today),
     getTrainingWeekView(today),
+    listMarksWithEntries(),
   ]);
 
   if (!ctx) {
@@ -35,6 +37,8 @@ export default async function PlanPage({
       derived={ctx.derived}
       optionsByMeal={ctx.optionsByMeal}
       week={week}
+      marks={marks}
+      today={today}
       initialSegment={initialSegment}
     />
   );
