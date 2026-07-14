@@ -105,6 +105,32 @@ export function percentOf(value: number, pct: number): number {
   return (value * pct) / 100;
 }
 
+export interface DoubleReference {
+  /** Valor de la ÚLTIMA entrada (vigente): cifra primaria/destacada. */
+  last: number;
+  /** Valor del RÉCORD (mejor según el tipo). */
+  record: number;
+  /** ¿récord ≠ última? → mostrar las dos referencias; si no, una sola línea. */
+  distinct: boolean;
+}
+
+/**
+ * Base de la calculadora de % con doble referencia (F04): la ÚLTIMA (vigente) y el
+ * RÉCORD. `distinct` es true cuando difieren en valor (récord viejo por encima de la
+ * última) → la UI muestra ambas cifras; si coinciden (una sola entrada, o la última
+ * ya es el récord) → una sola línea. La última manda (protege contra programar sobre
+ * un récord antiguo). Puro y derivado en lectura. null si no hay entradas.
+ */
+export function doubleReference(
+  measureType: MeasureType,
+  entries: readonly MarkEntryLike[],
+): DoubleReference | null {
+  const last = latestEntry(entries);
+  const record = bestEntry(measureType, entries);
+  if (!last || !record) return null;
+  return { last: last.value, record: record.value, distinct: record.value !== last.value };
+}
+
 // ── Tiempo: se guarda en segundos, se muestra/edita como mm:ss (o h:mm:ss) ──
 
 /**

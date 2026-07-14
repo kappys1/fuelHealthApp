@@ -21,6 +21,8 @@ import {
 import { labelForKey } from "@/lib/dates";
 import {
   bestEntry,
+  type DoubleReference,
+  doubleReference,
   formatMarkValue,
   formatNumber,
   hasPercentCalculator,
@@ -174,9 +176,15 @@ export function MarkDetailSheet({
             </p>
           ) : null}
 
-          {/* Calculadora de % (solo marcas de peso, determinista) */}
-          {hasPercentCalculator(mark.measureType) && latest ? (
-            <PercentCalculator base={latest.value} unit={mark.unit} />
+          {/* Calculadora de % (solo marcas de peso, determinista). Doble referencia
+              (F04): última (vigente, primaria) y récord; una línea si coinciden. */}
+          {hasPercentCalculator(mark.measureType) ? (
+            (() => {
+              const refs = doubleReference(mark.measureType, mark.entries);
+              return refs ? (
+                <PercentCalculator refs={refs} unit={mark.unit} />
+              ) : null;
+            })()
           ) : null}
 
           {/* Entradas */}
@@ -301,17 +309,24 @@ export function MarkDetailSheet({
   );
 }
 
-function PercentCalculator({ base, unit }: { base: number; unit: string }) {
+function PercentCalculator({
+  refs,
+  unit,
+}: {
+  refs: DoubleReference;
+  unit: string;
+}) {
   const [pct, setPct] = useState("85");
   const p = Number(pct.replace(",", "."));
   const valid = Number.isFinite(p) && p >= 0;
-  const result = valid ? percentOf(base, p) : null;
+  const fmt = (v: number) => `${formatNumber(v)} ${unit}`;
+
   return (
     <div className="rounded-xl border border-line bg-surface-2 p-3">
-      <div className="mb-2 text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">
-        Calculadora de %
-      </div>
-      <div className="flex items-center gap-2">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">
+          Calculadora de %
+        </span>
         <div className="flex items-center gap-1 rounded-lg border border-input bg-surface px-3">
           <input
             value={pct}
@@ -319,24 +334,43 @@ function PercentCalculator({ base, unit }: { base: number; unit: string }) {
             onFocus={(e) => e.currentTarget.select()}
             inputMode="decimal"
             aria-label="Porcentaje"
-            className="num h-10 w-14 bg-transparent text-base outline-none"
+            className="num h-10 w-12 bg-transparent text-right text-base outline-none"
           />
           <span className="text-[13px] text-muted-foreground">%</span>
         </div>
-        <span className="text-[13px] text-muted-foreground">de</span>
-        <span className="num text-[13px] text-foreground">
-          {formatNumber(base)} {unit}
+      </div>
+
+      {/* Última (vigente) = referencia primaria y destacada. */}
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[12px] text-muted-foreground">
+          de tu última{" "}
+          <span className="num text-foreground">{fmt(refs.last)}</span>
         </span>
-        <span className="text-[13px] text-muted-foreground">=</span>
         <span
-          className="num text-[17px] font-bold"
+          className="num text-[20px] font-bold"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          {result != null ? `${formatNumber(result)} ${unit}` : "—"}
+          {valid ? fmt(percentOf(refs.last, p)) : "—"}
         </span>
       </div>
-      <p className="mt-1.5 text-[11px] text-muted-foreground">
-        Sobre tu marca vigente (última). La responsabilidad del % es tuya.
+
+      {/* Récord = referencia secundaria, solo si difiere de la última. */}
+      {refs.distinct ? (
+        <div className="mt-1.5 flex items-baseline justify-between gap-2 border-t border-line pt-1.5">
+          <span className="text-[12px] text-muted-foreground">
+            de tu récord{" "}
+            <span className="num text-foreground">{fmt(refs.record)}</span>
+          </span>
+          <span className="num text-[15px] font-semibold text-muted-foreground">
+            {valid ? fmt(percentOf(refs.record, p)) : "—"}
+          </span>
+        </div>
+      ) : null}
+
+      <p className="mt-2 text-[11px] text-muted-foreground">
+        {refs.distinct
+          ? "La última es tu marca vigente; el récord es solo referencia. La responsabilidad del % es tuya."
+          : "Sobre tu marca vigente (última). La responsabilidad del % es tuya."}
       </p>
     </div>
   );
