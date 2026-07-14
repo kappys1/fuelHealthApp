@@ -105,6 +105,9 @@ export function useMarks(initialMarks: MarkDTO[]) {
       });
   };
 
+  // Sin toast de undo: el borrado ocurre DENTRO del sheet (Radix Dialog modal), y un
+  // toast de Sonner se renderiza fuera → react-remove-scroll lo deja sin clics. El
+  // «Deshacer» vive inline en el sheet y llama a restoreEntry (bug real 2026-07-14).
   const deleteEntry = (markId: number, entry: MarkEntryDTO) => {
     const snapshot = marks;
     setMarks((prev) =>
@@ -117,13 +120,6 @@ export function useMarks(initialMarks: MarkDTO[]) {
     api.deleteMarkEntry(entry.id).catch((err) => {
       setMarks(snapshot);
       toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
-    });
-    toast("Registro eliminado", {
-      duration: 6000,
-      action: {
-        label: "Deshacer",
-        onClick: () => restoreEntry(markId, entry),
-      },
     });
   };
 
@@ -138,5 +134,13 @@ export function useMarks(initialMarks: MarkDTO[]) {
     }
   };
 
-  return { marks, createMark, addEntry, updateEntry, deleteEntry, deleteMark };
+  return {
+    marks,
+    createMark,
+    addEntry,
+    updateEntry,
+    deleteEntry,
+    restoreEntry,
+    deleteMark,
+  };
 }

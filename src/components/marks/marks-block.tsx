@@ -26,8 +26,15 @@ export function MarksBlock({
   initialMarks: MarkDTO[];
   today: string;
 }) {
-  const { marks, createMark, addEntry, updateEntry, deleteEntry, deleteMark } =
-    useMarks(initialMarks);
+  const {
+    marks,
+    createMark,
+    addEntry,
+    updateEntry,
+    deleteEntry,
+    restoreEntry,
+    deleteMark,
+  } = useMarks(initialMarks);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
 
@@ -83,6 +90,7 @@ export function MarksBlock({
           onAddEntry={addEntry}
           onUpdateEntry={updateEntry}
           onDeleteEntry={deleteEntry}
+          onRestoreEntry={restoreEntry}
           onDeleteMark={deleteMark}
           onClose={() => setDetailId(null)}
         />
