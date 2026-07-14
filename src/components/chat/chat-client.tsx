@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Markdown } from "@/components/ui/markdown";
 import { api } from "@/lib/client-api";
 import { CHAT_MAX_CHARS } from "@/lib/schemas";
+import { useKeyboardOpen } from "@/lib/use-keyboard-open";
 import { useOnline } from "@/lib/use-online";
 import { cn } from "@/lib/utils";
 import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
@@ -46,6 +47,7 @@ export function ChatClient({
   initialThreadId?: number | null;
 }) {
   const online = useOnline();
+  const kbOpen = useKeyboardOpen();
   const [threads, setThreads] = useState<ThreadDTO[]>(initialThreads);
   const [activeId, setActiveId] = useState<number | null>(initialThreadId);
   const [view, setView] = useState<"list" | "thread">(
@@ -59,6 +61,15 @@ export function ChatClient({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  // ¿El usuario está pegado al fondo? Se actualiza al scrollear. Sirve para
+  // re-anclar al fondo cuando el viewport cambia (teclado iOS abre/cierra) sin
+  // dar tirones si estaba leyendo mensajes de más arriba.
+  const atBottomRef = useRef(true);
+  const onMessagesScroll = () => {
+    const el = scrollRef.current;
+    if (el) atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
   const scrollToBottom = () => {
     // Doble rAF: el markdown reajusta su alto tras montar, así que medimos
     // scrollHeight un frame después del layout; si no, al abrir un hilo se
@@ -71,6 +82,63 @@ export function ChatClient({
     });
   };
   useEffect(scrollToBottom, [messages, streaming]);
+
+  // Teclado iOS (abrir/cerrar) y rotación cambian el ALTO del contenedor durante
+  // ~300ms de animación. `focusout`/eventos de teclado llegan antes de que termine,
+  // así que adivinar el instante con setTimeout es frágil. ResizeObserver dispara en
+  // CADA paso del cambio de alto → re-anclamos y caemos en el tamaño final de forma
+  // determinista. Solo si ya estábamos al fondo (no dar tirón a quien lee historial;
+  // el resize no genera eventos de scroll, así que `atBottomRef` conserva su valor).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (view !== "thread" || !el) return;
+    const ro = new ResizeObserver(() => {
+      if (atBottomRef.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [view]);
+
+  // El hilo se pinta como panel `fixed` (altura definida → composer anclado +
+  // scroll interno). Medimos el borde inferior del header por JS para el `top` del
+  // panel: un valor concreto en px es más fiable que una var CSS (que en dev llegó
+  // a no resolver y dejaba el panel tapando el header).
+  const [panelTop, setPanelTop] = useState(61);
+  useEffect(() => {
+    const header = document.querySelector("header");
+    if (!header) return;
+    const measure = () => setPanelTop(header.getBoundingClientRect().bottom);
+    // rAF para el inicial: evita setState síncrono en el cuerpo del effect.
+    const raf = requestAnimationFrame(measure);
+    const ro = new ResizeObserver(measure);
+    ro.observe(header);
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  // BUG iOS: al cerrar el teclado, Safari deja la ventana scrolleada y el panel
+  // `fixed` pintado con el tamaño de cuando el teclado estaba abierto → queda un
+  // hueco abajo hasta que haces scroll (que fuerza el repintado). Al detectar el
+  // cierre (kbOpen → false) reseteamos el scroll de ventana y forzamos un
+  // reflow/repaint del panel, escalonado para cubrir la animación (~300ms).
+  useEffect(() => {
+    if (view !== "thread" || kbOpen) return;
+    const kick = () => {
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
+      const p = panelRef.current;
+      if (p) {
+        p.style.transform = "translateY(0)";
+        void p.offsetHeight; // fuerza reflow
+        p.style.transform = "";
+      }
+    };
+    const ids = [0, 150, 350, 600].map((d) => window.setTimeout(kick, d));
+    return () => ids.forEach(clearTimeout);
+  }, [kbOpen, view]);
 
   // Puente Coach → Chat (F01 Fase 2): al entrar con ?thread=<id>, abre ese hilo
   // (sembrado con la pregunta + la respuesta del coach) y enfoca el input.
@@ -250,7 +318,14 @@ export function ChatClient({
   const nearLimit = input.length > CHAT_MAX_CHARS * 0.9;
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
+    // Panel fijo: `top` bajo el header, `bottom` justo sobre la nav (o a 0 con el
+    // teclado abierto). Altura definida → el composer se ancla abajo y los mensajes
+    // scrollean dentro, sin depender del scroll del documento.
+    <section
+      ref={panelRef}
+      className="fixed inset-x-0 z-10 mx-auto flex w-full max-w-[560px] flex-col bg-background px-4 pt-2"
+      style={{ top: panelTop, bottom: kbOpen ? 0 : "var(--nav-h)" }}
+    >
       <div className="flex items-center gap-2 pb-2">
         <button
           type="button"
@@ -265,7 +340,11 @@ export function ChatClient({
         </span>
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-3">
+      <div
+        ref={scrollRef}
+        onScroll={onMessagesScroll}
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-3"
+      >
         {loadingThread ? (
           <div className="flex justify-center pt-8 text-muted-foreground">
             <Loader2 className="size-5 animate-spin" aria-label="Cargando conversación" />
@@ -301,7 +380,7 @@ export function ChatClient({
         ) : null}
       </div>
 
-      <div className="border-t border-line pt-2">
+      <div className="border-t border-line pt-2 pb-2">
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
