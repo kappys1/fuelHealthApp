@@ -22,6 +22,7 @@ export interface MarkDTO {
   name: string;
   measureType: MeasureType;
   unit: string;
+  family: string | null;
   entries: MarkEntryDTO[];
 }
 
@@ -66,6 +67,7 @@ export async function listMarksWithEntries(): Promise<MarkDTO[]> {
     name: m.name,
     measureType: m.measureType as MeasureType,
     unit: m.unit,
+    family: m.family,
     entries: byMark.get(m.id) ?? [],
   }));
 }
@@ -74,6 +76,7 @@ export async function createMark(input: {
   name: string;
   measureType: MeasureType;
   unit: string;
+  family?: string | null;
 }): Promise<{ id: number }> {
   const [row] = await db
     .insert(schema.performanceMarks)
@@ -81,6 +84,7 @@ export async function createMark(input: {
       name: input.name,
       measureType: input.measureType,
       unit: input.unit,
+      family: input.family ?? null,
     })
     .returning({ id: schema.performanceMarks.id });
   if (!row) throw new Error("No se pudo crear la marca.");

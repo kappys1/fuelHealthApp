@@ -248,13 +248,14 @@ describe("el chat/visita conocen tus marcas (F03)", () => {
       name: "Sentadilla 1RM",
       measureType: "weight",
       unit: "kg",
+      family: null,
       entries: [
         { id: 1, markId: 1, value: 100, recordedOn: "2026-05-01", note: null },
         { id: 2, markId: 1, value: 110, recordedOn: "2026-06-01", note: null },
       ],
     },
     // Marca sin registros: se omite del contexto.
-    { id: 2, name: "Fran", measureType: "time", unit: "min", entries: [] },
+    { id: 2, name: "Fran", measureType: "time", unit: "min", family: null, entries: [] },
   ];
 
   it("marksContext resume última + récord + progresión, omite las vacías", () => {

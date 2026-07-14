@@ -21,13 +21,21 @@ export function useMarks(initialMarks: MarkDTO[]) {
   const [marks, setMarks] = useState<MarkDTO[]>(initialMarks);
 
   const createMark = async (
-    mark: { name: string; measureType: MeasureType; unit: string },
+    mark: {
+      name: string;
+      measureType: MeasureType;
+      unit: string;
+      family?: string | null;
+    },
     entry: Entry,
   ) => {
     const { id } = await api.createMark(mark);
     const { entry: created } = await api.addMarkEntry(id, entry);
     setMarks((prev) =>
-      [...prev, { id, ...mark, entries: [created] }].sort(byName),
+      [
+        ...prev,
+        { id, ...mark, family: mark.family ?? null, entries: [created] },
+      ].sort(byName),
     );
   };
 

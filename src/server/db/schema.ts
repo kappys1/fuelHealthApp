@@ -311,6 +311,10 @@ export const performanceMarks = pgTable("performance_marks", {
   name: text().notNull(),
   measureType: markMeasureEnum("measure_type").notNull(),
   unit: text().notNull(),
+  // Familia OPCIONAL (F04 · migración 0005 aditiva): etiqueta libre para agrupar
+  // (Snatch, Squat, Carrera…). Se CAPTURA ahora; el filtro/agrupación por familia
+  // es futuro. null = sin familia. NO entra en el prompt de IA por ahora.
+  family: text(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

@@ -97,6 +97,8 @@ export const markCreateZ = z.object({
   name: z.string().min(1).max(120),
   measureType: measureTypeZ,
   unit: z.string().min(1).max(20),
+  // Familia opcional (F04): etiqueta libre para agrupar; se captura ahora.
+  family: z.string().max(60).nullable().optional(),
 });
 export const markEntryCreateZ = z.object({
   value: markValueZ,

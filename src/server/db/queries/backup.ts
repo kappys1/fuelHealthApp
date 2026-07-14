@@ -386,6 +386,7 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
         measureType: (r.measureType ??
           "weight") as typeof schema.markMeasureEnum.enumValues[number],
         unit: String(r.unit ?? ""),
+        family: s(r.family),
         createdAt: dt(r.createdAt),
       })
       .returning({ id: schema.performanceMarks.id });
