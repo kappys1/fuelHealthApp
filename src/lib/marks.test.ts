@@ -7,6 +7,7 @@ import {
   higherIsBetter,
   latestChange,
   latestEntry,
+  marksByRecency,
   markValueToInput,
   parseMarkValue,
   parseTimeToSeconds,
@@ -120,6 +121,51 @@ describe("percentOf (calculadora de marcas de peso)", () => {
   });
   it("70 % de 100 = 70", () => {
     expect(percentOf(100, 70)).toBe(70);
+  });
+});
+
+describe("marksByRecency (carril «recientes» del Historial, F04)", () => {
+  const mk = (id: number, name: string, dates: string[]) => ({
+    id,
+    name,
+    entries: dates.map((d, i) => e(id * 100 + i, 100 + i, d)),
+  });
+
+  it("ordena por la fecha de la ÚLTIMA entrada, más reciente primero", () => {
+    const marks = [
+      mk(1, "Snatch", ["2026-01-01", "2026-03-10"]),
+      mk(2, "Squat", ["2026-06-20"]),
+      mk(3, "Fran", ["2026-02-01", "2026-05-05"]),
+    ];
+    expect(marksByRecency(marks).map((m) => m.name)).toEqual([
+      "Squat", // 2026-06-20
+      "Fran", // 2026-05-05
+      "Snatch", // 2026-03-10
+    ]);
+  });
+
+  it("las marcas sin entradas van al final", () => {
+    const marks = [
+      mk(1, "Vacía", []),
+      mk(2, "Reciente", ["2026-07-01"]),
+    ];
+    expect(marksByRecency(marks).map((m) => m.name)).toEqual([
+      "Reciente",
+      "Vacía",
+    ]);
+  });
+
+  it("empate de fecha → gana la entrada registrada después (id mayor)", () => {
+    const a = { id: 1, name: "A", entries: [e(10, 100, "2026-05-01")] };
+    const b = { id: 2, name: "B", entries: [e(20, 100, "2026-05-01")] };
+    expect(marksByRecency([a, b]).map((m) => m.name)).toEqual(["B", "A"]);
+  });
+
+  it("no muta el array de entrada", () => {
+    const marks = [mk(1, "A", ["2026-01-01"]), mk(2, "B", ["2026-02-01"])];
+    const copy = [...marks];
+    marksByRecency(marks);
+    expect(marks).toEqual(copy);
   });
 });
 
