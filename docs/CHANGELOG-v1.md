@@ -113,6 +113,25 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   (mismo grano que el Coach vía `recentMealsDetail`), no solo los totales por día. Una query
   de rango (`mealEntriesInRange`); días 8-30 siguen en totales. Sin schema ni migración.
 
+### v1.5 · Marcas (PRs / rendimiento) — base (F03) + escala (F04)
+- **F03 · Marcas** (base): registro agnóstico de deporte (nombre libre; `measure_type`
+  peso/tiempo/reps/distancia fija dirección de «mejor» y unidad; tiempo en segundos ↔ mm:ss),
+  «última»/«mejor»/«¿mejora?» derivadas en lectura (`lib/marks.ts`, puro y testeado), sheet de
+  detalle único (gráfica + entradas con undo inline + calculadora de %), bloque en Plan·Entrenos
+  y carril en Historial, marcas en el contexto de Chat/Visita con guardarraíl anti-sobreatribución.
+  Migración 0004; export/restore de ambas tablas.
+- **F04 · Marcas a escala** (para 20-40 marcas), en una sesión de 4 fases:
+  - **Calculadora doble** (`doubleReference`, puro + test): el % se muestra sobre la **última**
+    (vigente, primaria) y sobre el **récord** cuando difieren; una sola línea si coinciden. La
+    última manda (protege contra programar sobre un récord viejo).
+  - **Buscador en vivo** en Plan·Entrenos: filtro por nombre en cliente (<50 ms) sobre lo cargado.
+  - **Familia opcional** (`performance_marks.family`, migración **0005 aditiva**): etiqueta libre
+    con autocompletado al crear una marca. Se **captura** ahora; el filtro por familia queda para
+    el futuro. Export ya la vuelca; restore la mapea. `migrate:poc` sigue no-op.
+  - **Historial recientes** (`marksByRecency`, puro + test): el carril muestra ~5 marcas por fecha
+    de su última entrada + «ver todas →» a `/plan?tab=entrenos` (patrón «ir al actual»); deja de
+    intentar mostrar todas en la tira.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

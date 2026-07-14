@@ -95,6 +95,16 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   del iPhone → el composer caía bajo la bottom-nav. Ahora `main` es flex-col y el hilo usa
   `flex-1 min-h-0` (respeta el `pb-24` de la nav, sin números mágicos). Y `Enter` pasa a ser
   salto de línea (multilínea); se envía solo con el botón.
+- ✅ **Marcas (PRs / registros de rendimiento)** (2026-07-13) — **IMPLEMENTADA (F03)**:
+  [`docs/specs/features/03-marcas-registros-rendimiento.md`](./specs/features/03-marcas-registros-rendimiento.md).
+  Registro agnóstico de deporte + calculadora de %, sheet de detalle con gráfica e histórico,
+  carril en el Historial, y marcas en el contexto de Chat/Visita (progresión bajo demanda, sin
+  veredicto automático). Migración 0004; export/restore de ambas tablas.
+- ✅ **Marcas a escala + calculadora doble + familia** (2026-07-14) — **IMPLEMENTADA (F04)**:
+  [`docs/specs/features/04-marcas-escala-calculadora.md`](./specs/features/04-marcas-escala-calculadora.md).
+  Calculadora doble (% sobre última **y** récord), buscador en vivo en Plan·Entrenos, familia
+  opcional (migración **0005 aditiva, pendiente de aplicar a la BD**) y Historial con marcas
+  recientes + «ver todas →». AC de flujo (🖐 1, 2, 4) pendientes de validación con el pulgar.
 - _(añadir aquí las que surjan)_
 
 ---
