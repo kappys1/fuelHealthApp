@@ -72,6 +72,29 @@ export function bestEntry<T extends MarkEntryLike>(
   );
 }
 
+/**
+ * Marcas ordenadas por la fecha de su ÚLTIMA entrada (más reciente primero) — base
+ * del carril «recientes» del Historial (F04). Las marcas sin entradas van al final.
+ * Empate de fecha → la registrada después (id de entrada mayor). Puro y derivado en
+ * lectura; compara claves 'YYYY-MM-DD' (lib/dates, Europe/Madrid), nunca toISOString.
+ */
+export function marksByRecency<T extends { entries: readonly MarkEntryLike[] }>(
+  marks: readonly T[],
+): T[] {
+  return marks
+    .map((m) => ({ m, last: latestEntry(m.entries) }))
+    .sort((a, b) => {
+      if (!a.last && !b.last) return 0;
+      if (!a.last) return 1;
+      if (!b.last) return -1;
+      return (
+        b.last.recordedOn.localeCompare(a.last.recordedOn) ||
+        b.last.id - a.last.id
+      );
+    })
+    .map((x) => x.m);
+}
+
 export interface LatestChange {
   /** value(última) − value(anterior), en unidades guardadas (segundos si tiempo). */
   delta: number;
