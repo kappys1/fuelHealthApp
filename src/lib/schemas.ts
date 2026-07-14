@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MEASURE_TYPES } from "@/lib/marks";
 import { TRAINING_TIPOS } from "@/lib/training";
 
 // Zod compartido de los boundaries (API routes). Coincide con los enums del schema.
@@ -82,4 +83,24 @@ export const trainingPlanCreateZ = z.object({
   assignments: z
     .array(z.object({ sessionIndex: z.number().int().min(0), date: dateZ }))
     .max(31),
+});
+
+// Marcas / registros de rendimiento (F03). `value` en unidades guardadas (segundos
+// si el tipo es tiempo). measureType fija la dirección de "mejor" y la unidad.
+export const measureTypeZ = z.enum(MEASURE_TYPES);
+const markValueZ = z.number().min(0).max(1_000_000);
+export const markCreateZ = z.object({
+  name: z.string().min(1).max(120),
+  measureType: measureTypeZ,
+  unit: z.string().min(1).max(20),
+});
+export const markEntryCreateZ = z.object({
+  value: markValueZ,
+  recordedOn: dateZ,
+  note: z.string().max(600).nullable().optional(),
+});
+export const markEntryPatchZ = z.object({
+  value: markValueZ.optional(),
+  recordedOn: dateZ.optional(),
+  note: z.string().max(600).nullable().optional(),
 });

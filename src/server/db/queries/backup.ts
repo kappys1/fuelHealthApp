@@ -40,6 +40,8 @@ export async function exportAll(): Promise<FullExport> {
     chatMessages,
     trainingPlans,
     trainingSessions,
+    performanceMarks,
+    markEntries,
   ] = await Promise.all([
     db.select().from(schema.dietVersions),
     db.select().from(schema.planOptions),
@@ -55,6 +57,8 @@ export async function exportAll(): Promise<FullExport> {
     db.select().from(schema.chatMessages),
     db.select().from(schema.trainingPlans),
     db.select().from(schema.trainingSessions),
+    db.select().from(schema.performanceMarks),
+    db.select().from(schema.markEntries),
   ]);
 
   return {
@@ -76,6 +80,8 @@ export async function exportAll(): Promise<FullExport> {
       chatMessages,
       trainingPlans,
       trainingSessions,
+      performanceMarks,
+      markEntries,
     },
   };
 }
@@ -100,6 +106,8 @@ const importSchema = z.object({
     chatMessages: z.array(anyRow).default([]),
     trainingPlans: z.array(anyRow).default([]),
     trainingSessions: z.array(anyRow).default([]),
+    performanceMarks: z.array(anyRow).default([]),
+    markEntries: z.array(anyRow).default([]),
   }),
 });
 
@@ -153,6 +161,9 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
   // luego training_plans (padre).
   await db.delete(schema.trainingSessions);
   await db.delete(schema.trainingPlans);
+  // marcas: entradas (hijas) antes que las marcas (padres).
+  await db.delete(schema.markEntries);
+  await db.delete(schema.performanceMarks);
   await db.delete(schema.healthMetrics);
   await db.delete(schema.workouts);
   await db.delete(schema.medMeasurements);
@@ -360,6 +371,33 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
         threadId: threadMap.get(Number(r.threadId)) ?? Number(r.threadId),
         role: r.role as typeof schema.chatRoleEnum.enumValues[number],
         content: String(r.content ?? ""),
+        createdAt: dt(r.createdAt),
+      })),
+    );
+  }
+
+  // 9) marcas de rendimiento (remapea id antiguo → nuevo) + sus entradas (FK remapeada).
+  const markMap = new Map<number, number>();
+  for (const r of data.performanceMarks) {
+    const [row] = await db
+      .insert(schema.performanceMarks)
+      .values({
+        name: String(r.name ?? ""),
+        measureType: (r.measureType ??
+          "weight") as typeof schema.markMeasureEnum.enumValues[number],
+        unit: String(r.unit ?? ""),
+        createdAt: dt(r.createdAt),
+      })
+      .returning({ id: schema.performanceMarks.id });
+    if (row && r.id != null) markMap.set(Number(r.id), row.id);
+  }
+  if (data.markEntries.length) {
+    await db.insert(schema.markEntries).values(
+      data.markEntries.map((r) => ({
+        markId: markMap.get(Number(r.markId)) ?? Number(r.markId),
+        value: Number(r.value ?? 0),
+        recordedOn: String(r.recordedOn),
+        note: s(r.note),
         createdAt: dt(r.createdAt),
       })),
     );

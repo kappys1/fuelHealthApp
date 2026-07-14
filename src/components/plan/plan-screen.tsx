@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { MarksBlock } from "@/components/marks/marks-block";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
+import type { MarkDTO } from "@/server/db/queries/marks";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
 import type { TrainingWeekView } from "@/server/db/queries/training";
 import { PlanClient } from "./plan-client";
@@ -22,12 +24,16 @@ export function PlanScreen({
   derived,
   optionsByMeal,
   week,
+  marks,
+  today,
   initialSegment = "dieta",
 }: {
   targets: EffectiveTargets;
   derived: DerivedTargets;
   optionsByMeal: Record<string, PlanOptionDTO[]>;
   week: TrainingWeekView | null;
+  marks: MarkDTO[];
+  today: string;
   initialSegment?: Segment;
 }) {
   const [segment, setSegment] = useState<Segment>(initialSegment);
@@ -70,7 +76,10 @@ export function PlanScreen({
           optionsByMeal={optionsByMeal}
         />
       ) : (
-        <TrainingWeek week={week} />
+        <div className="space-y-4 pb-8">
+          <TrainingWeek week={week} />
+          <MarksBlock initialMarks={marks} today={today} />
+        </div>
       )}
     </section>
   );
