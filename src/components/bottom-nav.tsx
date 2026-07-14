@@ -3,6 +3,8 @@
 import { Activity, CalendarDays, MessageCircle, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { useKeyboardOpen } from "@/lib/use-keyboard-open";
 
 // 4 pestañas (09-FLUJOS-UX §2). Ajustes NO es pestaña: va en el header.
 const TABS = [
@@ -19,11 +21,21 @@ const TABS = [
  */
 export function BottomNav() {
   const pathname = usePathname();
+  // Con el teclado abierto la nav fija flotaría sobre él (viewport encogido por
+  // `resizes-content`). La deslizamos fuera y marcamos el body para que el `main`
+  // suelte el hueco reservado a la nav → el composer queda pegado al teclado.
+  const kbOpen = useKeyboardOpen();
+  useEffect(() => {
+    document.body.classList.toggle("kb-open", kbOpen);
+  }, [kbOpen]);
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur"
+      className={`fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur transition-transform ${
+        kbOpen ? "translate-y-full" : "translate-y-0"
+      }`}
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      aria-hidden={kbOpen}
       aria-label="Navegación principal"
     >
       <ul className="mx-auto flex w-full max-w-[560px]">

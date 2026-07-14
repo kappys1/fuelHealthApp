@@ -239,3 +239,10 @@
     display: flex;
   }
 }
+
+/* Teclado abierto (Chat/inputs): la nav inferior se desliza fuera (bottom-nav.tsx)
+   y el `main` suelta el hueco reservado a la nav, así el composer queda pegado al
+   teclado en vez de dejar la barra flotando encima. */
+body.kb-open [data-app-main] {
+  padding-bottom: 0.5rem;
+}
