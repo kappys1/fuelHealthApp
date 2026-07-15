@@ -7,7 +7,9 @@ import { db, schema } from "@/server/db";
   guardan los mensajes y el resumen cacheado de los mensajes antiguos.
 */
 
-export const CHAT_WINDOW = 12; // últimos N mensajes que viajan verbatim
+// 24 (antes 12): más historial verbatim → el chat «te sigue» mejor y hace falta
+// resumir menos (DECISIONS #54). Con el modelo del chat el contexto cabe de sobra.
+export const CHAT_WINDOW = 24; // últimos N mensajes que viajan verbatim
 export const SUMMARY_BATCH = 6; // re-resumir cada N mensajes que envejecen
 
 export interface ThreadDTO {

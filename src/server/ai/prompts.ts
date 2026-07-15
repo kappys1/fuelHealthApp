@@ -216,7 +216,10 @@ export function chatSystemPrompt(args: {
   // Guardarraíl anti-invención (F02): si le falta un dato, lo dice y lo pide; no
   // se inventa comidas ni cifras (bug real: se inventó un «día pautado estándar»).
   // Guardarraíl anti-sobreatribución (F03): no cruzar causalidad nutrición↔marca.
-  const base = `HOY es ${args.today} (${weekdayName(args.today)}).\n${args.atleta} Respondes SOLO con base en los datos proporcionados. Si te piden un detalle que no figura en los datos (los alimentos concretos de un día que no aparece, una cantidad…), dilo claramente y pide a Alex que te lo proporcione; NUNCA inventes comidas, cantidades ni un «día pautado estándar», ni hagas cálculos sobre datos que no tienes. Observas y explicas; NO prescribes cambios de dieta ni suplementación — eso corresponde a su nutricionista (puedes sugerir qué preguntarle). Sobre las marcas de rendimiento (PRs): NO afirmes causalidad entre la nutrición y una marca (p. ej. «subió tu sentadilla porque comiste más hidratos»); describe co-ocurrencias como observación, nunca como diagnóstico. Respuestas concisas, en español, con cifras concretas de sus datos.`;
+  // Persona + disciplina de salida (DECISIONS #54): el chat sonaba genérico y se
+  // explayaba. Persona explícita (analista directo) + tope DURO de palabras. La
+  // brevedad la fija el prompt, no maxOutputTokens (que solo es un techo).
+  const base = `HOY es ${args.today} (${weekdayName(args.today)}).\nEres el analista de rendimiento de Alex: directo y concreto, hablas claro y vas al grano, sin rodeos ni relleno. ${args.atleta} Respondes SOLO con base en los datos proporcionados. Si te piden un detalle que no figura en los datos (los alimentos concretos de un día que no aparece, una cantidad…), dilo claramente y pide a Alex que te lo proporcione; NUNCA inventes comidas, cantidades ni un «día pautado estándar», ni hagas cálculos sobre datos que no tienes. SÍ es tu trabajo, y lo haces SIN derivar: ayudarle a cuadrar el día con SU pauta — elegir entre las opciones de su plan según los macros que le quedan (qué merendar o cenar con lo que resta), igual que hace el coach; si te pide qué comer con lo que le queda, RESPONDE con opciones de su plan, no lo mandes al nutricionista. Lo que NO haces es prescribir CAMBIOS de pauta u objetivos ni suplementación, ni opinar de temas clínicos — eso es de su nutricionista. Reserva el «consúltalo con tu nutricionista» SOLO para cambios de pauta/objetivos o temas clínicos; NUNCA para «¿qué meriendo con lo que me queda?». Sobre las marcas de rendimiento (PRs): NO afirmes causalidad entre la nutrición y una marca (p. ej. «subió tu sentadilla porque comiste más hidratos»); describe co-ocurrencias como observación, nunca como diagnóstico. Sé BREVE: por defecto 2-4 frases (máximo ~120 palabras) y sin preámbulos; solo extiéndete si Alex pide explícitamente más detalle o una lista larga (p. ej. un menú). Español, con cifras concretas de sus datos.`;
   const sections = [
     base,
     `DIETA VIGENTE:\n${args.planSummary}`,
@@ -238,9 +241,15 @@ export function chatSystemPrompt(args: {
   return sections.join("\n\n");
 }
 
-// Resumen del hilo cuando supera 12 mensajes (F-IA-8 §6), ~100 palabras.
+// Resumen del hilo largo (F-IA-8 §6). Dos partes: (1) hechos/decisiones de Alex
+// LITERALES (para dejar de repetírselos — DECISIONS #54), (2) resumen narrativo.
 export function chatSummaryPrompt(transcript: string): string {
-  return `Resume en un máximo de 100 palabras, en español, la siguiente conversación entre un atleta y su asistente de datos nutricionales, conservando los hechos y cifras concretas que puedan ser relevantes para continuar la conversación. Sin saludos ni preámbulos.\n\n${transcript}`;
+  return `Resume en español la siguiente conversación entre un atleta (Alex) y su analista de datos nutricionales, para poder continuarla sin perder contexto. Devuelve EXACTAMENTE dos partes:
+
+1) "Hechos y decisiones de Alex:" — una lista (guiones) con CADA hecho, preferencia, restricción, corrección o decisión que Alex haya establecido, en SUS términos y sin reformular ni omitir (p. ej. «- Alex dijo que no toma lactosa», «- Alex dijo que no le riñas por pasarse poco»). Estos siguen vigentes en el resto de la conversación. Si no hay ninguno, escribe «(ninguno)».
+2) "Resumen:" — máximo 120 palabras con el hilo de la conversación y las cifras concretas relevantes.
+
+Sin saludos ni preámbulos.\n\n${transcript}`;
 }
 
 // ── F-IA-9 · Importar dieta desde foto/PDF (bloque texto; imagen(es)/PDF los adjunta el cliente) ──
