@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { db, schema } from "@/server/db";
+import { mealEntryImportRow } from "./backup-map";
 
 /*
   Export/restore JSON completo (F4.5 / principio 7: los datos son sagrados).
@@ -264,22 +265,9 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
     );
   }
 
-  // 5) meal_entries (FK → days; conserva createdAt).
+  // 5) meal_entries (FK → days; conserva createdAt + base inmutable F06).
   if (data.mealEntries.length) {
-    await db.insert(schema.mealEntries).values(
-      data.mealEntries.map((r) => ({
-        date: String(r.date),
-        meal: r.meal as typeof schema.mealEnum.enumValues[number],
-        name: String(r.name ?? ""),
-        kcal: Number(r.kcal ?? 0),
-        prot: Number(r.prot ?? 0),
-        carb: Number(r.carb ?? 0),
-        fat: Number(r.fat ?? 0),
-        source: r.source as typeof schema.mealSourceEnum.enumValues[number],
-        photoUrl: s(r.photoUrl),
-        createdAt: dt(r.createdAt),
-      })),
-    );
+    await db.insert(schema.mealEntries).values(data.mealEntries.map(mealEntryImportRow));
   }
 
   // 6) health_metrics.

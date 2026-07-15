@@ -47,6 +47,12 @@ export function useToday(date: string, initial: TodayPayload) {
         fat: e.fat,
         source: e.source,
         photoUrl: e.photoUrl ?? null,
+        grams: e.grams ?? null,
+        baseG: e.baseG ?? null,
+        baseKcal: e.baseKcal ?? null,
+        baseProt: e.baseProt ?? null,
+        baseCarb: e.baseCarb ?? null,
+        baseFat: e.baseFat ?? null,
         createdAt: new Date().toISOString(),
       }));
       setData((p) => ({
@@ -126,6 +132,14 @@ export function useToday(date: string, initial: TodayPayload) {
                 fat: entry.fat,
                 source: entry.source,
                 photoUrl: entry.photoUrl,
+                // Deshacer conserva la base inmutable (F06): la entrada restaurada
+                // sigue siendo escalable.
+                grams: entry.grams,
+                baseG: entry.baseG,
+                baseKcal: entry.baseKcal,
+                baseProt: entry.baseProt,
+                baseCarb: entry.baseCarb,
+                baseFat: entry.baseFat,
               },
             ]);
           },

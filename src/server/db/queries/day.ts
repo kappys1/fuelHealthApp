@@ -14,6 +14,14 @@ export interface EntryDTO {
   fat: number;
   source: string;
   photoUrl: string | null;
+  // Gramos como dato de primera clase (F06): cantidad actual + base inmutable.
+  // baseG null = entrada fija (sin stepper de cantidad en el editor).
+  grams: number | null;
+  baseG: number | null;
+  baseKcal: number | null;
+  baseProt: number | null;
+  baseCarb: number | null;
+  baseFat: number | null;
   createdAt: string;
 }
 
@@ -146,6 +154,12 @@ export async function getDayView(date: string): Promise<DayView> {
     fat: r.fat,
     source: r.source,
     photoUrl: r.photoUrl,
+    grams: r.grams,
+    baseG: r.baseG,
+    baseKcal: r.baseKcal,
+    baseProt: r.baseProt,
+    baseCarb: r.baseCarb,
+    baseFat: r.baseFat,
     createdAt:
       r.createdAt instanceof Date ? r.createdAt.toISOString() : String(r.createdAt),
   }));

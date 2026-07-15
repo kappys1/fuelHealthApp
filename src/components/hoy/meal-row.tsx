@@ -21,6 +21,7 @@ import {
   type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
+  scaledForStore,
 } from "@/lib/macros";
 import { cn } from "@/lib/utils";
 import type { EntryDTO } from "@/server/db/queries/day";
@@ -41,6 +42,7 @@ export function MealRow({
     prot: number;
     carb: number;
     fat: number;
+    grams?: number | null;
   }) => void;
   onDelete: (entry: EntryDTO) => void;
   onToggleFav: (entry: EntryDTO) => void;
@@ -100,7 +102,12 @@ export function MealRow({
         onClick={() => setEditing(true)}
         className="min-w-0 flex-1 text-left"
       >
-        <div className="truncate text-[14px] text-foreground">{entry.name}</div>
+        <div className="truncate text-[14px] text-foreground">
+          {entry.name}
+          {entry.grams != null ? (
+            <span className="text-muted-foreground"> · {entry.grams} g</span>
+          ) : null}
+        </div>
         <div className="num text-[12px] text-muted-foreground">
           {entry.kcal} kcal · {displayMacro(entry.prot)}P/{displayMacro(entry.carb)}C/
           {displayMacro(entry.fat)}F
@@ -133,6 +140,7 @@ function EditForm({
     prot: number;
     carb: number;
     fat: number;
+    grams?: number | null;
   }) => void;
 }) {
   const [name, setName] = useState(entry.name);
@@ -142,7 +150,35 @@ function EditForm({
   const [carb, setCarb] = useState(String(entry.carb));
   const [fat, setFat] = useState(String(entry.fat));
 
+  // Escalable (F06): la entrada tiene base inmutable → aparece el stepper de
+  // cantidad, que reescala kcal/macros SIEMPRE desde base* (nunca desde lo mostrado).
+  const scalable =
+    entry.baseG != null &&
+    entry.baseKcal != null &&
+    entry.baseProt != null &&
+    entry.baseCarb != null &&
+    entry.baseFat != null;
+  const [grams, setGrams] = useState(String(entry.grams ?? entry.baseG ?? ""));
+
   const n = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
+
+  // Cambiar la cantidad reescala desde la base inmutable y pisa cualquier override
+  // manual de macros (los gramos mandan — AC3). Nunca reescala sobre lo ya mostrado.
+  const onGrams = (v: string) => {
+    setGrams(v);
+    if (!scalable) return;
+    const base = {
+      kcal: entry.baseKcal as number,
+      prot: entry.baseProt as number,
+      carb: entry.baseCarb as number,
+      fat: entry.baseFat as number,
+    };
+    const s = scaledForStore(base, n(v), entry.baseG);
+    setKcal(String(s.kcal));
+    setProt(String(s.prot));
+    setCarb(String(s.carb));
+    setFat(String(s.fat));
+  };
 
   return (
     <div className="space-y-2 border-b border-dashed border-line py-3 last:border-b-0">
@@ -166,6 +202,20 @@ function EditForm({
           </SelectContent>
         </Select>
       </div>
+      {scalable ? (
+        <label className="block">
+          <span className="mb-1 block text-[12px] text-muted-foreground">
+            Cantidad
+          </span>
+          <Stepper
+            value={grams}
+            onChange={onGrams}
+            step={10}
+            suffix="g"
+            ariaLabel="Cantidad en gramos"
+          />
+        </label>
+      ) : null}
       <div className="grid grid-cols-2 gap-2">
         <LabeledStepper label="kcal" value={kcal} onChange={setKcal} step={10} />
         <LabeledStepper label="Prot" value={prot} onChange={setProt} step={1} />
@@ -190,6 +240,7 @@ function EditForm({
               prot: n(prot),
               carb: n(carb),
               fat: n(fat),
+              ...(scalable ? { grams: Math.round(n(grams)) } : {}),
             })
           }
           className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"

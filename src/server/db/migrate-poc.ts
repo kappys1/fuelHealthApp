@@ -8,6 +8,7 @@ import { neon } from "@neondatabase/serverless";
 import { and, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { z } from "zod";
+import { backfillEntryGrams } from "../../lib/macros";
 import * as schema from "./schema";
 
 /*
@@ -288,16 +289,32 @@ async function main() {
           Number.isFinite(idNum) && idNum > 1e12
             ? new Date(Math.floor(idNum))
             : new Date(`${d}T12:00:00Z`);
+        // Backfill de gramos (F06): si el nombre lleva "· NN g|ml" la entrada nace
+        // escalable (base = sus macros); si no, queda fija (base null) sin perder
+        // macros. Nombre limpio para no duplicar el sufijo con el pintado desde grams.
+        const bf = backfillEntryGrams({
+          name: m.name,
+          kcal: Math.round(m.kcal),
+          prot: m.prot,
+          carb: m.carb,
+          fat: m.fat,
+        });
         return {
           date: d,
           meal: asMeal(m.meal),
-          name: m.name,
+          name: bf.name,
           kcal: Math.round(m.kcal),
           prot: m.prot,
           carb: m.carb,
           fat: m.fat,
           source: asSource(m.src),
           photoUrl: null,
+          grams: bf.grams,
+          baseG: bf.baseG,
+          baseKcal: bf.baseKcal,
+          baseProt: bf.baseProt,
+          baseCarb: bf.baseCarb,
+          baseFat: bf.baseFat,
           createdAt: Number.isFinite(idNum)
             ? createdAt
             : new Date(`${d}T12:00:${String(i).padStart(2, "0")}Z`),

@@ -69,6 +69,109 @@ export function formatMacros(m: Macros): string {
   return `${displayMacro(m.prot)}P/${displayMacro(m.carb)}C/${displayMacro(m.fat)}F`;
 }
 
+// ── Gramos como dato de primera clase (F06) ──
+/*
+  Persistencia de la BASE inmutable + cantidad actual de una entrada del día
+  (meal_entries). Regla (03-DATOS §3 / spec F06): todo reescalado se calcula
+  SIEMPRE desde la base con scaleMacros(base, grams, baseG); NUNCA sobre valores
+  ya reescalados → sin deriva de redondeo al editar la cantidad ida y vuelta.
+  baseG null = entrada fija (sin escalado): "4 huevos", café, backfill no parseable.
+*/
+
+/** Campos de base+cantidad que persiste una entrada (todos null = entrada fija). */
+export interface EntryBaseFields {
+  grams: number | null;
+  baseG: number | null;
+  baseKcal: number | null;
+  baseProt: number | null;
+  baseCarb: number | null;
+  baseFat: number | null;
+}
+
+/**
+ * Construye los campos de base+cantidad para PERSISTIR una entrada escalable.
+ * `base` son las macros a `baseG` (la referencia inmutable); `grams` la cantidad
+ * actual. baseG null/0 → entrada fija (todos los campos null, sin stepper).
+ */
+export function entryBaseFields(
+  base: Macros,
+  grams: number,
+  baseG: number | null | undefined,
+): EntryBaseFields {
+  if (baseG == null || baseG === 0) {
+    return {
+      grams: null,
+      baseG: null,
+      baseKcal: null,
+      baseProt: null,
+      baseCarb: null,
+      baseFat: null,
+    };
+  }
+  return {
+    grams: Math.round(grams),
+    baseG: Math.round(baseG),
+    baseKcal: roundKcal(base.kcal),
+    baseProt: roundMacroStore(base.prot),
+    baseCarb: roundMacroStore(base.carb),
+    baseFat: roundMacroStore(base.fat),
+  };
+}
+
+/**
+ * Parser conservador del sufijo de cantidad al FINAL del nombre: "· NN g" /
+ * "· NN ml" (también "gr"/"gramos"). Devuelve la cantidad y el nombre sin sufijo,
+ * o null si no hay un patrón claro (ante duda, la entrada queda fija — nunca se
+ * inventa una base). No matchea si el nombre quedaría vacío al quitar el sufijo.
+ */
+export function parseGramsSuffix(
+  name: string,
+): { grams: number; cleanName: string } | null {
+  const m = name.match(/\s*·\s*(\d+(?:[.,]\d+)?)\s*(?:g|gr|gramos|ml)\.?\s*$/i);
+  if (!m || m.index === undefined || m[1] === undefined) return null;
+  const grams = Math.round(Number(m[1].replace(",", ".")));
+  if (!Number.isFinite(grams) || grams <= 0) return null;
+  const cleanName = name.slice(0, m.index).trim();
+  if (cleanName === "") return null;
+  return { grams, cleanName };
+}
+
+/**
+ * Backfill de una entrada existente: si su nombre lleva "· NN g|ml", la convierte
+ * en escalable (grams = baseG = NN, base = sus macros actuales) y limpia el sufijo
+ * del nombre. Si no hay patrón claro, queda fija (base null) conservando el nombre
+ * y las macros intactas. Función pura: la usan migrate:poc y el script de backfill.
+ */
+export function backfillEntryGrams(entry: {
+  name: string;
+  kcal: number;
+  prot: number;
+  carb: number;
+  fat: number;
+}): { name: string } & EntryBaseFields {
+  const parsed = parseGramsSuffix(entry.name);
+  if (!parsed) {
+    return {
+      name: entry.name,
+      grams: null,
+      baseG: null,
+      baseKcal: null,
+      baseProt: null,
+      baseCarb: null,
+      baseFat: null,
+    };
+  }
+  return {
+    name: parsed.cleanName,
+    grams: parsed.grams,
+    baseG: parsed.grams,
+    baseKcal: roundKcal(entry.kcal),
+    baseProt: roundMacroStore(entry.prot),
+    baseCarb: roundMacroStore(entry.carb),
+    baseFat: roundMacroStore(entry.fat),
+  };
+}
+
 // ── Etiquetas y órdenes fijos (03-DATOS §2) ──
 export const MEAL_ORDER = [
   "almuerzo",

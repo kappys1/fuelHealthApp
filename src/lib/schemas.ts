@@ -32,6 +32,13 @@ export const newEntryZ = z.object({
   // Ruta autenticada propia (/api/photos/view?p=…), no una URL absoluta pública:
   // la store de fotos es privada y se sirve con sesión (02 §3.2).
   photoUrl: z.string().min(1).max(600).nullable().optional(),
+  // Gramos como dato de primera clase (F06): base inmutable + cantidad al crear.
+  grams: z.number().int().min(0).max(20000).nullable().optional(),
+  baseG: z.number().int().min(0).max(20000).nullable().optional(),
+  baseKcal: z.number().int().min(0).max(20000).nullable().optional(),
+  baseProt: z.number().min(0).max(2000).nullable().optional(),
+  baseCarb: z.number().min(0).max(2000).nullable().optional(),
+  baseFat: z.number().min(0).max(2000).nullable().optional(),
 });
 
 // MED (F5.1): fecha + grasa/músculo/peso en kg. Cada campo opcional (una MED

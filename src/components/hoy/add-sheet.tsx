@@ -31,6 +31,7 @@ import { processImage, type ProcessedImage } from "@/lib/image";
 import { useOnline } from "@/lib/use-online";
 import {
   displayMacro,
+  entryBaseFields,
   type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
@@ -53,12 +54,6 @@ interface Corpus {
 }
 
 type Layer = "home" | "plan" | "photo" | "describe";
-
-/** Normaliza la comida devuelta por la IA a un MealKey válido (fallback extra). */
-function normalizeMeal(raw: string): MealKey {
-  const m = raw.toLowerCase().trim();
-  return (MEAL_ORDER as readonly string[]).includes(m) ? (m as MealKey) : "extra";
-}
 
 export function AddSheet({
   open,
@@ -227,7 +222,7 @@ export function AddSheet({
         ) : layer === "photo" ? (
           <PhotoLayer meal={meal} date={date} onCommit={commit} initialFile={initialFile} />
         ) : (
-          <DescribeLayer date={date} onCommit={commit} />
+          <DescribeLayer meal={meal} date={date} onCommit={commit} />
         )}
       </SheetContent>
     </Sheet>
@@ -478,7 +473,16 @@ function ScalableResult({
         <button
           type="button"
           onClick={() =>
-            onAdd([{ meal, name: `${row.name} · ${grams} g`, ...scaled, source: "plan" }])
+            onAdd([
+              {
+                meal,
+                // Nombre limpio: la cantidad se pinta desde grams (F06), no pegada.
+                name: row.name,
+                ...scaled,
+                source: "plan",
+                ...entryBaseFields(row, grams, row.baseG),
+              },
+            ])
           }
           className="ml-auto shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
         >
@@ -558,12 +562,14 @@ function PlanOptionRow({
             onAdd([
               {
                 meal,
-                name: fixed ? option.name : `${option.name} · ${grams} g`,
+                // Nombre limpio: la cantidad se pinta desde grams (F06), no pegada.
+                name: option.name,
                 kcal: fixed ? option.kcal : scaled.kcal,
                 prot: fixed ? option.prot : scaled.prot,
                 carb: fixed ? option.carb : scaled.carb,
                 fat: fixed ? option.fat : scaled.fat,
                 source: "plan",
+                ...entryBaseFields(option, grams, option.baseG),
               },
             ])
           }
@@ -678,13 +684,20 @@ function PhotoLayer({
 
   const entryFromRow = (r: (typeof rows)[number], photoUrl: string | null): EntryInput => ({
     meal,
-    name: r.grams > 0 ? `${r.it.nombre} · ${r.grams} g` : r.it.nombre,
+    // Nombre limpio: la cantidad se pinta desde grams (F06), no pegada al nombre.
+    name: r.it.nombre,
     kcal: roundKcal(r.macros.kcal),
     prot: roundMacroStore(r.macros.prot),
     carb: roundMacroStore(r.macros.carb),
     fat: roundMacroStore(r.macros.fat),
     source: "foto",
     photoUrl,
+    // Base inmutable de la IA (macros a `gramos`) → editable con stepper luego.
+    ...entryBaseFields(
+      { kcal: r.it.base.kcal, prot: r.it.base.prot, carb: r.it.base.carb, fat: r.it.base.fat },
+      r.grams,
+      r.it.base.gramos || null,
+    ),
   });
 
   const reset = () => {
@@ -881,20 +894,29 @@ function PhotoItemRow({
 }
 
 // ── Capa Describir (F-IA-4: una comida o el día entero) ──
+// F06 Fase 2: a la altura de la foto — items editables con stepper de gramos
+// (cuando la IA da cantidad) y añadir por separado / como una.
+
+interface DumpItemState {
+  nombre: string;
+  base: { gramos: number; kcal: number; prot: number; carb: number; fat: number };
+  grams: string; // string controlado: no se desmonta al vaciarlo
+}
 
 function DescribeLayer({
+  meal,
   date,
   onCommit,
 }: {
+  meal: MealKey;
   date: string;
   onCommit: (e: EntryInput[]) => void;
 }) {
   const online = useOnline();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [items, setItems] = useState<
-    { meal: MealKey; name: string; kcal: number; prot: number; carb: number; fat: number }[]
-  >([]);
+  const [analyzed, setAnalyzed] = useState(false);
+  const [items, setItems] = useState<DumpItemState[]>([]);
 
   const analyze = async () => {
     if (!text.trim()) return;
@@ -903,14 +925,20 @@ function DescribeLayer({
       const r = await api.dayDump(text.trim(), date);
       setItems(
         r.items.map((it) => ({
-          meal: normalizeMeal(it.comida),
-          name: it.nombre,
-          kcal: roundKcal(it.kcal),
-          prot: roundMacroStore(it.proteina_g),
-          carb: roundMacroStore(it.carbohidratos_g),
-          fat: roundMacroStore(it.grasa_g),
+          // La comida que asigna la IA (it.comida) se IGNORA: manda el selector de
+          // arriba (paridad con la foto). Alex la fijaba a mano cada vez si no.
+          nombre: it.nombre,
+          base: {
+            gramos: it.gramos ?? 0,
+            kcal: it.kcal,
+            prot: it.proteina_g,
+            carb: it.carbohidratos_g,
+            fat: it.grasa_g,
+          },
+          grams: it.gramos != null ? String(it.gramos) : "",
         })),
       );
+      setAnalyzed(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo interpretar.");
     } finally {
@@ -918,7 +946,56 @@ function DescribeLayer({
     }
   };
 
-  const totalKcal = items.reduce((a, it) => a + it.kcal, 0);
+  // Recálculo proporcional en vivo (factor = g/baseG), SIN llamar a la IA. Igual
+  // que la foto: reescala SIEMPRE desde la base inmutable que devolvió la IA.
+  const rows = items.map((it) => {
+    const grams = it.grams === "" ? 0 : Number(it.grams.replace(",", "."));
+    return {
+      it,
+      grams,
+      macros: scaleMacros(it.base, grams, it.base.gramos || null),
+    };
+  });
+  const total = sumMacros(rows.map((r) => r.macros));
+
+  const entryFromRow = (r: (typeof rows)[number]): EntryInput => ({
+    meal,
+    name: r.it.nombre,
+    kcal: roundKcal(r.macros.kcal),
+    prot: roundMacroStore(r.macros.prot),
+    carb: roundMacroStore(r.macros.carb),
+    fat: roundMacroStore(r.macros.fat),
+    source: "ia",
+    ...entryBaseFields(
+      { kcal: r.it.base.kcal, prot: r.it.base.prot, carb: r.it.base.carb, fat: r.it.base.fat },
+      r.grams,
+      r.it.base.gramos || null,
+    ),
+  });
+
+  const add = (mode: "separado" | "junto") => {
+    if (rows.length === 0) return;
+    const entries: EntryInput[] =
+      mode === "separado"
+        ? rows.map(entryFromRow)
+        : [
+            {
+              // "Como una" cae en la comida seleccionada arriba (los items pueden
+              // abarcar varias comidas; la combinada es una entrada fija, sin base).
+              meal,
+              name: rows.map((r) => r.it.nombre).join(" + "),
+              kcal: roundKcal(total.kcal),
+              prot: roundMacroStore(total.prot),
+              carb: roundMacroStore(total.carb),
+              fat: roundMacroStore(total.fat),
+              source: "ia",
+            },
+          ];
+    onCommit(entries);
+    setText("");
+    setItems([]);
+    setAnalyzed(false);
+  };
 
   return (
     <div className="space-y-3 px-4 py-3">
@@ -942,10 +1019,12 @@ function DescribeLayer({
       >
         {busy ? (
           <Loader2 className="size-4 animate-spin" aria-hidden />
+        ) : analyzed ? (
+          <RefreshCw className="size-4" aria-hidden />
         ) : (
           <Sparkles className="size-4" aria-hidden />
         )}
-        {busy ? "Interpretando…" : "Interpretar con IA"}
+        {busy ? "Interpretando…" : analyzed ? "Reinterpretar" : "Interpretar con IA"}
       </button>
       {!online ? (
         <p className="text-[12px] text-muted-foreground">
@@ -954,33 +1033,74 @@ function DescribeLayer({
         </p>
       ) : null}
 
-      {items.length > 0 ? (
-        <div className="space-y-2">
-          {items.map((it, i) => (
-            <div key={i} className="rounded-lg border border-line px-2.5 py-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="min-w-0 flex-1 truncate text-[14px]">{it.name}</span>
-                <span className="num shrink-0 text-[12px] text-muted-foreground">
-                  {it.kcal} kcal
-                </span>
-              </div>
-              <div className="num text-[12px] text-muted-foreground">
-                {MEAL_LABELS[it.meal]} · {displayMacro(it.prot)}P/{displayMacro(it.carb)}C/
-                {displayMacro(it.fat)}F
-              </div>
+      {rows.length > 0 ? (
+        <div className="space-y-3">
+          <div className="space-y-2">
+            {rows.map((row, i) => (
+              <DumpItemRow
+                key={i}
+                item={row.it}
+                scaled={row.macros}
+                onGrams={(v) =>
+                  setItems((prev) =>
+                    prev.map((p, j) => (j === i ? { ...p, grams: v } : p)),
+                  )
+                }
+              />
+            ))}
+          </div>
+
+          <div className="rounded-lg bg-surface-2 px-3 py-2">
+            <div className="num text-[14px] font-semibold text-foreground">
+              Total: {roundKcal(total.kcal)} kcal · {displayMacro(total.prot)}P/
+              {displayMacro(total.carb)}C/{displayMacro(total.fat)}F
             </div>
-          ))}
-          <button
-            type="button"
-            onClick={() =>
-              onCommit(items.map((it) => ({ ...it, source: "ia" })))
-            }
-            className="w-full rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground"
-          >
-            Añadir todo ({totalKcal.toLocaleString("es-ES")} kcal)
-          </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => add("separado")}
+              className="rounded-lg border border-line bg-surface-2 py-2.5 text-[14px] font-medium"
+            >
+              Añadir por separado
+            </button>
+            <button
+              type="button"
+              onClick={() => add("junto")}
+              className="rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground"
+            >
+              Añadir como una
+            </button>
+          </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function DumpItemRow({
+  item,
+  scaled,
+  onGrams,
+}: {
+  item: DumpItemState;
+  scaled: { kcal: number; prot: number; carb: number; fat: number };
+  onGrams: (v: string) => void;
+}) {
+  const hasGrams = item.base.gramos > 0;
+  return (
+    <div className="rounded-lg border border-line px-2.5 py-2">
+      <div className="text-[14px]">{item.nombre}</div>
+      <div className="mt-1.5 flex items-center gap-2">
+        {hasGrams ? (
+          <Stepper value={item.grams} onChange={onGrams} step={10} suffix="g" ariaLabel="Gramos" />
+        ) : null}
+        <span className="num ml-auto text-[12px] text-muted-foreground">
+          {roundKcal(scaled.kcal)} kcal · {displayMacro(scaled.prot)}P/
+          {displayMacro(scaled.carb)}C/{displayMacro(scaled.fat)}F
+        </span>
+      </div>
     </div>
   );
 }
