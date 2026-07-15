@@ -3,7 +3,6 @@
 import { Activity, CalendarDays, MessageCircle, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
 import { useKeyboardOpen } from "@/lib/use-keyboard-open";
 
 // 4 pestañas (09-FLUJOS-UX §2). Ajustes NO es pestaña: va en el header.
@@ -21,13 +20,13 @@ const TABS = [
  */
 export function BottomNav() {
   const pathname = usePathname();
-  // Con el teclado abierto la nav fija flotaría sobre él (viewport encogido por
-  // `resizes-content`). La deslizamos fuera y marcamos el body para que el `main`
-  // suelte el hueco reservado a la nav → el composer queda pegado al teclado.
+  // Con `interactiveWidget: "resizes-content"` el teclado encoge el viewport, y un
+  // `fixed; bottom:0` queda flotando justo encima del teclado (no pegado al borde
+  // de la pantalla). Por eso, en cuanto hay teclado, deslizamos la nav fuera —en
+  // CUALQUIER pantalla con input inline (Chat, buscador/edición de Plan…), no solo
+  // el Chat. La detección (`useKeyboardOpen`) es por viewport, así que no se queda
+  // atascada aunque iOS cierre el teclado con "Done" sin soltar el foco.
   const kbOpen = useKeyboardOpen();
-  useEffect(() => {
-    document.body.classList.toggle("kb-open", kbOpen);
-  }, [kbOpen]);
 
   return (
     <nav
