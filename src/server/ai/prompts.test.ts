@@ -20,6 +20,7 @@ import {
 import {
   athleteContext,
   athleteContextCompact,
+  chatSummaryPrompt,
   chatSystemPrompt,
   coachPrompt,
   prepareVisitPrompt,
@@ -421,5 +422,36 @@ describe("coach: datos juzgados en servidor + tono (regresión 14-jul, DECISIONS
     expect(p).toContain("no inventes alimentos");
     // (4) el marco que causaba la «bronca» YA NO está
     expect(p).not.toContain("en qué falló respecto a objetivos");
+  });
+});
+
+describe("chat: persona directa + resumen con hechos literales (DECISIONS #54)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+
+  it("el system prompt lleva la persona (analista directo) y el tope de brevedad", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("analista de rendimiento");
+    expect(p).toContain("Sé BREVE");
+  });
+
+  it("cuadrar el día con SU pauta es su trabajo (el «consúltalo» NO sobre-dispara)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("ayudarle a cuadrar el día con SU pauta");
+    expect(p).toContain("igual que hace el coach");
+    // el deferral al nutri se reserva; NO para «¿qué meriendo con lo que me queda?»
+    expect(p).toContain("NUNCA para «¿qué meriendo con lo que me queda?»");
+  });
+
+  it("el prompt de resumen exige la lista LITERAL de hechos de Alex", () => {
+    const s = chatSummaryPrompt("Atleta: no tomo lactosa\nAsistente: anotado");
+    expect(s).toContain("Hechos y decisiones de Alex:");
+    expect(s).toContain("sin reformular ni omitir");
   });
 });

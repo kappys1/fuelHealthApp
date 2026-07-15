@@ -108,10 +108,12 @@ export async function POST(request: Request) {
         .map((m) => `${m.role === "user" ? "Atleta" : "Asistente"}: ${m.content}`)
         .join("\n");
       priorSummary = await runText({
-        kind: "coach",
+        // El resumen lo hace el MODELO DEL CHAT (el bueno), no Flash: preserva
+        // mejor los hechos literales de Alex (menos «tengo que repetírselo»).
+        kind: "chat",
         task: "coach",
         prompt: chatSummaryPrompt(transcript),
-        maxOutputTokens: 300,
+        maxOutputTokens: 600,
       });
       summaryCovers = prior.length;
       unsummarized = [];
@@ -146,15 +148,17 @@ export async function POST(request: Request) {
   // 3) Streaming de la respuesta + persistencia al terminar.
   try {
     const result = streamText({
-      model: resolveModel("coach"),
+      // Modelo propio del chat (AI_MODEL_CHAT), más capaz que el del coach.
+      model: resolveModel("chat"),
       system,
       messages: modelMessages,
       temperature: 0.3,
-      // thinking "medium": respuestas mejor razonadas sobre tus datos. Presupuesto
-      // amplio para que quepan thinking + texto sin truncar (los tokens de thinking
-      // cuentan aquí, DECISIONS #48).
+      // thinking "medium": respuestas mejor razonadas sobre tus datos. Techo más
+      // bajo que antes (4096→2048): la brevedad la fija el prompt (persona + tope
+      // de palabras); maxOutputTokens solo evita respuestas desbocadas. Deja hueco
+      // a thinking + texto (los tokens de thinking cuentan aquí, DECISIONS #48).
       providerOptions: { google: { thinkingConfig: { thinkingLevel: "medium" } } },
-      maxOutputTokens: 4096,
+      maxOutputTokens: 2048,
       onFinish: async ({ text }) => {
         if (!text.trim()) return;
         try {

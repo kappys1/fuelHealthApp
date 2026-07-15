@@ -105,6 +105,11 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   Calculadora doble (% sobre última **y** récord), buscador en vivo en Plan·Entrenos, familia
   opcional (migración **0005 aditiva, pendiente de aplicar a la BD**) y Historial con marcas
   recientes + «ver todas →». AC de flujo (🖐 1, 2, 4) pendientes de validación con el pulgar.
+- 💡 **Registrar en el día los eventos que cuentas en el chat** (idea Alex, 15-jul — a refinar con el
+  product-partner): cuando le dices algo al Chat que cambia el día («hoy no entreno, me han puesto
+  implantes», «hoy ando solo»), esa info **muere en el hilo**: el Coach de mañana no la conoce. Debería
+  poder capturarse en el día (nota / sesión = Descanso / fase) desde el propio chat, para que el
+  contexto del Coach y de la Tendencia la recojan. Caso real del 15-jul (implantes → sin entreno).
 - _(añadir aquí las que surjan)_
 
 ---
