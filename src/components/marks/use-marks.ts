@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client-api";
@@ -11,6 +12,13 @@ import type { MarkDTO, MarkEntryDTO } from "@/server/db/queries/marks";
   carril del Historial. La BD es la fuente de verdad, pero mutamos local para
   respuesta instantánea (07 §2): editar = optimista; borrar entrada = optimista con
   undo; borrar marca = confirmación (en el sheet) + optimista con revert si falla.
+
+  Plan y Progreso son rutas distintas con estados useMarks INDEPENDIENTES. Cada
+  mutación confirmada llama a router.refresh() para invalidar el Router Cache (mismo
+  patrón que plan-client con las opciones de dieta, DECISIONS #69): sin él, crear una
+  marca en Plan no aparecía en Progreso·Historial (RSC cacheado) hasta recargar la
+  app, y borrarla en Historial la dejaba viva en Plan. La pantalla actual ya está al
+  día por el estado optimista; el refresh sincroniza la OTRA ruta al navegar.
 */
 type Entry = { value: number; recordedOn: string; note: string | null };
 
@@ -18,6 +26,7 @@ const byName = (a: MarkDTO, b: MarkDTO) =>
   a.name.localeCompare(b.name, "es") || a.id - b.id;
 
 export function useMarks(initialMarks: MarkDTO[]) {
+  const router = useRouter();
   const [marks, setMarks] = useState<MarkDTO[]>(initialMarks);
 
   const createMark = async (
@@ -37,6 +46,7 @@ export function useMarks(initialMarks: MarkDTO[]) {
         { id, ...mark, family: mark.family ?? null, entries: [created] },
       ].sort(byName),
     );
+    router.refresh();
   };
 
   const addEntry = async (markId: number, entry: Entry) => {
@@ -46,6 +56,7 @@ export function useMarks(initialMarks: MarkDTO[]) {
         m.id === markId ? { ...m, entries: [...m.entries, created] } : m,
       ),
     );
+    router.refresh();
   };
 
   const updateEntry = async (markId: number, entryId: number, patch: Entry) => {
@@ -65,6 +76,7 @@ export function useMarks(initialMarks: MarkDTO[]) {
     );
     try {
       await api.updateMarkEntry(entryId, patch);
+      router.refresh();
     } catch (err) {
       setMarks(snapshot); // revert
       throw err;
@@ -100,6 +112,7 @@ export function useMarks(initialMarks: MarkDTO[]) {
               : m,
           ),
         );
+        router.refresh();
       })
       .catch((err) => {
         setMarks((prev) =>
@@ -125,10 +138,13 @@ export function useMarks(initialMarks: MarkDTO[]) {
           : m,
       ),
     );
-    api.deleteMarkEntry(entry.id).catch((err) => {
-      setMarks(snapshot);
-      toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
-    });
+    api
+      .deleteMarkEntry(entry.id)
+      .then(() => router.refresh())
+      .catch((err) => {
+        setMarks(snapshot);
+        toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
+      });
   };
 
   const deleteMark = async (markId: number) => {
@@ -136,6 +152,7 @@ export function useMarks(initialMarks: MarkDTO[]) {
     setMarks((prev) => prev.filter((m) => m.id !== markId));
     try {
       await api.deleteMark(markId);
+      router.refresh();
     } catch (err) {
       setMarks(snapshot); // revert
       throw err;
