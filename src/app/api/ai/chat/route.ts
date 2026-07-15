@@ -153,12 +153,21 @@ export async function POST(request: Request) {
       system,
       messages: modelMessages,
       temperature: 0.3,
-      // thinking "medium": respuestas mejor razonadas sobre tus datos. Techo más
-      // bajo que antes (4096→2048): la brevedad la fija el prompt (persona + tope
-      // de palabras); maxOutputTokens solo evita respuestas desbocadas. Deja hueco
-      // a thinking + texto (los tokens de thinking cuentan aquí, DECISIONS #48).
-      providerOptions: { google: { thinkingConfig: { thinkingLevel: "medium" } } },
-      maxOutputTokens: 2048,
+      // thinking "low" (antes "medium", DECISIONS #55): con Gemini 3.1 Pro,
+      // "medium" tardaba demasiado en soltar el primer byte y comía el
+      // presupuesto → el stream se cortaba en el móvil ("Load failed"). En Pro,
+      // "low" razona de sobra para un chat de datos y arranca mucho antes. Techo
+      // 4096 (antes 2048): hueco holgado para thinking + un menú largo sin truncar
+      // (los tokens de thinking cuentan aquí, DECISIONS #48); la brevedad la fija
+      // el prompt (persona + tope de palabras), no este número.
+      providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } },
+      maxOutputTokens: 4096,
+      // Error del stream VISIBLE en el log (no más "Load failed" mudo — principio
+      // "errores de IA siempre visibles"). El protocolo de texto plano no permite
+      // inyectarlo en la UI; surfacing en el chat = follow-up (DECISIONS #55).
+      onError: ({ error }) => {
+        console.error("[chat] stream error:", error);
+      },
       onFinish: async ({ text }) => {
         if (!text.trim()) return;
         try {
