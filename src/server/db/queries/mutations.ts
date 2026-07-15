@@ -46,6 +46,14 @@ export interface NewEntry {
   fat: number;
   source: string;
   photoUrl?: string | null;
+  // Gramos como dato de primera clase (F06): base inmutable + cantidad. Opcionales
+  // (entrada fija = todos null); se persisten al crear desde foto/plan.
+  grams?: number | null;
+  baseG?: number | null;
+  baseKcal?: number | null;
+  baseProt?: number | null;
+  baseCarb?: number | null;
+  baseFat?: number | null;
 }
 
 export async function addEntries(date: string, entries: NewEntry[]) {
@@ -64,6 +72,12 @@ export async function addEntries(date: string, entries: NewEntry[]) {
         fat: e.fat,
         source: e.source as SourceEnum,
         photoUrl: e.photoUrl ?? null,
+        grams: e.grams ?? null,
+        baseG: e.baseG ?? null,
+        baseKcal: e.baseKcal ?? null,
+        baseProt: e.baseProt ?? null,
+        baseCarb: e.baseCarb ?? null,
+        baseFat: e.baseFat ?? null,
       })),
     )
     .returning();
@@ -76,6 +90,9 @@ export interface EntryPatch {
   prot?: number;
   carb?: number;
   fat?: number;
+  // Cantidad editada en el editor de Hoy (F06): reescala kcal/macros desde la base
+  // inmutable. La base (baseG/base*) NO se parchea nunca (es inmutable por diseño).
+  grams?: number | null;
 }
 
 export async function updateEntry(id: number, patch: EntryPatch) {
@@ -113,6 +130,13 @@ export async function copyEntriesFrom(fromDate: string, toDate: string) {
       fat: e.fat,
       source: e.source,
       photoUrl: null, // no re-vinculamos la foto al copiar
+      // Conserva la base inmutable → las copias siguen siendo escalables (F06).
+      grams: e.grams,
+      baseG: e.baseG,
+      baseKcal: e.baseKcal,
+      baseProt: e.baseProt,
+      baseCarb: e.baseCarb,
+      baseFat: e.baseFat,
     })),
   );
 }

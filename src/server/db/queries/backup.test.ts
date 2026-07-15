@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import { mealEntryImportRow } from "./backup-map";
+
+/*
+  Round-trip export → restore de una entrada con base+cantidad (F06, AC6).
+  El export vuelca la fila tal cual (select *); el restore la reinserta vía
+  mealEntryImportRow. Aquí verificamos que los campos de base sobreviven el
+  round-trip sin pérdida, y que un export previo a F06 (sin esos campos) degrada
+  a entrada fija (base null) en vez de romper.
+*/
+describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
+  it("conserva grams + base inmutable de una entrada escalable", () => {
+    const exported = {
+      id: 42,
+      date: "2026-07-14",
+      meal: "comida",
+      name: "Arroz",
+      kcal: 312,
+      prot: 8,
+      carb: 64,
+      fat: 1.6,
+      source: "plan",
+      photoUrl: null,
+      grams: 240,
+      baseG: 150,
+      baseKcal: 195,
+      baseProt: 5,
+      baseCarb: 40,
+      baseFat: 1,
+      createdAt: "2026-07-14T12:00:00.000Z",
+    };
+    const row = mealEntryImportRow(exported);
+    expect(row.name).toBe("Arroz");
+    expect(row.grams).toBe(240);
+    expect(row.baseG).toBe(150);
+    expect(row.baseKcal).toBe(195);
+    expect(row.baseProt).toBe(5);
+    expect(row.baseCarb).toBe(40);
+    expect(row.baseFat).toBe(1);
+    // macros actuales intactas
+    expect(row.kcal).toBe(312);
+    expect(row.prot).toBe(8);
+  });
+
+  it("un export previo a F06 (sin campos base) degrada a entrada fija (null)", () => {
+    const legacy = {
+      date: "2026-06-01",
+      meal: "cena",
+      name: "Café con leche",
+      kcal: 70,
+      prot: 6.4,
+      carb: 9.5,
+      fat: 0.4,
+      source: "manual",
+      photoUrl: null,
+      createdAt: "2026-06-01T20:00:00.000Z",
+    };
+    const row = mealEntryImportRow(legacy);
+    expect(row.grams).toBeNull();
+    expect(row.baseG).toBeNull();
+    expect(row.baseKcal).toBeNull();
+    expect(row.kcal).toBe(70); // macros preservadas
+  });
+});

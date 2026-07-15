@@ -117,7 +117,7 @@ export function dayDumpPrompt(
   prot: number,
   contexto: string,
 ): string {
-  return `${contexto} Registro dictado de comidas de un día (plan de ${kcal} kcal, ${prot} g proteína). Texto del usuario: "${texto}". Trocéalo en items de comida. Para cada item asigna: comida ("almuerzo","comida","merienda","cena" o "extra" si no está claro), nombre corto, y estima kcal, proteína, hidratos y grasa con valores medios de tablas españolas (ante ambigüedad, la variante más común, de forma consistente). Responde SOLO con JSON válido, sin markdown: {"items":[{"comida":string,"nombre":string,"kcal":number,"proteina_g":number,"carbohidratos_g":number,"grasa_g":number}]}`;
+  return `${contexto} Registro dictado de comidas de un día (plan de ${kcal} kcal, ${prot} g proteína). Texto del usuario: "${texto}". Trocéalo en items de comida. Para cada item asigna: comida ("almuerzo","comida","merienda","cena" o "extra" si no está claro), nombre corto, gramos (la ración en gramos SOLO cuando sea razonable estimarla; si el item no tiene una cantidad estimable —p. ej. "un puñado de nueces", "una sopa"— devuelve gramos: null; NUNCA inventes una cifra por rellenar el campo), y estima kcal, proteína, hidratos y grasa con valores medios de tablas españolas (ante ambigüedad, la variante más común, de forma consistente). Responde SOLO con JSON válido, sin markdown: {"items":[{"comida":string,"nombre":string,"gramos":number|null,"proteina_g":number,"kcal":number,"carbohidratos_g":number,"grasa_g":number}]}`;
 }
 
 // ── F-IA-5 · Analizar sesión pegada (WOD) ──

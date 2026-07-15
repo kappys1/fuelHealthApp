@@ -105,6 +105,22 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   Calculadora doble (% sobre última **y** récord), buscador en vivo en Plan·Entrenos, familia
   opcional (migración **0005 aditiva, pendiente de aplicar a la BD**) y Historial con marcas
   recientes + «ver todas →». AC de flujo (🖐 1, 2, 4) pendientes de validación con el pulgar.
+- 📝 **Comer fuera / productos de marca en el Chat** (idea Alex, 15-jul) — **spec propuesta**:
+  [`docs/specs/features/05-busqueda-web-y-foto-chat.md`](./specs/features/05-busqueda-web-y-foto-chat.md).
+  «Hoy en La Tagliatella el Chat no pudo ayudarme con la carta.» Búsqueda web (grounding nativo
+  de Gemini) **solo en el Chat** —nunca en estimación (principio 2)— citando fuente, + foto en
+  el Chat (etiqueta/plato/carta) en Fase 2. Asesor, sin puente al registro (Q3).
+- ✅ **Gramos como dato de primera clase** (idea Alex, 15-jul) — **Fases 1 y 2 IMPLEMENTADAS**,
+  spec [`docs/specs/features/06-gramos-dato-primera-clase.md`](./specs/features/06-gramos-dato-primera-clase.md).
+  **Fase 1**: base inmutable en `meal_entries` (migración **0006** aditiva) + stepper de cantidad
+  en el editor de Hoy que reescala kcal/macros desde base + foto/plan/copiar-ayer persisten base +
+  export/restore/`migrate:poc` con los campos nuevos + backfill de los "· NN g/ml" viejos
+  (`pnpm backfill:grams`). **Fase 2**: `day-dump` con `gramos` nullable (prompt sincronizado a
+  `04-IA.md`) + Describir a la altura de la foto (items con stepper, «separado/como una»). AC de
+  flujo (🖐 1, 3, 4, 5, 8, 9, 10 y el 2 en su parte de pulgar) pendientes de validación en
+  producción, + re-validación en vivo de F-IA-4 y café ×3 (se tocó el prompt congelado).
+  **Deploy**: `pnpm db:migrate` (aplica 0005 pendiente + 0006) → `pnpm backfill:grams`; el modelo
+  de day-dump (`AI_MODEL_VISION`) ya está configurado.
 - 💡 **Registrar en el día los eventos que cuentas en el chat** (idea Alex, 15-jul — a refinar con el
   product-partner): cuando le dices algo al Chat que cambia el día («hoy no entreno, me han puesto
   implantes», «hoy ando solo»), esa info **muere en el hilo**: el Coach de mañana no la conoce. Debería

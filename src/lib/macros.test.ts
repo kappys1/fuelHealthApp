@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  backfillEntryGrams,
+  entryBaseFields,
   formatMacros,
+  parseGramsSuffix,
   scaleMacros,
   scaledForStore,
   sumMacros,
@@ -49,5 +52,106 @@ describe("sumMacros / formatMacros", () => {
   it("formatea macros en enteros compactos", () => {
     expect(formatMacros({ kcal: 231, prot: 46, carb: 0, fat: 5 })).toBe("46P/0C/5F");
     expect(formatMacros({ kcal: 130, prot: 3.3, carb: 26.6, fat: 0.6 })).toBe("3P/27C/1F");
+  });
+});
+
+describe("F06 · gramos como dato de primera clase — reescalado desde base", () => {
+  // Pan de merienda: base a 25 g (macros de la opción de plan).
+  const base = { kcal: 67, prot: 2.2, carb: 12.5, fat: 0.5 };
+  const baseG = 25;
+
+  it("AC2 · reescalar 25→40→25 devuelve EXACTAMENTE las macros originales (sin deriva)", () => {
+    const original = scaledForStore(base, 25, baseG);
+    const at40 = scaledForStore(base, 40, baseG);
+    // ida y vuelta: SIEMPRE desde la base inmutable, no desde at40
+    const backTo25 = scaledForStore(base, 25, baseG);
+    expect(at40).not.toEqual(original); // sí cambió al subir
+    expect(backTo25).toEqual(original); // vuelve exacto
+  });
+
+  it("AC3 · un override manual NO afecta al siguiente reescalado (los gramos mandan)", () => {
+    // El usuario reescala a 40 g…
+    const at40 = scaledForStore(base, 40, baseG);
+    // …luego pisa la proteína a mano (override en la UI). El reescalado siguiente
+    // parte de la BASE, no del valor mostrado con el override → lo pisa.
+    const overridden = { ...at40, prot: 999 };
+    const rescaledTo30 = scaledForStore(base, 30, baseG);
+    expect(rescaledTo30).toEqual(scaledForStore(base, 30, baseG));
+    expect(rescaledTo30.prot).not.toBe(overridden.prot);
+  });
+
+  it("entryBaseFields persiste base+cantidad; baseG null → entrada fija (todo null)", () => {
+    expect(entryBaseFields(base, 40, 25)).toEqual({
+      grams: 40,
+      baseG: 25,
+      baseKcal: 67,
+      baseProt: 2.2,
+      baseCarb: 12.5,
+      baseFat: 0.5,
+    });
+    expect(entryBaseFields(base, 40, null)).toEqual({
+      grams: null,
+      baseG: null,
+      baseKcal: null,
+      baseProt: null,
+      baseCarb: null,
+      baseFat: null,
+    });
+  });
+});
+
+describe("F06 · parseGramsSuffix (AC5) — parser conservador de «· NN g|ml»", () => {
+  it("parsea «g», «ml», «gr», «gramos» al final y limpia el sufijo", () => {
+    expect(parseGramsSuffix("Pan · 25 g")).toEqual({ grams: 25, cleanName: "Pan" });
+    expect(parseGramsSuffix("Arroz · 240 g")).toEqual({ grams: 240, cleanName: "Arroz" });
+    expect(parseGramsSuffix("Leche · 200 ml")).toEqual({ grams: 200, cleanName: "Leche" });
+    expect(parseGramsSuffix("Avena · 50gr")).toEqual({ grams: 50, cleanName: "Avena" });
+    expect(parseGramsSuffix("Pollo · 150 gramos")).toEqual({
+      grams: 150,
+      cleanName: "Pollo",
+    });
+  });
+
+  it("redondea gramos decimales", () => {
+    expect(parseGramsSuffix("Pan · 25,5 g")).toEqual({ grams: 26, cleanName: "Pan" });
+  });
+
+  it("es conservador: no matchea patrones ambiguos ni internos", () => {
+    expect(parseGramsSuffix("4 huevos")).toBeNull();
+    expect(parseGramsSuffix("Café con leche")).toBeNull();
+    expect(parseGramsSuffix("Barrita 30 g proteica")).toBeNull(); // no al final
+    expect(parseGramsSuffix("Batido 300 ml frío")).toBeNull(); // no al final
+    expect(parseGramsSuffix("· 25 g")).toBeNull(); // nombre quedaría vacío
+    expect(parseGramsSuffix("Zumo · 0 g")).toBeNull(); // cantidad no positiva
+  });
+});
+
+describe("F06 · backfillEntryGrams (AC5/AC7)", () => {
+  it("hace escalable una entrada «Pan · 25 g» sin perder macros y limpia el nombre", () => {
+    expect(
+      backfillEntryGrams({ name: "Pan · 25 g", kcal: 67, prot: 2.2, carb: 12.5, fat: 0.5 }),
+    ).toEqual({
+      name: "Pan",
+      grams: 25,
+      baseG: 25,
+      baseKcal: 67,
+      baseProt: 2.2,
+      baseCarb: 12.5,
+      baseFat: 0.5,
+    });
+  });
+
+  it("AC7 · entrada sin patrón claro queda fija (base null) conservando nombre y macros", () => {
+    expect(
+      backfillEntryGrams({ name: "Café con leche", kcal: 70, prot: 6.4, carb: 9.5, fat: 0.4 }),
+    ).toEqual({
+      name: "Café con leche",
+      grams: null,
+      baseG: null,
+      baseKcal: null,
+      baseProt: null,
+      baseCarb: null,
+      baseFat: null,
+    });
   });
 });

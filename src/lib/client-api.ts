@@ -49,6 +49,13 @@ export interface EntryInput {
   fat: number;
   source: string;
   photoUrl?: string | null;
+  // Gramos como dato de primera clase (F06): base inmutable + cantidad al crear.
+  grams?: number | null;
+  baseG?: number | null;
+  baseKcal?: number | null;
+  baseProt?: number | null;
+  baseCarb?: number | null;
+  baseFat?: number | null;
 }
 
 export const api = {

@@ -156,6 +156,16 @@ export const mealEntries = pgTable("meal_entries", {
   fat: real().notNull(),
   source: mealSourceEnum().notNull(),
   photoUrl: text("photo_url"),
+  // Gramos como dato de primera clase (F06): cantidad actual + base inmutable de
+  // referencia para reescalar macros/kcal (factor = grams / baseG). Todas nullable
+  // (aditivas): baseG null = entrada fija sin escalado ("4 huevos", café, backfill
+  // no parseable). El escalado SIEMPRE parte de base*, nunca de valores ya escalados.
+  grams: integer(),
+  baseG: integer("base_g"),
+  baseKcal: integer("base_kcal"),
+  baseProt: real("base_prot"),
+  baseCarb: real("base_carb"),
+  baseFat: real("base_fat"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

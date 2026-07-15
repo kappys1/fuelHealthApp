@@ -132,6 +132,31 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
     de su última entrada + «ver todas →» a `/plan?tab=entrenos` (patrón «ir al actual»); deja de
     intentar mostrar todas en la tira.
 
+### v1.6 · Gramos como dato de primera clase — Fase 1 (F06, sin IA)
+- **Base inmutable en `meal_entries`** (migración **0006** aditiva: `grams` + `base_g` +
+  `base_kcal/prot/carb/fat`, todas nullable): cada entrada guarda su referencia de escalado.
+- **Stepper de cantidad en el editor de Hoy** (`meal-row.tsx`): reescala kcal/macros **en vivo
+  desde la base inmutable** con `scaledForStore` (nunca sobre lo mostrado → sin deriva); se
+  oculta si la entrada es fija (`baseG` null). Un override manual de macro lo pisa el siguiente
+  cambio de cantidad (los gramos mandan). Mata el punto de dolor nº 1 (editar cantidad sin
+  borrar/rehacer).
+- **Foto, plan, resultado escalable y «copiar ayer» persisten base+cantidad** con **nombre
+  limpio** (la cantidad se pinta desde `grams`, no pegada al nombre).
+- **Backfill** de las entradas viejas «· NN g/ml» → escalables (`pnpm backfill:grams`,
+  idempotente; parser `parseGramsSuffix`/`backfillEntryGrams` puro y testeado); también dentro
+  de `migrate:poc`. Export/restore con round-trip completo de los campos nuevos.
+- Tests: reversibilidad 25→40→25 exacta (AC2), override pisado (AC3), parser (AC5), round-trip
+  export/restore (AC6), backfill/migrate (AC7).
+- **Fase 2 · Describir a la altura de la foto**: el schema de `day-dump` (`dayDumpItemZ`) añade
+  `gramos: number|null`; el **prompt congelado** de F-IA-4 pide estimar la ración solo cuando es
+  razonable y devolver `null` si no lo es (nunca inventa cifras) — sincronizado a `04-IA.md`. La
+  capa **Describir** (`add-sheet.tsx`) pasa a reusar el patrón de la foto: items con **stepper de
+  gramos** (cuando la IA dio cantidad, reescala desde la base que devolvió la IA), **«añadir por
+  separado / como una»**, y persisten base+cantidad → re-editables luego en el editor de Hoy.
+  Test del schema (AC9). **Re-validación del prompt hecha** (day-dump ×3 en producción,
+  DECISIONS #59: `temperature: 0` mantiene el determinismo, ruido ~6% aceptable); AC de flujo
+  8/9 validados con el pulgar de Alex.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

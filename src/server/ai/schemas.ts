@@ -49,6 +49,10 @@ export type PlanOptionAiResult = z.infer<typeof planOptionAiZ>;
 export const dayDumpItemZ = z.object({
   comida: z.string(),
   nombre: z.string(),
+  // Gramos como dato de primera clase (F06 Fase 2): la IA estima la ración cuando
+  // es razonable; si el item no tiene cantidad estimable ("un puñado", "sopa")
+  // devuelve null → el item queda fijo (sin stepper). NUNCA inventa una cifra.
+  gramos: num.nullable(),
   kcal: num,
   proteina_g: num,
   carbohidratos_g: num,
