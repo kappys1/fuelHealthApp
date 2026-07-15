@@ -19,33 +19,68 @@ function isTextEntry(el: EventTarget | null): boolean {
 }
 
 /**
- * `true` mientras un campo de texto tiene el foco (teclado en pantalla abierto).
- * Detección por foco (no por `visualViewport`): con `interactiveWidget:
- * "resizes-content"` el viewport se encoge y el truco de comparar alturas falla,
- * pero focusin/focusout es fiable. Sirve para retirar la nav inferior mientras se
- * escribe (que en iOS quedaría flotando sobre el teclado).
+ * `true` mientras el teclado en pantalla está realmente abierto sobre un campo
+ * de texto.
+ *
+ * Señal robusta = (hay un campo de texto enfocado) **Y** (el viewport se ha
+ * encogido respecto a su altura sin teclado). Con `interactiveWidget:
+ * "resizes-content"` el teclado encoge `visualViewport.height`; al cerrarlo el
+ * viewport vuelve a crecer y lo detectamos al instante.
+ *
+ * Por qué NO basta con `focusin`/`focusout`: en iOS puedes cerrar el teclado con
+ * el botón "Done"/swipe **sin quitar el foco** del input → no dispara `focusout`
+ * y la señal se quedaba pegada en `true` (la nav no volvía). El viewport, en
+ * cambio, sí crece de vuelta y no miente.
+ *
+ * El gate de foco evita falsos positivos de la barra de URL (que también encoge
+ * el viewport pero sin campo enfocado); la base se revisa al alza cuando no hay
+ * foco, absorbiendo barra de URL y chrome del navegador.
+ *
+ * Se usa para retirar la nav inferior mientras se escribe (en `resizes-content`
+ * un `fixed; bottom:0` flotaría sobre el teclado) y para anclar el composer del
+ * chat justo encima del teclado.
  */
 export function useKeyboardOpen(): boolean {
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    // Solo en dispositivos táctiles (móvil/tablet) el foco abre un teclado que
-    // tapa pantalla. En escritorio (ratón) no hay teclado en pantalla → no
-    // escondemos la nav al enfocar un input.
+    // Solo en dispositivos táctiles: en escritorio, enfocar un input no abre
+    // teclado en pantalla, así que nunca hay nada que esconder.
     if (!window.matchMedia("(pointer: coarse)").matches) return;
-    const onIn = (e: FocusEvent) => {
-      if (isTextEntry(e.target)) setOpen(true);
-    };
-    const onOut = (e: FocusEvent) => {
-      // Si el foco pasa a otro campo de texto, sigue abierto (evita parpadeo).
-      if (!isTextEntry((e as FocusEvent & { relatedTarget: EventTarget | null }).relatedTarget)) {
+
+    const vv = window.visualViewport;
+    const vh = () => vv?.height ?? window.innerHeight;
+    // Altura del viewport SIN teclado. Se mide al montar (teclado cerrado) y solo
+    // sube: así un valor transitorio a media animación de cierre no la corrompe.
+    let baseline = vh();
+    const focused = () => isTextEntry(document.activeElement);
+
+    const recompute = () => {
+      const h = vh();
+      if (!focused()) {
+        // Sin campo enfocado no puede haber teclado: la altura actual es "base".
+        baseline = Math.max(baseline, h);
         setOpen(false);
+        return;
       }
+      // Con foco: teclado abierto si el viewport se encogió de forma notable
+      // (umbral > barra de URL ~60-90px, < teclado ~250-350px).
+      setOpen(baseline - h > 120);
     };
-    document.addEventListener("focusin", onIn);
-    document.addEventListener("focusout", onOut);
+
+    const onFocusIn = (e: FocusEvent) => {
+      if (isTextEntry(e.target)) recompute();
+    };
+    // En `focusout`, `document.activeElement` aún no refleja el foco nuevo: un
+    // frame después ya está asentado (y evita parpadeo al saltar entre campos).
+    const onFocusOut = () => requestAnimationFrame(recompute);
+
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("focusout", onFocusOut);
+    vv?.addEventListener("resize", recompute);
     return () => {
-      document.removeEventListener("focusin", onIn);
-      document.removeEventListener("focusout", onOut);
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("focusout", onFocusOut);
+      vv?.removeEventListener("resize", recompute);
     };
   }, []);
   return open;
