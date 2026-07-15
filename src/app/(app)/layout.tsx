@@ -23,9 +23,11 @@ export default async function AppLayout({
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[560px] flex-col">
       {/* pt con safe-area: en PWA standalone (status bar translúcida) el contenido
-          fluye bajo el reloj/notch; sin esto el wordmark lo pisa. */}
+          fluye bajo el reloj/notch; sin esto el wordmark lo pisa.
+          `sticky top-0`: se queda arriba al scrollear el documento (más seguro en
+          iOS que `fixed`); bg para que el contenido no se transparente por detrás. */}
       <header
-        className="flex items-center justify-between border-b border-line px-4 pb-3"
+        className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-background px-4 pb-3"
         style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
       >
         <Link
