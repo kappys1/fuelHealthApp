@@ -3,7 +3,6 @@
 import { Sparkles } from "lucide-react";
 import {
   displayMacro,
-  isSpecialPhase,
   type MealKey,
   MEAL_LABELS,
   type PhaseKey,
@@ -11,6 +10,7 @@ import {
   roundKcal,
 } from "@/lib/macros";
 import { dayTotals, type EntryLike, subtotalsByMeal } from "@/server/analytics/dayTotals";
+import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import { cn } from "@/lib/utils";
 
 interface Targets {
@@ -44,20 +44,22 @@ export function FuelGauge({
 }) {
   const totals = dayTotals(entries);
   const subtotals = subtotalsByMeal(entries);
-  const special = isSpecialPhase(phase);
-  const competicion = phase === "competicion";
+  // Veredicto único (compartido con el coach): la UI y la IA juzgan el día con la
+  // MISMA lógica → no vuelven a contradecirse (bug de coherencia del 14-jul).
+  const v = gaugeVerdict(targets, totals, phase);
+  const special = v.phase !== "normal";
+  const competicion = v.phase === "competicion";
 
-  const consumed = roundKcal(totals.kcal);
-  const remaining = targets.kcal - consumed;
-  const over = remaining < 0;
+  const consumed = v.consumed;
+  const over = v.over;
 
   const rem = {
-    kcal: Math.max(0, remaining),
-    prot: Math.max(0, targets.prot - totals.prot),
-    carb: Math.max(0, targets.carb - totals.carb),
-    fat: Math.max(0, targets.fat - totals.fat),
+    kcal: v.kcalRemaining,
+    prot: v.prot.remaining,
+    carb: v.carb.remaining,
+    fat: v.fat.remaining,
   };
-  const allCovered = rem.kcal === 0 && rem.prot === 0 && rem.carb === 0 && rem.fat === 0;
+  const allCovered = v.covered;
 
   return (
     <section
@@ -95,7 +97,7 @@ export function FuelGauge({
                   special ? "text-primary" : "text-destructive",
                 )}
               >
-                +{(consumed - targets.kcal).toLocaleString("es-ES")} kcal
+                +{v.kcalOver.toLocaleString("es-ES")} kcal
               </span>
             ) : (
               <span className="num text-[15px] font-semibold text-foreground">
