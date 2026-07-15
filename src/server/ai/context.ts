@@ -251,22 +251,33 @@ export function trendJudgeLine(deficit: DeficitResult): string {
   return `Déficit real (báscula, media 7 d) — ESTE es el juez (principio 1): ~${num(deficit.deficitKcal ?? 0)} kcal/día (${kgStr}).`;
 }
 
-/** Dieta vigente para el chat (F-IA-8 §2): objetivos + resumen del plan por comidas. */
+/**
+ * Dieta vigente para el chat (F-IA-8 §2): objetivos + opciones del plan CON SUS
+ * MACROS por opción, en formato compacto e inequívoco («Carne magra 210 g = 231
+ * kcal · 46P/0C/5F»). Antes solo listaba «nombre (gramos)» SIN macros → cuando se
+ * le pedía proyectar el día con una opción del plan, el modelo no tenía sus
+ * macros y el guardarraíl anti-invención se rendía (DECISIONS #56). Ahora los
+ * lleva: sumar/proyectar con ellos NO es inventar.
+ */
 export function planSummary(
   targets: EffectiveTargets,
   optionsByMeal: Record<string, PlanOptionDTO[]>,
 ): string {
   const lines = [
     `Objetivos: ${targets.kcal} kcal, ${Math.round(targets.prot)} g proteína, ~${Math.round(targets.carb)} g hidratos, ~${Math.round(targets.fat)} g grasa.`,
+    "OPCIONES DEL PLAN (con sus macros — SÍ figuran en tus datos; puedes sumarlas y proyectar el día con ellas):",
   ];
   for (const meal of MEAL_ORDER) {
     if (meal === "extra") continue;
     const opts = optionsByMeal[meal] ?? [];
     if (opts.length === 0) continue;
-    const names = opts
-      .map((o) => (o.baseG != null ? `${o.name} (${o.baseG} g)` : o.name))
-      .join(", ");
-    lines.push(`${MEAL_LABELS[meal]}: ${names}.`);
+    const items = opts
+      .map((o) => {
+        const racion = o.baseG != null ? `${o.baseG} g` : "ración";
+        return `  - ${o.name} ${racion} = ${Math.round(o.kcal)} kcal · ${Math.round(o.prot)}P/${Math.round(o.carb)}C/${Math.round(o.fat)}F`;
+      })
+      .join("\n");
+    lines.push(`${MEAL_LABELS[meal]}:\n${items}`);
   }
   return lines.join("\n");
 }

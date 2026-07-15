@@ -14,6 +14,7 @@ import {
   gaugeVerdictLine,
   marksContext,
   pendingPlanOptions,
+  planSummary,
   recentMealsDetail,
   trendJudgeLine,
 } from "./context";
@@ -453,5 +454,43 @@ describe("chat: persona directa + resumen con hechos literales (DECISIONS #54)",
     const s = chatSummaryPrompt("Atleta: no tomo lactosa\nAsistente: anotado");
     expect(s).toContain("Hechos y decisiones de Alex:");
     expect(s).toContain("sin reformular ni omitir");
+  });
+
+  it("proyectar el día con opciones del plan NO es inventar (DECISIONS #56)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    // La distinción explícita: usar macros que SÍ están ≠ inventar.
+    expect(p).toContain("NO es inventar, es tu trabajo");
+    expect(p).toContain("proyectar cómo acabaría el día si cenas una opción del plan");
+  });
+});
+
+describe("planSummary lleva los macros de cada opción (DECISIONS #56)", () => {
+  it("cada opción del plan incluye kcal + P/C/F, no solo nombre y gramos", () => {
+    const targets = {
+      kcal: 1800,
+      prot: 110,
+      carb: 215,
+      fat: 55,
+      carbDerived: false,
+      fatDerived: false,
+    };
+    const opts: PlanOptionDTO[] = [
+      {
+        id: 1,
+        meal: "cena",
+        grp: "Proteína",
+        name: "Carne magra",
+        baseG: 210,
+        kcal: 231,
+        prot: 46,
+        carb: 0,
+        fat: 5,
+        sort: 0,
+      },
+    ];
+    const s = planSummary(targets, { cena: opts });
+    // Sin macros el chat no puede proyectar el día → el bug de #56. Con macros sí.
+    expect(s).toContain("Carne magra 210 g = 231 kcal · 46P/0C/5F");
+    expect(s).toContain("SÍ figuran en tus datos");
   });
 });
