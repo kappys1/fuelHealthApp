@@ -5,11 +5,17 @@ import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
 import type { DatedEntry, DayView } from "@/server/db/queries/day";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
 import type { MarkDTO } from "@/server/db/queries/marks";
+import type { DeficitResult } from "@/server/analytics/deficit";
+import { energyBalance } from "@/server/analytics/energyBalance";
+import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import {
   dayContext,
+  energyBalanceLine,
+  gaugeVerdictLine,
   marksContext,
   pendingPlanOptions,
   recentMealsDetail,
+  trendJudgeLine,
 } from "./context";
 import {
   athleteContext,
@@ -318,5 +324,102 @@ describe("dayContext mira el calendario (doc 10 A4)", () => {
   it("sin calendario no inventa sesión", () => {
     const ctx = dayContext(emptyView);
     expect(ctx).not.toContain("sin registrar");
+  });
+});
+
+describe("coach: datos juzgados en servidor + tono (regresión 14-jul, DECISIONS #53)", () => {
+  const TARGETS = { kcal: 1800, prot: 110, carb: 215, fat: 55 };
+  // 14-jul real: 1987 kcal · 114P/227C/66F, día de entreno, fase Normal.
+  const JUL14 = { kcal: 1987, prot: 114, carb: 227, fat: 66 };
+
+  it("línea de veredicto = MISMO juicio del gauge (cubierto Y +187)", () => {
+    const line = gaugeVerdictLine(gaugeVerdict(TARGETS, JUL14, null), {
+      faseLabel: "Normal",
+      sessionLabel: "día de entreno: Training 3",
+    });
+    expect(line).toContain("objetivos cubiertos ✓");
+    expect(line).toContain("kcal +187 sobre la pauta de 1800");
+    expect(line).toContain("fase Normal");
+    expect(line).toContain("día de entreno: Training 3");
+  });
+
+  it("línea de balance = déficit real del día pese a pasarse de INGESTA", () => {
+    const line = energyBalanceLine(
+      energyBalance({
+        intakeKcal: 1987,
+        basalKcal: 1800,
+        activeKcal: 950,
+        sessionKcal: 600,
+      }),
+    );
+    expect(line).toContain("déficit ~763");
+    expect(line).toContain("NO es el juez");
+  });
+
+  it("línea del juez (báscula) según haya o no tendencia fiable", () => {
+    const enough: DeficitResult = {
+      enough: true,
+      weighins: 10,
+      spanDays: 14,
+      kgPerWeek: -0.4,
+      deficitKcal: 440,
+      intakeMean: 1850,
+      tdee: 2290,
+    };
+    expect(trendJudgeLine(enough)).toContain("ESTE es el juez");
+    expect(trendJudgeLine(enough)).toContain("440 kcal/día");
+    const notEnough: DeficitResult = {
+      enough: false,
+      weighins: 3,
+      spanDays: 0,
+      kgPerWeek: null,
+      deficitKcal: null,
+      intakeMean: null,
+      tdee: null,
+    };
+    expect(trendJudgeLine(notEnough)).toContain("aún sin tendencia fiable");
+  });
+
+  it("el prompt del coach lleva datos ya juzgados, tono NO catastrófico y guardarraíles completos", () => {
+    const dayData = [
+      gaugeVerdictLine(gaugeVerdict(TARGETS, JUL14, null), {
+        faseLabel: "Normal",
+        sessionLabel: "día de entreno: Training 3",
+      }),
+      energyBalanceLine(
+        energyBalance({
+          intakeKcal: 1987,
+          basalKcal: 1800,
+          activeKcal: 950,
+          sessionKcal: 600,
+        }),
+      ),
+    ].join("\n");
+    const p = coachPrompt({
+      atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+      today: TODAY,
+      targetDate: "2026-07-14",
+      mode: "ayer",
+      kcal: 1800,
+      prot: 110,
+      carb: 215,
+      fat: 55,
+      dayContext: "Comidas: [...]",
+      planPendiente: "",
+      dayData,
+    });
+    // (1) los datos ya juzgados viajan y se ordena usarlos tal cual
+    expect(p).toContain("objetivos cubiertos ✓");
+    expect(p).toContain("déficit ~763");
+    expect(p).toContain("úsalos tal cual, no recalcules");
+    // (2) tono honesto/proporcionado, sin bronca
+    expect(p).toContain("SIN dramatizar");
+    expect(p).toContain("NO lo conviertas en un fracaso");
+    // (3) guardarraíles: anti-prescripción, anti-pseudociencia, anti-invención
+    expect(p).toContain("cíñete a X kcal");
+    expect(p).toContain("grasa abdominal");
+    expect(p).toContain("no inventes alimentos");
+    // (4) el marco que causaba la «bronca» YA NO está
+    expect(p).not.toContain("en qué falló respecto a objetivos");
   });
 });

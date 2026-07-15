@@ -20,6 +20,8 @@ import { TRAINING_TIPO_LABELS } from "@/lib/training";
 import type { MarkDTO } from "@/server/db/queries/marks";
 import type { AdherenceResult } from "@/server/analytics/adherence";
 import type { DeficitResult } from "@/server/analytics/deficit";
+import type { EnergyBalance } from "@/server/analytics/energyBalance";
+import type { GaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { DailyRecord } from "@/server/analytics/types";
 import type { DatedEntry, DayView } from "@/server/db/queries/day";
@@ -181,6 +183,72 @@ export function trendAndAdherence(
 ): string {
   const a = `Adherencia (14 d): ${adherence.n} días con registro; en fase Normal ${adherence.enRango}/${adherence.normalN} en rango de kcal y ${adherence.protOk}/${adherence.normalN} con proteína suficiente.`;
   return `${trendSummary(deficit)}\n${a}`;
+}
+
+/*
+  Datos YA JUZGADOS en servidor para el coach (F-IA-6): el modelo NO recalcula ni
+  decide si el día está bien; recibe el mismo veredicto determinista del FuelGauge,
+  el balance ingesta−gasto y el déficit real de la báscula (el juez, principio 1).
+  El prompt del coach solo gobierna el TONO sobre estas líneas.
+*/
+
+/** (a) Veredicto de la app = el MISMO juicio del FuelGauge (coherencia UI↔coach). */
+export function gaugeVerdictLine(
+  v: GaugeVerdict,
+  opts: { faseLabel: string; sessionLabel: string },
+): string {
+  const macroLabels: Record<"prot" | "carb" | "fat", string> = {
+    prot: "proteína",
+    carb: "hidratos",
+    fat: "grasa",
+  };
+  let estado: string;
+  if (v.phase === "competicion") {
+    estado = "modo competición · repostaje libre (no cuenta como desviación)";
+  } else if (v.phase === "special") {
+    estado =
+      "fase especial · superar el objetivo es esperado (no cuenta como desviación)";
+  } else if (v.covered) {
+    estado = "objetivos cubiertos ✓";
+    const overs = v.notablyOver.map(
+      (k) => `${macroLabels[k]} +${Math.round(v[k].over)} g sobre objetivo`,
+    );
+    if (overs.length) estado += ` (ojo: ${overs.join(", ")})`;
+  } else {
+    const faltan: string[] = [];
+    if (v.kcalRemaining > 0) faltan.push(`${v.kcalRemaining} kcal`);
+    if (v.prot.remaining > 0)
+      faltan.push(`${Math.round(v.prot.remaining)} g proteína`);
+    if (v.carb.remaining > 0)
+      faltan.push(`${Math.round(v.carb.remaining)} g hidratos`);
+    if (v.fat.remaining > 0) faltan.push(`${Math.round(v.fat.remaining)} g grasa`);
+    estado = `objetivos sin cubrir (faltan ${faltan.join(", ")})`;
+  }
+  const kcalDelta = v.over
+    ? `+${v.kcalOver}`
+    : v.kcalRemaining > 0
+      ? `−${v.kcalRemaining}`
+      : "±0";
+  return `Veredicto de la app (juicio determinista del FuelGauge; ÚSALO tal cual, no lo recalcules): ${estado} — kcal ${kcalDelta} sobre la pauta de ${v.targetKcal}, fase ${opts.faseLabel}, ${opts.sessionLabel}.`;
+}
+
+/** (b) Balance ingesta−gasto del día, orientativo (NO es el juez). "" si no hay gasto. */
+export function energyBalanceLine(b: EnergyBalance): string {
+  if (b.balanceKcal == null || b.expenditureKcal == null) return "";
+  const k = Math.round(b.balanceKcal);
+  const signo =
+    k < 0 ? `déficit ~${Math.abs(k)}` : k > 0 ? `superávit ~${k}` : "equilibrio ~0";
+  return `Balance estimado del día (orientativo ±25 %, NO es el juez): ingesta ${Math.round(b.intakeKcal)} kcal − gasto estimado ~${Math.round(b.expenditureKcal)} kcal (${b.breakdown}) ≈ ${signo} kcal.`;
+}
+
+/** (c) Déficit real de la báscula (media 7 d) = EL juez del déficit (principio 1). */
+export function trendJudgeLine(deficit: DeficitResult): string {
+  if (!deficit.enough || deficit.kgPerWeek == null) {
+    return "Déficit real (báscula, 7 d) — ESTE es el juez (principio 1): aún sin tendencia fiable; no afirmes que «se pasó» basándote solo en las kcal del día.";
+  }
+  const kg = deficit.kgPerWeek;
+  const kgStr = `${kg > 0 ? "+" : ""}${num(kg, 2)} kg/semana`;
+  return `Déficit real (báscula, media 7 d) — ESTE es el juez (principio 1): ~${num(deficit.deficitKcal ?? 0)} kcal/día (${kgStr}).`;
 }
 
 /** Dieta vigente para el chat (F-IA-8 §2): objetivos + resumen del plan por comidas. */

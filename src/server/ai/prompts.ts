@@ -126,6 +126,12 @@ export function wodPrompt(textoPegado: string, contexto: string): string {
 }
 
 // ── F-IA-6 · Coach diario (texto plano, máx 100 palabras) ──
+// El veredicto del día, el balance ingesta−gasto y el déficit real (báscula) se
+// calculan en SERVIDOR y entran como `dayData` (server/ai/context.ts). El prompt
+// NO pide aritmética al modelo: gobierna el TONO (honesto, proporcionado, sin
+// dramatizar) y los guardarraíles. Reescritura tras el caso del 14-jul (DECISIONS
+// #53): el coach echaba «bronca» por un buen día — pedía «en qué falló», ignoraba
+// el gasto y prescribía («cíñete a 1800», «grasa abdominal»), rompiendo P1 y P8.
 export function coachPrompt(args: {
   atleta: string;
   /** Día que la UI trata como "hoy" (el día visible en Hoy). */
@@ -140,6 +146,8 @@ export function coachPrompt(args: {
   dayContext: string;
   /** Opciones del plan de las comidas pendientes (F01 Fase 1; "" si ninguna). */
   planPendiente: string;
+  /** Datos YA juzgados en servidor (veredicto app + balance + déficit real). "" si no aplica. */
+  dayData?: string;
 }): string {
   // Fecha objetivo explícita (F01 Fase 0): el modelo nunca alucina qué día es.
   // Por paridad con el chat; en modo ayer se declara además el día evaluado.
@@ -147,19 +155,26 @@ export function coachPrompt(args: {
     args.mode === "ayer"
       ? `HOY es ${args.today} (${weekdayName(args.today)}). Analizas AYER, ${args.targetDate} (${weekdayName(args.targetDate)}).`
       : `HOY es ${args.today} (${weekdayName(args.today)}).`;
-  const header = `${dateLine}\n\n${args.atleta} Objetivos diarios: ${args.kcal} kcal, ${args.prot} g proteína, ~${args.carb} g hidratos, ~${args.fat} g grasa. En fases de Carga/Competición, superar kcal es esperado.`;
-  // Guardarraíles (doc 10 A3 + F01 Fase 1): anti-suplementación (paridad con el
-  // chat), prioridad del plan real (marcar «fuera de tu pauta» si sale de él) y
-  // anti-entreno-fantasma (descanso/sin sesión → sin timing pre/post).
-  const guardrails = `Observas y explicas; NO prescribes suplementación. Si sugieres suplementos, SOLO los de su perfil; nada fuera de esa lista. Prioriza comida real y las opciones del plan que le quedan (listadas abajo); por defecto, lo más limpio DENTRO de su pauta. Si excepcionalmente sugieres algo fuera del plan, márcalo como «fuera de tu pauta». Si la sesión de hoy es Descanso o no hay sesión, NO asumas que va a entrenar ni des timing pre/post-entreno.`;
+  // P1 en el header: el objetivo es pauta de INGESTA, no la vara para juzgar si
+  // «se pasó». El juez del déficit es la báscula (déficit real, en dayData).
+  const header = `${dateLine}\n\n${args.atleta} Objetivos diarios: ${args.kcal} kcal, ${args.prot} g proteína, ~${args.carb} g hidratos, ~${args.fat} g grasa. Estos objetivos son la pauta de INGESTA, no la vara para juzgar si «se pasó»: el juez del déficit es la báscula (peso/tendencia), no las kcal del día. Un margen moderado sobre el objetivo un día de entreno o muy activo NO es una desviación. En fases de Carga/Competición, superar kcal es lo esperado.`;
+  // Guardarraíles completos (doc 10 A3 + F01 Fase 1 + DECISIONS #53): anti-supl.,
+  // anti-prescripción (dieta/kcal), anti-diagnóstico causal de hinchazón, anti-
+  // pseudociencia, anti-invención, prioridad del plan, fuera de pauta como nota
+  // ligera, y anti-entreno-fantasma.
+  const guardrails = `Observas y explicas; NO prescribes suplementación (si sugieres suplementos, SOLO los de su perfil; nada fuera de esa lista) NI cambios de dieta ni objetivos calóricos: nada de «cíñete a X kcal» ni de eliminar alimentos ni de cambiarle la pauta — los ajustes los decide su nutricionista (puedes sugerir qué preguntarle). NO diagnostiques causas clínicas: no afirmes que un alimento «causa» su hinchazón; descríbelo como una posible relación a vigilar. Prohibida la pseudociencia (nada de «grasa localizada» ni «grasa abdominal»). Habla SOLO de alimentos y cifras que figuren en los datos; no inventes alimentos ni cantidades. Prioriza comida real y las opciones del plan que le quedan (listadas abajo); por defecto, lo más limpio DENTRO de su pauta. Si algo se sale de su pauta, coméntalo como observación breve y sin dramatizar, sin convertirlo en el titular si el conjunto del día estuvo bien; si sugieres algo fuera del plan, márcalo como «fuera de tu pauta». Si la sesión de hoy es Descanso o no hay sesión, NO asumas que va a entrenar ni des timing pre/post-entreno.`;
   const planBlock = args.planPendiente.trim()
     ? `\n\nOPCIONES DEL PLAN PENDIENTES:\n${args.planPendiente.trim()}`
     : "";
+  // Datos ya juzgados en servidor: el modelo los usa TAL CUAL, no recalcula.
+  const dataBlock = args.dayData?.trim()
+    ? `\n\nDATOS DEL DÍA (ya calculados; úsalos tal cual, no recalcules cifras):\n${args.dayData.trim()}`
+    : "";
   const block =
     args.mode === "hoy"
-      ? `Día EN CURSO. ${args.dayContext} Di qué le falta para cuadrar el día: kcal y proteína restantes, y una sugerencia concreta con las comidas del plan que le quedan. Si algo va desviado (proteína baja, hidrato lejos del entreno, poca agua), avísalo.`
-      : `Día TERMINADO. ${args.dayContext} Evalúa: qué hizo bien, en qué falló respecto a objetivos, y 1-2 acciones concretas para hoy.`;
-  return `${header}\n\n${guardrails}${planBlock}\n\n${block}\n\nMáximo 100 palabras, directo, sin saludos, en español.`;
+      ? `Día EN CURSO. ${args.dayContext} Di qué le falta para cuadrar el día: kcal y proteína restantes, y una sugerencia concreta con las comidas del plan que le quedan. Si algo va desviado (proteína baja, hidrato lejos del entreno, poca agua), avísalo con calma.`
+      : `Día TERMINADO. ${args.dayContext} Valóralo con honestidad y proporción, con calma y SIN dramatizar. Apóyate en los DATOS DEL DÍA de arriba: si el balance y el déficit real muestran que el día estuvo bien, dilo claramente y NO lo conviertas en un fracaso ni lo reescribas como fallo. Reconoce lo que estuvo bien y señala como MUCHO 1-2 cosas realmente mejorables, con calma (un macro notablemente alto o un alimento fuera de pauta van como observación, no como titular). Cierra con 1 acción concreta para hoy solo si aporta de verdad.`;
+  return `${header}\n\n${guardrails}${planBlock}${dataBlock}\n\n${block}\n\nMáximo 100 palabras, directo, sin saludos, en español.`;
 }
 
 // ── F-IA-7 · Preparar visita al nutricionista (texto plano, máx 200 palabras) ──

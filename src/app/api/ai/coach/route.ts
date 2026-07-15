@@ -1,16 +1,27 @@
 import { z } from "zod";
 import { ensureAuth, parseBody, serverError } from "@/lib/api";
-import { dayKey, shiftDayKey } from "@/lib/dates";
-import { MEAL_ORDER } from "@/lib/macros";
+import { dayKey, isoWeekday, shiftDayKey } from "@/lib/dates";
+import { MEAL_ORDER, phaseLabel } from "@/lib/macros";
 import { retry } from "@/lib/retry";
 import { dateZ } from "@/lib/schemas";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
-import { dayContext, pendingPlanOptions } from "@/server/ai/context";
+import {
+  dayContext,
+  energyBalanceLine,
+  gaugeVerdictLine,
+  pendingPlanOptions,
+  trendJudgeLine,
+} from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { coachPrompt } from "@/server/ai/prompts";
+import { dayTotals } from "@/server/analytics/dayTotals";
+import { computeDeficit } from "@/server/analytics/deficit";
+import { energyBalance } from "@/server/analytics/energyBalance";
+import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import { getDayView } from "@/server/db/queries/day";
 import { getPlanContext } from "@/server/db/queries/plan";
+import { getTrendData } from "@/server/db/queries/trend";
 
 const bodyZ = z.object({
   date: dateZ.optional(),
@@ -35,17 +46,55 @@ export async function POST(request: Request) {
   let view: Awaited<ReturnType<typeof getDayView>>;
   let plan: Awaited<ReturnType<typeof getPlanContext>>;
   let atleta: Awaited<ReturnType<typeof getAthleteContexts>>;
+  let trend: Awaited<ReturnType<typeof getTrendData>>;
   try {
-    [view, plan, atleta] = await Promise.all([
+    [view, plan, atleta, trend] = await Promise.all([
       retry(() => getDayView(targetDate)),
       retry(() => getPlanContext(targetDate)),
       retry(() => getAthleteContexts(targetDate)),
+      retry(() => getTrendData(base)),
     ]);
   } catch (err) {
     return serverError(err);
   }
 
   const targets = plan?.targets ?? { kcal: 1800, prot: 110, carb: 0, fat: 0 };
+
+  // Veredicto + balance + déficit real JUZGADOS EN SERVIDOR (principio 1): el
+  // modelo NO recalcula, recibe el mismo juicio determinista que el FuelGauge
+  // más el gasto del reloj y el juez real (báscula). El prompt solo pone el tono.
+  const totals = dayTotals(view.entries);
+  const verdict = gaugeVerdict(targets, totals, view.day?.phase ?? null);
+  const sesionCalendario =
+    atleta.sessionByWeekday[String(isoWeekday(targetDate))] ?? "Descanso";
+  const sessionLabel = view.day?.sessionLabel
+    ? `día de entreno: ${view.day.sessionLabel}`
+    : view.session
+      ? `día de entreno: ${view.session.nombre}`
+      : sesionCalendario.toLowerCase().includes("descanso")
+        ? "descanso"
+        : `día de entreno según calendario: ${sesionCalendario}`;
+  const dataLines = [
+    gaugeVerdictLine(verdict, {
+      faseLabel: phaseLabel(view.day?.phase ?? null),
+      sessionLabel,
+    }),
+  ];
+  // Balance ingesta−gasto y déficit real solo en modo "ayer" (día cerrado): a
+  // mitad de un día en curso el gasto aún no está completo → sería engañoso.
+  if (parsed.data.mode === "ayer") {
+    const balanceLine = energyBalanceLine(
+      energyBalance({
+        intakeKcal: totals.kcal,
+        basalKcal: view.health?.basalKcal ?? null,
+        activeKcal: view.health?.activeKcal ?? null,
+        sessionKcal: view.day?.sessionKcal ?? null,
+      }),
+    );
+    if (balanceLine) dataLines.push(balanceLine);
+    dataLines.push(trendJudgeLine(computeDeficit(trend.records)));
+  }
+  const dayData = dataLines.join("\n");
 
   // Comidas del plan que aún le quedan (F01 Fase 1): en curso = las sin entrada
   // registrada; día terminado = todas (las sugerencias del coach son "para hoy").
@@ -75,6 +124,7 @@ export async function POST(request: Request) {
           date: targetDate,
         }),
         planPendiente,
+        dayData,
       }),
       // 100 palabras + thinking "medium": presupuesto amplio para no truncar.
       maxOutputTokens: 3072,
