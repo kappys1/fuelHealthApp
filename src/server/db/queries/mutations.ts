@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { BloatKey, MealKey, PhaseKey } from "@/lib/macros";
 import { dayKey } from "@/lib/dates";
 import { db, schema } from "@/server/db";
@@ -141,35 +141,59 @@ export async function copyEntriesFrom(fromDate: string, toDate: string) {
   );
 }
 
-// ── favorites (toggle por meal+name, F2.4) ──
-export interface FavInput {
-  meal: MealKey;
+// ── products (F07 · CRUD del catálogo) ──
+type ProductSourceEnum = (typeof schema.productSourceEnum.enumValues)[number];
+
+export interface ProductInput {
   name: string;
-  kcal: number;
-  prot: number;
-  carb: number;
-  fat: number;
+  baseG: number | null;
+  baseKcal: number;
+  baseProt: number;
+  baseCarb: number;
+  baseFat: number;
+  grupo: GrpEnum | null;
+  source: ProductSourceEnum;
+  pinned: boolean;
 }
 
-export async function toggleFavorite(
-  fav: FavInput,
-): Promise<{ favorited: boolean }> {
-  const existing = await db
-    .select({ id: schema.favorites.id })
-    .from(schema.favorites)
-    .where(
-      and(eq(schema.favorites.meal, fav.meal), eq(schema.favorites.name, fav.name)),
-    );
-  if (existing[0]) {
-    await db.delete(schema.favorites).where(eq(schema.favorites.id, existing[0].id));
-    return { favorited: false };
-  }
-  await db.insert(schema.favorites).values(fav);
-  return { favorited: true };
+export async function createProduct(p: ProductInput): Promise<{ id: number }> {
+  const [row] = await db
+    .insert(schema.products)
+    .values(p)
+    .returning({ id: schema.products.id });
+  if (!row) throw new Error("No se pudo crear el producto.");
+  return { id: row.id };
 }
 
-export async function deleteFavorite(id: number) {
-  await db.delete(schema.favorites).where(eq(schema.favorites.id, id));
+/** Edición parcial de un producto. NO toca entradas ya registradas (AC5): sus macros
+ *  quedaron horneadas por día; el producto solo alimenta futuros añadidos. */
+export async function updateProduct(
+  id: number,
+  patch: Partial<ProductInput>,
+): Promise<void> {
+  await db
+    .update(schema.products)
+    .set({ ...patch, updatedAt: new Date() })
+    .where(eq(schema.products.id, id));
+}
+
+export async function deleteProduct(id: number): Promise<void> {
+  await db.delete(schema.products).where(eq(schema.products.id, id));
+}
+
+/** Alterna el pin (chip de acceso rápido) devolviendo el nuevo estado. */
+export async function toggleProductPin(id: number): Promise<{ pinned: boolean }> {
+  const [cur] = await db
+    .select({ pinned: schema.products.pinned })
+    .from(schema.products)
+    .where(eq(schema.products.id, id));
+  if (!cur) throw new Error("Producto no encontrado.");
+  const pinned = !cur.pinned;
+  await db
+    .update(schema.products)
+    .set({ pinned, updatedAt: new Date() })
+    .where(eq(schema.products.id, id));
+  return { pinned };
 }
 
 // ── plan: opciones (in-place en la versión vigente) y targets (nueva versión) ──

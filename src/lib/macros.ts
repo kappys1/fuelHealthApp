@@ -172,6 +172,57 @@ export function backfillEntryGrams(entry: {
   };
 }
 
+// ── Productos (F07) ──
+/*
+  Un producto tiene macros por base de gramos (baseG, típicamente 100 g de la
+  etiqueta). Al añadirlo al día se reescala a la cantidad elegida SIEMPRE desde la
+  base inmutable (reusa la maquinaria de F06). baseG null/0 = producto fijo (por
+  unidad): se añade tal cual, sin escalar y sin base (como los antiguos favoritos).
+*/
+export interface ProductBase {
+  baseG: number | null;
+  baseKcal: number;
+  baseProt: number;
+  baseCarb: number;
+  baseFat: number;
+}
+
+/**
+ * Construye macros (para mostrar/guardar) + campos de base (F06) de una entrada a
+ * partir de un producto y una cantidad. Con baseG → reescala desde la base (la
+ * entrada queda escalable). Con baseG null → entrada fija: macros = base tal cual,
+ * campos de base null (AC2). Los gramos son la palanca; las macros derivan (AC1).
+ */
+export function productToEntryFields(
+  p: ProductBase,
+  grams: number,
+): Macros & EntryBaseFields {
+  const base: Macros = {
+    kcal: p.baseKcal,
+    prot: p.baseProt,
+    carb: p.baseCarb,
+    fat: p.baseFat,
+  };
+  if (p.baseG == null || p.baseG === 0) {
+    return {
+      kcal: roundKcal(base.kcal),
+      prot: roundMacroStore(base.prot),
+      carb: roundMacroStore(base.carb),
+      fat: roundMacroStore(base.fat),
+      grams: null,
+      baseG: null,
+      baseKcal: null,
+      baseProt: null,
+      baseCarb: null,
+      baseFat: null,
+    };
+  }
+  return {
+    ...scaledForStore(base, grams, p.baseG),
+    ...entryBaseFields(base, grams, p.baseG),
+  };
+}
+
 // ── Etiquetas y órdenes fijos (03-DATOS §2) ──
 export const MEAL_ORDER = [
   "almuerzo",

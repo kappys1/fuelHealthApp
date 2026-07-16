@@ -186,21 +186,10 @@ export function HoyClient({
 
       <MealTimeline
         entries={data.view.entries}
-        favorites={data.favorites}
         templates={data.templates}
         onAddToMeal={openAdd}
         onSaveEntry={(id, patch) => t.updateEntry(id, patch)}
         onDeleteEntry={t.deleteEntry}
-        onToggleFav={(e) =>
-          t.toggleFavorite({
-            meal: e.meal,
-            name: e.name,
-            kcal: e.kcal,
-            prot: e.prot,
-            carb: e.carb,
-            fat: e.fat,
-          })
-        }
         onCopyYesterday={t.copyYesterday}
         onSaveTemplate={t.saveTemplate}
         onApplyTemplate={t.applyTemplate}
@@ -235,8 +224,14 @@ export function HoyClient({
         setMeal={setAddMeal}
         corpus={{
           optionsByMeal: data.optionsByMeal,
-          favorites: data.favorites,
+          products: data.products,
           recents: data.recents,
+        }}
+        products={{
+          create: t.createProduct,
+          update: t.updateProduct,
+          remove: t.deleteProduct,
+          togglePin: t.toggleProductPin,
         }}
         targetKcal={data.targets.kcal}
         currentKcal={roundKcal(totals.kcal)}

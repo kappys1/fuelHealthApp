@@ -1,6 +1,6 @@
 "use client";
 
-import { Star, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -23,18 +23,14 @@ import {
   MEAL_ORDER,
   scaledForStore,
 } from "@/lib/macros";
-import { cn } from "@/lib/utils";
 import type { EntryDTO } from "@/server/db/queries/day";
 
 export function MealRow({
   entry,
-  isFavorite,
   onSave,
   onDelete,
-  onToggleFav,
 }: {
   entry: EntryDTO;
-  isFavorite: boolean;
   onSave: (patch: {
     meal: MealKey;
     name: string;
@@ -45,7 +41,6 @@ export function MealRow({
     grams?: number | null;
   }) => void;
   onDelete: (entry: EntryDTO) => void;
-  onToggleFav: (entry: EntryDTO) => void;
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -64,19 +59,6 @@ export function MealRow({
 
   return (
     <div className="flex items-center gap-2 border-b border-dashed border-line py-2 last:border-b-0">
-      <button
-        type="button"
-        aria-label={isFavorite ? "Quitar de favoritos" : "Marcar favorito"}
-        aria-pressed={isFavorite}
-        onClick={() => onToggleFav(entry)}
-        className="shrink-0 text-muted-foreground"
-      >
-        <Star
-          className={cn("size-4", isFavorite && "fill-carb text-carb")}
-          aria-hidden
-        />
-      </button>
-
       {entry.photoUrl ? (
         <Dialog>
           <DialogTrigger asChild>
