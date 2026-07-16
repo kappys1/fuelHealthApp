@@ -1,5 +1,5 @@
 # F05 · Chat inteligente: criterio realista + comer fuera (web/foto)
-**Estado**: aprobada (2026-07-16; Fase 0 IMPLEMENTADA y desplegada) · **Tamaño**: feature (3 fases — Fase 0 reconstruye el prompt congelado F-IA-8; Fase 1 añade `googleSearch` en la route + toggle global en Ajustes; Fase 2 añade foto-en-chat con UI)
+**Estado**: aprobada (2026-07-16; Fase 0 desplegada · Fase 1 IMPLEMENTADA, pendiente de validación 🖐 en producción) · **Tamaño**: feature (3 fases — Fase 0 reconstruye el prompt congelado F-IA-8; Fase 1 añade `googleSearch` en la route + toggle global en Ajustes; Fase 2 añade foto-en-chat con UI)
 **Fecha**: 2026-07-15 (F1/F2) · **Reencuadrada**: 2026-07-16 (se antepone la Fase 0)
 **Origen**: HANDOFF §B3 (2026-07-15) — «hoy en La Tagliatella el Chat no pudo ayudarme con la carta» + sesión product-partner (2026-07-16) — «no es inteligente dándome soluciones y lo tengo que estar guiando yo».
 
@@ -196,12 +196,23 @@ batería**; no congelar la redacción exacta hasta que la batería pase):
 > [+ secciones de contexto ya existentes: DIETA VIGENTE, TENDENCIA Y ADHERENCIA, MEDICIONES,
 > ÚLTIMOS 30 DÍAS, MARCAS, COMIDAS POR ITEM, RESUMEN PREVIO.]
 
-- **Delta Fase 1 (web)** — párrafo que se añade cuando entra `googleSearch`:
-  > Para comer fuera o valorar un producto de marca, PUEDES usar la búsqueda web para consultar
-  > la carta de un restaurante o la info nutricional de un producto. Cuando uses la web, CITA
-  > SIEMPRE la fuente (nombre del sitio o URL). Si la web no da datos fiables, DILO y en su lugar
-  > estima aproximado (marcado como estimación) o pide lo que falte. Estas cifras de fuera son
-  > ORIENTATIVAS para decidir, NO un registro.
+- **Delta Fase 1 (web)** — párrafo que se añade cuando entra `googleSearch` (redacción vigente
+  tras la iteración 16-jul contra AC2; ver DECISIONS #63):
+  > Cuando Alex pregunte por un plato de restaurante o un producto de marca concretos (sus
+  > ingredientes, la carta o sus macros), BÚSCALO en la web y dale PRIMERO esos datos citando la
+  > fuente (nombre del sitio o URL); solo después, y si encaja, ofrécele la equivalencia con su
+  > pauta — no sustituyas el producto por una opción de su plan sin darle antes lo que pidió. Si
+  > la web no da datos fiables, DILO y marca la cifra como estimación (o pídele la etiqueta);
+  > NUNCA des macros concretos de un producto de fuera con seguridad sin citar la fuente o sin
+  > marcarlos como estimación. Las fuentes colaborativas (p. ej. Open Food Facts) pueden traer
+  > datos flojos: trátalas como orientativas y, si no encuentras la variante EXACTA que pide, dilo
+  > y marca el dato como aproximado en lugar de pasar el de otra variante como si fuera el suyo.
+  > Estas cifras de fuera son ORIENTATIVAS para decidir, NO un registro.
+  >
+  > _Iteración 16-jul (2 rondas en vivo): (1) draft permisivo → directiva (buscar+citar); (2) log
+  > temporal de `sources` confirmó que `googleSearch` dispara (`sources≥1`); el residuo de error es
+  > de la fuente (Google surfa Open Food Facts, floja) → nudge de honestidad. Log retirado. AC2
+  > mecánico OK (busca+cita); la precisión la limita la web (P2: para cuadrar el día es ruido)._
 - **Delta Fase 2 (foto)** — se añade cuando el cliente permita adjuntar imagen: «…de un
   producto, **y PUEDES analizar una foto que Alex adjunte (etiqueta, plato o carta)**.» y, en el
   fallo, «…o pide lo que falte **o que te adjunte una foto**.».
@@ -297,8 +308,10 @@ Conversaciones reales que el prompt reconstruido debe pasar (se comparan a mano,
 - **Fase 0 · Reconstrucción del prompt** (esta sesión, prioritaria): reescribe
   `chatSystemPrompt`, unifica guardarraíles, sync `04-IA.md`, batería de tests del builder +
   casos canónicos. **Sin infra.** Despliega el fix diario ya. Se valida en uso real antes de F1.
-- **Fase 1 · Web grounding**: `googleSearch` en la route + párrafo de comer-fuera + cita de
-  fuente. Sobre el prompt de la Fase 0.
+- **Fase 1 · Web grounding** (IMPLEMENTADA 2026-07-16, DECISIONS #63): `googleSearch` en la
+  route + párrafo de comer-fuera + cita de fuente, ambos atados al interruptor global
+  `chatWebSearch` (Ajustes, default ON). Sobre el prompt de la Fase 0. Pendiente de
+  validación 🖐 en producción (AC 1, 2, 3, 5b, 7).
 - **Fase 2 · Foto en el chat**: cuerpo multimodal + botón de adjuntar. Tras validar F1 en uso.
 
 ## Prompt estándar de arranque (para Alex, copiar/pegar) — ver el bloque que te paso aparte.
