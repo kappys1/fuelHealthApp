@@ -612,6 +612,16 @@ describe("chat: reconstrucción F05 Fase 0 (contrato C1-C9)", () => {
     expect(p).toContain("Cierra como mucho el macro que de verdad importe");
     expect(p).toContain("no persigas «clavar los números» a costa de pasarte de kcal");
   });
+
+  it("asesor de solo lectura: no reclama borrar/guardar el registro (principio 7, iter dev nº4)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    // caza el «Borro la cena que tenías registrada»: el chat es read-only
+    expect(p).toContain("de solo lectura");
+    expect(p).toContain("no puedes añadir, borrar ni modificar su registro");
+    expect(p).toContain("nunca digas que «borras»");
+    // «olvida X» → ignorar solo en el chat, sin tocar el registro
+    expect(p).toContain("la ignoro para el cálculo");
+  });
 });
 
 describe("planSummary lleva los macros de cada opción (DECISIONS #56)", () => {
