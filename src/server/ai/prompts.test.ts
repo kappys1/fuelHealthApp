@@ -25,6 +25,7 @@ import {
   chatSystemPrompt,
   coachPrompt,
   prepareVisitPrompt,
+  sharedGuardrails,
 } from "./prompts";
 
 /*
@@ -461,6 +462,131 @@ describe("chat: persona directa + resumen con hechos literales (DECISIONS #54)",
     // La distinción explícita: usar macros que SÍ están ≠ inventar.
     expect(p).toContain("NO es inventar, es tu trabajo");
     expect(p).toContain("proyectar cómo acabaría el día si cenas una opción del plan");
+  });
+
+  it("el conocimiento nutricional general (equivalencias) NO es inventar (DECISIONS #61, absorbido en #62)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    // Regresión: a «macarrones, ¿cuánto añado?» debe aplicar la equivalencia con
+    // su pauta a la primera, no exigir los macros de un alimento común.
+    expect(p).toContain("conocimiento nutricional general");
+    expect(p).toContain("DECLARANDO la asunción");
+    expect(p).toContain("respóndele a la primera con la equivalencia");
+    // Inventar se redefine como afirmar QUÉ comió / citar registros inexistentes.
+    expect(p).toContain("afirmar qué comió Alex");
+  });
+
+  it("al repartir una cantidad entre tomas, prioriza lo práctico (DECISIONS #61, absorbido en #62)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("prioriza lo práctico");
+  });
+});
+
+// ── F05 Fase 0 · reconstrucción del prompt del chat (DECISIONS #62) ──
+// El contrato es C1-C9 de la spec F05. Estos tests del builder son la red de
+// regresión determinista; los AC de comportamiento (0.1-0.6) los valida Alex en
+// vivo (🖐). La causa raíz de F05 fue que el chat NO heredaba los guardarraíles
+// del coach: aquí se verifica que ahora comparten fuente única.
+describe("F05 Fase 0 · guardarraíles compartidos coach↔chat (DECISIONS #62)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+  const coachArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    targetDate: TODAY,
+    mode: "hoy" as const,
+    kcal: 1800,
+    prot: 110,
+    carb: 200,
+    fat: 60,
+    dayContext: "Comidas: ninguna registrada aún.",
+    planPendiente: "",
+  };
+
+  it("sharedGuardrails cubre no-diagnóstico, pseudociencia, anti-PR y entreno-fantasma", () => {
+    const g = sharedGuardrails();
+    expect(g).toContain("NO diagnostiques causas clínicas");
+    expect(g).toContain("Prohibida la pseudociencia");
+    expect(g).toContain("grasa localizada");
+    expect(g).toContain("NO afirmes causalidad entre la nutrición y una marca");
+    expect(g).toContain("NO asumas que va a entrenar ni des timing pre/post-entreno");
+  });
+
+  it("coach y chat heredan la MISMA fuente (no vuelven a divergir · causa raíz F05)", () => {
+    const g = sharedGuardrails();
+    expect(chatSystemPrompt(chatArgs)).toContain(g);
+    expect(coachPrompt(coachArgs)).toContain(g);
+  });
+
+  it("C8: el chat ahora SÍ tiene pseudociencia y entreno-fantasma (antes le faltaban)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("Prohibida la pseudociencia");
+    expect(p).toContain("NO asumas que va a entrenar ni des timing pre/post-entreno");
+    expect(p).toContain("NO diagnostiques causas clínicas");
+  });
+});
+
+describe("chat: reconstrucción F05 Fase 0 (contrato C1-C9)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+
+  it("C1: criterio realista (no clavar), verdad del hueco + una palanca, nada absurdo", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("criterio REALISTA");
+    expect(p).toContain("la báscula es el juez");
+    expect(p).toContain("Di la verdad del hueco");
+    expect(p).toContain("ofrece UNA palanca");
+    expect(p).toContain("acércate sin pasarte, no claves");
+    expect(p).toContain("480 g de arroz"); // ejemplo de ración absurda prohibida
+  });
+
+  it("C2: las opciones de cada comida son ALTERNATIVAS, no se apilan (fin del arroz+boniato+pan)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("las opciones de cada comida son ALTERNATIVAS, no las apiles");
+    expect(p).toContain("arroz+boniato+pan");
+    // se conserva la proyección del día (#56), NO el apilamiento
+    expect(p).toContain("proyectar cómo acabaría el día si cenas una opción del plan");
+  });
+
+  it("C3: detecta modos (fin de día / carga / se ha pasado / clavar si lo pide)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("fin del día o su última comida");
+    expect(p).toContain("fase de Carga o Competición");
+    expect(p).toContain("a la baja sin pasarse en exceso");
+    expect(p).toContain("Si te lo pide explícitamente, clava");
+  });
+
+  it("C5: responde y luego pregunta, con defaults sensatos (no bloquea)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("defaults sensatos");
+    expect(p).toContain("pregunta solo cuando la respuesta cambie de verdad");
+    expect(p).toContain("no bloquees con un interrogatorio");
+  });
+
+  it("C6: fuera de pauta proactivo, marcado, sin prescribir", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("comidas realistas fuera de la pauta");
+    expect(p).toContain("«fuera de tu pauta»");
+    expect(p).toContain("¿te apetece algo distinto hoy?");
+    expect(p).toContain("Sugieres, no prescribes");
+  });
+
+  it("C7: calidad de la fuente (buenas grasas, no rellenar por rellenar)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("Elige buenas fuentes");
+    expect(p).toContain("AOVE/aguacate/crema");
+    expect(p).toContain("no rellenes por rellenar");
   });
 });
 
