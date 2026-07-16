@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AthleteProfileEditor } from "@/components/ajustes/athlete-profile-editor";
+import { ChatWebSearchToggle } from "@/components/ajustes/chat-web-search-toggle";
 import { DataBackup } from "@/components/ajustes/data-backup";
 import { HealthImport } from "@/components/ajustes/health-import";
 import { SessionMapEditor } from "@/components/ajustes/session-map-editor";
@@ -10,6 +11,7 @@ import { getSession } from "@/lib/session";
 import { getHealthSyncView, type HealthSyncView } from "@/server/db/queries/health";
 import {
   getAthleteProfile,
+  getChatWebSearch,
   getSessionByWeekday,
 } from "@/server/db/queries/lookups";
 
@@ -66,10 +68,11 @@ function Row({
 }
 
 export default async function AjustesPage() {
-  const [sessionMap, sync, profile] = await Promise.all([
+  const [sessionMap, sync, profile, chatWebSearch] = await Promise.all([
     getSessionByWeekday(),
     getHealthSyncView(),
     getAthleteProfile(),
+    getChatWebSearch(),
   ]);
   const trainingDays = trainingDaysPerWeek(sessionMap);
 
@@ -99,6 +102,10 @@ export default async function AjustesPage() {
             </p>
             <ThemeToggle />
           </div>
+        </Row>
+
+        <Row title="Búsqueda web en el Chat">
+          <ChatWebSearchToggle initial={chatWebSearch} />
         </Row>
 
         <Row title="Sincronización de Salud">

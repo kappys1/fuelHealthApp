@@ -298,6 +298,13 @@ export const api = {
       body: JSON.stringify({ profile }),
     }),
 
+  // F05 Fase 1 · interruptor global de búsqueda web del chat (default ON).
+  saveChatWebSearch: (enabled: boolean) =>
+    req<{ enabled: boolean }>("/api/settings/chat-web-search", {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    }),
+
   // ── IA (Fase 2) — errores del proveedor + status propagados por req() ──
   estimateText: (descripcion: string) =>
     req<EstimateResult>("/api/ai/estimate", {
