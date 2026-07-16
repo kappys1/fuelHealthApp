@@ -18,7 +18,7 @@ import {
 } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { chatSummaryPrompt, chatSystemPrompt } from "@/server/ai/prompts";
-import { resolveModel } from "@/server/ai/provider";
+import { resolveModel, webSearchTools } from "@/server/ai/provider";
 import { mealEntriesInRange } from "@/server/db/queries/day";
 import { listMarksWithEntries } from "@/server/db/queries/marks";
 import {
@@ -31,6 +31,7 @@ import {
   threadTitleFrom,
   touchThread,
 } from "@/server/db/queries/chat";
+import { getChatWebSearch } from "@/server/db/queries/lookups";
 import { listMed } from "@/server/db/queries/med";
 import { getPlanContext } from "@/server/db/queries/plan";
 import { getTrendData } from "@/server/db/queries/trend";
@@ -73,18 +74,26 @@ export async function POST(request: Request) {
   // 2) Contexto de datos (fresco) + historial del hilo.
   let system: string;
   let modelMessages: { role: "user" | "assistant"; content: string }[];
+  // F05 Fase 1: la tool `googleSearch` se cablea solo si `chatWebSearch` está ON
+  // (mismo flag que el párrafo web del prompt). OFF → undefined → sin tool =
+  // comportamiento idéntico a la Fase 0.
+  let tools: ReturnType<typeof webSearchTools> | undefined;
   try {
     // Detalle por item de los últimos 7 días (F02): el chat ve QUÉ comió, no solo
     // los totales; días fuera del rango los pide (guardarraíl anti-invención).
     const detailFrom = shiftDayKey(today, -6);
-    const [plan, trend, meds, detail, recentEntries, marks] = await Promise.all([
-      retry(() => getPlanContext(today)),
-      retry(() => getTrendData(today)),
-      retry(() => listMed()),
-      retry(() => getThread(threadId)),
-      retry(() => mealEntriesInRange(detailFrom, today)),
-      retry(() => listMarksWithEntries()),
-    ]);
+    const [plan, trend, meds, detail, recentEntries, marks, webSearch] =
+      await Promise.all([
+        retry(() => getPlanContext(today)),
+        retry(() => getTrendData(today)),
+        retry(() => listMed()),
+        retry(() => getThread(threadId)),
+        retry(() => mealEntriesInRange(detailFrom, today)),
+        retry(() => listMarksWithEntries()),
+        // F05 Fase 1: interruptor global (default ON). Gobierna a la vez el
+        // párrafo web del prompt y la tool `googleSearch` de streamText.
+        retry(() => getChatWebSearch()),
+      ]);
     if (!detail) return serverError(new Error("Hilo no encontrado."));
 
     const deficit = computeDeficit(trend.records);
@@ -135,7 +144,11 @@ export async function POST(request: Request) {
       mealsDetail: recentMealsDetail(recentEntries),
       marks: marksContext(marks),
       priorSummary: prior.length > 0 ? priorSummary : null,
+      // El párrafo web y la tool `googleSearch` van atados a este mismo flag.
+      webSearch,
     });
+
+    tools = webSearch ? webSearchTools() : undefined;
 
     modelMessages = [...unsummarized, ...windowMsgs].map((m) => ({
       role: m.role,
@@ -152,6 +165,11 @@ export async function POST(request: Request) {
       model: resolveModel("chat"),
       system,
       messages: modelMessages,
+      // Grounding web (F05 Fase 1): provider-executed `googleSearch`, disparo
+      // automático (Gemini decide cuándo buscar). undefined si `chatWebSearch`
+      // está OFF. La cita de fuente va en el TEXTO (por prompt), no chips de
+      // groundingMetadata → el streaming de texto no cambia (DECISIONS #63).
+      tools,
       temperature: 0.3,
       // thinking "low" (antes "medium", DECISIONS #55): con Gemini 3.1 Pro,
       // "medium" tardaba demasiado en soltar el primer byte y comía el
