@@ -140,7 +140,7 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   poder capturarse en el día (nota / sesión = Descanso / fase) desde el propio chat, para que el
   contexto del Coach y de la Tendencia la recojan. Caso real del 15-jul (implantes → sin entreno).
 - ✅ **Mis productos (favoritos con etiqueta que reescalan)** (caso real Alex, 16-jul) — **IMPLEMENTADA (F07, v1.9)**,
-  desplegada; **AC 6/7 validados 🖐**, **AC8 (foto→editor) y AC9 (etiqueta real ×3) pendientes** de validar:
+  desplegada y **validada por Alex 🖐 (AC 6/7/8/9, 17-jul)**:
   [`docs/specs/features/07-mis-productos.md`](./specs/features/07-mis-productos.md).
   «Favorito» → «producto» (un solo concepto, editable, agnóstico de comida, `baseG` que reescala).
   Tabla `products` (migración 0007) + migración de favoritos (`pnpm migrate:products`, 0 pérdidas) +
