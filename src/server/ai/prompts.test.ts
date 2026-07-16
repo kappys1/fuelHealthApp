@@ -624,6 +624,57 @@ describe("chat: reconstrucción F05 Fase 0 (contrato C1-C9)", () => {
   });
 });
 
+// ── F05 Fase 1 · grounding web condicionado al flag `chatWebSearch` (AC5/5b) ──
+// El párrafo de comer-fuera se añade por interpolación SOLO cuando `webSearch`
+// está ON; OFF (o sin pasar el flag) = prompt idéntico a la Fase 0. La tool
+// `googleSearch` de la route va atada al MISMO flag (revisión de la route). El
+// disparo automático y la cita en el TEXTO son DECISIONS #63.
+describe("F05 Fase 1 · párrafo web condicionado al flag (AC5/5b)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+
+  it("AC5: con webSearch ON el prompt lleva el párrafo de comer-fuera (buscar/cita/estimación/no-registro)", () => {
+    const p = chatSystemPrompt({ ...chatArgs, webSearch: true });
+    // Iteración 16-jul (AC2): buscar primero y dar el dato con fuente, no desviar
+    // a la pauta; y NUNCA macros confiados sin citar o marcar estimación.
+    expect(p).toContain("BÚSCALO en la web");
+    expect(p).toContain("citando la fuente");
+    expect(p).toContain("no sustituyas el producto por una opción de su plan");
+    expect(p).toContain("marca la cifra como estimación");
+    expect(p).toContain(
+      "NUNCA des macros concretos de un producto de fuera con seguridad sin citar la fuente o sin marcarlos como estimación",
+    );
+    // Iteración 16-jul (validación #2): la fuente web (Open Food Facts) trae el
+    // dato flojo → tratar fuentes colaborativas como orientativas y ser honesto
+    // cuando no está la variante exacta (fallo elegante, no dar otra por la suya).
+    expect(p).toContain("Open Food Facts");
+    expect(p).toContain("si no encuentras la variante EXACTA");
+    expect(p).toContain("ORIENTATIVAS para decidir, NO un registro");
+  });
+
+  it("AC5b: con webSearch OFF (o sin pasar el flag) NO lleva el párrafo web (idéntico a Fase 0)", () => {
+    const off = chatSystemPrompt({ ...chatArgs, webSearch: false });
+    const undef = chatSystemPrompt(chatArgs);
+    expect(off).not.toContain("BÚSCALO en la web");
+    expect(undef).not.toContain("BÚSCALO en la web");
+    // OFF y sin flag son byte-idénticos: el freno de coste vuelve a la Fase 0.
+    expect(off).toBe(undef);
+  });
+
+  it("no toca el resto del contrato (C1-C9 intactos con web ON)", () => {
+    const p = chatSystemPrompt({ ...chatArgs, webSearch: true });
+    expect(p).toContain("criterio REALISTA");
+    expect(p).toContain("las opciones de cada comida son ALTERNATIVAS, no las apiles");
+    expect(p).toContain("Sugieres, no prescribes.");
+  });
+});
+
 describe("planSummary lleva los macros de cada opción (DECISIONS #56)", () => {
   it("cada opción del plan incluye kcal + P/C/F, no solo nombre y gramos", () => {
     const targets = {
