@@ -199,6 +199,28 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   y para cuadrar el día es ruido según P2). AC de flujo (🖐 1, 2, 3, 5b, 7 deploy) a
   validar en producción. **Pendiente**: Fase 2 (foto en el chat), tras rodar la Fase 1.
 
+### v1.9 · Mis productos — favoritos que reescalan (F07)
+- **«Favorito» → «producto», un solo concepto** (editable, agnóstico de comida, con
+  `baseG` que **reescala** al añadir; reusa `scaleMacros`/`entryBaseFields` de F06). Tabla
+  `products` (migración **0007** aditiva: enum `product_source` etiqueta|manual|legacy) +
+  **migración de favoritos** `pnpm migrate:products` (0 pérdidas, dedupe de colisión de
+  nombre logueada); `favorites` queda deprecada. Export/restore, seed y `migrate:poc`
+  pueblan `products`.
+- **Sheet de Añadir → «Mis productos»**: chips de los `pinned` (agnósticos); tocar → capa
+  **stepper** (baseG, reescala) o **1 toque** si es fijo (legacy). `Ver todos →` /
+  pulsación larga → **catálogo editable** (buscar · ⭐ pin · ✎ · 🗑 · ＋Nuevo); undo del
+  borrado = **banner inline** dentro del sheet (el toast no recibe clics en un sheet modal,
+  DECISIONS #42/#64). Editor manual + entrada a mano. Búsqueda universal incluye productos.
+- Se retira el **★ por-entrada** del timeline (escribía en `favorites`); el ⭐ pasa a ser
+  el pin del producto. DECISIONS #64.
+- **F-IA-11 · leer etiqueta** (`POST /api/ai/label-read`, visión, reusa `AI_MODEL_VISION`):
+  foto de la tabla nutricional → rellena el editor (LECTURA, no estimación: null donde no
+  figura); Alex confirma → `source:'etiqueta'`. Prompt CONGELADO en `04-IA.md` §F-IA-11.
+- Editar un producto **no** reescribe entradas ya registradas (AC5). AC1/AC2 (reescalado)
+  y AC3/AC4 (migración + round-trip) con test. **AC 6/7 validados 🖐**; **AC8 (foto→editor)
+  y AC9 (etiqueta real ×3)** pendientes de validar en producción. El café ×3 (DECISIONS
+  #65) NO aplica (F-IA-11 es lectura, no estimación).
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
