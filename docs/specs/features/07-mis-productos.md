@@ -1,5 +1,5 @@
 # F07 · Mis productos (favoritos con etiqueta que reescalan)
-**Estado**: propuesta · **Tamaño**: feature (migración + prompt IA nuevo + capa de sheet)
+**Estado**: implementada (v1.9, validada por Alex 🖐 2026-07-17) · **Tamaño**: feature (migración + prompt IA nuevo + capa de sheet)
 **Fecha**: 2026-07-16 · **Origen**: caso real 16-jul — Alex compara su día en MyFitnessPal
 vs Fuelboard: 1.910 vs 1.664 kcal. Al abrirlo ítem a ítem, la diferencia es casi toda **una
 entrada rota de MFP** (pollo 210 g con 97 g de proteína — imposible; ahí acierta Fuelboard)
@@ -122,11 +122,11 @@ lo necesitan). Blast radius de IA acotado → sin regresión de guardarraíles.
    `pinned` agnósticos de comida; tocar → stepper → Añadir a la comida en curso.
 7. ✅ (🖐 validado por Alex en prod, 2026-07-16) `Ver todos →` / pulsación larga abre el
    catálogo editable (✎ · 🗑 · ⭐ · ＋ Nuevo). (Undo del borrado = banner inline, DECISIONS #64.)
-8. 🖐 (fase 2) ＋ Nuevo → foto de etiqueta → la IA rellena el formulario → Alex confirma/edita
-   → se guarda con `source:'etiqueta'`.
-9. (fase 2) F-IA-11: leer una etiqueta real ×3 da lectura consistente y **null donde el dato
-   no figura** (no inventa); su AC propio validado antes del cierre (regla CLAUDE.md al
-   añadir prompt). El café ×3 (DECISIONS #65) **no aplica** (no toca prompts de estimación).
+8. ✅ (🖐 validado por Alex en prod, 2026-07-17) (fase 2) ＋ Nuevo → foto de etiqueta → la IA
+   rellena el formulario → Alex confirma/edita → se guarda con `source:'etiqueta'`.
+9. ✅ (validado por Alex en prod, 2026-07-17) (fase 2) F-IA-11: leer una etiqueta real ×3 da
+   lectura consistente y **null donde el dato no figura** (no inventa). El café ×3 (DECISIONS
+   #65) **no aplica** (no toca prompts de estimación).
 
 ## Riesgos / decisiones discutibles
 - **Colisión de la migración** (mismo nombre en 2 comidas): se dedupe por nombre y se
