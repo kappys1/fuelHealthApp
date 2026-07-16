@@ -588,6 +588,20 @@ describe("chat: reconstrucción F05 Fase 0 (contrato C1-C9)", () => {
     expect(p).toContain("AOVE/aguacate/crema");
     expect(p).toContain("no rellenes por rellenar");
   });
+
+  it("C1 (iteración dev 16-jul): no rellenar huecos pequeños, proporcionalidad, gasolina≠rellenar, reconcilia contexto", () => {
+    const p = chatSystemPrompt(chatArgs);
+    // quedarse corto en definición no es un hueco que rellenar
+    expect(p).toContain("NO es un hueco que rellenar");
+    expect(p).toContain("vas bien, no toques nada");
+    // la palanca es proporcional al hueco y ÚNICA de verdad (no subir la apuesta)
+    expect(p).toContain("SOLO si el hueco es relevante");
+    expect(p).toContain("no subas la apuesta");
+    // gasolina de sesión (pre-entreno) ≠ rellenar para clavar
+    expect(p).toContain("gasolina para la sesión");
+    // reconcilia el cambio de contexto en vez de contradecirse (incoherencia T1↔T3)
+    expect(p).toContain("reconcílialo en vez de contradecirte");
+  });
 });
 
 describe("planSummary lleva los macros de cada opción (DECISIONS #56)", () => {
