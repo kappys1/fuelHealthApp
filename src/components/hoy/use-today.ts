@@ -1,11 +1,10 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { api, type EntryInput } from "@/lib/client-api";
+import { api, type EntryInput, type ProductInput } from "@/lib/client-api";
 import { enqueue, isOffline } from "@/lib/offline-queue";
-import type { MealKey } from "@/lib/macros";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { EntryDTO } from "@/server/db/queries/day";
 import type { TodayPayload } from "@/server/db/queries/today";
@@ -197,34 +196,83 @@ export function useToday(date: string, initial: TodayPayload) {
     };
   }, []);
 
-  // ── Favorito (optimista sobre la lista de favoritos) ──
-  const toggleFavorite = useMutation({
-    mutationFn: (fav: {
-      meal: MealKey;
-      name: string;
-      kcal: number;
-      prot: number;
-      carb: number;
-      fat: number;
-    }) => api.toggleFavorite(fav),
-    onSuccess: (res, fav) => {
-      toast(res.favorited ? "Añadido a favoritos ★" : "Quitado de favoritos");
-      setData((p) => {
-        const exists = p.favorites.some(
-          (f) => f.meal === fav.meal && f.name === fav.name,
-        );
-        const favorites = res.favorited
-          ? exists
-            ? p.favorites
-            : [{ id: tempId--, ...fav }, ...p.favorites]
-          : p.favorites.filter((f) => !(f.meal === fav.meal && f.name === fav.name));
-        return { ...p, favorites };
-      });
-      refetch();
+  // ── Productos (F07 · catálogo, optimista sobre data.products) ──
+  const createProduct = useCallback(
+    async (input: ProductInput) => {
+      setData((p) => ({
+        ...p,
+        products: [{ id: tempId--, ...input }, ...p.products],
+      }));
+      try {
+        await api.createProduct(input);
+        toast.success("Producto creado");
+        refetch();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo crear.");
+        refetch();
+      }
     },
-    onError: (err) =>
-      toast.error(err instanceof Error ? err.message : "No se pudo."),
-  });
+    [setData, refetch],
+  );
+
+  const updateProduct = useCallback(
+    async (id: number, patch: Partial<ProductInput>) => {
+      setData((p) => ({
+        ...p,
+        products: p.products.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+      }));
+      try {
+        await api.updateProduct(id, patch);
+        refetch();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+        refetch();
+      }
+    },
+    [setData, refetch],
+  );
+
+  const toggleProductPin = useCallback(
+    async (id: number) => {
+      setData((p) => ({
+        ...p,
+        products: p.products.map((x) =>
+          x.id === id ? { ...x, pinned: !x.pinned } : x,
+        ),
+      }));
+      try {
+        await api.toggleProductPin(id);
+        refetch();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo.");
+        refetch();
+      }
+    },
+    [setData, refetch],
+  );
+
+  // Borrar producto: optimista + undo (07 §2, no confirmación). El undo lo recrea.
+  const deleteProduct = useCallback(
+    async (product: TodayPayload["products"][number]) => {
+      setData((p) => ({
+        ...p,
+        products: p.products.filter((x) => x.id !== product.id),
+      }));
+      try {
+        await api.deleteProduct(product.id);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
+        refetch();
+        return;
+      }
+      const { id: _id, ...input } = product;
+      toast("Producto eliminado", {
+        duration: 6000,
+        action: { label: "Deshacer", onClick: () => void createProduct(input) },
+      });
+    },
+    [setData, refetch, createProduct],
+  );
 
   const copyYesterday = useCallback(async () => {
     try {
@@ -286,8 +334,10 @@ export function useToday(date: string, initial: TodayPayload) {
     updateEntry,
     deleteEntry,
     patchDay,
-    toggleFavorite: (f: Parameters<typeof toggleFavorite.mutate>[0]) =>
-      toggleFavorite.mutate(f),
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    toggleProductPin,
     copyYesterday,
     applyTemplate,
     saveTemplate,

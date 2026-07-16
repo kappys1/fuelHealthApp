@@ -6,9 +6,12 @@ import {
   ClipboardList,
   Loader2,
   PenLine,
+  Plus,
   RefreshCw,
   Search,
   Sparkles,
+  Star,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -26,16 +29,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Stepper } from "@/components/ui/stepper";
-import { api, type EntryInput } from "@/lib/client-api";
+import { api, type EntryInput, type ProductInput } from "@/lib/client-api";
 import { processImage, type ProcessedImage } from "@/lib/image";
 import { useOnline } from "@/lib/use-online";
 import {
   displayMacro,
   entryBaseFields,
+  type GrpKey,
   type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
   GRP_ORDER,
+  productToEntryFields,
   roundKcal,
   roundMacroStore,
   scaleMacros,
@@ -44,16 +49,24 @@ import {
 } from "@/lib/macros";
 import { cn } from "@/lib/utils";
 import type { PhotoResult } from "@/server/ai/schemas";
-import type { FavoriteDTO, RecentDTO } from "@/server/db/queries/lookups";
+import type { ProductDTO, RecentDTO } from "@/server/db/queries/lookups";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
 
 interface Corpus {
   optionsByMeal: Record<string, PlanOptionDTO[]>;
-  favorites: FavoriteDTO[];
+  products: ProductDTO[];
   recents: RecentDTO[];
 }
 
-type Layer = "home" | "plan" | "photo" | "describe";
+/** Handlers de CRUD del catálogo de productos (F07), inyectados desde useToday. */
+export interface ProductActions {
+  create: (input: ProductInput) => void;
+  update: (id: number, patch: Partial<ProductInput>) => void;
+  remove: (product: ProductDTO) => void;
+  togglePin: (id: number) => void;
+}
+
+type Layer = "home" | "plan" | "photo" | "describe" | "product" | "products" | "editor";
 
 export function AddSheet({
   open,
@@ -61,6 +74,7 @@ export function AddSheet({
   meal,
   setMeal,
   corpus,
+  products,
   targetKcal,
   currentKcal,
   date,
@@ -72,6 +86,7 @@ export function AddSheet({
   meal: MealKey;
   setMeal: (m: MealKey) => void;
   corpus: Corpus;
+  products: ProductActions;
   targetKcal: number;
   currentKcal: number;
   date: string;
@@ -80,6 +95,11 @@ export function AddSheet({
   initialFile?: File | null;
 }) {
   const [layer, setLayer] = useState<Layer>("home");
+  // Producto seleccionado para el stepper (capa "product") y en edición (capa
+  // "editor"; null = producto nuevo). `editorFrom` = a dónde vuelve el editor.
+  const [selectedProduct, setSelectedProduct] = useState<ProductDTO | null>(null);
+  const [editingProduct, setEditingProduct] = useState<ProductDTO | null>(null);
+  const [editorFrom, setEditorFrom] = useState<Layer>("products");
 
   // Share target: al abrir con una imagen compartida, saltar a la capa de foto.
   // Diferido para no encadenar renders síncronos dentro del efecto.
@@ -96,14 +116,23 @@ export function AddSheet({
     [corpus.optionsByMeal],
   );
 
-  // Búsqueda universal local: favoritos + opciones del plan + últimas entradas.
+  // Búsqueda universal local: productos + opciones del plan + últimas entradas.
   const results = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return [];
     const hits: ResultRow[] = [];
-    for (const f of corpus.favorites)
-      if (f.name.toLowerCase().includes(q))
-        hits.push({ key: `f${f.id}`, ...f, source: "fav", baseG: null });
+    for (const p of corpus.products)
+      if (p.name.toLowerCase().includes(q))
+        hits.push({
+          key: `prod${p.id}`,
+          name: p.name,
+          kcal: p.baseKcal,
+          prot: p.baseProt,
+          carb: p.baseCarb,
+          fat: p.baseFat,
+          source: "fav",
+          baseG: p.baseG,
+        });
     for (const o of allOptions)
       if (o.name.toLowerCase().includes(q))
         hits.push({ key: `p${o.id}`, ...o, source: "plan", baseG: o.baseG });
@@ -111,7 +140,7 @@ export function AddSheet({
       if (r.name.toLowerCase().includes(q))
         hits.push({ key: `r${r.name}`, ...r, source: "manual", baseG: null });
     return hits.slice(0, 8);
-  }, [search, corpus.favorites, corpus.recents, allOptions]);
+  }, [search, corpus.products, corpus.recents, allOptions]);
 
   const commit = (entries: EntryInput[]) => {
     const delta = entries.reduce((a, e) => a + e.kcal, 0);
@@ -125,17 +154,45 @@ export function AddSheet({
       setLayer("home");
       setSearch("");
       setJustAdded(null);
+      setSelectedProduct(null);
+      setEditingProduct(null);
     }
     onOpenChange(v);
   };
 
-  const back = () => setLayer("home");
+  // Añadir un producto al día: con baseG → capa stepper; fijo → 1 toque directo.
+  const addProduct = (p: ProductDTO) => {
+    if (p.baseG != null && p.baseG !== 0) {
+      setSelectedProduct(p);
+      setLayer("product");
+      return;
+    }
+    const f = productToEntryFields(p, 0);
+    commit([{ meal, name: p.name, ...f, source: "fav" }]);
+  };
+
+  const openEditor = (p: ProductDTO | null, from: Layer) => {
+    setEditingProduct(p);
+    setEditorFrom(from);
+    setLayer("editor");
+  };
+
+  const back = () => {
+    if (layer === "editor") {
+      setLayer(editorFrom);
+      return;
+    }
+    setLayer("home");
+  };
 
   const headerLabel: Record<Layer, string> = {
     home: "Añadir",
     plan: "Del plan",
     photo: "Foto",
     describe: "Describir",
+    product: selectedProduct?.name ?? "Producto",
+    products: "Mis productos",
+    editor: editingProduct ? "Editar producto" : "Nuevo producto",
   };
 
   return (
@@ -195,8 +252,11 @@ export function AddSheet({
             search={search}
             setSearch={setSearch}
             results={results}
-            favorites={corpus.favorites}
+            products={corpus.products}
             onGoLayer={setLayer}
+            onAddProduct={addProduct}
+            onOpenCatalog={() => setLayer("products")}
+            onNewProduct={() => openEditor(null, "home")}
             onAddResult={(r) => {
               if (r.baseG != null) return; // se maneja con stepper inline abajo
               commit([
@@ -218,6 +278,29 @@ export function AddSheet({
             meal={meal}
             options={corpus.optionsByMeal[meal] ?? []}
             onAdd={commit}
+          />
+        ) : layer === "product" && selectedProduct ? (
+          <ProductStepperLayer
+            product={selectedProduct}
+            meal={meal}
+            onAdd={(e) => {
+              commit(e);
+              setLayer("home");
+              setSelectedProduct(null);
+            }}
+          />
+        ) : layer === "products" ? (
+          <ProductsLayer
+            products={corpus.products}
+            actions={products}
+            onEdit={(p) => openEditor(p, "products")}
+            onNew={() => openEditor(null, "products")}
+          />
+        ) : layer === "editor" ? (
+          <ProductEditorLayer
+            product={editingProduct}
+            actions={products}
+            onDone={back}
           />
         ) : layer === "photo" ? (
           <PhotoLayer meal={meal} date={date} onCommit={commit} initialFile={initialFile} />
@@ -245,8 +328,11 @@ function HomeLayer({
   search,
   setSearch,
   results,
-  favorites,
+  products,
   onGoLayer,
+  onAddProduct,
+  onOpenCatalog,
+  onNewProduct,
   onAddResult,
   onAddScaled,
 }: {
@@ -254,11 +340,16 @@ function HomeLayer({
   search: string;
   setSearch: (v: string) => void;
   results: ResultRow[];
-  favorites: FavoriteDTO[];
+  products: ProductDTO[];
   onGoLayer: (l: Layer) => void;
+  onAddProduct: (p: ProductDTO) => void;
+  onOpenCatalog: () => void;
+  onNewProduct: () => void;
   onAddResult: (r: ResultRow) => void;
   onAddScaled: (e: EntryInput[]) => void;
 }) {
+  // Chips = productos fijados (agnósticos de comida), los más recientes primero.
+  const pinned = products.filter((p) => p.pinned).slice(0, 6);
   return (
     <div className="space-y-4 px-4 py-3">
       {/* Búsqueda universal */}
@@ -269,7 +360,7 @@ function HomeLayer({
           autoFocus
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar en favoritos, plan y recientes…"
+          placeholder="Buscar en productos, plan y recientes…"
           className="h-11 w-full rounded-lg border border-input bg-surface-2 pl-8 pr-2.5 text-base outline-none focus-visible:border-ring"
           aria-label="Buscar comida"
         />
@@ -301,37 +392,40 @@ function HomeLayer({
         </div>
       ) : null}
 
-      {/* Chips de favoritos (6 más usados) */}
-      {favorites.length > 0 ? (
+      {/* Mis productos: chips de los fijados (agnósticos de comida). Tocar → stepper
+          (si escala) o añadir directo (si es fijo). Pulsación larga → catálogo. */}
+      {pinned.length > 0 ? (
         <div>
-          <h3 className="mb-1.5 text-[12px] text-muted-foreground">Favoritos</h3>
-          <div className="flex flex-wrap gap-2">
-            {favorites.slice(0, 6).map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() =>
-                  onAddScaled([
-                    {
-                      meal,
-                      name: f.name,
-                      kcal: f.kcal,
-                      prot: f.prot,
-                      carb: f.carb,
-                      fat: f.fat,
-                      source: "fav",
-                    },
-                  ])
-                }
-                className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[13px]"
-              >
-                <span className="max-w-[160px] truncate">{f.name}</span>
-                <span className="num text-muted-foreground">{f.kcal}</span>
-              </button>
+          <div className="mb-1.5 flex items-center justify-between">
+            <h3 className="text-[12px] text-muted-foreground">Mis productos</h3>
+            <button
+              type="button"
+              onClick={onOpenCatalog}
+              className="text-[12px] text-primary"
+            >
+              Ver todos →
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {pinned.map((p) => (
+              <ProductChip
+                key={p.id}
+                product={p}
+                onTap={() => onAddProduct(p)}
+                onLongPress={onOpenCatalog}
+              />
             ))}
           </div>
         </div>
-      ) : null}
+      ) : (
+        <button
+          type="button"
+          onClick={onOpenCatalog}
+          className="w-full rounded-lg border border-dashed border-line py-3 text-[13px] text-muted-foreground"
+        >
+          Aún no tienes productos fijados · Ver catálogo →
+        </button>
+      )}
 
       {/* Tres accesos grandes: Foto · Del plan · Describir (IA) */}
       <div className="grid grid-cols-3 gap-2">
@@ -351,7 +445,79 @@ function HomeLayer({
           onClick={() => onGoLayer("describe")}
         />
       </div>
+
+      {/* Nuevo producto (a mano en Fase 1; foto de etiqueta en Fase 2) */}
+      <button
+        type="button"
+        onClick={onNewProduct}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-3 text-[13px] font-medium text-primary"
+      >
+        <Plus className="size-4" aria-hidden /> Nuevo producto
+      </button>
     </div>
+  );
+}
+
+/** Etiqueta corta de la base de un producto: "100 g · 310 kcal" o "310 kcal" (fijo). */
+function productBaseLabel(p: ProductDTO): string {
+  return p.baseG != null && p.baseG !== 0
+    ? `${p.baseG} g · ${p.baseKcal} kcal`
+    : `${p.baseKcal} kcal`;
+}
+
+/** Icono de origen del producto (📷 etiqueta · ✎ manual · nada para legacy). */
+function ProductSourceIcon({ source }: { source: ProductDTO["source"] }) {
+  if (source === "etiqueta")
+    return <Camera className="size-3.5 text-protein" aria-label="De etiqueta" />;
+  if (source === "manual")
+    return <PenLine className="size-3.5 text-muted-foreground" aria-label="Manual" />;
+  return null;
+}
+
+/** Chip de producto (2 columnas). Pulsación larga (~500 ms) → catálogo (AC7). */
+function ProductChip({
+  product,
+  onTap,
+  onLongPress,
+}: {
+  product: ProductDTO;
+  onTap: () => void;
+  onLongPress: () => void;
+}) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longFired = useRef(false);
+
+  const start = () => {
+    longFired.current = false;
+    timer.current = setTimeout(() => {
+      longFired.current = true;
+      onLongPress();
+    }, 500);
+  };
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current);
+  };
+
+  return (
+    <button
+      type="button"
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onClick={() => {
+        if (longFired.current) return; // fue pulsación larga: no añadir
+        onTap();
+      }}
+      className="relative flex flex-col gap-0.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-left"
+    >
+      <span className="absolute top-2 right-2.5">
+        <ProductSourceIcon source={product.source} />
+      </span>
+      <span className="truncate pr-5 text-[13.5px] font-semibold">{product.name}</span>
+      <span className="num text-[11px] text-muted-foreground">
+        {productBaseLabel(product)}
+      </span>
+    </button>
   );
 }
 
@@ -1101,6 +1267,332 @@ function DumpItemRow({
           {displayMacro(scaled.carb)}C/{displayMacro(scaled.fat)}F
         </span>
       </div>
+    </div>
+  );
+}
+
+// ── Capa producto: stepper de gramos (patrón F06) → añadir a la comida en curso ──
+function ProductStepperLayer({
+  product,
+  meal,
+  onAdd,
+}: {
+  product: ProductDTO;
+  meal: MealKey;
+  onAdd: (e: EntryInput[]) => void;
+}) {
+  const [g, setG] = useState(String(product.baseG ?? 0));
+  const grams = g === "" ? 0 : Number(g.replace(",", "."));
+  const f = productToEntryFields(product, grams);
+
+  return (
+    <div className="space-y-4 px-4 py-3">
+      <div className="rounded-xl border border-line bg-surface p-4">
+        <div className="text-[12px] text-muted-foreground">
+          Etiqueta · {product.baseG} g =
+        </div>
+        <div className="num mt-0.5 text-[20px] font-bold">{product.baseKcal} kcal</div>
+        <div className="num text-[13px] text-muted-foreground">
+          {displayMacro(product.baseProt)} P · {displayMacro(product.baseCarb)} C ·{" "}
+          {displayMacro(product.baseFat)} F
+        </div>
+
+        <div className="mt-4 mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+          Cantidad
+        </div>
+        <div className="flex justify-center">
+          <Stepper
+            value={g}
+            onChange={setG}
+            step={10}
+            suffix="g"
+            ariaLabel="Cantidad en gramos"
+          />
+        </div>
+
+        <div className="mt-4 text-center">
+          <div className="num text-[20px] font-bold">{f.kcal} kcal</div>
+          <div className="num text-[13px] text-muted-foreground">
+            {displayMacro(f.prot)} P · {displayMacro(f.carb)} C · {displayMacro(f.fat)} F
+          </div>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onAdd([{ meal, name: product.name, ...f, source: "fav" }])}
+        className="w-full rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground"
+      >
+        Añadir a {MEAL_LABELS[meal]}
+      </button>
+    </div>
+  );
+}
+
+// ── Capa catálogo: lista editable de productos (buscar · ⭐ · ✎ · 🗑 · ＋ Nuevo) ──
+function ProductsLayer({
+  products,
+  actions,
+  onEdit,
+  onNew,
+}: {
+  products: ProductDTO[];
+  actions: ProductActions;
+  onEdit: (p: ProductDTO) => void;
+  onNew: () => void;
+}) {
+  const [q, setQ] = useState("");
+  const query = q.trim().toLowerCase();
+  const filtered = query
+    ? products.filter((p) => p.name.toLowerCase().includes(query))
+    : products;
+
+  return (
+    <div className="space-y-3 px-4 py-3">
+      <button
+        type="button"
+        onClick={onNew}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-[14px] font-semibold text-primary-foreground"
+      >
+        <Plus className="size-4" aria-hidden /> Nuevo producto
+      </button>
+
+      <div className="relative">
+        <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar producto…"
+          className="h-11 w-full rounded-lg border border-input bg-surface-2 pl-8 pr-2.5 text-base outline-none focus-visible:border-ring"
+          aria-label="Buscar producto"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="py-6 text-center text-[13px] text-muted-foreground">
+          {products.length === 0
+            ? "Aún no tienes productos. Crea el primero con ＋ Nuevo."
+            : "Sin coincidencias."}
+        </p>
+      ) : (
+        <div>
+          {filtered.map((p) => (
+            <ProductRow
+              key={p.id}
+              product={p}
+              onTogglePin={() => actions.togglePin(p.id)}
+              onEdit={() => onEdit(p)}
+              onDelete={() => actions.remove(p)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const SOURCE_BADGE: Record<ProductDTO["source"], { label: string; cls: string }> = {
+  etiqueta: { label: "etiqueta", cls: "text-protein border-protein/40" },
+  manual: { label: "manual", cls: "text-muted-foreground border-line" },
+  legacy: { label: "antiguo", cls: "text-carb border-carb/40" },
+};
+
+function ProductRow({
+  product,
+  onTogglePin,
+  onEdit,
+  onDelete,
+}: {
+  product: ProductDTO;
+  onTogglePin: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const badge = SOURCE_BADGE[product.source];
+  return (
+    <div className="flex items-start gap-2.5 border-b border-dashed border-line py-2.5 last:border-b-0">
+      <button
+        type="button"
+        onClick={onTogglePin}
+        aria-label={product.pinned ? "Quitar de acceso rápido" : "Fijar como acceso rápido"}
+        aria-pressed={product.pinned}
+        className="shrink-0 pt-0.5 text-muted-foreground"
+      >
+        <Star
+          className={cn("size-4", product.pinned && "fill-carb text-carb")}
+          aria-hidden
+        />
+      </button>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[14px] text-foreground">{product.name}</div>
+        <div className="num mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-muted-foreground">
+          <span>
+            {productBaseLabel(product)} · {displayMacro(product.baseProt)}P/
+            {displayMacro(product.baseCarb)}C/{displayMacro(product.baseFat)}F
+          </span>
+          <span className={cn("rounded border px-1.5 py-px text-[10px]", badge.cls)}>
+            {badge.label}
+          </span>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        aria-label="Editar"
+        className="shrink-0 pt-0.5 text-muted-foreground"
+      >
+        <PenLine className="size-4" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        aria-label="Borrar"
+        className="shrink-0 pt-0.5 text-muted-foreground transition-colors hover:text-destructive"
+      >
+        <Trash2 className="size-4" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+// ── Capa editor: crear/editar un producto a mano (foto de etiqueta = Fase 2) ──
+const GRUPO_NONE = "—";
+const PRODUCT_GROUPS: GrpKey[] = ["Hidratos", "Proteína", "Verdura", "Grasa", "Otros"];
+
+function ProductEditorLayer({
+  product,
+  actions,
+  onDone,
+}: {
+  product: ProductDTO | null;
+  actions: ProductActions;
+  onDone: () => void;
+}) {
+  const [name, setName] = useState(product?.name ?? "");
+  const [baseG, setBaseG] = useState(product?.baseG != null ? String(product.baseG) : "");
+  const [kcal, setKcal] = useState(product ? String(product.baseKcal) : "");
+  const [prot, setProt] = useState(product ? String(product.baseProt) : "");
+  const [carb, setCarb] = useState(product ? String(product.baseCarb) : "");
+  const [fat, setFat] = useState(product ? String(product.baseFat) : "");
+  const [grupo, setGrupo] = useState<string>(product?.grupo ?? GRUPO_NONE);
+  const [pinned, setPinned] = useState(product?.pinned ?? true);
+
+  const num = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
+  const canSave = name.trim() !== "" && kcal.trim() !== "";
+
+  const save = () => {
+    if (!canSave) return;
+    const g = baseG.trim() === "" ? null : Math.round(num(baseG));
+    const input: ProductInput = {
+      name: name.trim(),
+      baseG: g && g > 0 ? g : null,
+      baseKcal: Math.round(num(kcal)),
+      baseProt: num(prot),
+      baseCarb: num(carb),
+      baseFat: num(fat),
+      grupo: grupo === GRUPO_NONE ? null : (grupo as GrpKey),
+      // Editar conserva el origen; los nuevos a mano son 'manual'.
+      source: product?.source ?? "manual",
+      pinned,
+    };
+    if (product) actions.update(product.id, input);
+    else actions.create(input);
+    onDone();
+  };
+
+  return (
+    <div className="space-y-3 px-4 py-3">
+      {/* Foto de la etiqueta: llega en la Fase 2 (F-IA-11). Visible pero inerte. */}
+      <button
+        type="button"
+        disabled
+        className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-5 text-[13px] text-muted-foreground opacity-70"
+      >
+        <Camera className="size-5" aria-hidden /> Foto de la etiqueta
+        <span className="absolute top-2 right-2 rounded bg-surface-2 px-1.5 py-px text-[10px] text-muted-foreground">
+          Fase 2
+        </span>
+      </button>
+      <div className="text-center text-[11px] uppercase tracking-wide text-muted-foreground">
+        — o rellénalo a mano —
+      </div>
+
+      <label className="block">
+        <span className="mb-1 block text-[12px] text-muted-foreground">Nombre</span>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="p. ej. Tortitas integrales Hacendado"
+          className="w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+          aria-label="Nombre"
+        />
+      </label>
+
+      <label className="block">
+        <span className="mb-1 block text-[12px] text-muted-foreground">
+          Base en gramos (vacío = fijo por unidad)
+        </span>
+        <input
+          value={baseG}
+          onChange={(e) => setBaseG(e.target.value)}
+          inputMode="numeric"
+          placeholder="100"
+          className="num w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+          aria-label="Base en gramos"
+        />
+      </label>
+
+      <div>
+        <span className="mb-1 block text-[12px] text-muted-foreground">
+          kcal · P · C · G {baseG.trim() ? `(por ${baseG} g)` : "(por unidad)"}
+        </span>
+        <div className="grid grid-cols-4 gap-2">
+          <MiniField label="kcal" value={kcal} onChange={setKcal} />
+          <MiniField label="Prot" value={prot} onChange={setProt} />
+          <MiniField label="Hidr" value={carb} onChange={setCarb} />
+          <MiniField label="Grasa" value={fat} onChange={setFat} />
+        </div>
+      </div>
+
+      <label className="block">
+        <span className="mb-1 block text-[12px] text-muted-foreground">Grupo</span>
+        <Select value={grupo} onValueChange={setGrupo}>
+          <SelectTrigger className="h-10 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={GRUPO_NONE}>Sin grupo</SelectItem>
+            {PRODUCT_GROUPS.map((g) => (
+              <SelectItem key={g} value={g}>
+                {g}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </label>
+
+      <button
+        type="button"
+        onClick={() => setPinned((v) => !v)}
+        aria-pressed={pinned}
+        className="flex w-full items-center justify-between rounded-lg border border-line bg-surface-2 px-3 py-2.5 text-[14px]"
+      >
+        <span>Acceso rápido (chip)</span>
+        <Star className={cn("size-4", pinned ? "fill-carb text-carb" : "text-muted-foreground")} aria-hidden />
+      </button>
+
+      <div className="rounded-lg border border-carb/35 bg-carb/10 px-3 py-2 text-[12px] text-carb">
+        ⚠️ Estos números se fijan y no se vuelven a estimar. Revísalos con la etiqueta.
+      </div>
+
+      <button
+        type="button"
+        onClick={save}
+        disabled={!canSave}
+        className="w-full rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
+      >
+        Guardar producto
+      </button>
     </div>
   );
 }

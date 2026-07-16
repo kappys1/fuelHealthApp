@@ -10,25 +10,22 @@ import {
 } from "@/lib/macros";
 import { subtotalsByMeal } from "@/server/analytics/dayTotals";
 import type { EntryDTO } from "@/server/db/queries/day";
-import type { FavoriteDTO, TemplateDTO } from "@/server/db/queries/lookups";
+import type { TemplateDTO } from "@/server/db/queries/lookups";
 
 const SECTIONS: MealKey[] = ["almuerzo", "comida", "merienda", "cena"];
 
 export function MealTimeline({
   entries,
-  favorites,
   templates,
   onAddToMeal,
   onSaveEntry,
   onDeleteEntry,
-  onToggleFav,
   onCopyYesterday,
   onSaveTemplate,
   onApplyTemplate,
   onDeleteTemplate,
 }: {
   entries: EntryDTO[];
-  favorites: FavoriteDTO[];
   templates: TemplateDTO[];
   onAddToMeal: (meal: MealKey) => void;
   onSaveEntry: (
@@ -43,14 +40,12 @@ export function MealTimeline({
     },
   ) => void;
   onDeleteEntry: (entry: EntryDTO) => void;
-  onToggleFav: (entry: EntryDTO) => void;
   onCopyYesterday: () => void;
   onSaveTemplate: (name: string) => void;
   onApplyTemplate: (id: number) => void;
   onDeleteTemplate: (id: number) => void;
 }) {
   const subtotals = subtotalsByMeal(entries);
-  const favKey = new Set(favorites.map((f) => `${f.meal}::${f.name}`));
   const extras = entries.filter((e) => e.meal === "extra");
   const sections: MealKey[] = extras.length > 0 ? [...SECTIONS, "extra"] : SECTIONS;
 
@@ -99,10 +94,8 @@ export function MealTimeline({
                     <MealRow
                       key={e.id}
                       entry={e}
-                      isFavorite={favKey.has(`${e.meal}::${e.name}`)}
                       onSave={(patch) => onSaveEntry(e.id, patch)}
                       onDelete={onDeleteEntry}
-                      onToggleFav={onToggleFav}
                     />
                   ))}
                 </div>

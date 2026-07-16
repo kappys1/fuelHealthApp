@@ -9,10 +9,10 @@ import {
   phaseOnDate,
 } from "./day";
 import {
-  type FavoriteDTO,
   getSessionByWeekday,
-  listFavorites,
+  listProducts,
   listTemplates,
+  type ProductDTO,
   recentDistinctEntries,
   type RecentDTO,
   type TemplateDTO,
@@ -34,7 +34,7 @@ export interface TodayPayload {
   targets: EffectiveTargets;
   derived: DerivedTargets;
   optionsByMeal: Record<string, PlanOptionDTO[]>;
-  favorites: FavoriteDTO[];
+  products: ProductDTO[];
   recents: RecentDTO[];
   templates: TemplateDTO[];
   streak: number;
@@ -56,7 +56,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
   const [
     view,
     plan,
-    favorites,
+    products,
     recents,
     templates,
     streak,
@@ -67,7 +67,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
   ] = await Promise.all([
     getDayView(date),
     getPlanContext(date),
-    listFavorites(),
+    listProducts(),
     recentDistinctEntries(50),
     listTemplates(),
     getStreak(),
@@ -99,7 +99,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     },
     derived: plan?.derived ?? { kcal: 0, prot: 0, carb: 0, fat: 0, kmin: 0, kmax: 0 },
     optionsByMeal: plan?.optionsByMeal ?? {},
-    favorites,
+    products,
     recents,
     templates,
     streak,

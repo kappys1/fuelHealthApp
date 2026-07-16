@@ -4,6 +4,7 @@ import {
   entryBaseFields,
   formatMacros,
   parseGramsSuffix,
+  productToEntryFields,
   scaleMacros,
   scaledForStore,
   sumMacros,
@@ -146,6 +147,48 @@ describe("F06 · backfillEntryGrams (AC5/AC7)", () => {
       backfillEntryGrams({ name: "Café con leche", kcal: 70, prot: 6.4, carb: 9.5, fat: 0.4 }),
     ).toEqual({
       name: "Café con leche",
+      grams: null,
+      baseG: null,
+      baseKcal: null,
+      baseProt: null,
+      baseCarb: null,
+      baseFat: null,
+    });
+  });
+});
+
+describe("productToEntryFields — añadir un producto reescalando (F07)", () => {
+  it("AC1 · producto con baseG reescala al añadirlo (80 g de un producto de 100 g = 0,8×)", () => {
+    const tortitas = { baseG: 100, baseKcal: 310, baseProt: 8, baseCarb: 58, baseFat: 5 };
+    expect(productToEntryFields(tortitas, 80)).toEqual({
+      kcal: 248,
+      prot: 6.4,
+      carb: 46.4,
+      fat: 4,
+      grams: 80,
+      baseG: 100,
+      baseKcal: 310,
+      baseProt: 8,
+      baseCarb: 58,
+      baseFat: 5,
+    });
+  });
+
+  it("AC1 · a la base (100 g) devuelve las macros de la etiqueta intactas", () => {
+    const tortitas = { baseG: 100, baseKcal: 310, baseProt: 8, baseCarb: 58, baseFat: 5 };
+    const r = productToEntryFields(tortitas, 100);
+    expect(r.kcal).toBe(310);
+    expect(r.prot).toBe(8);
+    expect(r.baseG).toBe(100);
+  });
+
+  it("AC2 · producto con baseG null se añade fijo (macros base, sin base → sin stepper)", () => {
+    const cafe = { baseG: null, baseKcal: 18, baseProt: 0.6, baseCarb: 1, baseFat: 1 };
+    expect(productToEntryFields(cafe, 999)).toEqual({
+      kcal: 18,
+      prot: 0.6,
+      carb: 1,
+      fat: 1,
       grams: null,
       baseG: null,
       baseKcal: null,

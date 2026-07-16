@@ -41,6 +41,22 @@ export const newEntryZ = z.object({
   baseFat: z.number().min(0).max(2000).nullable().optional(),
 });
 
+// Productos (F07 · catálogo). grupo nullable (la etiqueta puede no clasificar);
+// baseG null = producto fijo (por unidad, sin escalado).
+export const productSourceZ = z.enum(["etiqueta", "manual", "legacy"]);
+export const productCreateZ = z.object({
+  name: z.string().min(1).max(200),
+  baseG: z.number().int().min(0).max(5000).nullable(),
+  baseKcal: z.number().int().min(0).max(20000),
+  baseProt: z.number().min(0).max(2000),
+  baseCarb: z.number().min(0).max(2000),
+  baseFat: z.number().min(0).max(2000),
+  grupo: grpZ.nullable(),
+  source: productSourceZ,
+  pinned: z.boolean(),
+});
+export const productPatchZ = productCreateZ.partial();
+
 // MED (F5.1): fecha + grasa/músculo/peso en kg. Cada campo opcional (una MED
 // puede no traer todos los valores); la fecha es libre (entrada retroactiva).
 const medKgZ = z.number().min(0).max(500).nullable();

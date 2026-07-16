@@ -1,18 +1,23 @@
-import { desc, eq } from "drizzle-orm";
-import type { MealKey, SessionByWeekday } from "@/lib/macros";
+import { asc, desc, eq } from "drizzle-orm";
+import type { GrpKey, MealKey, SessionByWeekday } from "@/lib/macros";
 import { DEFAULT_SESSION_BY_WEEKDAY } from "@/lib/macros";
 import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
 import { db, schema } from "@/server/db";
 import type { TemplateItem } from "@/server/db/schema";
 
-export interface FavoriteDTO {
+// Producto (F07): agnóstico de comida, macros por base de gramos (baseG null =
+// fijo). `pinned` = sale como chip de acceso rápido en el sheet.
+export interface ProductDTO {
   id: number;
-  meal: MealKey;
   name: string;
-  kcal: number;
-  prot: number;
-  carb: number;
-  fat: number;
+  baseG: number | null;
+  baseKcal: number;
+  baseProt: number;
+  baseCarb: number;
+  baseFat: number;
+  grupo: GrpKey | null;
+  source: "etiqueta" | "manual" | "legacy";
+  pinned: boolean;
 }
 
 export interface RecentDTO {
@@ -30,11 +35,15 @@ export interface TemplateDTO {
   items: TemplateItem[];
 }
 
-export async function listFavorites(): Promise<FavoriteDTO[]> {
+/**
+ * Todos los productos (F07). Orden: fijados primero (chips de acceso rápido), luego
+ * por nombre. El sheet filtra `pinned` para los chips; el catálogo los muestra todos.
+ */
+export async function listProducts(): Promise<ProductDTO[]> {
   return (await db
     .select()
-    .from(schema.favorites)
-    .orderBy(desc(schema.favorites.id))) as FavoriteDTO[];
+    .from(schema.products)
+    .orderBy(desc(schema.products.pinned), asc(schema.products.name))) as ProductDTO[];
 }
 
 /**

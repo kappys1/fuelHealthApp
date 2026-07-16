@@ -1,4 +1,4 @@
-import type { MealKey } from "@/lib/macros";
+import type { GrpKey, MealKey } from "@/lib/macros";
 import type { MeasureType } from "@/lib/marks";
 import type { AthleteProfile } from "@/lib/profile";
 import type { MarkEntryDTO } from "@/server/db/queries/marks";
@@ -58,6 +58,18 @@ export interface EntryInput {
   baseFat?: number | null;
 }
 
+export interface ProductInput {
+  name: string;
+  baseG: number | null;
+  baseKcal: number;
+  baseProt: number;
+  baseCarb: number;
+  baseFat: number;
+  grupo: GrpKey | null;
+  source: "etiqueta" | "manual" | "legacy";
+  pinned: boolean;
+}
+
 export const api = {
   getDay: (date: string) =>
     req<TodayPayload>(`/api/day?date=${encodeURIComponent(date)}`),
@@ -92,17 +104,26 @@ export const api = {
       body: JSON.stringify({ date }),
     }),
 
-  toggleFavorite: (fav: {
-    meal: MealKey;
-    name: string;
-    kcal: number;
-    prot: number;
-    carb: number;
-    fat: number;
-  }) =>
-    req<{ favorited: boolean }>("/api/favorites", {
+  // Productos (F07 · catálogo)
+  createProduct: (p: ProductInput) =>
+    req<{ id: number }>("/api/products", {
       method: "POST",
-      body: JSON.stringify(fav),
+      body: JSON.stringify(p),
+    }),
+
+  updateProduct: (id: number, patch: Partial<ProductInput>) =>
+    req<{ ok: true }>(`/api/products/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+
+  deleteProduct: (id: number) =>
+    req<{ ok: true }>(`/api/products/${id}`, { method: "DELETE" }),
+
+  toggleProductPin: (id: number) =>
+    req<{ pinned: boolean }>(`/api/products/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ togglePin: true }),
     }),
 
   saveTemplate: (name: string, date: string) =>
