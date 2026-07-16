@@ -602,6 +602,16 @@ describe("chat: reconstrucción F05 Fase 0 (contrato C1-C9)", () => {
     // reconcilia el cambio de contexto en vez de contradecirse (incoherencia T1↔T3)
     expect(p).toContain("reconcílialo en vez de contradecirte");
   });
+
+  it("C1 (iteración dev 16-jul #2): el techo de kcal manda; no cerrar todos los macros a costa de pasarse", () => {
+    const p = chatSystemPrompt(chatArgs);
+    // el total de kcal es el juez, por encima de cerrar cada macro
+    expect(p).toContain("El techo de kcal del día manda sobre cerrar macros");
+    expect(p).toContain("comprueba el total");
+    // prioriza un macro, deja el resto; niega «clavar los números» explícitamente
+    expect(p).toContain("Cierra como mucho el macro que de verdad importe");
+    expect(p).toContain("no persigas «clavar los números» a costa de pasarte de kcal");
+  });
 });
 
 describe("planSummary lleva los macros de cada opción (DECISIONS #56)", () => {
