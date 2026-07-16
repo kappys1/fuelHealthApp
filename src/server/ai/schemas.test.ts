@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayDumpZ } from "./schemas";
+import { dayDumpZ, labelReadZ } from "./schemas";
 
 /*
   F06 Fase 2 (AC9): el schema de day-dump acepta `gramos` con cantidad o null (item
@@ -49,5 +49,56 @@ describe("dayDumpZ — gramos nullable (F06 Fase 2, AC9)", () => {
       ],
     });
     expect(parsed.items[0]?.gramos).toBe(120);
+  });
+});
+
+/*
+  F-IA-11 (F07 Fase 2): lectura de etiqueta. base_g/macros nullable (null donde el
+  dato NO figura → no se inventa); coerciona números emitidos como string.
+*/
+describe("labelReadZ — lectura de etiqueta (F-IA-11)", () => {
+  it("acepta una etiqueta por 100 g completa", () => {
+    const r = labelReadZ.parse({
+      nombre: "Tortitas integrales Hacendado",
+      base_g: 100,
+      kcal: 350,
+      proteina_g: 12,
+      carbohidratos_g: 60,
+      grasa_g: 6.5,
+      grupo: "Hidratos",
+    });
+    expect(r.base_g).toBe(100);
+    expect(r.kcal).toBe(350);
+    expect(r.grupo).toBe("Hidratos");
+  });
+
+  it("acepta null donde el dato no figura (por unidad sin peso, sin fibra…)", () => {
+    const r = labelReadZ.parse({
+      nombre: "Barrita X",
+      base_g: null,
+      kcal: 90,
+      proteina_g: null,
+      carbohidratos_g: 10,
+      grasa_g: null,
+      grupo: "Otros",
+    });
+    expect(r.base_g).toBeNull();
+    expect(r.proteina_g).toBeNull();
+    expect(r.grasa_g).toBeNull();
+    expect(r.kcal).toBe(90);
+  });
+
+  it("coerciona valores emitidos como string", () => {
+    const r = labelReadZ.parse({
+      nombre: "Pan",
+      base_g: "100",
+      kcal: "250",
+      proteina_g: "9",
+      carbohidratos_g: "48",
+      grasa_g: "3",
+      grupo: "Hidratos",
+    });
+    expect(r.base_g).toBe(100);
+    expect(r.kcal).toBe(250);
   });
 });

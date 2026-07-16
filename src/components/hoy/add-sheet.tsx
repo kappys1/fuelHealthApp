@@ -1516,6 +1516,44 @@ function ProductEditorLayer({
   const [fat, setFat] = useState(product ? String(product.baseFat) : "");
   const [grupo, setGrupo] = useState<string>(product?.grupo ?? GRUPO_NONE);
   const [pinned, setPinned] = useState(product?.pinned ?? true);
+  // Origen: al leer la etiqueta pasa a 'etiqueta'; si no, conserva el del producto
+  // (o 'manual' para uno nuevo). F-IA-11 (Fase 2).
+  const [source, setSource] = useState<ProductInput["source"]>(
+    product?.source ?? "manual",
+  );
+  const [aiFilled, setAiFilled] = useState(false);
+  const [reading, setReading] = useState(false);
+  const online = useOnline();
+
+  // Foto de la etiqueta → F-IA-11 rellena el formulario (LECTURA, no estimación).
+  // Alex confirma/edita antes de guardar (el aviso «se fijan» sigue vigente).
+  const pickLabel = async (file: File | undefined) => {
+    if (!file) return;
+    setReading(true);
+    try {
+      const img = await processImage(file);
+      const r = await api.readLabel([
+        { base64: img.base64, mediaType: img.mediaType },
+      ]);
+      setName(r.nombre || name);
+      setBaseG(r.base_g != null ? String(r.base_g) : "");
+      setKcal(r.kcal != null ? String(r.kcal) : "");
+      setProt(r.proteina_g != null ? String(r.proteina_g) : "");
+      setCarb(r.carbohidratos_g != null ? String(r.carbohidratos_g) : "");
+      setFat(r.grasa_g != null ? String(r.grasa_g) : "");
+      setGrupo(
+        (PRODUCT_GROUPS as string[]).includes(r.grupo) ? r.grupo : GRUPO_NONE,
+      );
+      setSource("etiqueta");
+      setAiFilled(true);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "No se pudo leer la etiqueta.",
+      );
+    } finally {
+      setReading(false);
+    }
+  };
 
   const num = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
   const canSave = name.trim() !== "" && kcal.trim() !== "";
@@ -1531,8 +1569,8 @@ function ProductEditorLayer({
       baseCarb: num(carb),
       baseFat: num(fat),
       grupo: grupo === GRUPO_NONE ? null : (grupo as GrpKey),
-      // Editar conserva el origen; los nuevos a mano son 'manual'.
-      source: product?.source ?? "manual",
+      // 'etiqueta' si se leyó la foto; si no, el origen del producto (o 'manual').
+      source,
       pinned,
     };
     if (product) actions.update(product.id, input);
@@ -1542,17 +1580,41 @@ function ProductEditorLayer({
 
   return (
     <div className="space-y-3 px-4 py-3">
-      {/* Foto de la etiqueta: llega en la Fase 2 (F-IA-11). Visible pero inerte. */}
-      <button
-        type="button"
-        disabled
-        className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-5 text-[13px] text-muted-foreground opacity-70"
+      {/* Foto de la etiqueta (F-IA-11): la IA LEE la tabla nutricional y rellena el
+          formulario; Alex confirma/edita. SIN `capture` (selector nativo cámara/galería). */}
+      <label
+        className={cn(
+          "relative flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-5 text-[13px]",
+          online && !reading
+            ? "cursor-pointer text-primary"
+            : "text-muted-foreground opacity-60",
+        )}
       >
-        <Camera className="size-5" aria-hidden /> Foto de la etiqueta
-        <span className="absolute top-2 right-2 rounded bg-surface-2 px-1.5 py-px text-[10px] text-muted-foreground">
-          Fase 2
-        </span>
-      </button>
+        {reading ? (
+          <Loader2 className="size-5 animate-spin" aria-hidden />
+        ) : (
+          <Camera className="size-5" aria-hidden />
+        )}
+        {reading ? "Leyendo etiqueta…" : "Foto de la etiqueta"}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          disabled={!online || reading}
+          onChange={(e) => pickLabel(e.target.files?.[0])}
+        />
+      </label>
+      {!online ? (
+        <p className="text-center text-[11px] text-muted-foreground">
+          Sin conexión: leer la etiqueta con IA no está disponible.
+        </p>
+      ) : null}
+      {aiFilled ? (
+        <div className="flex items-center justify-center gap-1.5 text-[12px] text-protein">
+          <Sparkles className="size-3.5" aria-hidden /> La IA leyó la etiqueta ·
+          confírmalo
+        </div>
+      ) : null}
       <div className="text-center text-[11px] uppercase tracking-wide text-muted-foreground">
         — o rellénalo a mano —
       </div>
