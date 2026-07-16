@@ -1,5 +1,5 @@
 # F05 · Chat inteligente: criterio realista + comer fuera (web/foto)
-**Estado**: aprobada (2026-07-16) · **Tamaño**: feature (3 fases — Fase 0 reconstruye el prompt congelado F-IA-8; Fase 1 añade `googleSearch` en la route; Fase 2 añade foto-en-chat con UI)
+**Estado**: aprobada (2026-07-16; Fase 0 IMPLEMENTADA y desplegada) · **Tamaño**: feature (3 fases — Fase 0 reconstruye el prompt congelado F-IA-8; Fase 1 añade `googleSearch` en la route + toggle global en Ajustes; Fase 2 añade foto-en-chat con UI)
 **Fecha**: 2026-07-15 (F1/F2) · **Reencuadrada**: 2026-07-16 (se antepone la Fase 0)
 **Origen**: HANDOFF §B3 (2026-07-15) — «hoy en La Tagliatella el Chat no pudo ayudarme con la carta» + sesión product-partner (2026-07-16) — «no es inteligente dándome soluciones y lo tengo que estar guiando yo».
 
@@ -97,6 +97,11 @@ comportamiento — cada punto es verificable en la batería de casos canónicos:
   visible de que buscó.
 - **Fallo elegante** si la web no tiene datos fiables: lo dice y, en su lugar, estima
   aproximado (marcado como estimación) o pregunta lo que falte (ya es C4/C5 del prompt nuevo).
+- **Interruptor global en Ajustes (`chatWebSearch`, default ON).** ON → el chat puede usar
+  internet (disparo automático); OFF → el chat vuelve al comportamiento de la Fase 0 (sin la
+  tool `googleSearch` **y** sin el párrafo web en el prompt — ambos atados al mismo flag). Es un
+  **freno de coste**, no un toggle por mensaje (ver Riesgos §2). Persiste en la tabla `settings`
+  (key/value jsonb existente): **sin migración**, ya cubierto por export/restore.
 
 ### Fase 2 · Foto en el chat (la F05 original)
 - Adjuntar imagen (etiqueta de producto / plato / carta) al composer del hilo; el chat la
@@ -125,7 +130,10 @@ No añade superficie permanente: vive en el chat (pestaña existente); la foto s
 composer (Fase 2).
 
 ## Datos
-Sin schema nuevo, sin migración, sin impacto en export/restore/migrate:poc en ninguna fase. La
+Sin schema nuevo, sin migración, sin impacto en export/restore/migrate:poc en ninguna fase.
+**Fase 1 añade el setting `chatWebSearch`** (bool, default `true`) en la tabla `settings`
+(key/value jsonb existente, misma vía que `sessionByWeekday`/tema): sin migración; export/restore
+ya lo cubre (vuelca la tabla entera). La
 respuesta (incluida la cita de fuente) se persiste como texto del mensaje, igual que hoy. La
 imagen de Fase 2 se envía en el cuerpo y se pasa a Gemini; **no se almacena** (foto efímera de
 consulta, no un registro — a diferencia de F-IA-1).
@@ -133,7 +141,9 @@ consulta, no un registro — a diferencia de F-IA-1).
 ## Flujo (09)
 - **Fase 0**: sin UI. Reescritura de `chatSystemPrompt` + (recomendado) extracción de un bloque
   de guardarraíles compartido coach↔chat + sync a `04-IA.md` + batería de tests del builder.
-- **Fase 1**: sin UI nueva. `googleSearch` en `streamText` de `POST /api/ai/chat`.
+- **Fase 1**: `googleSearch` en `streamText` de `POST /api/ai/chat`, **condicionado al setting
+  `chatWebSearch`** (default ON); **un toggle en Ajustes** (09 §2, junto a tema/import/export)
+  para encenderlo/apagarlo. El párrafo web del prompt y la tool se atan al mismo flag.
 - **Fase 2**: botón de **adjuntar imagen** en el composer; cuerpo del chat acepta imagen
   opcional (base64); `streamText` recibe mensaje multimodal (bloque `file` + texto, patrón de
   `server/ai/client.ts:buildMessages`).
@@ -239,7 +249,11 @@ batería**; no congelar la redacción exacta hasta que la batería pase):
 4. La búsqueda web **no aparece** en Coach, Visita ni estimador (revisión + AC de esas features
    verdes).
 5. `chatSystemPrompt` contiene el párrafo de comer-fuera (cita/estimación/no-registro) sobre el
-   prompt reconstruido — test del builder.
+   prompt reconstruido **cuando `chatWebSearch` está ON** — test del builder.
+5b. **Toggle web (`chatWebSearch`, Ajustes, default ON):** con OFF el prompt del chat **no** lleva
+   el párrafo web y la route **no** añade la tool `googleSearch` (comportamiento idéntico a la
+   Fase 0); con ON, sí. Test del builder (párrafo condicionado al flag) + revisión de la route +
+   el toggle funciona en vivo. 🖐
 6. Sync `04-IA.md`; el café ×3 **no aplica** (el chat es asesor, no logging).
 7. `pnpm typecheck && pnpm test && pnpm build` verde; deploy verificado. 🖐
 
@@ -268,7 +282,10 @@ Conversaciones reales que el prompt reconstruido debe pasar (se comparan a mano,
    la redacción (que F05 ya contemplaba tocar).
 2. **Disparo automático de la web (Gemini decide cuándo buscar)** vs. toggle explícito.
    **Recomendado: automático** — la fricción mata el sistema (P3); la cita de fuente obligatoria
-   es la señal visible de cuándo buscó. Reversible.
+   es la señal visible de cuándo buscó. Reversible. **Matiz (16-jul, Alex):** el toggle POR
+   MENSAJE se mantiene descartado (fricción, P3), pero SÍ hay un **interruptor global** en Ajustes
+   (`chatWebSearch`, default ON) como **freno de coste** — mientras está ON, el disparo sigue
+   siendo automático; OFF apaga la web por completo (vuelta a Fase 0). Anotar en `DECISIONS.md`.
 3. **Cita en el texto (por prompt), no chips de `groundingMetadata`.** Mantiene el streaming de
    texto actual. Contra: no son enlaces clicables. Aceptable en app personal de un solo usuario.
    (Anotar en `DECISIONS.md`.)
