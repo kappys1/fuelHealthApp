@@ -36,7 +36,7 @@ const nextConfig: NextConfig = {
   // por la IP de red. Sin esto, Next 16 bloquea las peticiones cross-origin de
   // dev y la página NO hidrata en el móvil (se ve pero los botones no responden).
   // Solo afecta a `next dev`; en producción (Vercel) es irrelevante.
-  allowedDevOrigins: ["192.168.0.23"],
+  allowedDevOrigins: ["192.168.0.36"],
   async headers() {
     return [
       {
