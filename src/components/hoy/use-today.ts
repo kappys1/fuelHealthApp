@@ -251,7 +251,9 @@ export function useToday(date: string, initial: TodayPayload) {
     [setData, refetch],
   );
 
-  // Borrar producto: optimista + undo (07 §2, no confirmación). El undo lo recrea.
+  // Borrar producto: optimista (07 §2, no confirmación). El «Deshacer» es un banner
+  // INLINE dentro del sheet (lo gestiona AddSheet), NO un toast de Sonner: el toast
+  // se renderiza fuera del sheet modal y no recibe clics (DECISIONS #42/#64).
   const deleteProduct = useCallback(
     async (product: TodayPayload["products"][number]) => {
       setData((p) => ({
@@ -263,15 +265,9 @@ export function useToday(date: string, initial: TodayPayload) {
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
         refetch();
-        return;
       }
-      const { id: _id, ...input } = product;
-      toast("Producto eliminado", {
-        duration: 6000,
-        action: { label: "Deshacer", onClick: () => void createProduct(input) },
-      });
     },
-    [setData, refetch, createProduct],
+    [setData, refetch],
   );
 
   const copyYesterday = useCallback(async () => {

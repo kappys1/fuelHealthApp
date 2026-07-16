@@ -8,10 +8,12 @@ import {
   PenLine,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Sparkles,
   Star,
   Trash2,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -1342,10 +1344,25 @@ function ProductsLayer({
   onNew: () => void;
 }) {
   const [q, setQ] = useState("");
+  // Undo INLINE (dentro del sheet): el toast de Sonner se renderiza fuera del sheet
+  // modal y no recibe clics (DECISIONS #42/#64). Sin auto-desaparición: se mantiene
+  // hasta deshacer o descartar (×).
+  const [justDeleted, setJustDeleted] = useState<ProductDTO | null>(null);
   const query = q.trim().toLowerCase();
   const filtered = query
     ? products.filter((p) => p.name.toLowerCase().includes(query))
     : products;
+
+  const handleDelete = (p: ProductDTO) => {
+    actions.remove(p);
+    setJustDeleted(p);
+  };
+  const handleUndo = () => {
+    if (!justDeleted) return;
+    const { id: _id, ...input } = justDeleted;
+    actions.create(input);
+    setJustDeleted(null);
+  };
 
   return (
     <div className="space-y-3 px-4 py-3">
@@ -1356,6 +1373,29 @@ function ProductsLayer({
       >
         <Plus className="size-4" aria-hidden /> Nuevo producto
       </button>
+
+      {justDeleted ? (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2 py-1.5 pl-3 pr-1.5">
+          <span className="text-[13px] text-muted-foreground">Producto eliminado</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={handleUndo}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-primary px-4 text-[14px] font-semibold text-primary-foreground"
+            >
+              <RotateCcw className="size-4" aria-hidden /> Deshacer
+            </button>
+            <button
+              type="button"
+              onClick={() => setJustDeleted(null)}
+              aria-label="Descartar"
+              className="inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="relative">
         <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -1382,7 +1422,7 @@ function ProductsLayer({
               product={p}
               onTogglePin={() => actions.togglePin(p.id)}
               onEdit={() => onEdit(p)}
-              onDelete={() => actions.remove(p)}
+              onDelete={() => handleDelete(p)}
             />
           ))}
         </div>
