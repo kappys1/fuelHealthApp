@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
-import type { LanguageModel } from "ai";
+import type { LanguageModel, ToolSet } from "ai";
 import { aiApiKey, aiProvider, modelId, type ModelKind } from "./env";
 
 /*
@@ -32,6 +32,23 @@ export function resolveModel(kind: ModelKind): LanguageModel {
         `AI_PROVIDER="${provider}" aún no está cableado. Instala @ai-sdk/${provider} y añade el caso en server/ai/provider.ts (los prompts y features no cambian).`,
       );
   }
+}
+
+/**
+ * Búsqueda web del chat (F05 Fase 1 · DECISIONS #63). Tool `googleSearch` de
+ * Gemini (provider-executed: la ejecuta Google en su servidor y devuelve el texto
+ * ya fundamentado, así que el streaming de texto y el cliente NO cambian). Disparo
+ * AUTOMÁTICO (el modelo decide cuándo buscar; la cita de fuente obligatoria del
+ * prompt es la señal visible — Riesgo §2). SOLO Google la soporta; otros
+ * proveedores devuelven {} (sin tool). Es la ÚNICA superficie con web: coach,
+ * preparar-visita y estimador NUNCA la reciben (frontera dura del principio 2).
+ * La clave del record ha de ser `google_search` (así lo exige @ai-sdk/google).
+ */
+export function webSearchTools(): ToolSet {
+  if (aiProvider() === "google") {
+    return { google_search: google().tools.googleSearch({}) };
+  }
+  return {};
 }
 
 /**
