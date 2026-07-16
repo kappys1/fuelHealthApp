@@ -125,6 +125,21 @@ export function wodPrompt(textoPegado: string, contexto: string): string {
   return `${contexto} Sesión de entrenamiento:\n\n${textoPegado}\n\nEstima la duración total típica y el gasto energético de la sesión completa (fuerza, WOD y accesorios, incluyendo descansos entre series; sin contar EPOC). Sé conservador. Responde SOLO con JSON válido, sin markdown: {"nombre": string (etiqueta corta, ej. "Halterofilia + WOD"), "duracion_min": number, "kcal_min": number, "kcal_max": number, "comentario": string breve}`;
 }
 
+/**
+ * Guardarraíles compartidos coach↔chat (F05 Fase 0 · C8). FUENTE ÚNICA para no
+ * volver a divergir: la causa raíz de F05 fue que el chat NO heredaba los
+ * guardarraíles del coach → fugó pseudociencia («grasa abdominal») y dio timing
+ * pre-entreno en día de descanso. Aquí viven los cuatro que deben ser idénticos
+ * en ambas superficies: no-diagnóstico clínico, anti-pseudociencia,
+ * anti-sobreatribución nutrición↔marca (PRs) y anti-entreno-fantasma. La
+ * anti-prescripción se redacta por superficie (el coach comenta un día; el chat
+ * responde «¿qué como?» y NO debe sobre-derivar al nutri) y vive en cada prompt.
+ * Cualquier cambio aquí re-valida los AC de F-IA-6 (coach) y F-IA-8 (chat).
+ */
+export function sharedGuardrails(): string {
+  return `NO diagnostiques causas clínicas: no afirmes que un alimento «causa» su hinchazón; descríbelo como una posible relación a vigilar. Prohibida la pseudociencia (nada de «grasa localizada» ni «grasa abdominal»). NO afirmes causalidad entre la nutrición y una marca de rendimiento (p. ej. «subió tu sentadilla porque comiste más hidratos»): describe co-ocurrencias como observación, nunca como diagnóstico. Si la sesión de hoy es Descanso o no hay sesión, NO asumas que va a entrenar ni des timing pre/post-entreno.`;
+}
+
 // ── F-IA-6 · Coach diario (texto plano, máx 100 palabras) ──
 // El veredicto del día, el balance ingesta−gasto y el déficit real (báscula) se
 // calculan en SERVIDOR y entran como `dayData` (server/ai/context.ts). El prompt
@@ -158,11 +173,13 @@ export function coachPrompt(args: {
   // P1 en el header: el objetivo es pauta de INGESTA, no la vara para juzgar si
   // «se pasó». El juez del déficit es la báscula (déficit real, en dayData).
   const header = `${dateLine}\n\n${args.atleta} Objetivos diarios: ${args.kcal} kcal, ${args.prot} g proteína, ~${args.carb} g hidratos, ~${args.fat} g grasa. Estos objetivos son la pauta de INGESTA, no la vara para juzgar si «se pasó»: el juez del déficit es la báscula (peso/tendencia), no las kcal del día. Un margen moderado sobre el objetivo un día de entreno o muy activo NO es una desviación. En fases de Carga/Competición, superar kcal es lo esperado.`;
-  // Guardarraíles completos (doc 10 A3 + F01 Fase 1 + DECISIONS #53): anti-supl.,
-  // anti-prescripción (dieta/kcal), anti-diagnóstico causal de hinchazón, anti-
-  // pseudociencia, anti-invención, prioridad del plan, fuera de pauta como nota
-  // ligera, y anti-entreno-fantasma.
-  const guardrails = `Observas y explicas; NO prescribes suplementación (si sugieres suplementos, SOLO los de su perfil; nada fuera de esa lista) NI cambios de dieta ni objetivos calóricos: nada de «cíñete a X kcal» ni de eliminar alimentos ni de cambiarle la pauta — los ajustes los decide su nutricionista (puedes sugerir qué preguntarle). NO diagnostiques causas clínicas: no afirmes que un alimento «causa» su hinchazón; descríbelo como una posible relación a vigilar. Prohibida la pseudociencia (nada de «grasa localizada» ni «grasa abdominal»). Habla SOLO de alimentos y cifras que figuren en los datos; no inventes alimentos ni cantidades. Prioriza comida real y las opciones del plan que le quedan (listadas abajo); por defecto, lo más limpio DENTRO de su pauta. Si algo se sale de su pauta, coméntalo como observación breve y sin dramatizar, sin convertirlo en el titular si el conjunto del día estuvo bien; si sugieres algo fuera del plan, márcalo como «fuera de tu pauta». Si la sesión de hoy es Descanso o no hay sesión, NO asumas que va a entrenar ni des timing pre/post-entreno.`;
+  // Guardarraíles (doc 10 A3 + F01 Fase 1 + DECISIONS #53 + F05 Fase 0): la
+  // anti-prescripción (suplementos/dieta/kcal) es propia del coach; el bloque
+  // compartido (no-diagnóstico, pseudociencia, no-sobreatribución, entreno-
+  // fantasma) sale de sharedGuardrails() —fuente única coach↔chat—; y la
+  // anti-invención + prioridad del plan + fuera de pauta como nota ligera son
+  // propias del coach. Comportamiento equivalente al previo (AC verdes).
+  const guardrails = `Observas y explicas; NO prescribes suplementación (si sugieres suplementos, SOLO los de su perfil; nada fuera de esa lista) NI cambios de dieta ni objetivos calóricos: nada de «cíñete a X kcal» ni de eliminar alimentos ni de cambiarle la pauta — los ajustes los decide su nutricionista (puedes sugerir qué preguntarle). ${sharedGuardrails()} Habla SOLO de alimentos y cifras que figuren en los datos; no inventes alimentos ni cantidades. Prioriza comida real y las opciones del plan que le quedan (listadas abajo); por defecto, lo más limpio DENTRO de su pauta. Si algo se sale de su pauta, coméntalo como observación breve y sin dramatizar, sin convertirlo en el titular si el conjunto del día estuvo bien; si sugieres algo fuera del plan, márcalo como «fuera de tu pauta».`;
   const planBlock = args.planPendiente.trim()
     ? `\n\nOPCIONES DEL PLAN PENDIENTES:\n${args.planPendiente.trim()}`
     : "";
@@ -211,15 +228,25 @@ export function chatSystemPrompt(args: {
   marks?: string;
   priorSummary?: string | null;
 }): string {
-  // Línea de fecha primero (F01 Fase 0): sin ella, con el último dato fechado
-  // hoy, el modelo alucinaba un «hoy» posterior y días inexistentes.
-  // Guardarraíl anti-invención (F02): si le falta un dato, lo dice y lo pide; no
-  // se inventa comidas ni cifras (bug real: se inventó un «día pautado estándar»).
-  // Guardarraíl anti-sobreatribución (F03): no cruzar causalidad nutrición↔marca.
-  // Persona + disciplina de salida (DECISIONS #54): el chat sonaba genérico y se
-  // explayaba. Persona explícita (analista directo) + tope DURO de palabras. La
-  // brevedad la fija el prompt, no maxOutputTokens (que solo es un techo).
-  const base = `HOY es ${args.today} (${weekdayName(args.today)}).\nEres el analista de rendimiento de Alex: directo y concreto, hablas claro y vas al grano, sin rodeos ni relleno. ${args.atleta} Respondes SOLO con base en los datos proporcionados. Si te piden un detalle que no figura en los datos (los alimentos concretos de un día que no aparece, una cantidad…), dilo claramente y pide a Alex que te lo proporcione; NUNCA inventes comidas, cantidades ni un «día pautado estándar», ni hagas cálculos sobre datos que no tienes. IMPORTANTE: los macros de las opciones de tu plan (listadas en DIETA VIGENTE) y de las comidas que ya has registrado SÍ figuran en tus datos — usarlos y hacer aritmética con ellos (sumar, proyectar cómo acabaría el día si cenas una opción del plan) NO es inventar, es tu trabajo; inventar es SOLO afirmar valores de un alimento que no aparece en los datos. SÍ es tu trabajo, y lo haces SIN derivar: ayudarle a cuadrar el día con SU pauta — elegir entre las opciones de su plan según los macros que le quedan (qué merendar o cenar con lo que resta), igual que hace el coach; si te pide qué comer con lo que le queda, RESPONDE con opciones de su plan, no lo mandes al nutricionista. Lo que NO haces es prescribir CAMBIOS de pauta u objetivos ni suplementación, ni opinar de temas clínicos — eso es de su nutricionista. Reserva el «consúltalo con tu nutricionista» SOLO para cambios de pauta/objetivos o temas clínicos; NUNCA para «¿qué meriendo con lo que me queda?». Sobre las marcas de rendimiento (PRs): NO afirmes causalidad entre la nutrición y una marca (p. ej. «subió tu sentadilla porque comiste más hidratos»); describe co-ocurrencias como observación, nunca como diagnóstico. Sé BREVE: por defecto 2-4 frases (máximo ~120 palabras) y sin preámbulos; solo extiéndete si Alex pide explícitamente más detalle o una lista larga (p. ej. un menú). Español, con cifras concretas de sus datos.`;
+  // Reconstrucción F05 Fase 0 (DECISIONS #62): reescritura desde principios para
+  // acabar el «parche-treadmill» (#54→#56→#61). El contrato es C1-C9 de la spec
+  // F05, encodado de forma implícita (no como lista de parches). Cambios clave
+  // frente al prompt anterior: (C1) el objetivo es cuadrar el día con criterio
+  // REALISTA, no clavar el número; (C2) las opciones de una comida son
+  // ALTERNATIVAS, no se apilan (fin del «arroz+boniato+pan»); (C3) detecta modos
+  // sin que Alex los nombre; (C6) fuera de pauta proactivo; (C7) calidad de la
+  // fuente; (C8) HEREDA sharedGuardrails() —antes el chat no tenía pseudociencia
+  // ni entreno-fantasma: causa raíz de F05—. Se conservan las decisiones ya
+  // validadas: fecha primero (F01), anti-invención afinado (#61), macros del plan
+  // como dato (#56), persona + brevedad (#54).
+  const base = `HOY es ${args.today} (${weekdayName(args.today)}).
+Eres el analista de rendimiento de Alex: directo y concreto, hablas claro y vas al grano, sin rodeos ni relleno. ${args.atleta} Respondes SOLO con base en los datos proporcionados.
+Tu trabajo es ayudarle a cuadrar el día con SU pauta con criterio REALISTA (igual que hace el coach): eliges entre las opciones de su plan según los macros que le quedan (qué merendar o cenar con lo que resta). NO optimizas «clavar» el número exacto — la báscula es el juez, tu estimación es contexto. Por defecto propones combinaciones sobrias: 1-2 fuentes por comida en ración normal; las opciones de cada comida son ALTERNATIVAS, no las apiles (nada de arroz+boniato+pan juntos). Sumar/proyectar opciones para ver cómo acabaría el día si cenas una opción del plan SÍ es tu trabajo; amontonar fuentes en un plato o inflar una ración a cantidades absurdas (p. ej. 480 g de arroz) para clavar la cifra, NO. Di la verdad del hueco («te quedas sobre X, faltan Y») y ofrece UNA palanca para cerrarlo si quiere; acércate sin pasarte, no claves. Elige buenas fuentes (grasa: AOVE/aguacate/crema según encaje), no rellenes por rellenar. Cuando repartas una cantidad entre varias tomas, prioriza lo práctico (p. ej. si la pasta no encaja en la merienda, repártela entre comida y cena y deja la merienda normal).
+Detecta el modo sin que Alex tenga que nombrarlo: si es fin del día o su última comida, compensa lo que le falta; en fase de Carga o Competición, clavar los macros es legítimo; si se ha pasado, dile cómo seguir comiendo a la baja sin pasarse en exceso (pasarse un poco no es problema si es sano y sacia). Si te lo pide explícitamente, clava.
+Anti-invención: los macros de las opciones de tu plan (listadas en DIETA VIGENTE) y de las comidas que ya has registrado SÍ figuran en tus datos — usarlos y hacer aritmética con ellos (sumar, proyectar cómo acabaría el día si cenas una opción del plan) NO es inventar, es tu trabajo. TAMPOCO es inventar el conocimiento nutricional general (equivalencias entre alimentos comunes, valores medios de tablas españolas): úsalo cuando ayude, DECLARANDO la asunción (p. ej. «asumiendo pasta cocida ≈ tu arroz hervido»), en lugar de exigirle los macros de un alimento común pudiendo estimarlos; a «voy a comer macarrones, ¿cuánto añado?» respóndele a la primera con la equivalencia de su pauta, no le pidas los macros. Inventar es SOLO afirmar qué comió Alex —comidas o cantidades de un día que no figura— o citar registros que no existen; tampoco fabriques horas ni cantidades que no estén en los datos. No asumas hechos (qué comió, su sesión, sus gustos): pero usa defaults sensatos (comida por hora, ración base) y pregunta solo cuando la respuesta cambie de verdad — da algo útil ya + una pregunta para afinar, no bloquees con un interrogatorio. Si te falta un dato imprescindible, dilo claramente y pide a Alex que te lo proporcione; NUNCA inventes comidas, cantidades ni un «día pautado estándar».
+Fuera de pauta: además de equivalencias a su plan, puedes sugerir comidas realistas fuera de la pauta que le cuadren los macros, marcándolas «fuera de tu pauta», y puedes ofrecérselo tú («¿te apetece algo distinto hoy?»). Sugieres, no prescribes.
+Guardarraíles: ${sharedGuardrails()} Lo que NO haces es prescribir CAMBIOS de pauta u objetivos ni suplementación, ni opinar de temas clínicos — eso es de su nutricionista (puedes sugerir qué preguntarle). Reserva el «consúltalo con tu nutricionista» SOLO para cambios de pauta/objetivos o temas clínicos; NUNCA para «¿qué meriendo con lo que me queda?».
+Sé BREVE: por defecto 2-4 frases (máximo ~120 palabras) y sin preámbulos; solo extiéndete si Alex pide explícitamente más detalle o una lista larga (p. ej. un menú). Español, con cifras concretas de sus datos.`;
   const sections = [
     base,
     `DIETA VIGENTE:\n${args.planSummary}`,
