@@ -105,11 +105,18 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   Calculadora doble (% sobre última **y** récord), buscador en vivo en Plan·Entrenos, familia
   opcional (migración **0005 aditiva, pendiente de aplicar a la BD**) y Historial con marcas
   recientes + «ver todas →». AC de flujo (🖐 1, 2, 4) pendientes de validación con el pulgar.
-- 📝 **Comer fuera / productos de marca en el Chat** (idea Alex, 15-jul) — **spec propuesta**:
-  [`docs/specs/features/05-busqueda-web-y-foto-chat.md`](./specs/features/05-busqueda-web-y-foto-chat.md).
-  «Hoy en La Tagliatella el Chat no pudo ayudarme con la carta.» Búsqueda web (grounding nativo
-  de Gemini) **solo en el Chat** —nunca en estimación (principio 2)— citando fuente, + foto en
-  el Chat (etiqueta/plato/carta) en Fase 2. Asesor, sin puente al registro (Q3).
+- ✅ **Chat inteligente + comer fuera** (idea Alex, 15-jul; reencuadrada 16-jul) — **Fase 0 IMPLEMENTADA**,
+  spec [`docs/specs/features/05-busqueda-web-y-foto-chat.md`](./specs/features/05-busqueda-web-y-foto-chat.md).
+  **Fase 0** (reconstrucción del prompt congelado F-IA-8, sin infra): reescritura desde principios
+  (contrato C1-C9), fin del parche-treadmill #54→#56→#61; **guardarraíles compartidos
+  `sharedGuardrails()`** coach↔chat (el chat ya no fuga pseudociencia ni da timing en descanso);
+  criterio realista (no clavar, el techo de kcal manda, quedarse corto en definición es correcto);
+  equivalencias declarando la asunción; asesor de solo lectura (no reclama borrar/guardar el
+  registro). Sincronizado a `04-IA.md` (DECISIONS #62); 45 tests del builder. Validado en dev
+  contra la batería de casos canónicos (nº1/2/3/4 con el pulgar de Alex; nº5-descanso cubierto por
+  el guardarraíl + test, no thumbeado en vivo). **Fases 1 (web `googleSearch`) y 2 (foto en chat)
+  pendientes**, se montan sobre el prompt reconstruido; búsqueda web **solo en el Chat** —nunca en
+  estimación (principio 2)— citando fuente; asesor, sin puente al registro (Q3).
 - ✅ **Gramos como dato de primera clase** (idea Alex, 15-jul) — **Fases 1 y 2 IMPLEMENTADAS**,
   spec [`docs/specs/features/06-gramos-dato-primera-clase.md`](./specs/features/06-gramos-dato-primera-clase.md).
   **Fase 1**: base inmutable en `meal_entries` (migración **0006** aditiva) + stepper de cantidad
@@ -126,6 +133,17 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   implantes», «hoy ando solo»), esa info **muere en el hilo**: el Coach de mañana no la conoce. Debería
   poder capturarse en el día (nota / sesión = Descanso / fase) desde el propio chat, para que el
   contexto del Coach y de la Tendencia la recojan. Caso real del 15-jul (implantes → sin entreno).
+- 📝 **Mis productos (favoritos con etiqueta que reescalan)** (caso real Alex, 16-jul) — **spec propuesta**:
+  [`docs/specs/features/07-mis-productos.md`](./specs/features/07-mis-productos.md).
+  Comparó su día MFP (1.910) vs Fuelboard (1.664): la diferencia era casi toda 1 entrada rota de MFP
+  (pollo 97 g prot) + la picada magra ambigua; los genéricos cuadraban. Los favoritos hoy son fotos
+  congeladas sin `baseG` (no reescalan) ni edición. La feature los convierte en **productos**
+  editables, agnósticos de comida, con etiqueta por 100 g (foto→confirmas, F-IA-11) que reescalan.
+  Fases 0 (datos+migración) · 1 (uso+catálogo) · 2 (foto etiqueta). Mockup: `docs/mockups/mis-productos.html`.
+- 💡 **Escáner de código de barras** (derivada de F07, 16-jul — a MEDIR antes): entrada rápida vía
+  OpenFoodFacts que *prerrellena* el formulario de producto (nunca como fuente de verdad; la etiqueta
+  manda). Decidir **tras usar la foto de etiqueta** y ver si enfocar la tabla molesta (anti-optimización-
+  sin-medición). Descartadas como fuente de estimación: USDA/BEDCA (genéricos) y OFF (colaborativo → ruido).
 - _(añadir aquí las que surjan)_
 
 ---

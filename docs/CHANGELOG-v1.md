@@ -157,6 +157,28 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   DECISIONS #59: `temperature: 0` mantiene el determinismo, ruido ~6% aceptable); AC de flujo
   8/9 validados con el pulgar de Alex.
 
+### v1.7 · Chat inteligente — reconstrucción del prompt (F05 Fase 0, sin infra)
+- **Reconstrucción desde principios del prompt congelado F-IA-8** (contrato C1-C9 de F05),
+  acabando el parche-treadmill #54→#56→#61. Arregla el chat del día a día sin depender de la
+  infra web/foto de las Fases 1-2 (que quedan pendientes).
+- **Guardarraíles compartidos `sharedGuardrails()` coach↔chat** (DECISIONS #62): fuente única
+  (no-diagnóstico, pseudociencia, anti-sobreatribución PR, entreno-fantasma). Resuelve la causa
+  raíz de F05 — el chat **no heredaba** los del coach → fugaba «grasa abdominal» y daba timing
+  pre-entreno en día de descanso. El coach queda equivalente (sus AC verdes).
+- **Criterio realista, no clavar**: el objetivo es cuadrar el día con criterio, no clavar el
+  número; el **techo de kcal manda** sobre cerrar macros; quedarse algo corto en definición es
+  correcto («vas bien, no toques nada»); una palanca de verdad (no encadenar añadidos);
+  opciones de una comida como ALTERNATIVAS (fin del apilado arroz+boniato+pan).
+- **Equivalencias declarando la asunción** (macarrones ≈ su arroz, a la primera; #61 absorbido)
+  y **asesor de solo lectura** (nunca reclama borrar/guardar el registro — principio 7).
+- Sincronizado a `04-IA.md`; **45 tests del builder** (169 suite verde). Validado en dev contra
+  la batería de casos canónicos: nº1 (reparto), nº2 (equivalencia), nº3 (realista/techo-kcal),
+  nº4 (comer fuera sin web) con el pulgar de Alex; nº5 (guardarraíl de descanso) cubierto por el
+  guardarraíl + test, pendiente de thumbear en vivo. Iterado 3 veces en dev (realista →
+  techo-kcal → read-only), cada vuelta cazando un eje distinto.
+- **Pendiente**: Fase 1 (grounding web `googleSearch` solo en el Chat, citando fuente) y Fase 2
+  (foto en el chat), sobre este prompt reconstruido.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
