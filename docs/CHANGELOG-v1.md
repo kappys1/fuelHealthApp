@@ -179,6 +179,26 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 - **Pendiente**: Fase 1 (grounding web `googleSearch` solo en el Chat, citando fuente) y Fase 2
   (foto en el chat), sobre este prompt reconstruido.
 
+### v1.8 · Chat con búsqueda web — comer fuera / productos de marca (F05 Fase 1)
+- **`googleSearch` de Gemini en la route del chat** (provider-executed, disparo automático):
+  el chat funda la respuesta en la web para cartas de restaurante y productos de marca,
+  **citando la fuente en el texto** (no chips de `groundingMetadata` → el streaming y el
+  cliente no cambian). `webSearchTools()` en `server/ai/provider.ts`, solo Google.
+- **Interruptor global `chatWebSearch` en Ajustes** (default ON, tabla `settings`, sin
+  migración): freno de **coste**, no toggle por mensaje (P3). ON → tool + párrafo web;
+  OFF → sin tool ni párrafo (comportamiento byte-idéntico a la Fase 0). Ambos atados al
+  mismo flag; Switch tematizado + ruta `PATCH /api/settings/chat-web-search`.
+- **Párrafo web añadido por interpolación** al prompt reconstruido (no se reescribe el
+  congelado): buscar primero + dar el dato con fuente antes que la equivalencia + prohibir
+  macros confiados de fuera sin citar/estimar + fuentes colaborativas (Open Food Facts)
+  como orientativas + honestidad si falta la variante exacta.
+- **Frontera dura P2**: la web vive SOLO en el chat — coach, preparar-visita y estimador
+  (F-IA-1/2/4) nunca la reciben. Sincronizado a `04-IA.md`; DECISIONS #63.
+- Validado en dev en 2 rondas (un log temporal de `sources` **confirmó que `googleSearch`
+  dispara** — `sources≥1`; el residuo de imprecisión es de la fuente web, no del código,
+  y para cuadrar el día es ruido según P2). AC de flujo (🖐 1, 2, 3, 5b, 7 deploy) a
+  validar en producción. **Pendiente**: Fase 2 (foto en el chat), tras rodar la Fase 1.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
