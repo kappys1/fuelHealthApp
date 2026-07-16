@@ -139,17 +139,38 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   implantes», «hoy ando solo»), esa info **muere en el hilo**: el Coach de mañana no la conoce. Debería
   poder capturarse en el día (nota / sesión = Descanso / fase) desde el propio chat, para que el
   contexto del Coach y de la Tendencia la recojan. Caso real del 15-jul (implantes → sin entreno).
-- 📝 **Mis productos (favoritos con etiqueta que reescalan)** (caso real Alex, 16-jul) — **spec propuesta**:
+- ✅ **Mis productos (favoritos con etiqueta que reescalan)** (caso real Alex, 16-jul) — **IMPLEMENTADA (F07, v1.9)**,
+  desplegada; **AC 6/7 validados 🖐**, **AC8 (foto→editor) y AC9 (etiqueta real ×3) pendientes** de validar:
   [`docs/specs/features/07-mis-productos.md`](./specs/features/07-mis-productos.md).
-  Comparó su día MFP (1.910) vs Fuelboard (1.664): la diferencia era casi toda 1 entrada rota de MFP
-  (pollo 97 g prot) + la picada magra ambigua; los genéricos cuadraban. Los favoritos hoy son fotos
-  congeladas sin `baseG` (no reescalan) ni edición. La feature los convierte en **productos**
-  editables, agnósticos de comida, con etiqueta por 100 g (foto→confirmas, F-IA-11) que reescalan.
-  Fases 0 (datos+migración) · 1 (uso+catálogo) · 2 (foto etiqueta). Mockup: `docs/mockups/mis-productos.html`.
+  «Favorito» → «producto» (un solo concepto, editable, agnóstico de comida, `baseG` que reescala).
+  Tabla `products` (migración 0007) + migración de favoritos (`pnpm migrate:products`, 0 pérdidas) +
+  export/restore/seed/migrate:poc. Sheet «Mis productos» (chips→stepper/1-toque, catálogo editable
+  con undo inline) y **F-IA-11** (foto de etiqueta → editor prerrellenado, lectura no estimación).
+  El ★ por-entrada se retira (DECISIONS #64). Fases 0·1·2 desplegadas. Mockup: `docs/mockups/mis-productos.html`.
 - 💡 **Escáner de código de barras** (derivada de F07, 16-jul — a MEDIR antes): entrada rápida vía
   OpenFoodFacts que *prerrellena* el formulario de producto (nunca como fuente de verdad; la etiqueta
   manda). Decidir **tras usar la foto de etiqueta** y ver si enfocar la tabla molesta (anti-optimización-
   sin-medición). Descartadas como fuente de estimación: USDA/BEDCA (genéricos) y OFF (colaborativo → ruido).
+- 📝 **Variantes de opción del plan** (idea Alex, 16-jul) — **spec aprobada**:
+  [`docs/specs/features/08-variantes-opcion-plan.md`](./specs/features/08-variantes-opcion-plan.md).
+  «Carne magra (pollo/pavo/ternera/cerdo)» entra como un ítem con macros medias, pero cada
+  fuente tiene kcal/macros distintas (~80 kcal de swing en 210 g). El plan sigue fiel a la
+  pauta (un hueco), y al **registrar** eliges la variante → macros correctas. El importador
+  (F-IA-9) detecta y rellena las variantes. Pendiente de implementar (Fase 1).
+- 💡 **Describir que conoce tus productos** (idea Alex, 16-jul, durante la validación de F07) —
+  **backlog, medir primero.** Caso real: los combos legacy tipo «Pan bimbo 1 reb. + mermelada
+  s/a» no encajan en el modelo de producto (una combinación no reescala ni ajusta proporción;
+  es la «foto congelada» que F07 retira). El caso «varios alimentos, no sé cuánto de cada uno»
+  **ya lo cubre Describir (F-IA-4)** (parte en ítems con stepper por ítem). La idea nueva:
+  que **Describir empareje el texto con tus productos guardados** → usa las macros EXACTAS del
+  producto para lo conocido («pan bimbo») y solo **estima** lo desconocido («mermelada»).
+  Toca el prompt congelado de F-IA-4 (re-validar AC + café ×3) + catálogo en el contexto del
+  day-dump + lógica de matching. **Prerrequisito: F07 Fase 2** (crea el catálogo de productos
+  reales que emparejar). **Decidir tras 2 semanas de uso real** del flujo «2 productos fijados
+  + tap-tap / Describir» (regla anti-optimización-sin-medición, doc 11): si el tap-tap no
+  molesta, no se hace. Descartado ya: creador de combo «foto de una etiqueta + describe el
+  resto + buscar» (contamina F-IA-11, que es lector puro) y búsqueda en BD externas (NO-alcance
+  de F07: OFF/USDA/BEDCA = ruido, principio 2).
 - _(añadir aquí las que surjan)_
 
 ---

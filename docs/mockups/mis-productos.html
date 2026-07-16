@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="es" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup · Mis productos — Fuelboard</title>
+<style>
+  /* ── Tokens reales del tema oscuro «Night comp» (globals.css) ── */
+  :root{
+    --bg:#0f1613; --surface:#18221d; --surface-2:#1f2b25;
+    --ink:#e8ede8; --muted:#93a099; --line:#2c3830;
+    --primary:#7b96ff; --protein:#4cc98a; --carb:#e0b341; --fat:#f2894c;
+    --radius:12px;
+    --star:#e0b341;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#070b09;
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:32px 20px 60px;
+    line-height:1.4;
+  }
+  h1.page{font-size:15px;font-weight:600;color:var(--muted);text-align:center;margin-bottom:6px;letter-spacing:.02em}
+  p.sub{text-align:center;color:var(--muted);font-size:12px;margin-bottom:28px}
+  .row{display:flex;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+
+  /* ── Marco de teléfono ── */
+  .phone{
+    width:330px;background:var(--bg);border-radius:34px;padding:12px;
+    border:1px solid #222c26;box-shadow:0 20px 50px rgba(0,0,0,.5);
+    display:flex;flex-direction:column;
+  }
+  .screen{background:var(--bg);border-radius:24px;overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:640px}
+  .caption{font-size:11px;color:var(--muted);text-align:center;margin-top:10px;letter-spacing:.03em}
+
+  /* ── Header app ── */
+  .appbar{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 8px}
+  .appbar .nav{display:flex;align-items:center;gap:8px}
+  .circle-btn{width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;color:var(--ink);font-size:16px}
+  .appbar .title{font-size:15px;font-weight:600}
+  .flame{color:var(--primary);font-size:13px;display:flex;gap:5px;align-items:center}
+
+  /* ── Sheet ── */
+  .sheet-wrap{margin-top:auto;background:var(--surface);border-top-left-radius:22px;border-top-right-radius:22px;
+    border-top:1px solid var(--line);padding:16px 16px 22px;box-shadow:0 -12px 40px rgba(0,0,0,.5)}
+  .grabber{width:36px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
+  .sheet-title{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .sheet-title .x{color:var(--muted);font-size:16px}
+
+  .search{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;color:var(--muted);font-size:14px;display:flex;gap:8px;align-items:center;margin-bottom:16px}
+
+  .sec-label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .sec-label a{color:var(--primary);font-size:11px;text-decoration:none;text-transform:none;letter-spacing:0}
+
+  /* Chips de producto */
+  .chips{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:18px}
+  .chip{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;
+    display:flex;flex-direction:column;gap:2px;position:relative}
+  .chip .nm{font-size:13.5px;font-weight:600}
+  .chip .mm{font-size:11px;color:var(--muted)}
+  .chip .src{position:absolute;top:9px;right:10px;font-size:11px;color:var(--muted)}
+  .chip .src.lbl{color:var(--protein)}
+
+  /* Tres accesos grandes */
+  .access{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px}
+  .acc{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px 8px;
+    text-align:center;font-size:12px;color:var(--ink)}
+  .acc .ic{font-size:20px;display:block;margin-bottom:6px}
+
+  .newprod{width:100%;background:transparent;border:1px dashed var(--line);border-radius:12px;
+    padding:12px;color:var(--primary);font-size:13px;text-align:center;font-weight:600}
+
+  /* Meal rows (Ajustes list + editor) */
+  .content{padding:0 14px 16px;overflow:auto}
+  .subhead{display:flex;align-items:center;gap:10px;padding:14px 4px 12px}
+  .subhead .back{color:var(--ink);font-size:18px}
+  .subhead .h{font-size:16px;font-weight:600}
+  .subhead .add{margin-left:auto;color:var(--primary);font-size:13px;font-weight:600}
+
+  .plist{display:flex;flex-direction:column}
+  .pitem{padding:13px 4px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:10px}
+  .pitem:last-child{border-bottom:none}
+  .pitem .star{color:var(--star);font-size:15px;padding-top:1px}
+  .pitem .star.off{color:var(--muted)}
+  .pitem .body{flex:1;min-width:0}
+  .pitem .nm{font-size:14.5px;font-weight:600}
+  .pitem .mm{font-size:12px;color:var(--muted);margin-top:2px;display:flex;gap:8px;align-items:center}
+  .badge{font-size:10px;padding:1px 6px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+  .badge.lbl{color:var(--protein);border-color:color-mix(in srgb,var(--protein) 40%,transparent)}
+  .badge.legacy{color:var(--carb);border-color:color-mix(in srgb,var(--carb) 40%,transparent)}
+  .pitem .acts{display:flex;gap:12px;color:var(--muted);font-size:14px;padding-top:1px}
+
+  /* Stepper / editor */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 14px 12px}
+  .lbl-line{font-size:12px;color:var(--muted);margin-bottom:2px}
+  .lbl-macros{font-size:13px;color:var(--muted)}
+  .fieldlabel{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px}
+  .stepper{display:flex;align-items:center;gap:12px;justify-content:center}
+  .step-btn{width:44px;height:44px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);
+    color:var(--ink);font-size:22px;display:flex;align-items:center;justify-content:center}
+  .step-val{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 22px;
+    font-size:20px;font-weight:600;min-width:120px;text-align:center}
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+  .result{font-size:20px;font-weight:700;text-align:center;margin:18px 0 4px}
+  .result .k{color:var(--ink)}
+  .result .m{font-size:13px;font-weight:500;color:var(--muted)}
+  .cta{width:calc(100% - 28px);margin:14px;background:var(--primary);color:#0f1613;border:none;border-radius:12px;
+    padding:14px;font-size:15px;font-weight:700;text-align:center}
+  .cta.ghost{background:transparent;color:var(--primary);border:1px solid var(--line)}
+
+  /* Editor form */
+  .photo-drop{border:1px dashed var(--line);border-radius:14px;padding:26px 12px;text-align:center;
+    color:var(--muted);font-size:13px;margin:0 14px 12px}
+  .photo-drop .ic{font-size:26px;display:block;margin-bottom:8px}
+  .or{text-align:center;color:var(--muted);font-size:11px;margin:4px 0 12px;text-transform:uppercase;letter-spacing:.06em}
+  .form{margin:0 14px}
+  .aiflag{font-size:11px;color:var(--protein);margin:2px 0 12px;display:flex;gap:6px;align-items:center}
+  .frow{margin-bottom:12px}
+  .frow>label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px}
+  .inp{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+    color:var(--ink);font-size:15px}
+  .grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+  .grid4 .inp{text-align:center;padding:11px 4px}
+  .warn{background:color-mix(in srgb,var(--carb) 12%,transparent);border:1px solid color-mix(in srgb,var(--carb) 35%,transparent);
+    color:var(--carb);border-radius:10px;padding:10px 12px;font-size:12px;margin:4px 14px 0}
+
+  /* Ajustes list */
+  .settings{padding:8px 6px}
+  .srow{padding:15px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-size:15px}
+  .srow .r{color:var(--muted);font-size:13px}
+  .srow.hi{color:var(--primary);font-weight:600}
+  .srow .r.count{background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:12px}
+  .newbadge{font-size:9px;background:var(--primary);color:#0f1613;border-radius:5px;padding:1px 5px;margin-left:8px;font-weight:700;vertical-align:middle}
+</style>
+</head>
+<body>
+  <h1 class="page">Fuelboard · «Mis productos» — mockup con la piel real (tema Night comp)</h1>
+  <p class="sub">4 pantallas · misma estética que el app · flujo: usar → gestionar → crear por foto</p>
+
+  <div class="row">
+
+    <!-- ① Sheet de añadir con Mis productos -->
+    <div class="phone">
+      <div class="screen">
+        <div class="appbar">
+          <div class="nav">
+            <div class="circle-btn">‹</div>
+            <span class="title">Hoy</span>
+            <div class="circle-btn">›</div>
+          </div>
+          <span class="flame">🔥 9</span>
+        </div>
+        <div style="flex:1"></div>
+        <div class="sheet-wrap">
+          <div class="grabber"></div>
+          <div class="sheet-title"><span>Añadir a · Comida</span><span class="x">✕</span></div>
+          <div class="search">🔍 Buscar en productos, plan…</div>
+
+          <div class="sec-label"><span>Mis productos</span><a href="#">Ver todos →</a></div>
+          <div class="chips">
+            <div class="chip"><span class="src lbl">📷</span><span class="nm">Tortitas Hacendado</span><span class="mm">100 g · 310 kcal</span></div>
+            <div class="chip"><span class="src lbl">📷</span><span class="nm">Picada 5% Combino</span><span class="mm">100 g · 170 kcal</span></div>
+            <div class="chip"><span class="src">✎</span><span class="nm">Pan Bimbo integral</span><span class="mm">1 reb · 77 kcal</span></div>
+            <div class="chip"><span class="src lbl">📷</span><span class="nm">Café leche almendras</span><span class="mm">300 ml · 18 kcal</span></div>
+          </div>
+
+          <div class="access">
+            <div class="acc"><span class="ic">📷</span>Foto</div>
+            <div class="acc"><span class="ic">📋</span>Del plan</div>
+            <div class="acc"><span class="ic">✎</span>Describir</div>
+          </div>
+          <div class="newprod">＋ Nuevo producto (foto de etiqueta)</div>
+        </div>
+      </div>
+      <div class="caption">① Uso — chips ahora reescalan (tienen baseG)</div>
+    </div>
+
+    <!-- ② Stepper al tocar un producto -->
+    <div class="phone">
+      <div class="screen">
+        <div class="subhead"><span class="back">‹</span><span class="h">Tortitas Hacendado</span></div>
+        <div class="card">
+          <div class="lbl-line">Etiqueta · 100 g =</div>
+          <div style="font-size:22px;font-weight:700;margin:2px 0 2px">310 kcal</div>
+          <div class="lbl-macros">8 P · 58 C · 5 F</div>
+
+          <div class="fieldlabel">Cantidad</div>
+          <div class="stepper">
+            <div class="step-btn">−</div>
+            <div class="step-val">80 g</div>
+            <div class="step-btn">＋</div>
+          </div>
+          <div class="hint">≈ 2 tortitas</div>
+
+          <div class="result">
+            <span class="k">248 kcal</span><br>
+            <span class="m">6 P · 46 C · 4 F</span>
+          </div>
+        </div>
+        <div style="flex:1"></div>
+        <div class="cta">Añadir a Comida</div>
+      </div>
+      <div class="caption">② Tocar producto → stepper de gramos (patrón F06)</div>
+    </div>
+
+    <!-- ③ Ajustes → Mis productos -->
+    <div class="phone">
+      <div class="screen">
+        <div class="subhead"><span class="back">‹</span><span class="h">Ajustes</span></div>
+        <div class="settings">
+          <div class="srow">Tema <span class="r">Oscuro</span></div>
+          <div class="srow">Importar CSV <span class="r">›</span></div>
+          <div class="srow">Estado de Salud <span class="r">✓ hoy</span></div>
+          <div class="srow">Exportar / Restaurar <span class="r">›</span></div>
+          <div class="srow hi">Mis productos <span class="newbadge">NUEVO</span> <span class="r count">12</span></div>
+          <div class="srow">Mapeo sesión ↔ día <span class="r">›</span></div>
+        </div>
+
+        <div class="subhead" style="padding-top:18px"><span class="back">‹</span><span class="h">Mis productos</span><span class="add">＋ Nuevo</span></div>
+        <div class="content" style="padding-top:0">
+          <div class="search" style="margin-bottom:12px">🔍 Buscar</div>
+          <div class="plist">
+            <div class="pitem"><span class="star">★</span><div class="body"><div class="nm">Tortitas Hacendado</div><div class="mm">100 g · 310 kcal · 8P/58C/5F <span class="badge lbl">etiqueta</span></div></div><div class="acts">✎ 🗑</div></div>
+            <div class="pitem"><span class="star">★</span><div class="body"><div class="nm">Picada 5% Combino</div><div class="mm">100 g · 170 kcal · 20P/0C/10F <span class="badge lbl">etiqueta</span></div></div><div class="acts">✎ 🗑</div></div>
+            <div class="pitem"><span class="star off">☆</span><div class="body"><div class="nm">Pan Bimbo integral</div><div class="mm">1 reb · 77 kcal · 4P/13C/1F <span class="badge">manual</span></div></div><div class="acts">✎ 🗑</div></div>
+            <div class="pitem"><span class="star off">☆</span><div class="body"><div class="nm">Pollo genérico</div><div class="mm">100 g · 110 kcal · 22P/0C/2F <span class="badge legacy">antiguo</span></div></div><div class="acts">✎ 🗑</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">③ Gestión editable en Ajustes (★ = acceso rápido)</div>
+    </div>
+
+    <!-- ④ Nuevo producto por foto de etiqueta -->
+    <div class="phone">
+      <div class="screen">
+        <div class="subhead"><span class="back">‹</span><span class="h">Nuevo producto</span></div>
+        <div class="photo-drop"><span class="ic">📷</span>Foto de la tabla nutricional</div>
+        <div class="or">— o rellénalo a mano —</div>
+        <div class="aiflag">✨ La IA leyó la etiqueta · confírmalo</div>
+        <div class="form">
+          <div class="frow"><label>Nombre</label><input class="inp" value="Tortitas Hacendado"></div>
+          <div class="frow"><label>Valores por (g)</label><input class="inp" value="100"></div>
+          <div class="frow"><label>kcal · P · C · G (por 100 g)</label>
+            <div class="grid4">
+              <input class="inp" value="310"><input class="inp" value="8"><input class="inp" value="58"><input class="inp" value="5">
+            </div>
+          </div>
+          <div class="frow"><label>Grupo</label><input class="inp" value="Hidratos  ▾"></div>
+        </div>
+        <div class="warn">⚠️ Estos números se fijan y no se vuelven a estimar. Revísalos con la etiqueta.</div>
+        <div style="flex:1"></div>
+        <div class="cta">Guardar producto</div>
+      </div>
+      <div class="caption">④ Crear (fase 2) — tu flujo C: foto → confirmas</div>
+    </div>
+
+  </div>
+</body>
+</html>
