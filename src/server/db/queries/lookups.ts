@@ -105,6 +105,20 @@ export async function getSessionByWeekday(): Promise<SessionByWeekday> {
   return { ...DEFAULT_SESSION_BY_WEEKDAY, ...(stored ?? {}) };
 }
 
+export const CHAT_WEB_SEARCH_KEY = "chatWebSearch";
+
+/**
+ * Interruptor global de búsqueda web del chat (F05 Fase 1, default ON). Freno de
+ * COSTE, no toggle por mensaje (P3: la fricción mata el sistema): mientras está
+ * ON el disparo de `googleSearch` es automático; OFF apaga la web por completo
+ * (vuelta a Fase 0 — sin tool y sin párrafo web, ambos atados a este flag). Vive
+ * en la tabla `settings` (sin migración; export/restore ya la vuelca).
+ */
+export async function getChatWebSearch(): Promise<boolean> {
+  const stored = await getSetting<boolean>(CHAT_WEB_SEARCH_KEY);
+  return stored ?? true;
+}
+
 export const ATHLETE_PROFILE_KEY = "athleteProfile";
 
 /** Perfil de atleta (doc 10 A1). Merge superficial sobre defaults: campos nuevos
