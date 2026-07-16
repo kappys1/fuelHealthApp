@@ -7,6 +7,7 @@ import { neon } from "@neondatabase/serverless";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { FAVS, PLAN } from "./plan-seed";
+import { favoritesToProducts } from "./products-map";
 import * as schema from "./schema";
 
 /*
@@ -65,6 +66,16 @@ async function main() {
       });
   }
 
+  // products (F07): los mismos favoritos como productos legacy (fijos, pinned).
+  // onConflictDoNothing por name → no pisa productos ya editados a mano.
+  const { products: seedProducts } = favoritesToProducts(FAVS);
+  if (seedProducts.length > 0) {
+    await db
+      .insert(schema.products)
+      .values(seedProducts)
+      .onConflictDoNothing({ target: schema.products.name });
+  }
+
   // ── Verificación ──
   const opts = await db
     .select()
@@ -83,6 +94,7 @@ async function main() {
   console.log(`✔ plan_options insertadas: ${opts.length}`);
   console.log(`  por comida: ${JSON.stringify(byMeal)}`);
   console.log(`✔ favorites (upsert): ${FAVS.length}`);
+  console.log(`✔ products (legacy, onConflictDoNothing): ${seedProducts.length}`);
   if (missingMacros.length > 0) {
     console.error(
       `✗ ${missingMacros.length} opciones SIN las 4 macros completas`,

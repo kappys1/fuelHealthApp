@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { db, schema } from "@/server/db";
+import { productImportRow } from "../products-map";
 import { mealEntryImportRow } from "./backup-map";
 
 /*
@@ -35,6 +36,7 @@ export async function exportAll(): Promise<FullExport> {
     workouts,
     medMeasurements,
     favorites,
+    products,
     dayTemplates,
     settings,
     chatThreads,
@@ -52,6 +54,7 @@ export async function exportAll(): Promise<FullExport> {
     db.select().from(schema.workouts),
     db.select().from(schema.medMeasurements),
     db.select().from(schema.favorites),
+    db.select().from(schema.products),
     db.select().from(schema.dayTemplates),
     db.select().from(schema.settings),
     db.select().from(schema.chatThreads),
@@ -75,6 +78,7 @@ export async function exportAll(): Promise<FullExport> {
       workouts,
       medMeasurements,
       favorites,
+      products,
       dayTemplates,
       settings,
       chatThreads,
@@ -101,6 +105,7 @@ const importSchema = z.object({
     workouts: z.array(anyRow).default([]),
     medMeasurements: z.array(anyRow).default([]),
     favorites: z.array(anyRow).default([]),
+    products: z.array(anyRow).default([]),
     dayTemplates: z.array(anyRow).default([]),
     settings: z.array(anyRow).default([]),
     chatThreads: z.array(anyRow).default([]),
@@ -169,6 +174,7 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
   await db.delete(schema.workouts);
   await db.delete(schema.medMeasurements);
   await db.delete(schema.favorites);
+  await db.delete(schema.products);
   await db.delete(schema.dayTemplates);
   await db.delete(schema.dietVersions);
   await db.delete(schema.settings);
@@ -325,6 +331,9 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
         fat: Number(r.fat ?? 0),
       })),
     );
+  }
+  if (data.products.length) {
+    await db.insert(schema.products).values(data.products.map(productImportRow));
   }
   if (data.dayTemplates.length) {
     await db.insert(schema.dayTemplates).values(
