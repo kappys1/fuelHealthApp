@@ -9,6 +9,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { z } from "zod";
 import { backfillEntryGrams } from "../../lib/macros";
+import { favoritesToProducts } from "./products-map";
 import * as schema from "./schema";
 
 /*
@@ -190,6 +191,7 @@ async function main() {
     healthMetrics: 0,
     med: 0,
     favorites: 0,
+    products: 0,
     templates: 0,
   };
 
@@ -401,6 +403,17 @@ async function main() {
     summary.favorites++;
   }
 
+  // ── 7b) products (F07): los favoritos del PoC como productos legacy (fijos,
+  // pinned). onConflictDoNothing por name → idempotente y no pisa ediciones. ──
+  const { products: pocProducts } = favoritesToProducts(data.favs);
+  if (pocProducts.length > 0) {
+    await db
+      .insert(schema.products)
+      .values(pocProducts)
+      .onConflictDoNothing({ target: schema.products.name });
+    summary.products = pocProducts.length;
+  }
+
   // ── 8) day_templates (upsert por name) ──
   for (const t of data.templates) {
     const items = (t.items as unknown[]).map((it) => {
@@ -431,6 +444,7 @@ async function main() {
   console.log(`  health_metrics:  ${summary.healthMetrics}`);
   console.log(`  med:             ${summary.med}`);
   console.log(`  favorites:       ${summary.favorites}`);
+  console.log(`  products:        ${summary.products}`);
   console.log(`  templates:       ${summary.templates}`);
 
   // Cordura: total kcal por día con comidas (para cruzar con el JSON original).

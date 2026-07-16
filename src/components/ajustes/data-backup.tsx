@@ -21,6 +21,7 @@ const TABLE_LABELS: Record<string, string> = {
   workouts: "entrenamientos",
   medMeasurements: "MED",
   favorites: "favoritos",
+  products: "productos",
   dayTemplates: "plantillas",
   settings: "ajustes",
   chatThreads: "hilos de chat",

@@ -1,4 +1,5 @@
 import {
+  boolean,
   date,
   integer,
   jsonb,
@@ -63,6 +64,16 @@ export const mealSourceEnum = pgEnum("meal_source", [
 ]);
 
 export const healthSourceEnum = pgEnum("health_source", ["endpoint", "csv"]);
+
+// Origen del dato de un producto (F07). 'etiqueta' = leído de la tabla nutricional
+// del envase (F-IA-11, la fuente autorizada); 'manual' = tecleado a mano; 'legacy'
+// = migrado de los antiguos favorites (foto congelada de una estimación, badge
+// «antiguo» → se asciende re-fotografiando).
+export const productSourceEnum = pgEnum("product_source", [
+  "etiqueta",
+  "manual",
+  "legacy",
+]);
 
 export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
 
@@ -229,6 +240,31 @@ export const favorites = pgTable(
   },
   (t) => [unique("favorites_meal_name_unique").on(t.meal, t.name)],
 );
+
+// ── products (F07 · evoluciona favorites) ──
+// Un único concepto "producto": editable, AGNÓSTICO de comida, con macros por base
+// de gramos (baseG, típicamente 100 g de la etiqueta) que REESCALAN al añadirlo
+// (reusa scaleMacros/entryBaseFields de F06). baseG null/0 = fijo (por unidad, sin
+// stepper). `pinned` marca los que salen como chips de acceso rápido en el sheet.
+// Editar un producto NO reescribe entradas ya registradas (macros horneadas por día).
+export const products = pgTable("products", {
+  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  name: text().notNull().unique(),
+  baseG: integer("base_g"),
+  baseKcal: integer("base_kcal").notNull(),
+  baseProt: real("base_prot").notNull(),
+  baseCarb: real("base_carb").notNull(),
+  baseFat: real("base_fat").notNull(),
+  grupo: grpEnum(),
+  source: productSourceEnum().notNull(),
+  pinned: boolean().notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 // ── day_templates ──
 export interface TemplateItem {
