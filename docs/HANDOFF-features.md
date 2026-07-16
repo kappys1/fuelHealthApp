@@ -105,8 +105,8 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   Calculadora doble (% sobre última **y** récord), buscador en vivo en Plan·Entrenos, familia
   opcional (migración **0005 aditiva, pendiente de aplicar a la BD**) y Historial con marcas
   recientes + «ver todas →». AC de flujo (🖐 1, 2, 4) pendientes de validación con el pulgar.
-- ✅ **Chat inteligente + comer fuera** (idea Alex, 15-jul; reencuadrada 16-jul) — **Fase 0 IMPLEMENTADA**,
-  spec [`docs/specs/features/05-busqueda-web-y-foto-chat.md`](./specs/features/05-busqueda-web-y-foto-chat.md).
+- ✅ **Chat inteligente + comer fuera** (idea Alex, 15-jul; reencuadrada 16-jul) — **Fases 0 y 1
+  IMPLEMENTADAS**, spec [`docs/specs/features/05-busqueda-web-y-foto-chat.md`](./specs/features/05-busqueda-web-y-foto-chat.md).
   **Fase 0** (reconstrucción del prompt congelado F-IA-8, sin infra): reescritura desde principios
   (contrato C1-C9), fin del parche-treadmill #54→#56→#61; **guardarraíles compartidos
   `sharedGuardrails()`** coach↔chat (el chat ya no fuga pseudociencia ni da timing en descanso);
@@ -114,9 +114,15 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   equivalencias declarando la asunción; asesor de solo lectura (no reclama borrar/guardar el
   registro). Sincronizado a `04-IA.md` (DECISIONS #62); 45 tests del builder. Validado en dev
   contra la batería de casos canónicos (nº1/2/3/4 con el pulgar de Alex; nº5-descanso cubierto por
-  el guardarraíl + test, no thumbeado en vivo). **Fases 1 (web `googleSearch`) y 2 (foto en chat)
-  pendientes**, se montan sobre el prompt reconstruido; búsqueda web **solo en el Chat** —nunca en
-  estimación (principio 2)— citando fuente; asesor, sin puente al registro (Q3).
+  el guardarraíl + test, no thumbeado en vivo).
+  **Fase 1** (grounding web, DECISIONS #63): tool `googleSearch` de Gemini en la route (disparo
+  automático, provider-executed) + **interruptor global `chatWebSearch` en Ajustes** (default ON,
+  sin migración) que gobierna a la vez la tool y el párrafo web del prompt (OFF = Fase 0); **cita
+  en el texto** (no chips) → streaming/cliente intactos; **solo en el Chat** (frontera dura P2:
+  nunca en coach/visita/estimador); asesor, sin puente al registro. 2 rondas de validación en dev:
+  se confirmó con un log temporal que `googleSearch` dispara (`sources≥1`); el residuo de error es
+  de la fuente web (Open Food Facts) → nudge de honestidad. AC 🖐 1/2/3/5b/7 a validar en producción.
+  **Fase 2 (foto en el chat) pendiente**, se monta sobre este prompt — tras rodar la Fase 1 en uso.
 - ✅ **Gramos como dato de primera clase** (idea Alex, 15-jul) — **Fases 1 y 2 IMPLEMENTADAS**,
   spec [`docs/specs/features/06-gramos-dato-primera-clase.md`](./specs/features/06-gramos-dato-primera-clase.md).
   **Fase 1**: base inmutable en `meal_entries` (migración **0006** aditiva) + stepper de cantidad
