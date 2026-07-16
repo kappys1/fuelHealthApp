@@ -118,9 +118,10 @@ lo necesitan). Blast radius de IA acotado → sin regresión de guardarraíles.
    y logueadas (test de la migración con fixture de favoritos en 2 comidas).
 4. Export incluye `products`; restore los recrea idénticos (test de round-trip).
 5. Editar un producto **no** cambia las macros de entradas ya registradas en días pasados.
-6. 🖐 En el sheet, "Mis productos" muestra los `pinned` agnósticos de comida; tocar → stepper
-   → Añadir a la comida en curso.
-7. 🖐 `Ver todos →` / pulsación larga abre el catálogo editable (✎ · 🗑 · ⭐ · ＋ Nuevo).
+6. ✅ (🖐 validado por Alex en prod, 2026-07-16) En el sheet, "Mis productos" muestra los
+   `pinned` agnósticos de comida; tocar → stepper → Añadir a la comida en curso.
+7. ✅ (🖐 validado por Alex en prod, 2026-07-16) `Ver todos →` / pulsación larga abre el
+   catálogo editable (✎ · 🗑 · ⭐ · ＋ Nuevo). (Undo del borrado = banner inline, DECISIONS #64.)
 8. 🖐 (fase 2) ＋ Nuevo → foto de etiqueta → la IA rellena el formulario → Alex confirma/edita
    → se guarda con `source:'etiqueta'`.
 9. (fase 2) F-IA-11: leer una etiqueta real ×3 da lectura consistente y **null donde el dato

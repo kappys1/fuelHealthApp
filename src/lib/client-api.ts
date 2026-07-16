@@ -6,6 +6,7 @@ import type {
   DayDumpResult,
   DietImportResult,
   EstimateResult,
+  LabelReadResult,
   PhotoResult,
   PlanOptionAiResult,
   TrainingImportResult,
@@ -140,6 +141,13 @@ export const api = {
 
   deleteTemplate: (id: number) =>
     req<{ ok: true }>(`/api/templates/${id}`, { method: "DELETE" }),
+
+  // Productos · leer etiqueta (F-IA-11, F07 Fase 2)
+  readLabel: (files: { base64: string; mediaType: string }[]) =>
+    req<LabelReadResult>("/api/ai/label-read", {
+      method: "POST",
+      body: JSON.stringify({ files }),
+    }),
 
   // Plan · importar dieta (F-IA-9)
   importDiet: (files: { base64: string; mediaType: string }[]) =>

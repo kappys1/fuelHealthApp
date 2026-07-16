@@ -115,3 +115,18 @@ export const trainingImportZ = z.object({
 });
 export type TrainingImportResult = z.infer<typeof trainingImportZ>;
 export type TrainingImportSession = z.infer<typeof trainingImportSessionZ>;
+
+// ── F-IA-11 · Leer etiqueta nutricional (F07 · Mis productos) ──
+// Es una LECTURA, no una estimación: `null` donde el dato NO figura en la etiqueta
+// (base_g y macros nullable). `nombre` y `grupo` siempre vienen (grupo se normaliza
+// contra el enum en el cliente).
+export const labelReadZ = z.object({
+  nombre: z.string(),
+  base_g: num.nullable(),
+  kcal: num.nullable(),
+  proteina_g: num.nullable(),
+  carbohidratos_g: num.nullable(),
+  grasa_g: num.nullable(),
+  grupo: z.string(),
+});
+export type LabelReadResult = z.infer<typeof labelReadZ>;
