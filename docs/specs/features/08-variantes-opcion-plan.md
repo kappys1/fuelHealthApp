@@ -1,5 +1,5 @@
 # F08 · Variantes de opción del plan (elegir la fuente al registrar)
-**Estado**: aprobada · **Tamaño**: feature
+**Estado**: implementada (Fase 1 · AC1/AC3 🖐 pendientes) · **Tamaño**: feature
 **Fecha**: 2026-07-16 · **Origen**: idea Alex 16-jul — «al importar la dieta, líneas como
 "Carne magra (pollo/pavo/ternera/cerdo)" se meten como un ítem con macros medias, pero cada
 fuente tiene kcal/macros distintas; quiero poder ajustar según la que comí».
