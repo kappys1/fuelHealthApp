@@ -244,7 +244,7 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   deriva), round-trip export→restore. `typecheck+test+build` en verde. **AC1** (import real
   reconstruye «carne magra» con 4 variantes; «verdura vapor/plancha» sin) y **AC3**
   (registrar día real, swing pollo↔cerdo cuadra) 🖐 **pendientes del pulgar de Alex**.
-  **Fase 2** (editar variantes a mano en el editor del plan) aplazada. DECISIONS #65.
+  **Fase 2** (editar variantes a mano en el editor del plan) aplazada. DECISIONS #66.
 
 ---
 

@@ -158,7 +158,7 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   la fuente con chips → macros correctas (swing pollo↔cerdo ~80 kcal a 210 g, ruido que la
   báscula no absorbe). `plan_options.variants` jsonb (migración **0008** aditiva); importador
   F-IA-9 con prompt reescrito que detecta y rellena las variantes; escalado por gramos reusa
-  F06. export/restore/migrate:poc las transportan. DECISIONS #65. **Fase 2** (editar variantes
+  F06. export/restore/migrate:poc las transportan. DECISIONS #66. **Fase 2** (editar variantes
   a mano en el editor del plan, sin reimportar) **aplazada**.
   - **Requisito de deploy**: `pnpm db:migrate` (aplica **0008**) antes/junto al deploy en Vercel.
 - 💡 **Describir que conoce tus productos** (idea Alex, 16-jul, durante la validación de F07) —
