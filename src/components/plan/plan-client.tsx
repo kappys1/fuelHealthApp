@@ -211,6 +211,11 @@ function OptionRow({
           {option.baseG != null ? ` · ${option.baseG} g` : ""} · {option.kcal} kcal ·{" "}
           {displayMacro(option.prot)}P/{displayMacro(option.carb)}C/{displayMacro(option.fat)}F
         </div>
+        {option.variants.length > 0 ? (
+          <div className="mt-0.5 text-[11px] text-primary">
+            {option.variants.length} variantes · {option.variants.map((v) => v.nombre).join(" · ")}
+          </div>
+        ) : null}
       </div>
       <button
         type="button"
@@ -252,6 +257,10 @@ function OptionForm({
   const [fat, setFat] = useState(String(option?.fat ?? ""));
   const [busy, setBusy] = useState(false);
   const [estimating, setEstimating] = useState(false);
+  // Opción con variantes intercambiables (F08): la fuente se elige al registrar.
+  // En Fase 1 el editor las muestra en solo lectura (editarlas a mano = Fase 2).
+  const variants = option?.variants ?? [];
+  const hasVariants = variants.length > 0;
 
   // F-IA-3 · estima macros y grupo del alimento. El grupo solo se autocompleta
   // si el usuario lo dejó en el valor por defecto ("Opción única" = "vacío").
@@ -287,16 +296,21 @@ function OptionForm({
       return;
     }
     setBusy(true);
-    const payload = {
-      meal,
-      grp,
-      name: name.trim(),
-      baseG: baseG === "" ? null : Math.round(n(baseG)),
-      kcal: Math.round(n(kcal)),
-      prot: n(prot),
-      carb: n(carb),
-      fat: n(fat),
-    };
+    // Opción con variantes (F08): en Fase 1 solo se editan nombre/grupo; los macros,
+    // gramos y variantes son de solo lectura (editarlas a mano = Fase 2). Enviar un
+    // patch parcial preserva la columna variants y el invariante «plano = 1ª variante».
+    const payload = hasVariants
+      ? { meal, grp, name: name.trim() }
+      : {
+          meal,
+          grp,
+          name: name.trim(),
+          baseG: baseG === "" ? null : Math.round(n(baseG)),
+          kcal: Math.round(n(kcal)),
+          prot: n(prot),
+          carb: n(carb),
+          fat: n(fat),
+        };
     try {
       if (option) await api.updateOption(option.id, payload);
       else await api.addOption(payload);
@@ -318,20 +332,22 @@ function OptionForm({
         className="w-full rounded-lg border border-input bg-surface px-2.5 py-2 text-base outline-none focus-visible:border-ring"
         aria-label="Nombre"
       />
-      <button
-        type="button"
-        onClick={estimate}
-        disabled={estimating}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] disabled:opacity-60"
-      >
-        {estimating ? (
-          <Loader2 className="size-4 animate-spin" aria-hidden />
-        ) : (
-          <Sparkles className="size-4 text-primary" aria-hidden />
-        )}
-        Estimar macros y grupo con IA
-      </button>
-      <div className="grid grid-cols-2 gap-2">
+      {!hasVariants ? (
+        <button
+          type="button"
+          onClick={estimate}
+          disabled={estimating}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] disabled:opacity-60"
+        >
+          {estimating ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Sparkles className="size-4 text-primary" aria-hidden />
+          )}
+          Estimar macros y grupo con IA
+        </button>
+      ) : null}
+      <div className={cn("grid gap-2", hasVariants ? "grid-cols-1" : "grid-cols-2")}>
         <label className="block">
           <span className="mb-1 block text-[12px] text-muted-foreground">Grupo</span>
           <Select value={grp} onValueChange={(v) => setGrp(v as GrpKey)}>
@@ -347,26 +363,51 @@ function OptionForm({
             </SelectContent>
           </Select>
         </label>
-        <SmallField label="Gramos base (vacío = fijo)">
-          <Stepper value={baseG} onChange={setBaseG} step={10} suffix="g" ariaLabel="Gramos base" />
-        </SmallField>
+        {!hasVariants ? (
+          <SmallField label="Gramos base (vacío = fijo)">
+            <Stepper value={baseG} onChange={setBaseG} step={10} suffix="g" ariaLabel="Gramos base" />
+          </SmallField>
+        ) : null}
       </div>
-      {/* 2×2: el Stepper (−/valor/+) necesita ~128px; en grid-cols-4 sobre móvil
-          se recortaba y el botón + desaparecía. En 2 columnas cabe entero. */}
-      <div className="grid grid-cols-2 gap-2">
-        <SmallField label="kcal">
-          <Stepper value={kcal} onChange={setKcal} step={10} ariaLabel="kcal" />
-        </SmallField>
-        <SmallField label="Prot">
-          <Stepper value={prot} onChange={setProt} step={1} ariaLabel="Proteína" />
-        </SmallField>
-        <SmallField label="Hidr">
-          <Stepper value={carb} onChange={setCarb} step={1} ariaLabel="Hidratos" />
-        </SmallField>
-        <SmallField label="Grasa">
-          <Stepper value={fat} onChange={setFat} step={1} ariaLabel="Grasa" />
-        </SmallField>
-      </div>
+      {hasVariants ? (
+        // Variantes (F08) en solo lectura: la fuente se elige al REGISTRAR (chips en
+        // Hoy). Editar/añadir variantes a mano = Fase 2; para cambiarlas, reimporta.
+        <div className="rounded-lg border border-primary/25 bg-primary/5 px-3 py-2.5">
+          <p className="text-[12px] font-medium text-primary">
+            {variants.length} variantes · eliges la fuente al registrar
+            {option?.baseG != null ? ` · ${option.baseG} g` : ""}
+          </p>
+          <ul className="mt-1.5 space-y-0.5">
+            {variants.map((v) => (
+              <li key={v.nombre} className="num text-[12px] text-foreground">
+                {v.nombre} · {v.kcal} kcal · {displayMacro(v.prot)}P/
+                {displayMacro(v.carb)}C/{displayMacro(v.fat)}F
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1.5 text-[11px] text-muted-foreground">
+            Para cambiar cantidades o variantes, reimporta la dieta (edición manual:
+            próximamente).
+          </p>
+        </div>
+      ) : (
+        // 2×2: el Stepper (−/valor/+) necesita ~128px; en grid-cols-4 sobre móvil
+        // se recortaba y el botón + desaparecía. En 2 columnas cabe entero.
+        <div className="grid grid-cols-2 gap-2">
+          <SmallField label="kcal">
+            <Stepper value={kcal} onChange={setKcal} step={10} ariaLabel="kcal" />
+          </SmallField>
+          <SmallField label="Prot">
+            <Stepper value={prot} onChange={setProt} step={1} ariaLabel="Proteína" />
+          </SmallField>
+          <SmallField label="Hidr">
+            <Stepper value={carb} onChange={setCarb} step={1} ariaLabel="Hidratos" />
+          </SmallField>
+          <SmallField label="Grasa">
+            <Stepper value={fat} onChange={setFat} step={1} ariaLabel="Grasa" />
+          </SmallField>
+        </div>
+      )}
       <div className="flex justify-end gap-2 pt-1">
         <button
           type="button"
