@@ -170,6 +170,7 @@ describe("el coach conoce el plan (F01 Fase 1)", () => {
       prot: 32,
       carb: 0,
       fat: 4,
+      variants: [],
       sort: 0,
     },
   ];
@@ -696,6 +697,7 @@ describe("planSummary lleva los macros de cada opción (DECISIONS #56)", () => {
         prot: 46,
         carb: 0,
         fat: 5,
+        variants: [],
         sort: 0,
       },
     ];
