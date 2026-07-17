@@ -49,15 +49,10 @@ escribe código hasta el OK explícito de Alex.** Si Alex cambia algo, se edita 
 se parchea después en código.
 
 ### Etapa 4 · Implementación
-Protocolo de siempre, sin excepciones:
-- Fase a fase si la spec define más de una; tests de lógica ANTES que la UI.
-- Prompts de IA: se congelan en la mini-spec Y se sincronizan a `04-IA.md`; cualquier
-  cambio posterior de redacción re-valida los AC de esa feature (y el test de consistencia
-  del café ×3 si toca features de estimación — comparar con DECISIONS #65).
-- Decisiones no cubiertas → lo más simple + `DECISIONS.md`.
-- Migraciones versionadas, 0 pérdidas (principio 7). `typecheck + test + build` en verde
-  por commit. Commits pequeños.
-- No adelantar trabajo de otras features aunque «ya que estamos».
+La sesión de implementación usa la skill **`fuelboard-implementer`**, que codifica el
+protocolo completo (anclaje → tests de lógica antes que UI → código → AC → cierre; prompts
+congelados en `server/ai/prompts.ts`; migraciones versionadas sin pérdidas; `typecheck +
+test + build` en verde por commit, commits pequeños; no adelantar otras fases/features).
 
 ### Etapa 5 · Validación
 - El agente repasa los AC de la mini-spec uno a uno y reporta cuáles pasan.

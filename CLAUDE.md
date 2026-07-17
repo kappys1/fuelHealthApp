@@ -78,7 +78,7 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
 | BD | **Postgres gestionado (Neon)** | Solo Postgres; nada propietario. |
 | ORM | **Drizzle** (`drizzle-kit`) | Migraciones versionadas en repo. |
 | Auth | **iron-session** | Usuario único; password argon2 en env; cookie httpOnly; proxy protege todo salvo `/login`, `/api/auth/*` y `/api/health/ingest`. |
-| IA | **Vercel AI SDK (`ai`)**, SOLO en servidor | Agnóstica de proveedor por `AI_PROVIDER` (hoy `@ai-sdk/anthropic`). Keys en env, nunca al cliente. |
+| IA | **Vercel AI SDK (`ai`)**, SOLO en servidor | Agnóstica de proveedor por `AI_PROVIDER` (proveedor real cableado hoy: **Google/Gemini `@ai-sdk/google`**). Keys en env, nunca al cliente. |
 | Estado cliente | **TanStack Query** + estado local | La BD es la fuente de verdad. |
 | Estilos | **Tailwind CSS 4 + CSS variables** (tokens de `05-DISENO`) | |
 | UI | **shadcn/ui** (Radix) tematizado con NUESTROS tokens | Componentes firma (FuelGauge, MealRow, PhotoAnalyzer) custom. **Bottom-sheets para TODO flujo de creación/edición**; páginas solo para las 4 pestañas (09 §6). |
@@ -120,8 +120,13 @@ pnpm migrate:poc <archivo>    # importar fuelboard-export-*.json del PoC (Fase 1
 - **Estructura por momentos de uso (09 manda).** Bottom-sheets para crear/editar;
   máximo una decisión por pantalla de sheet; defaults inteligentes en todo (comida
   por hora, gramos = baseG, fecha = hoy). Nunca añadir otra tarjeta permanente a Hoy.
-- **Prompts de IA congelados.** Los de `04-IA.md` se usan **TAL CUAL** (solo interpolando
-  variables). No "mejorarlos" sin re-probar.
+- **Prompts de IA congelados. Fuente de verdad de la REDACCIÓN: `server/ai/prompts.ts`**
+  (funciones congeladas, con comentarios de decisión, cubiertas por `prompts.test.ts`); se
+  usan **TAL CUAL** (solo interpolando variables) y no se "mejoran" sin re-probar. `04-IA.md`
+  **no** reproduce el texto literal: conserva modelos, esquemas de salida, costes, AC y
+  doctrina, y apunta a la función de `prompts.ts` de cada feature. Cambiar redacción = editar
+  `prompts.ts` + re-validar los AC de esa feature (+ café ×3 si toca estimación, DECISIONS
+  #65) + sync a 04-IA SOLO si cambió esquema/modelo/coste/AC/doctrina. (DECISIONS #70.)
 - **`temperature: 0`** en toda llamada IA (excepción documentada: chat F-IA-8 usa `0.3`).
 - **Toda llamada a la IA pasa por API routes propias** (`server/ai/`) vía el Vercel AI
   SDK: el servidor construye el prompt, valida con Zod (1 reintento si el JSON no parsea)
@@ -141,6 +146,11 @@ pnpm migrate:poc <archivo>    # importar fuelboard-export-*.json del PoC (Fase 1
 - **Commits pequeños.** `pnpm typecheck && pnpm test` en verde antes de cada commit.
 - **Ambigüedad:** fuente de verdad = 09 (estructura) / PRD (contenido); si callan,
   decide **lo más simple** y anótalo en `docs/DECISIONS.md`.
+- **Skills del repo** (`.claude/skills/`): pensar/refinar ideas o quejas de uso →
+  `fuelboard-product-partner` · ejecutar specs aprobadas, fases y quick-fixes →
+  `fuelboard-implementer` · conversaciones de la IA de la app que fueron mal / afinar
+  prompts-contexto-modelos → `fuelboard-ai-tuner` · leer MED/Tendencia/preparar visitas →
+  `fuelboard-analyst`. Ante duda de cuál: el partner.
 
 ## Principios de producto (NO negociables — copiados íntegros de `01-PRD.md` §3)
 
