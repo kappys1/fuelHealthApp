@@ -31,13 +31,15 @@ const TABLE_LABELS: Record<string, string> = {
 export function DataBackup() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [raw, setRaw] = useState<unknown>(null);
+  // `raw` solo se lee dentro de handlers (apply), nunca en el render → useRef
+  // para no repintar al cargar el archivo (react-doctor/rerender-state-only-in-handlers).
+  const rawRef = useRef<unknown>(null);
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState<RestoreResult | null>(null);
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
-    setRaw(null);
+    rawRef.current = null;
     setFileName("");
     setPreview(null);
     if (inputRef.current) inputRef.current.value = "";
@@ -48,7 +50,7 @@ export function DataBackup() {
     try {
       const text = await file.text();
       const parsed = JSON.parse(text);
-      setRaw(parsed);
+      rawRef.current = parsed;
       setFileName(file.name);
       const p = await api.restore(parsed, false);
       setPreview(p);
@@ -82,7 +84,7 @@ export function DataBackup() {
   };
 
   const apply = async () => {
-    if (raw == null) return;
+    if (rawRef.current == null) return;
     if (
       !window.confirm(
         "El restore REEMPLAZA todos los datos actuales por los del archivo. Antes se descargará un backup del estado actual. ¿Continuar?",
@@ -103,7 +105,7 @@ export function DataBackup() {
         setBusy(false);
         return;
       }
-      const r = await api.restore(raw, true);
+      const r = await api.restore(rawRef.current, true);
       const total = Object.values(r.restored ?? {}).reduce((a, b) => a + b, 0);
       toast.success(`Restaurado: ${total} registros`);
       reset();
