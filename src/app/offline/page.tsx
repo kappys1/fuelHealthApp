@@ -1,4 +1,5 @@
 import { WifiOff } from "lucide-react";
+import Link from "next/link";
 
 /*
   Fallback offline (Serwist). Se muestra cuando una navegación falla sin red y la
@@ -18,12 +19,12 @@ export default function OfflinePage() {
         No hay red ahora mismo. Lo que ya has visto sigue disponible, y lo que
         registres se guardará y se sincronizará en cuanto vuelvas a tener conexión.
       </p>
-      <a
+      <Link
         href="/hoy"
         className="mt-2 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground"
       >
         Volver a Hoy
-      </a>
+      </Link>
     </main>
   );
 }

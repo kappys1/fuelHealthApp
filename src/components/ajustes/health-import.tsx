@@ -14,13 +14,15 @@ import { api, type HealthImportResult } from "@/lib/client-api";
 export function HealthImport() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [csv, setCsv] = useState<string | null>(null);
+  // `csv` solo se lee dentro de handlers (apply), nunca en el render → useRef
+  // para no repintar al elegir el archivo (react-doctor/rerender-state-only-in-handlers).
+  const csvRef = useRef<string | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [preview, setPreview] = useState<HealthImportResult | null>(null);
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
-    setCsv(null);
+    csvRef.current = null;
     setFileName("");
     setPreview(null);
     if (inputRef.current) inputRef.current.value = "";
@@ -30,7 +32,7 @@ export function HealthImport() {
     setBusy(true);
     try {
       const text = await file.text();
-      setCsv(text);
+      csvRef.current = text;
       setFileName(file.name);
       const p = await api.importHealthCsv(text, false);
       setPreview(p);
@@ -44,10 +46,10 @@ export function HealthImport() {
   };
 
   const apply = async () => {
-    if (!csv) return;
+    if (!csvRef.current) return;
     setBusy(true);
     try {
-      const r = await api.importHealthCsv(csv, true);
+      const r = await api.importHealthCsv(csvRef.current, true);
       toast.success(
         `${r.imported} días importados${r.hadKj ? " · kJ→kcal" : ""}${
           r.hadMl ? " · mL→L" : ""
