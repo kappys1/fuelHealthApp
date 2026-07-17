@@ -152,7 +152,7 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   manda). Decidir **tras usar la foto de etiqueta** y ver si enfocar la tabla molesta (anti-optimización-
   sin-medición). Descartadas como fuente de estimación: USDA/BEDCA (genéricos) y OFF (colaborativo → ruido).
 - ✅ **Variantes de opción del plan** (idea Alex, 16-jul) — **IMPLEMENTADA Fase 1 (F08, v1.10)**,
-  **pendiente de validación de Alex 🖐 (AC1 import real · AC3 registrar día real)** y deploy:
+  **validada por Alex 🖐 (AC1 import + AC3 registrar día real, 17-jul)**; pendiente **deploy**:
   [`docs/specs/features/08-variantes-opcion-plan.md`](./specs/features/08-variantes-opcion-plan.md).
   «Carne magra (pollo/pavo/ternera/cerdo)» sigue siendo **un** hueco; al **registrar** eliges
   la fuente con chips → macros correctas (swing pollo↔cerdo ~80 kcal a 210 g, ruido que la
