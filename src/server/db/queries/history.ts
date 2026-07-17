@@ -87,6 +87,7 @@ export async function getHistorialData(): Promise<HistorialEntry[]> {
       prot: r.prot,
       carb: r.carb,
       fat: r.fat,
+      variants: r.variants,
       sort: r.sort,
     });
     optsByVersion.set(r.dietVersionId, list);

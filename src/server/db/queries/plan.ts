@@ -4,6 +4,7 @@ import {
   type GrpKey,
   type MealKey,
   MEAL_ORDER,
+  type PlanVariant,
 } from "@/lib/macros";
 import { derivePlanTargets, type DerivedTargets } from "@/server/analytics/planDerived";
 import { db, schema } from "@/server/db";
@@ -18,6 +19,9 @@ export interface PlanOptionDTO {
   prot: number;
   carb: number;
   fat: number;
+  // Variantes intercambiables (F08). [] = opción normal. Los campos planos de
+  // arriba valen los de la 1ª variante (default) cuando hay variantes.
+  variants: PlanVariant[];
   sort: number;
 }
 

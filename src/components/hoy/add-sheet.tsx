@@ -48,6 +48,7 @@ import {
   scaleMacros,
   scaledForStore,
   sumMacros,
+  variantEntryName,
 } from "@/lib/macros";
 import { cn } from "@/lib/utils";
 import type { PhotoResult } from "@/server/ai/schemas";
@@ -713,13 +714,43 @@ function PlanOptionRow({
   onAdd: (e: EntryInput[]) => void;
 }) {
   const [g, setG] = useState(String(option.baseG ?? 0));
+  // Variante elegida (F08): default = la primera (los campos planos ya la reflejan).
+  // Solo con variantes; sin ellas el comportamiento es idéntico al de hoy.
+  const [vIdx, setVIdx] = useState(0);
   const grams = g === "" ? 0 : Number(g.replace(",", "."));
-  const scaled = scaledForStore(option, grams, option.baseG);
   const fixed = option.baseG == null;
+
+  const variant = option.variants[vIdx];
+  // Base de macros efectiva: la variante elegida, o los campos planos de la opción.
+  const base = variant
+    ? { kcal: variant.kcal, prot: variant.prot, carb: variant.carb, fat: variant.fat }
+    : option;
+  const name = variant ? variantEntryName(option.name, variant.nombre) : option.name;
+  const scaled = scaledForStore(base, grams, option.baseG);
 
   return (
     <div className="rounded-lg px-1 py-2">
       <div className="text-[14px]">{option.name}</div>
+      {option.variants.length > 0 ? (
+        <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Fuente">
+          {option.variants.map((v, i) => (
+            <button
+              key={v.nombre}
+              type="button"
+              aria-pressed={i === vIdx}
+              onClick={() => setVIdx(i)}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-[12px]",
+                i === vIdx
+                  ? "border-primary bg-primary/10 font-medium text-primary"
+                  : "border-line bg-surface-2 text-muted-foreground",
+              )}
+            >
+              {v.nombre}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="mt-1.5 flex items-center gap-2">
         {!fixed ? (
           <Stepper value={g} onChange={setG} step={10} suffix="g" ariaLabel="Gramos" />
@@ -730,14 +761,14 @@ function PlanOptionRow({
             onAdd([
               {
                 meal,
-                // Nombre limpio: la cantidad se pinta desde grams (F06), no pegada.
-                name: option.name,
-                kcal: fixed ? option.kcal : scaled.kcal,
-                prot: fixed ? option.prot : scaled.prot,
-                carb: fixed ? option.carb : scaled.carb,
-                fat: fixed ? option.fat : scaled.fat,
+                // Nombre: "hueco · Variante" si hay variante; si no, limpio (la
+                // cantidad se pinta desde grams — F06 —, no pegada al nombre).
+                name,
+                // scaledForStore no escala cuando baseG es null → macros de la base
+                // tal cual (opción fija o variante por unidad).
+                ...scaled,
                 source: "plan",
-                ...entryBaseFields(option, grams, option.baseG),
+                ...entryBaseFields(base, grams, option.baseG),
               },
             ])
           }
@@ -747,10 +778,8 @@ function PlanOptionRow({
         </button>
       </div>
       <div className="num mt-1.5 text-[12px] text-muted-foreground">
-        {fixed ? option.kcal : scaled.kcal} kcal ·{" "}
-        {displayMacro(fixed ? option.prot : scaled.prot)}P/
-        {displayMacro(fixed ? option.carb : scaled.carb)}C/
-        {displayMacro(fixed ? option.fat : scaled.fat)}F
+        {scaled.kcal} kcal · {displayMacro(scaled.prot)}P/{displayMacro(scaled.carb)}C/
+        {displayMacro(scaled.fat)}F
       </div>
     </div>
   );

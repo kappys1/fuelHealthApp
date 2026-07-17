@@ -1,4 +1,4 @@
-import type { GrpKey, MealKey } from "@/lib/macros";
+import type { GrpKey, MealKey, PlanVariant } from "@/lib/macros";
 import type { MeasureType } from "@/lib/marks";
 import type { AthleteProfile } from "@/lib/profile";
 import type { MarkEntryDTO } from "@/server/db/queries/marks";
@@ -171,6 +171,7 @@ export const api = {
       prot: number;
       carb: number;
       fat: number;
+      variants?: PlanVariant[];
     }[];
   }) =>
     req<{ version: unknown }>("/api/plan/version", {
