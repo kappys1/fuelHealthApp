@@ -36,13 +36,24 @@ import {
   type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
-  type PlanVariant,
 } from "@/lib/macros";
 import { useOnline } from "@/lib/use-online";
 import type { DietImportResult } from "@/server/ai/schemas";
 
 const n = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
 const MAX_FILES = 4;
+
+// Variante en edición: campos como STRING (igual que la fila) para que los inputs
+// no salten al teclear; se convierten a número al guardar. `vid` = key estable de
+// React (evita que borrar una variante robe el foco de otra).
+interface VariantRow {
+  vid: string;
+  nombre: string;
+  kcal: string;
+  prot: string;
+  carb: string;
+  fat: string;
+}
 
 interface Row {
   key: string;
@@ -54,14 +65,17 @@ interface Row {
   prot: string;
   carb: string;
   fat: string;
-  // Variantes intercambiables (F08). [] = opción normal. En Fase 1 se cargan del
-  // import y se guardan tal cual (solo lectura en la vista previa); los campos
-  // planos de arriba = 1ª variante (default). Editar variantes a mano = Fase 2.
-  variants: PlanVariant[];
+  // Variantes intercambiables (F08). [] = opción normal. Editables en la vista
+  // previa (corregir a la IA antes de crear la versión; Riesgo #2 de la spec). Los
+  // campos planos = 1ª variante (se derivan al guardar). Editar variantes DESPUÉS
+  // en el editor del plan (sin reimportar) = Fase 2.
+  variants: VariantRow[];
 }
 
 let rowSeq = 0;
 const rowKey = () => `r${rowSeq++}`;
+let varSeq = 0;
+const varKey = () => `v${varSeq++}`;
 
 /** Normaliza el nombre de comida de la pauta a nuestras claves fijas. */
 function toMeal(s: string): MealKey {
@@ -153,20 +167,21 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
       const meal = toMeal(comida.comida);
       for (const o of comida.opciones) {
         // Variantes (F08): macros a los MISMOS gramos pautados de la opción.
-        const variants: PlanVariant[] = o.variantes.map((v) => ({
+        const variants: VariantRow[] = o.variantes.map((v) => ({
+          vid: varKey(),
           nombre: v.nombre,
-          kcal: Math.round(v.kcal),
-          prot: v.proteina_g,
-          carb: v.carbohidratos_g,
-          fat: v.grasa_g,
+          kcal: String(Math.round(v.kcal)),
+          prot: String(displayMacro(v.proteina_g)),
+          carb: String(displayMacro(v.carbohidratos_g)),
+          fat: String(displayMacro(v.grasa_g)),
         }));
-        // Con variantes, los campos planos = la 1ª (el default que ve el editor y
-        // que valen las filas sin variantes). Sin variantes, los de la opción.
+        // Con variantes, los campos planos = la 1ª (el default). Sin variantes, los
+        // de la opción. Al guardar se re-derivan de la 1ª variante (invariante).
         const flat = variants[0] ?? {
-          kcal: Math.round(o.kcal),
-          prot: o.proteina_g,
-          carb: o.carbohidratos_g,
-          fat: o.grasa_g,
+          kcal: String(Math.round(o.kcal)),
+          prot: String(displayMacro(o.proteina_g)),
+          carb: String(displayMacro(o.carbohidratos_g)),
+          fat: String(displayMacro(o.grasa_g)),
         };
         next.push({
           key: rowKey(),
@@ -174,10 +189,10 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
           grp: toGrp(o.grupo),
           name: o.nombre,
           baseG: o.gramos != null ? String(Math.round(o.gramos)) : "",
-          kcal: String(Math.round(flat.kcal)),
-          prot: String(displayMacro(flat.prot)),
-          carb: String(displayMacro(flat.carb)),
-          fat: String(displayMacro(flat.fat)),
+          kcal: flat.kcal,
+          prot: flat.prot,
+          carb: flat.carb,
+          fat: flat.fat,
           variants,
         });
       }
@@ -229,18 +244,28 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
         carb: null,
         fat: null,
         options: valid.map((r) => {
-          // Invariante F08: con variantes, los campos planos = la 1ª (el default).
-          const v0 = r.variants[0];
+          // Variantes → números; se descartan las de nombre vacío (variante añadida
+          // y no rellenada). Invariante F08: los campos planos = la 1ª variante.
+          const variants = r.variants
+            .map((v) => ({
+              nombre: v.nombre.trim(),
+              kcal: Math.round(n(v.kcal)),
+              prot: n(v.prot),
+              carb: n(v.carb),
+              fat: n(v.fat),
+            }))
+            .filter((v) => v.nombre !== "");
+          const v0 = variants[0];
           return {
             meal: r.meal,
             grp: r.grp,
             name: r.name.trim(),
             baseG: r.baseG === "" ? null : Math.round(n(r.baseG)),
-            kcal: v0 ? Math.round(v0.kcal) : Math.round(n(r.kcal)),
+            kcal: v0 ? v0.kcal : Math.round(n(r.kcal)),
             prot: v0 ? v0.prot : n(r.prot),
             carb: v0 ? v0.carb : n(r.carb),
             fat: v0 ? v0.fat : n(r.fat),
-            variants: r.variants,
+            variants,
           };
         }),
       });
@@ -441,19 +466,12 @@ function RowEditor({
         <MiniInput label="g" value={row.baseG} onChange={(v) => onPatch({ baseG: v })} />
       </div>
       {row.variants.length > 0 ? (
-        // Variantes (F08): en Fase 1 son solo lectura (editarlas a mano = Fase 2).
-        // Las macros mostradas son las de la 1ª variante (el default al registrar).
-        <div className="rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2">
-          <p className="text-[11px] font-medium text-primary">
-            {row.variants.length} variantes · eliges la fuente al registrar
-          </p>
-          <p className="mt-0.5 text-[12px] text-foreground">
-            {row.variants.map((v) => v.nombre).join(" · ")}
-          </p>
-          <p className="num mt-1 text-[11px] text-muted-foreground">
-            {row.kcal} kcal · {row.prot}P/{row.carb}C/{row.fat}F ({row.variants[0]?.nombre})
-          </p>
-        </div>
+        // Variantes (F08): EDITABLES en la vista previa para corregir a la IA antes
+        // de crear la versión (falso positivo/negativo, macros mal; Riesgo #2). La
+        // 1ª es el default al registrar. «Sin variantes» = convertir en opción
+        // normal (los campos planos ya llevan los de la 1ª). Editarlas después en el
+        // editor del plan = Fase 2.
+        <VariantsEditor row={row} onPatch={onPatch} />
       ) : (
         <div className="grid grid-cols-4 gap-2">
           <MiniInput label="kcal" value={row.kcal} onChange={(v) => onPatch({ kcal: v })} />
@@ -462,6 +480,83 @@ function RowEditor({
           <MiniInput label="F" value={row.fat} onChange={(v) => onPatch({ fat: v })} />
         </div>
       )}
+    </div>
+  );
+}
+
+function VariantsEditor({
+  row,
+  onPatch,
+}: {
+  row: Row;
+  onPatch: (p: Partial<Row>) => void;
+}) {
+  const vs = row.variants;
+  const setVs = (next: VariantRow[]) => onPatch({ variants: next });
+  const updateVar = (vid: string, patch: Partial<VariantRow>) =>
+    setVs(vs.map((v) => (v.vid === vid ? { ...v, ...patch } : v)));
+  const removeVar = (vid: string) => setVs(vs.filter((v) => v.vid !== vid));
+  const addVar = () =>
+    setVs([...vs, { vid: varKey(), nombre: "", kcal: "", prot: "", carb: "", fat: "" }]);
+  // Convertir en opción normal: los campos planos toman los de la 1ª variante para
+  // no quedar vacíos, y se vacía la lista → vuelve el editor de macros normal.
+  const flatten = () => {
+    const v0 = vs[0];
+    onPatch(
+      v0
+        ? { variants: [], kcal: v0.kcal, prot: v0.prot, carb: v0.carb, fat: v0.fat }
+        : { variants: [] },
+    );
+  };
+
+  return (
+    <div className="space-y-2 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-medium text-primary">
+          {vs.length} variantes · eliges la fuente al registrar
+        </span>
+        <button
+          type="button"
+          onClick={flatten}
+          className="text-[11px] text-muted-foreground underline underline-offset-2"
+        >
+          Sin variantes
+        </button>
+      </div>
+      {vs.map((v) => (
+        <div key={v.vid} className="space-y-1.5 rounded-md bg-surface/60 p-1.5">
+          <div className="flex items-center gap-2">
+            <input
+              value={v.nombre}
+              onChange={(e) => updateVar(v.vid, { nombre: e.target.value })}
+              placeholder="Variante (p. ej. Pollo)"
+              className="min-w-0 flex-1 rounded-lg border border-input bg-surface px-2.5 py-1.5 text-[13px] outline-none focus-visible:border-ring"
+              aria-label="Nombre de la variante"
+            />
+            <button
+              type="button"
+              onClick={() => removeVar(v.vid)}
+              aria-label="Quitar variante"
+              className="shrink-0 text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="size-4" aria-hidden />
+            </button>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            <MiniInput label="kcal" value={v.kcal} onChange={(x) => updateVar(v.vid, { kcal: x })} />
+            <MiniInput label="P" value={v.prot} onChange={(x) => updateVar(v.vid, { prot: x })} />
+            <MiniInput label="C" value={v.carb} onChange={(x) => updateVar(v.vid, { carb: x })} />
+            <MiniInput label="F" value={v.fat} onChange={(x) => updateVar(v.vid, { fat: x })} />
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addVar}
+        className="inline-flex items-center gap-1 text-[12px] font-medium text-primary"
+      >
+        <Plus className="size-3.5" aria-hidden /> Añadir variante
+      </button>
     </div>
   );
 }

@@ -235,11 +235,14 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   `createVersionWithTargets` (copia las variantes) y `migrate:poc` ([]) las transportan.
 - **Importador (F-IA-9)**: prompt CONGELADO **reescrito** (detecta intercambiables con
   macros distintas; NO genera variantes para formas de cocinado ni macros ≈ iguales) —
-  sincronizado a `04-IA.md`, `temperature:0`. La vista previa carga las variantes (solo
-  lectura en Fase 1) y las persiste. Zod + 1 reintento.
+  sincronizado a `04-IA.md`, `temperature:0` (subido `maxOutputTokens` 8192→16384: las
+  variantes engordan el JSON). La vista previa **edita** las variantes (renombrar, macros,
+  quitar, añadir, «Sin variantes» = aplanar) para corregir a la IA antes de crear la versión
+  (con temp 0 reimportar repetiría el error). Zod + 1 reintento.
 - **Registrar**: chips de fuente encima del stepper en `PlanOptionRow` (default = 1ª); al
-  elegir, swap de macros + escala por gramos (F06) desde la variante; entrada guardada como
-  «hueco · Variante». Sin fórmula nueva (`variantToEntryFields` reusa F06).
+  elegir, swap de macros + escala por gramos (F06) desde la variante; entrada guardada con el
+  nombre de la **variante** («Arroz hervido», «Pollo»), no el hueco largo. Sin fórmula nueva
+  (`variantToEntryFields` reusa F06).
 - Tests: parseo del importador con variantes, escalado desde variante (ida/vuelta sin
   deriva), round-trip export→restore. `typecheck+test+build` en verde. **AC1** (import real
   reconstruye «carne magra» con 4 variantes; «verdura vapor/plancha» sin) y **AC3**
