@@ -244,10 +244,11 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   nombre de la **variante** («Arroz hervido», «Pollo»), no el hueco largo. Sin fórmula nueva
   (`variantToEntryFields` reusa F06).
 - Tests: parseo del importador con variantes, escalado desde variante (ida/vuelta sin
-  deriva), round-trip export→restore. `typecheck+test+build` en verde. **AC1** (import real
-  reconstruye «carne magra» con 4 variantes; «verdura vapor/plancha» sin) y **AC3**
-  (registrar día real, swing pollo↔cerdo cuadra) 🖐 **pendientes del pulgar de Alex**.
-  **Fase 2** (editar variantes a mano en el editor del plan) aplazada. DECISIONS #66.
+  deriva), round-trip export→restore. `typecheck+test+build` en verde. **AC1 y AC3 validados
+  por Alex 🖐 (17-jul)**: import real reconstruye las variantes y la vista previa las corrige;
+  registrar un día real eligiendo variante cuadra las kcal (swing pollo↔cerdo).
+  **Fase 2** (editar variantes a mano en el editor del plan, sin reimportar) aplazada.
+  DECISIONS #66. Pendiente: `pnpm db:migrate` (0008) + deploy a Vercel.
 
 ---
 
