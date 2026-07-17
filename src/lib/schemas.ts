@@ -68,6 +68,17 @@ export const medInputZ = z.object({
 });
 export const medPatchZ = medInputZ.partial();
 
+// Variante intercambiable de una opción (F08). Macros a los gramos pautados de la
+// opción (base_g). El importador la rellena; la edición manual del plan no la manda
+// (Fase 2, aplazable) → default []. `nombre` corto (p. ej. "Ternera").
+export const planVariantZ = z.object({
+  nombre: z.string().min(1).max(80),
+  kcal: z.number().int().min(0).max(20000),
+  prot: z.number().min(0).max(2000),
+  carb: z.number().min(0).max(2000),
+  fat: z.number().min(0).max(2000),
+});
+
 export const optionZ = z.object({
   meal: mealZ,
   grp: grpZ,
@@ -77,6 +88,7 @@ export const optionZ = z.object({
   prot: z.number().min(0).max(2000),
   carb: z.number().min(0).max(2000),
   fat: z.number().min(0).max(2000),
+  variants: z.array(planVariantZ).max(12).default([]),
 });
 
 // Crear una versión de dieta COMPLETA desde importación (F-IA-9).

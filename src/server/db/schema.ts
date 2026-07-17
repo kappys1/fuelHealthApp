@@ -10,6 +10,7 @@ import {
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
+import type { PlanVariant } from "@/lib/macros";
 
 /*
   Esquema Fuelboard — fuente de verdad: docs/specs/03-DATOS.md §1.
@@ -131,6 +132,10 @@ export const planOptions = pgTable("plan_options", {
   prot: real().notNull(),
   carb: real().notNull(),
   fat: real().notNull(),
+  // Variantes intercambiables de la opción (F08): alimentos con macros distintas
+  // que comparten el hueco/gramos de la pauta ("carne magra: pollo/pavo/…"). Lista
+  // vacía = opción normal. Migración aditiva; los campos planos = 1ª variante.
+  variants: jsonb().$type<PlanVariant[]>().notNull().default([]),
   sort: integer().notNull().default(0),
 });
 

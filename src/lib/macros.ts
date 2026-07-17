@@ -223,6 +223,65 @@ export function productToEntryFields(
   };
 }
 
+// ── Variantes de opción del plan (F08) ──
+/*
+  Una opción de la pauta puede agrupar alimentos intercambiables con macros por
+  ración materialmente distintas ("carne magra (pollo/pavo/ternera/cerdo)"). En vez
+  de llenar el plan de filas (el plan es espejo de la pauta; principio 8), la opción
+  guarda una lista de VARIANTES: cada una con su nombre y sus macros PARA LOS MISMOS
+  gramos pautados (base_g de la opción). Lista vacía = opción normal (comportamiento
+  intacto de hoy). Los campos planos de la opción valen los de la PRIMERA variante
+  (el default), así el editor del plan y las filas sin variantes no cambian.
+  La precisión se resuelve al REGISTRAR (chips de variante), no al importar.
+*/
+export interface PlanVariant {
+  nombre: string;
+  kcal: number;
+  prot: number;
+  carb: number;
+  fat: number;
+}
+
+/**
+ * Nombre de la entrada creada desde una variante: "hueco · Variante"
+ * (p. ej. "Carne magra · Ternera"). Decisión: lo más simple (DECISIONS #65).
+ */
+export function variantEntryName(optionName: string, variantName: string): string {
+  return `${optionName} · ${variantName}`;
+}
+
+/**
+ * Macros (mostrar/guardar) + campos de base (F06) de una entrada a partir de una
+ * VARIANTE elegida y la cantidad. La variante aporta las macros a `baseG` (la base
+ * inmutable); se reescala SIEMPRE desde ahí (reusa la maquinaria de F06). baseG
+ * null/0 → entrada fija: macros = las de la variante tal cual, sin base.
+ */
+export function variantToEntryFields(
+  v: PlanVariant,
+  baseG: number | null | undefined,
+  grams: number,
+): Macros & EntryBaseFields {
+  const base: Macros = { kcal: v.kcal, prot: v.prot, carb: v.carb, fat: v.fat };
+  if (baseG == null || baseG === 0) {
+    return {
+      kcal: roundKcal(base.kcal),
+      prot: roundMacroStore(base.prot),
+      carb: roundMacroStore(base.carb),
+      fat: roundMacroStore(base.fat),
+      grams: null,
+      baseG: null,
+      baseKcal: null,
+      baseProt: null,
+      baseCarb: null,
+      baseFat: null,
+    };
+  }
+  return {
+    ...scaledForStore(base, grams, baseG),
+    ...entryBaseFields(base, grams, baseG),
+  };
+}
+
 // ── Etiquetas y órdenes fijos (03-DATOS §2) ──
 export const MEAL_ORDER = [
   "almuerzo",

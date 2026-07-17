@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayDumpZ, labelReadZ } from "./schemas";
+import { dietImportZ, dayDumpZ, labelReadZ } from "./schemas";
 
 /*
   F06 Fase 2 (AC9): el schema de day-dump acepta `gramos` con cantidad o null (item
@@ -49,6 +49,116 @@ describe("dayDumpZ — gramos nullable (F06 Fase 2, AC9)", () => {
       ],
     });
     expect(parsed.items[0]?.gramos).toBe(120);
+  });
+});
+
+/*
+  F-IA-9 · F08 (AC1): el schema del importador acepta `variantes` por opción (una
+  entrada por alimento intercambiable), las coerciona, y por defecto es lista vacía
+  cuando la opción NO las trae (opción normal / forma de cocinado). Nunca se inventa
+  una variante: ausencia == [].
+*/
+describe("dietImportZ — variantes de opción (F08, AC1)", () => {
+  it("«carne magra» llega con 4 variantes; «verdura» sin variantes → []", () => {
+    const r = dietImportZ.parse({
+      kcal_totales: 1800,
+      proteina_total: 110,
+      comidas: [
+        {
+          comida: "comida",
+          opciones: [
+            {
+              nombre: "Carne magra (pollo/pavo/ternera/cerdo)",
+              grupo: "Proteína",
+              gramos: 210,
+              kcal: 231,
+              proteina_g: 46,
+              carbohidratos_g: 0,
+              grasa_g: 5,
+              variantes: [
+                { nombre: "Pollo", kcal: 231, proteina_g: 46, carbohidratos_g: 0, grasa_g: 5 },
+                { nombre: "Pavo", kcal: 225, proteina_g: 47, carbohidratos_g: 0, grasa_g: 4 },
+                { nombre: "Ternera", kcal: 260, proteina_g: 44, carbohidratos_g: 0, grasa_g: 9 },
+                { nombre: "Cerdo", kcal: 305, proteina_g: 43, carbohidratos_g: 0, grasa_g: 14 },
+              ],
+            },
+            {
+              // Forma de cocinado, NO variantes (queda como opción normal).
+              nombre: "Verdura (vapor/plancha/ensalada)",
+              grupo: "Verdura",
+              gramos: 200,
+              kcal: 60,
+              proteina_g: 3,
+              carbohidratos_g: 8,
+              grasa_g: 1,
+              variantes: [],
+            },
+          ],
+        },
+      ],
+    });
+    const carne = r.comidas[0]?.opciones[0];
+    const verdura = r.comidas[0]?.opciones[1];
+    expect(carne?.variantes).toHaveLength(4);
+    expect(carne?.variantes[3]).toEqual({
+      nombre: "Cerdo",
+      kcal: 305,
+      proteina_g: 43,
+      carbohidratos_g: 0,
+      grasa_g: 14,
+    });
+    expect(verdura?.variantes).toEqual([]);
+  });
+
+  it("una opción SIN el campo `variantes` → default [] (sin inventar)", () => {
+    const r = dietImportZ.parse({
+      kcal_totales: null,
+      proteina_total: null,
+      comidas: [
+        {
+          comida: "cena",
+          opciones: [
+            {
+              nombre: "Tortilla francesa",
+              grupo: "Proteína",
+              gramos: null,
+              kcal: 220,
+              proteina_g: 18,
+              carbohidratos_g: 1,
+              grasa_g: 16,
+            },
+          ],
+        },
+      ],
+    });
+    expect(r.comidas[0]?.opciones[0]?.variantes).toEqual([]);
+  });
+
+  it("coerciona macros de variante emitidas como string", () => {
+    const r = dietImportZ.parse({
+      kcal_totales: null,
+      proteina_total: null,
+      comidas: [
+        {
+          comida: "comida",
+          opciones: [
+            {
+              nombre: "Hidrato (arroz/quinoa/patata)",
+              grupo: "Hidratos",
+              gramos: "150",
+              kcal: "195",
+              proteina_g: "5",
+              carbohidratos_g: "40",
+              grasa_g: "1",
+              variantes: [
+                { nombre: "Arroz", kcal: "195", proteina_g: "5", carbohidratos_g: "40", grasa_g: "1" },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+    expect(r.comidas[0]?.opciones[0]?.variantes[0]?.kcal).toBe(195);
   });
 });
 

@@ -1,0 +1,1 @@
+ALTER TABLE "plan_options" ADD COLUMN "variants" jsonb DEFAULT '[]'::jsonb NOT NULL;

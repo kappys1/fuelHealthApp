@@ -1,5 +1,5 @@
 import { asc, eq } from "drizzle-orm";
-import type { BloatKey, MealKey, PhaseKey } from "@/lib/macros";
+import type { BloatKey, MealKey, PhaseKey, PlanVariant } from "@/lib/macros";
 import { dayKey } from "@/lib/dates";
 import { db, schema } from "@/server/db";
 import type { TemplateItem } from "@/server/db/schema";
@@ -206,6 +206,9 @@ export interface OptionInput {
   prot: number;
   carb: number;
   fat: number;
+  // Variantes intercambiables (F08). Omitido/[] = opción normal. La edición manual
+  // del plan no las envía (Fase 2, aplazable); las rellena el importador (F-IA-9).
+  variants?: PlanVariant[];
 }
 
 export async function addPlanOption(date: string, opt: OptionInput) {
@@ -229,6 +232,7 @@ export async function addPlanOption(date: string, opt: OptionInput) {
       prot: opt.prot,
       carb: opt.carb,
       fat: opt.fat,
+      variants: opt.variants ?? [],
       sort: nextSort,
     })
     .returning();
@@ -295,6 +299,8 @@ export async function createVersionWithTargets(t: TargetsInput) {
           prot: o.prot,
           carb: o.carb,
           fat: o.fat,
+          // Copiar las variantes: cambiar objetivos NO puede perderlas (principio 7).
+          variants: o.variants ?? [],
           sort: o.sort,
         })),
       );
@@ -344,6 +350,7 @@ export async function createDietVersionFull(v: ImportedVersion) {
         prot: o.prot,
         carb: o.carb,
         fat: o.fat,
+        variants: o.variants ?? [],
         sort: i,
       })),
     );
