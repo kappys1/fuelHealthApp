@@ -175,6 +175,24 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   molesta, no se hace. Descartado ya: creador de combo «foto de una etiqueta + describe el
   resto + buscar» (contamina F-IA-11, que es lector puro) y búsqueda en BD externas (NO-alcance
   de F07: OFF/USDA/BEDCA = ruido, principio 2).
+- ✅ **Estimar macros de una variante con IA** (idea Alex, 17-jul, tras validar F08 Fase 2) —
+  **IMPLEMENTADA (F09, quick-fix)**, **AC1 validado por Alex 🖐 (17-jul)**:
+  [`docs/specs/features/09-estimar-variante-ia.md`](./specs/features/09-estimar-variante-ia.md).
+  Botón **✨ por variante** en el `VariantsEditor` compartido: rellena kcal/P/C/F reusando
+  **F-IA-3** (`estimatePlanOption`) sin tocar el prompt (solo nombre + `baseG`); se ignora el
+  grupo (es del hueco). Aparece en los dos consumidores (import y editor del plan). DECISIONS #68.
+  Junto salió el **fix #69** (BUG): la estimación IA (F-IA-2/3/5) devolvía **500** con
+  `gemini-3.5-flash` porque el *thinking* agotaba `maxOutputTokens` (500/800 heredados de
+  flash-lite) → subidos a 2048; y `client.ts` no capturaba `NoOutputGeneratedError` → 500 mudo
+  en vez de 502 visible. Sin migración; nada nuevo en export/restore.
+- 💡 **Unidades / ml / l como cantidad de primera clase** (observación Alex, 17-jul — caso: fajitas)
+  — **PARKED, no construir ahora (medir antes).** El «gramos base» y el ✨ son gram-céntricos, pero
+  el caso está cubierto sin código: por unidades = nombra «2 fajitas» + gramos base vacío (fijo, el
+  ✨ estima igual); por gramos = «Fajitas» + baseG≈120 (escala con stepper). Los líquidos de la pauta
+  tienen densidad ≈1 (200 g = 200 ml); solo la **etiqueta** `g` es imprecisa (cosmético). Meter unidad
+  real + escalado por unidad reabriría el NO-alcance deliberado de F06 (#57: «la cantidad es un número,
+  la unidad vive en el texto») para un caso puntual → anti-optimización-sin-medición (doc 11). Reabrir
+  solo si en 2 semanas de uso real muerde a menudo.
 - _(añadir aquí las que surjan)_
 
 ---

@@ -274,6 +274,48 @@ export function variantToEntryFields(
   };
 }
 
+/** Draft de variante EN EDICIÓN: campos como STRING, tal cual los inputs del
+ *  editor (para que no salten al teclear; coma o punto decimal). */
+export interface VariantDraft {
+  nombre: string;
+  kcal: string;
+  prot: string;
+  carb: string;
+  fat: string;
+}
+
+const parseNumInput = (s: string): number =>
+  s === "" ? 0 : Number(s.replace(",", "."));
+
+/**
+ * Deriva el payload persistible de las variantes en edición (F08). Fuente ÚNICA
+ * compartida por la vista previa del import y el editor del plan:
+ *  - string→número (kcal entera; macros con el decimal que teclee el usuario),
+ *  - descarta variantes de nombre vacío (añadida y no rellenada),
+ *  - `flat` = los campos PLANOS de la opción = la 1ª variante resultante (el
+ *    default), o null si no queda ninguna (el llamador usa sus macros planos).
+ * Invariante F08: al guardar, plano = 1ª variante.
+ */
+export function deriveVariantsForStore(drafts: readonly VariantDraft[]): {
+  variants: PlanVariant[];
+  flat: Macros | null;
+} {
+  const variants: PlanVariant[] = drafts
+    .map((v) => ({
+      nombre: v.nombre.trim(),
+      kcal: roundKcal(parseNumInput(v.kcal)),
+      prot: parseNumInput(v.prot),
+      carb: parseNumInput(v.carb),
+      fat: parseNumInput(v.fat),
+    }))
+    .filter((v) => v.nombre !== "");
+  const v0 = variants[0];
+  const flat: Macros | null = v0
+    ? { kcal: v0.kcal, prot: v0.prot, carb: v0.carb, fat: v0.fat }
+    : null;
+  return { variants, flat };
+}
+
 // ── Etiquetas y órdenes fijos (03-DATOS §2) ──
 export const MEAL_ORDER = [
   "almuerzo",
