@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db, schema } from "@/server/db";
 import { productImportRow } from "../products-map";
-import { mealEntryImportRow } from "./backup-map";
+import { mealEntryImportRow, planOptionImportRow } from "./backup-map";
 
 /*
   Export/restore JSON completo (F4.5 / principio 7: los datos son sagrados).
@@ -253,21 +253,15 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
     );
   }
 
-  // 4) plan_options (FK → diet_versions remapeada).
+  // 4) plan_options (FK → diet_versions remapeada; variants F08 vía mapa puro).
   if (data.planOptions.length) {
     await db.insert(schema.planOptions).values(
-      data.planOptions.map((r) => ({
-        dietVersionId: versionMap.get(Number(r.dietVersionId)) ?? Number(r.dietVersionId),
-        meal: r.meal as typeof schema.mealEnum.enumValues[number],
-        grp: r.grp as typeof schema.grpEnum.enumValues[number],
-        name: String(r.name ?? ""),
-        baseG: n(r.baseG),
-        kcal: Number(r.kcal ?? 0),
-        prot: Number(r.prot ?? 0),
-        carb: Number(r.carb ?? 0),
-        fat: Number(r.fat ?? 0),
-        sort: Number(r.sort ?? 0),
-      })),
+      data.planOptions.map((r) =>
+        planOptionImportRow(
+          r,
+          versionMap.get(Number(r.dietVersionId)) ?? Number(r.dietVersionId),
+        ),
+      ),
     );
   }
 

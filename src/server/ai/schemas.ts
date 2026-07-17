@@ -75,6 +75,15 @@ export const wodZ = z.object({
 export type WodResult = z.infer<typeof wodZ>;
 
 // ── F-IA-9 · Importar dieta desde foto/PDF ──
+// Variante intercambiable de una opción (F08): sus macros son para los MISMOS
+// gramos pautados de la opción (base_g). Ausente/[] = opción normal.
+export const dietImportVariantZ = z.object({
+  nombre: z.string(),
+  kcal: num,
+  proteina_g: num,
+  carbohidratos_g: num,
+  grasa_g: num,
+});
 export const dietImportOptionZ = z.object({
   nombre: z.string(),
   grupo: z.string(),
@@ -83,6 +92,7 @@ export const dietImportOptionZ = z.object({
   proteina_g: num,
   carbohidratos_g: num,
   grasa_g: num,
+  variantes: z.array(dietImportVariantZ).default([]),
 });
 export const dietImportComidaZ = z.object({
   comida: z.string(),
@@ -95,6 +105,7 @@ export const dietImportZ = z.object({
 });
 export type DietImportResult = z.infer<typeof dietImportZ>;
 export type DietImportOption = z.infer<typeof dietImportOptionZ>;
+export type DietImportVariant = z.infer<typeof dietImportVariantZ>;
 
 // ── F-IA-10 · Importar semana de entrenamiento ──
 // `tipo` se valida como string y se normaliza contra el enum en el cliente/route

@@ -227,6 +227,8 @@ async function main() {
         prot: p.prot,
         carb: p.carb,
         fat: p.fat,
+        // El export del PoC es anterior a F08 → sin variantes (opción normal).
+        variants: [],
         sort: i,
       })),
     );

@@ -4,10 +4,13 @@ import {
   entryBaseFields,
   formatMacros,
   parseGramsSuffix,
+  type PlanVariant,
   productToEntryFields,
   scaleMacros,
   scaledForStore,
   sumMacros,
+  variantEntryName,
+  variantToEntryFields,
 } from "./macros";
 
 describe("scaleMacros — escalado por gramos (03-DATOS §3)", () => {
@@ -189,6 +192,59 @@ describe("productToEntryFields — añadir un producto reescalando (F07)", () =>
       prot: 0.6,
       carb: 1,
       fat: 1,
+      grams: null,
+      baseG: null,
+      baseKcal: null,
+      baseProt: null,
+      baseCarb: null,
+      baseFat: null,
+    });
+  });
+});
+
+describe("variantes de opción (F08)", () => {
+  // "Carne magra" 210 g en crudo: la variante elegida aporta sus macros a esos 210 g.
+  const pavo: PlanVariant = { nombre: "Pavo", kcal: 225, prot: 47, carb: 0, fat: 4 };
+  const cerdo: PlanVariant = { nombre: "Cerdo", kcal: 305, prot: 43, carb: 0, fat: 14 };
+
+  it("variantEntryName compone «hueco · Variante»", () => {
+    expect(variantEntryName("Carne magra", "Ternera")).toBe("Carne magra · Ternera");
+  });
+
+  it("elegir la variante guarda SUS macros a los gramos pautados (AC2)", () => {
+    // A 210 g (= baseG) el factor es 1 → las macros de la variante, sin cambios.
+    expect(variantToEntryFields(pavo, 210, 210)).toEqual({
+      kcal: 225,
+      prot: 47,
+      carb: 0,
+      fat: 4,
+      grams: 210,
+      baseG: 210,
+      baseKcal: 225,
+      baseProt: 47,
+      baseCarb: 0,
+      baseFat: 4,
+    });
+    // El swing pavo↔cerdo NO es ruido absorbible: cerdo pesa 80 kcal más (motivación F08).
+    expect(variantToEntryFields(cerdo, 210, 210).kcal).toBe(305);
+  });
+
+  it("cambiar gramos escala DESDE la variante elegida (AC2 · F06)", () => {
+    // 105 g (mitad) de pavo → factor 0.5 desde la base de la variante.
+    const half = variantToEntryFields(pavo, 210, 105);
+    expect(half.kcal).toBe(113); // 225 * 0.5 = 112.5 → 113
+    expect(half.prot).toBe(23.5);
+    expect(half.baseKcal).toBe(225); // base inmutable = la variante, no lo escalado
+    // Ida y vuelta 210→105→210 devuelve exactamente las macros de la variante.
+    expect(variantToEntryFields(pavo, 210, 210).kcal).toBe(225);
+  });
+
+  it("baseG null (variante por unidad/fija) → macros tal cual, sin base (AC4)", () => {
+    expect(variantToEntryFields(pavo, null, 999)).toEqual({
+      kcal: 225,
+      prot: 47,
+      carb: 0,
+      fat: 4,
       grams: null,
       baseG: null,
       baseKcal: null,
