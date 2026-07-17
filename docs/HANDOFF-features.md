@@ -151,12 +151,16 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   OpenFoodFacts que *prerrellena* el formulario de producto (nunca como fuente de verdad; la etiqueta
   manda). Decidir **tras usar la foto de etiqueta** y ver si enfocar la tabla molesta (anti-optimización-
   sin-medición). Descartadas como fuente de estimación: USDA/BEDCA (genéricos) y OFF (colaborativo → ruido).
-- 📝 **Variantes de opción del plan** (idea Alex, 16-jul) — **spec aprobada**:
+- ✅ **Variantes de opción del plan** (idea Alex, 16-jul) — **IMPLEMENTADA Fase 1 (F08, v1.10)**,
+  **pendiente de validación de Alex 🖐 (AC1 import real · AC3 registrar día real)** y deploy:
   [`docs/specs/features/08-variantes-opcion-plan.md`](./specs/features/08-variantes-opcion-plan.md).
-  «Carne magra (pollo/pavo/ternera/cerdo)» entra como un ítem con macros medias, pero cada
-  fuente tiene kcal/macros distintas (~80 kcal de swing en 210 g). El plan sigue fiel a la
-  pauta (un hueco), y al **registrar** eliges la variante → macros correctas. El importador
-  (F-IA-9) detecta y rellena las variantes. Pendiente de implementar (Fase 1).
+  «Carne magra (pollo/pavo/ternera/cerdo)» sigue siendo **un** hueco; al **registrar** eliges
+  la fuente con chips → macros correctas (swing pollo↔cerdo ~80 kcal a 210 g, ruido que la
+  báscula no absorbe). `plan_options.variants` jsonb (migración **0008** aditiva); importador
+  F-IA-9 con prompt reescrito que detecta y rellena las variantes; escalado por gramos reusa
+  F06. export/restore/migrate:poc las transportan. DECISIONS #65. **Fase 2** (editar variantes
+  a mano en el editor del plan, sin reimportar) **aplazada**.
+  - **Requisito de deploy**: `pnpm db:migrate` (aplica **0008**) antes/junto al deploy en Vercel.
 - 💡 **Describir que conoce tus productos** (idea Alex, 16-jul, durante la validación de F07) —
   **backlog, medir primero.** Caso real: los combos legacy tipo «Pan bimbo 1 reb. + mermelada
   s/a» no encajan en el modelo de producto (una combinación no reescala ni ajusta proporción;

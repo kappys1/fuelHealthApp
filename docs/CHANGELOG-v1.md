@@ -223,6 +223,31 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 
 ---
 
+### v1.10 · Variantes de opción del plan — Fase 1 (F08)
+- **Precisión al registrar, no en el plan**: una opción de la pauta que agrupa alimentos
+  intercambiables («Carne magra: pollo/pavo/ternera/cerdo») sigue siendo **una** fila
+  (espejo de la pauta, principio 8); al **registrarla** eliges la fuente con chips y se
+  guardan SUS macros, no las medias. El swing pollo↔cerdo (~80 kcal a 210 g) es ruido
+  aleatorio que la báscula no absorbe → se hornea en la entrada (motivación de la feature).
+- **Datos**: `plan_options.variants` jsonb `not null default '[]'` (migración **0008**
+  aditiva; [] = opción normal, sin regresión). Los campos planos de la opción valen los de
+  la **1ª variante** (default). export/restore (mapa puro `planOptionImportRow`),
+  `createVersionWithTargets` (copia las variantes) y `migrate:poc` ([]) las transportan.
+- **Importador (F-IA-9)**: prompt CONGELADO **reescrito** (detecta intercambiables con
+  macros distintas; NO genera variantes para formas de cocinado ni macros ≈ iguales) —
+  sincronizado a `04-IA.md`, `temperature:0`. La vista previa carga las variantes (solo
+  lectura en Fase 1) y las persiste. Zod + 1 reintento.
+- **Registrar**: chips de fuente encima del stepper en `PlanOptionRow` (default = 1ª); al
+  elegir, swap de macros + escala por gramos (F06) desde la variante; entrada guardada como
+  «hueco · Variante». Sin fórmula nueva (`variantToEntryFields` reusa F06).
+- Tests: parseo del importador con variantes, escalado desde variante (ida/vuelta sin
+  deriva), round-trip export→restore. `typecheck+test+build` en verde. **AC1** (import real
+  reconstruye «carne magra» con 4 variantes; «verdura vapor/plancha» sin) y **AC3**
+  (registrar día real, swing pollo↔cerdo cuadra) 🖐 **pendientes del pulgar de Alex**.
+  **Fase 2** (editar variantes a mano en el editor del plan) aplazada. DECISIONS #65.
+
+---
+
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
 
 ### Arquitectura, toolchain y build
