@@ -351,7 +351,9 @@ function OptionForm({
           <Stepper value={baseG} onChange={setBaseG} step={10} suffix="g" ariaLabel="Gramos base" />
         </SmallField>
       </div>
-      <div className="grid grid-cols-4 gap-2">
+      {/* 2×2: el Stepper (−/valor/+) necesita ~128px; en grid-cols-4 sobre móvil
+          se recortaba y el botón + desaparecía. En 2 columnas cabe entero. */}
+      <div className="grid grid-cols-2 gap-2">
         <SmallField label="kcal">
           <Stepper value={kcal} onChange={setKcal} step={10} ariaLabel="kcal" />
         </SmallField>
