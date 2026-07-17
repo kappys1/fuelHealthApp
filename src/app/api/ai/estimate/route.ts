@@ -32,7 +32,9 @@ export async function POST(request: Request) {
       task: "estimate",
       prompt: estimatePrompt(parsed.data.descripcion, atleta.compact),
       schema: estimateZ,
-      maxOutputTokens: 500,
+      // Ver plan-option: el thinking de Gemini 3.5 sale de maxOutputTokens; 500
+      // truncaba antes del JSON. Holgura amplia (output ~50 tokens; sin coste extra).
+      maxOutputTokens: 2048,
     });
     return Response.json(result);
   } catch (err) {

@@ -38,7 +38,11 @@ export async function POST(request: Request) {
         atleta.compact,
       ),
       schema: planOptionAiZ,
-      maxOutputTokens: 500,
+      // El output es minúsculo (~60 tokens) pero en Gemini 3.5 los tokens de
+      // "thinking" salen de maxOutputTokens: con 500 el thinking (incluso en nivel
+      // "low") agotaba el presupuesto y truncaba antes del JSON → NoOutputGenerated
+      // → 500. Holgura amplia; el techo no cobra tokens no generados (coste igual).
+      maxOutputTokens: 2048,
     });
     return Response.json(result);
   } catch (err) {

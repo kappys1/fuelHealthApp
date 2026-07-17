@@ -1,4 +1,10 @@
-import { generateText, type ModelMessage, NoObjectGeneratedError, Output } from "ai";
+import {
+  generateText,
+  type ModelMessage,
+  NoObjectGeneratedError,
+  NoOutputGeneratedError,
+  Output,
+} from "ai";
 import type { z } from "zod";
 import type { ModelKind } from "./env";
 import { AiParseError } from "./errors";
@@ -51,11 +57,26 @@ export async function runStructured<T>(opts: RunOptions<T>): Promise<T> {
       });
       return output;
     } catch (err) {
-      // Solo tratamos aquí el fallo de generación de objeto; los errores del
-      // proveedor (APICallError: key, rate-limit, red…) burbujean a la route.
-      if (!NoObjectGeneratedError.isInstance(err)) throw err;
+      // Fallos de GENERACIÓN (reintentables); los del proveedor (APICallError:
+      // key, rate-limit, red…) burbujean a la route. `generateText` + Output.object
+      // lanza DOS clases distintas: NoObjectGeneratedError (hubo texto pero no cuadró
+      // con el schema) y NoOutputGeneratedError (no hubo salida útil — p. ej. el
+      // thinking de Gemini agotó maxOutputTokens y truncó antes del JSON). Antes solo
+      // capturábamos la primera → la segunda burbujeaba cruda y la route la devolvía
+      // como 500 genérico, sin reintento ni mensaje (rompía «errores de IA siempre
+      // visibles»). Ahora ambas → reintento y, si persiste, AiParseError (502 visible).
+      if (
+        !NoObjectGeneratedError.isInstance(err) &&
+        !NoOutputGeneratedError.isInstance(err)
+      ) {
+        throw err;
+      }
       lastError =
-        err.cause instanceof Error ? err.cause.message : (err.text ?? err.message);
+        err.cause instanceof Error
+          ? err.cause.message
+          : NoObjectGeneratedError.isInstance(err)
+            ? (err.text ?? err.message)
+            : err.message;
       if (attempt === 0) {
         // Reintento: se re-adjunta el error al prompt original (04-IA §6).
         prompt = `${opts.prompt}\n\nTu respuesta anterior no se pudo procesar (${lastError}). Responde SOLO con JSON válido que cumpla EXACTAMENTE el formato pedido, sin markdown ni texto extra.`;
