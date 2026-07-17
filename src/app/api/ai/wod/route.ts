@@ -37,7 +37,9 @@ export async function POST(request: Request) {
       task: "estimate",
       prompt: wodPrompt(parsed.data.texto, atleta.full),
       schema: wodZ,
-      maxOutputTokens: 800,
+      // Ver plan-option: el thinking de Gemini 3.5 sale de maxOutputTokens; 800
+      // quedaba al borde para una sesión (más razonamiento + nombre/comentario).
+      maxOutputTokens: 2048,
     });
     return Response.json(result);
   } catch (err) {
