@@ -243,14 +243,6 @@ export interface PlanVariant {
 }
 
 /**
- * Nombre de la entrada creada desde una variante: "hueco · Variante"
- * (p. ej. "Carne magra · Ternera"). Decisión: lo más simple (DECISIONS #65).
- */
-export function variantEntryName(optionName: string, variantName: string): string {
-  return `${optionName} · ${variantName}`;
-}
-
-/**
  * Macros (mostrar/guardar) + campos de base (F06) de una entrada a partir de una
  * VARIANTE elegida y la cantidad. La variante aporta las macros a `baseG` (la base
  * inmutable); se reescala SIEMPRE desde ahí (reusa la maquinaria de F06). baseG

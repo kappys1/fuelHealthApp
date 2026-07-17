@@ -52,8 +52,10 @@ export async function POST(request: Request) {
       images,
       schema: dietImportZ,
       // Extracción grande (~34 opciones) + tokens de "thinking" de visión: 3000 del
-      // spec (pensado para Claude) se quedaban cortos con Gemini; ampliado a 8192.
-      maxOutputTokens: 8192,
+      // spec (pensado para Claude) se quedaban cortos con Gemini → 8192 (DECISIONS
+      // #44/#48). F08 añade "variantes" por opción (carne/hidratos/pescado con 4
+      // c/u) → el JSON crece y 8192 se truncaba (500 tras ~23 s). Ampliado a 16384.
+      maxOutputTokens: 16384,
     });
     return Response.json(result);
   } catch (err) {

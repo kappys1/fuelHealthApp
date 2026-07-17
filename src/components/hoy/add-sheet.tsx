@@ -48,7 +48,6 @@ import {
   scaleMacros,
   scaledForStore,
   sumMacros,
-  variantEntryName,
 } from "@/lib/macros";
 import { cn } from "@/lib/utils";
 import type { PhotoResult } from "@/server/ai/schemas";
@@ -102,7 +101,9 @@ export function AddSheet({
   // "editor"; null = producto nuevo). `editorFrom` = a dónde vuelve el editor.
   const [selectedProduct, setSelectedProduct] = useState<ProductDTO | null>(null);
   const [editingProduct, setEditingProduct] = useState<ProductDTO | null>(null);
-  const [editorFrom, setEditorFrom] = useState<Layer>("products");
+  // `editorFrom` solo se lee en el handler `back()`, nunca en el render → useRef
+  // (react-doctor/rerender-state-only-in-handlers).
+  const editorFromRef = useRef<Layer>("products");
 
   // Share target: al abrir con una imagen compartida, saltar a la capa de foto.
   // Diferido para no encadenar renders síncronos dentro del efecto.
@@ -176,13 +177,13 @@ export function AddSheet({
 
   const openEditor = (p: ProductDTO | null, from: Layer) => {
     setEditingProduct(p);
-    setEditorFrom(from);
+    editorFromRef.current = from;
     setLayer("editor");
   };
 
   const back = () => {
     if (layer === "editor") {
-      setLayer(editorFrom);
+      setLayer(editorFromRef.current);
       return;
     }
     setLayer("home");
@@ -725,7 +726,10 @@ function PlanOptionRow({
   const base = variant
     ? { kcal: variant.kcal, prot: variant.prot, carb: variant.carb, fat: variant.fat }
     : option;
-  const name = variant ? variantEntryName(option.name, variant.nombre) : option.name;
+  // Nombre de la entrada = SOLO la variante ("Arroz hervido", "Pollo"), no el hueco:
+  // el nombre del hueco de la pauta es largo ("Arroz / Quinoa / Pasta…"); en Hoy
+  // interesa lo que comiste. Sin variante, el nombre (limpio) de la opción.
+  const name = variant ? variant.nombre : option.name;
   const scaled = scaledForStore(base, grams, option.baseG);
 
   return (
@@ -1546,10 +1550,9 @@ function ProductEditorLayer({
   const [grupo, setGrupo] = useState<string>(product?.grupo ?? GRUPO_NONE);
   const [pinned, setPinned] = useState(product?.pinned ?? true);
   // Origen: al leer la etiqueta pasa a 'etiqueta'; si no, conserva el del producto
-  // (o 'manual' para uno nuevo). F-IA-11 (Fase 2).
-  const [source, setSource] = useState<ProductInput["source"]>(
-    product?.source ?? "manual",
-  );
+  // (o 'manual' para uno nuevo). F-IA-11 (Fase 2). Solo se lee en `save()`, nunca en
+  // el render (el aviso lo dispara `aiFilled`) → useRef (rerender-state-only-in-handlers).
+  const sourceRef = useRef<ProductInput["source"]>(product?.source ?? "manual");
   const [aiFilled, setAiFilled] = useState(false);
   const [reading, setReading] = useState(false);
   const online = useOnline();
@@ -1573,7 +1576,7 @@ function ProductEditorLayer({
       setGrupo(
         (PRODUCT_GROUPS as string[]).includes(r.grupo) ? r.grupo : GRUPO_NONE,
       );
-      setSource("etiqueta");
+      sourceRef.current = "etiqueta";
       setAiFilled(true);
     } catch (err) {
       toast.error(
@@ -1599,7 +1602,7 @@ function ProductEditorLayer({
       baseFat: num(fat),
       grupo: grupo === GRUPO_NONE ? null : (grupo as GrpKey),
       // 'etiqueta' si se leyó la foto; si no, el origen del producto (o 'manual').
-      source,
+      source: sourceRef.current,
       pinned,
     };
     if (product) actions.update(product.id, input);

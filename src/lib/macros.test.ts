@@ -9,7 +9,6 @@ import {
   scaleMacros,
   scaledForStore,
   sumMacros,
-  variantEntryName,
   variantToEntryFields,
 } from "./macros";
 
@@ -206,10 +205,6 @@ describe("variantes de opción (F08)", () => {
   // "Carne magra" 210 g en crudo: la variante elegida aporta sus macros a esos 210 g.
   const pavo: PlanVariant = { nombre: "Pavo", kcal: 225, prot: 47, carb: 0, fat: 4 };
   const cerdo: PlanVariant = { nombre: "Cerdo", kcal: 305, prot: 43, carb: 0, fat: 14 };
-
-  it("variantEntryName compone «hueco · Variante»", () => {
-    expect(variantEntryName("Carne magra", "Ternera")).toBe("Carne magra · Ternera");
-  });
 
   it("elegir la variante guarda SUS macros a los gramos pautados (AC2)", () => {
     // A 210 g (= baseG) el factor es 1 → las macros de la variante, sin cambios.
