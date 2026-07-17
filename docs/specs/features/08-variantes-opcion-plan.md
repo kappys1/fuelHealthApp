@@ -1,5 +1,6 @@
 # F08 · Variantes de opción del plan (elegir la fuente al registrar)
-**Estado**: implementada (Fase 1 · AC1/AC3 validados 🖐 17-jul) · **Tamaño**: feature
+**Estado**: implementada (Fase 1 · AC1/AC3 validados 🖐 17-jul; Fase 2 · hecha 17-jul,
+AC de edición manual pendientes del 🖐 de Alex) · **Tamaño**: feature
 **Fecha**: 2026-07-16 · **Origen**: idea Alex 16-jul — «al importar la dieta, líneas como
 "Carne magra (pollo/pavo/ternera/cerdo)" se meten como un ítem con macros medias, pero cada
 fuente tiene kcal/macros distintas; quiero poder ajustar según la que comí».
@@ -37,9 +38,10 @@ quiere evitar. Hay caso de precisión real, no teatro.
 - **Foto / Describir / Volcado del día** NO llevan selector: ahí describes/fotografías el
   alimento concreto y la IA ya lo estima (el selector es solo del camino "añadir desde el
   plan").
-- **Editar variantes a mano** en el editor del plan (sin reimportar) → **Fase 2, aplazable**.
-  El importador es el camino principal; la vista previa del import ya es editable para
-  corregir antes de crear la versión.
+- ~~**Editar variantes a mano** en el editor del plan (sin reimportar) → **Fase 2, aplazable**.~~
+  **Hecho en Fase 2 (17-jul)**: el `OptionForm` del editor del plan usa el mismo
+  `VariantsEditor` que la vista previa del import (renombrar · macros · quitar · añadir ·
+  «Sin variantes» · «Añadir variantes»).
 - **NO** se generan variantes para formas de cocinado/preparación ("verdura vapor/plancha/
   ensalada", "arroz hervido") ni cuando las macros son casi iguales.
 - No se recuerda la última variante elegida (estado extra); a revisar con uso real.
@@ -123,4 +125,12 @@ lo que consume el contexto de IA. No se tocan sus prompts.
 - **Fase 1** (entrega el valor entero): migración `variants` + importador que detecta y rellena
   + selector al registrar + export/restore/`migrate:poc`. Lógica y parsers testeados ANTES que
   la UI. Desplegar.
-- **Fase 2** (aplazable): editar variantes a mano en el editor del plan sin reimportar.
+- **Fase 2** (hecha · 17-jul): editar variantes a mano en el editor del plan sin reimportar.
+  `VariantsEditor`/`MiniInput` extraídos a `src/components/plan/variants-editor.tsx` (fuente
+  única import ↔ editor); helper puro `deriveVariantsForStore` (plano = 1ª variante + drop de
+  vacíos) con unit test, compartido por ambos; `baseG` editable como campo único común (no
+  reescala las variantes al cambiarlo); botón «Añadir variantes» (inverso de «Sin variantes»).
+  Editar es in-place sobre la versión vigente (no versiona) y no reescribe las `meal_entries`
+  ya registradas. AC pendientes del 🖐 de Alex: (1) editar variante → chip actualizado al
+  registrar; (3) convertir opción normal → chips al registrar; (4) plano = 1ª variante tras
+  guardar. Detalles en DECISIONS #67.

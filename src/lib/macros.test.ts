@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   backfillEntryGrams,
+  deriveVariantsForStore,
   entryBaseFields,
   formatMacros,
   parseGramsSuffix,
@@ -247,5 +248,52 @@ describe("variantes de opción (F08)", () => {
       baseCarb: null,
       baseFat: null,
     });
+  });
+});
+
+describe("deriveVariantsForStore — plano = 1ª variante (F08 · import + editor)", () => {
+  it("string→número, kcal entera; el plano toma la 1ª variante", () => {
+    const { variants, flat } = deriveVariantsForStore([
+      { nombre: " Pollo ", kcal: "225", prot: "47", carb: "0", fat: "4" },
+      { nombre: "Cerdo", kcal: "305", prot: "43", carb: "0", fat: "14" },
+    ]);
+    expect(variants).toEqual([
+      { nombre: "Pollo", kcal: 225, prot: 47, carb: 0, fat: 4 },
+      { nombre: "Cerdo", kcal: 305, prot: 43, carb: 0, fat: 14 },
+    ]);
+    // Plano = 1ª variante (el default al registrar), NO la media.
+    expect(flat).toEqual({ kcal: 225, prot: 47, carb: 0, fat: 4 });
+  });
+
+  it("descarta variantes de nombre vacío (añadida y no rellenada)", () => {
+    const { variants, flat } = deriveVariantsForStore([
+      { nombre: "Pavo", kcal: "225", prot: "47", carb: "0", fat: "4" },
+      { nombre: "  ", kcal: "999", prot: "9", carb: "9", fat: "9" },
+    ]);
+    expect(variants).toHaveLength(1);
+    expect(variants[0]?.nombre).toBe("Pavo");
+    expect(flat?.kcal).toBe(225);
+  });
+
+  it("acepta decimal con coma en macros; kcal se redondea", () => {
+    const { variants } = deriveVariantsForStore([
+      { nombre: "Salmón", kcal: "312,6", prot: "31,4", carb: "0", fat: "20,2" },
+    ]);
+    expect(variants[0]).toEqual({
+      nombre: "Salmón",
+      kcal: 313,
+      prot: 31.4,
+      carb: 0,
+      fat: 20.2,
+    });
+  });
+
+  it("sin variantes válidas → flat null (el llamador usa sus macros planos)", () => {
+    expect(deriveVariantsForStore([])).toEqual({ variants: [], flat: null });
+    expect(
+      deriveVariantsForStore([
+        { nombre: "", kcal: "10", prot: "1", carb: "1", fat: "1" },
+      ]),
+    ).toEqual({ variants: [], flat: null });
   });
 });

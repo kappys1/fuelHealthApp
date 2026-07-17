@@ -14,6 +14,7 @@ import {
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/lib/client-api";
 import {
+  deriveVariantsForStore,
   displayMacro,
   GRP_ORDER,
   type GrpKey,
@@ -25,6 +26,12 @@ import { cn } from "@/lib/utils";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
 import { DietImport } from "./diet-import";
+import {
+  newVariantRow,
+  planVariantToRow,
+  type VariantRow,
+  VariantsEditor,
+} from "./variants-editor";
 
 const n = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
 
@@ -257,10 +264,30 @@ function OptionForm({
   const [fat, setFat] = useState(String(option?.fat ?? ""));
   const [busy, setBusy] = useState(false);
   const [estimating, setEstimating] = useState(false);
-  // Opción con variantes intercambiables (F08): la fuente se elige al registrar.
-  // En Fase 1 el editor las muestra en solo lectura (editarlas a mano = Fase 2).
-  const variants = option?.variants ?? [];
+  // Variantes intercambiables (F08), editables a mano (Fase 2). Se inicializan
+  // desde la opción (números→strings con key estable); [] = opción normal.
+  const [variants, setVariants] = useState<VariantRow[]>(() =>
+    (option?.variants ?? []).map(planVariantToRow),
+  );
   const hasVariants = variants.length > 0;
+
+  // Convertir una opción normal en opción con variantes: siembra la 1ª con los
+  // macros planos actuales y nombre vacío (inverso exacto de «Sin variantes»).
+  const addVariants = () =>
+    setVariants([{ ...newVariantRow(), kcal, prot, carb, fat }]);
+
+  // «Sin variantes»: los campos planos toman los de la 1ª variante y se vacía la
+  // lista → vuelve el editor de macros normal (baseG no se toca).
+  const flatten = () => {
+    const v0 = variants[0];
+    if (v0) {
+      setKcal(v0.kcal);
+      setProt(v0.prot);
+      setCarb(v0.carb);
+      setFat(v0.fat);
+    }
+    setVariants([]);
+  };
 
   // F-IA-3 · estima macros y grupo del alimento. El grupo solo se autocompleta
   // si el usuario lo dejó en el valor por defecto ("Opción única" = "vacío").
@@ -296,21 +323,22 @@ function OptionForm({
       return;
     }
     setBusy(true);
-    // Opción con variantes (F08): en Fase 1 solo se editan nombre/grupo; los macros,
-    // gramos y variantes son de solo lectura (editarlas a mano = Fase 2). Enviar un
-    // patch parcial preserva la columna variants y el invariante «plano = 1ª variante».
-    const payload = hasVariants
-      ? { meal, grp, name: name.trim() }
-      : {
-          meal,
-          grp,
-          name: name.trim(),
-          baseG: baseG === "" ? null : Math.round(n(baseG)),
-          kcal: Math.round(n(kcal)),
-          prot: n(prot),
-          carb: n(carb),
-          fat: n(fat),
-        };
+    // Payload completo (F08): invariante plano = 1ª variante (o los macros planos si
+    // no hay variantes). Derivación compartida con la vista previa del import; se
+    // descartan variantes de nombre vacío. Editar es in-place sobre la versión
+    // vigente (no versiona) y no reescribe las meal_entries ya registradas.
+    const { variants: vs, flat } = deriveVariantsForStore(variants);
+    const payload = {
+      meal,
+      grp,
+      name: name.trim(),
+      baseG: baseG === "" ? null : Math.round(n(baseG)),
+      kcal: flat ? flat.kcal : Math.round(n(kcal)),
+      prot: flat ? flat.prot : n(prot),
+      carb: flat ? flat.carb : n(carb),
+      fat: flat ? flat.fat : n(fat),
+      variants: vs,
+    };
     try {
       if (option) await api.updateOption(option.id, payload);
       else await api.addOption(payload);
@@ -347,7 +375,9 @@ function OptionForm({
           Estimar macros y grupo con IA
         </button>
       ) : null}
-      <div className={cn("grid gap-2", hasVariants ? "grid-cols-1" : "grid-cols-2")}>
+      {/* Grupo + gramos base: gramos son los PAUTADOS del hueco, comunes a todas las
+          variantes (F08); editarlos NO reescala las variantes (editor manual). */}
+      <div className="grid grid-cols-2 gap-2">
         <label className="block">
           <span className="mb-1 block text-[12px] text-muted-foreground">Grupo</span>
           <Select value={grp} onValueChange={(v) => setGrp(v as GrpKey)}>
@@ -363,50 +393,47 @@ function OptionForm({
             </SelectContent>
           </Select>
         </label>
-        {!hasVariants ? (
-          <SmallField label="Gramos base (vacío = fijo)">
-            <Stepper value={baseG} onChange={setBaseG} step={10} suffix="g" ariaLabel="Gramos base" />
-          </SmallField>
-        ) : null}
+        <SmallField label="Gramos base (vacío = fijo)">
+          <Stepper value={baseG} onChange={setBaseG} step={10} suffix="g" ariaLabel="Gramos base" />
+        </SmallField>
       </div>
       {hasVariants ? (
-        // Variantes (F08) en solo lectura: la fuente se elige al REGISTRAR (chips en
-        // Hoy). Editar/añadir variantes a mano = Fase 2; para cambiarlas, reimporta.
-        <div className="rounded-lg border border-primary/25 bg-primary/5 px-3 py-2.5">
-          <p className="text-[12px] font-medium text-primary">
-            {variants.length} variantes · eliges la fuente al registrar
-            {option?.baseG != null ? ` · ${option.baseG} g` : ""}
-          </p>
-          <ul className="mt-1.5 space-y-0.5">
-            {variants.map((v) => (
-              <li key={v.nombre} className="num text-[12px] text-foreground">
-                {v.nombre} · {v.kcal} kcal · {displayMacro(v.prot)}P/
-                {displayMacro(v.carb)}C/{displayMacro(v.fat)}F
-              </li>
-            ))}
-          </ul>
-          <p className="mt-1.5 text-[11px] text-muted-foreground">
-            Para cambiar cantidades o variantes, reimporta la dieta (edición manual:
-            próximamente).
-          </p>
-        </div>
+        // Variantes (F08) editables (Fase 2): renombrar, macros, quitar, añadir y
+        // «Sin variantes» (aplanar). La 1ª es el default al registrar. Mismo editor
+        // que la vista previa del import.
+        <VariantsEditor
+          variants={variants}
+          onChange={setVariants}
+          onFlatten={flatten}
+          baseG={baseG === "" ? null : Math.round(n(baseG))}
+        />
       ) : (
-        // 2×2: el Stepper (−/valor/+) necesita ~128px; en grid-cols-4 sobre móvil
-        // se recortaba y el botón + desaparecía. En 2 columnas cabe entero.
-        <div className="grid grid-cols-2 gap-2">
-          <SmallField label="kcal">
-            <Stepper value={kcal} onChange={setKcal} step={10} ariaLabel="kcal" />
-          </SmallField>
-          <SmallField label="Prot">
-            <Stepper value={prot} onChange={setProt} step={1} ariaLabel="Proteína" />
-          </SmallField>
-          <SmallField label="Hidr">
-            <Stepper value={carb} onChange={setCarb} step={1} ariaLabel="Hidratos" />
-          </SmallField>
-          <SmallField label="Grasa">
-            <Stepper value={fat} onChange={setFat} step={1} ariaLabel="Grasa" />
-          </SmallField>
-        </div>
+        <>
+          {/* 2×2: el Stepper (−/valor/+) necesita ~128px; en grid-cols-4 sobre móvil
+              se recortaba y el botón + desaparecía. En 2 columnas cabe entero. */}
+          <div className="grid grid-cols-2 gap-2">
+            <SmallField label="kcal">
+              <Stepper value={kcal} onChange={setKcal} step={10} ariaLabel="kcal" />
+            </SmallField>
+            <SmallField label="Prot">
+              <Stepper value={prot} onChange={setProt} step={1} ariaLabel="Proteína" />
+            </SmallField>
+            <SmallField label="Hidr">
+              <Stepper value={carb} onChange={setCarb} step={1} ariaLabel="Hidratos" />
+            </SmallField>
+            <SmallField label="Grasa">
+              <Stepper value={fat} onChange={setFat} step={1} ariaLabel="Grasa" />
+            </SmallField>
+          </div>
+          <button
+            type="button"
+            onClick={addVariants}
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-primary"
+          >
+            <Plus className="size-3.5" aria-hidden /> Añadir variantes (elegir fuente al
+            registrar)
+          </button>
+        </>
       )}
       <div className="flex justify-end gap-2 pt-1">
         <button
