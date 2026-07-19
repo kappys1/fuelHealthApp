@@ -11,19 +11,22 @@ export type TokenName =
   | "destructive" | "destructive-fg";
 
 export const TOKENS: Record<"light" | "dark", Record<TokenName, string>> = {
+  // Restyle v2 (2026-07-19): paleta azul del mockup concept-v2. --line = borde
+  // sutil de tarjeta (--line-soft del mockup); el borde fuerte de controles vive
+  // en --line-strong (no gating).
   light: {
-    bg: "#f2f4ef", surface: "#ffffff", "surface-2": "#edefea",
-    ink: "#181f1b", muted: "#5d6862", line: "#d9ded5",
-    primary: "#2247c9", "primary-fg": "#ffffff",
-    protein: "#1b8a50", carb: "#b0800a", fat: "#e8590c",
-    destructive: "#b8480c", "destructive-fg": "#ffffff",
+    bg: "#f6f8fa", surface: "#ffffff", "surface-2": "#eef2f6",
+    ink: "#142235", muted: "#566678", line: "#dbe2e9",
+    primary: "#155db8", "primary-fg": "#ffffff",
+    protein: "#087a55", carb: "#946200", fat: "#b84620",
+    destructive: "#b84620", "destructive-fg": "#ffffff",
   },
   dark: {
-    bg: "#0f1613", surface: "#18221d", "surface-2": "#1f2b25",
-    ink: "#e8ede8", muted: "#93a099", line: "#2c3830",
-    primary: "#7b96ff", "primary-fg": "#0f1613",
-    protein: "#4cc98a", carb: "#e0b341", fat: "#f2894c",
-    destructive: "#f2894c", "destructive-fg": "#0f1613",
+    bg: "#0e1319", surface: "#161c24", "surface-2": "#202936",
+    ink: "#f3f6fa", muted: "#acb8c6", line: "#303b49",
+    primary: "#7eaeff", "primary-fg": "#0e1319",
+    protein: "#4ad29a", carb: "#f0c45a", fat: "#ff9566",
+    destructive: "#ff9566", "destructive-fg": "#0e1319",
   },
 };
 

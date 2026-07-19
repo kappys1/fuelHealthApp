@@ -48,51 +48,81 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Tokens de marca Fuelboard (utilidades: bg-surface, text-protein, ...) */
+  --color-canvas: var(--canvas);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-strong: var(--surface-strong);
   --color-ink: var(--ink);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
   --color-protein: var(--protein);
   --color-carb: var(--carb);
   --color-fat: var(--fat);
+  --color-cobalt: var(--cobalt);
+  --color-sleep: var(--sleep);
+  --color-info: var(--info);
+  --color-special: var(--special);
+  --color-med: var(--med-accent);
   --color-phase: var(--phase);
 
-  /* Tipografía: display/condensed (Barlow) + cuerpo (Instrument Sans) */
+  /* Tipografía Restyle v2: cuerpo (Onest) + display/cifras (Plus Jakarta Sans).
+     --font-condensed se conserva como alias del display (sin condensada dedicada;
+     RESTYLE-NOTES F0-3). */
   --font-sans: var(--font-body);
   --font-body: var(--font-body);
   --font-display: var(--font-display);
-  --font-condensed: var(--font-condensed);
+  --font-condensed: var(--font-display);
   --font-heading: var(--font-display);
   --font-mono: var(--font-body);
 
-  /* Radios: tarjetas radio 12 (05-DISENO §4) */
+  /* Radios (05-DISENO §4, Restyle v2): base 14px; tarjetas → radius-xl = 18px,
+     controles → radius-md = 12px, píldoras → radius-pill. */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-pill: 999px;
+
+  /* Sombras (05-DISENO §4, Restyle v2) */
+  --shadow-card: var(--card-shadow);
+  --shadow-float: var(--shadow);
 }
 
-/* ── Tema claro «Morning session» (05-DISENO §2) ── */
+/* ── Tema claro «Morning session» — Restyle v2 (05-DISENO §2) ── */
 :root {
-  /* Paleta base del spec */
-  --bg: #f2f4ef;
+  /* Paleta base del mockup concept-v2 (verificada AA: pnpm audit:contrast) */
+  --canvas: #e9eef3; /* fondo exterior de la columna centrada en escritorio */
+  --bg: #f6f8fa;
   --surface: #ffffff;
-  --surface-2: #edefea;
-  --ink: #181f1b;
-  --muted-text: #5d6862; /* «--muted» del spec = color de TEXTO atenuado */
-  --line: #d9ded5;
-  --primary: #2247c9;
-  --protein: #1b8a50;
-  /* Ámbar «hidratos»: #B8860B del spec oscurecido a #B0800A para llegar a ≥3:1
-     también sobre --bg (WCAG 1.4.11); cambio visual mínimo, sigue ámbar. */
-  --carb: #b0800a;
-  --fat: #e8590c;
-  /* Acento MED (Historial, doc 10 B4): morado oscurecido para contraste sobre blanco. */
-  --med-accent: #8a4bbf;
-  --phase: color-mix(in srgb, var(--primary) 12%, transparent);
+  --surface-2: #eef2f6;
+  --surface-strong: #e2e8ee;
+  --ink: #142235;
+  --muted-text: #566678; /* «--muted» del spec = color de TEXTO atenuado */
+  --line: #dbe2e9; /* borde sutil de tarjeta (--line-soft del mockup) */
+  --line-strong: #728397; /* contorno fuerte de controles */
+  --primary: #155db8;
+  --primary-strong: #0d4a93;
+  --primary-soft: #e5effd;
+  --on-primary: #ffffff;
+  --protein: #087a55;
+  --carb: #946200;
+  --fat: #b84620;
+  --cobalt: #3159d9; /* acento/energía; foco */
+  --sleep: #6177d8;
+  --info: #2563c7;
+  --special: #6747c7; /* morado sólido: acento de fase/MED */
+  --med-accent: #6747c7; /* Historial/MED (doc 10 B4) */
+  /* Tinte azul-info sutil para el fondo del gauge en fase especial
+     («Carga azul-info que nunca regaña»; RESTYLE-NOTES F0-1). */
+  --phase: color-mix(in srgb, var(--info) 14%, transparent);
 
-  --radius: 0.75rem; /* 12px */
+  --card-shadow: 0 8px 24px rgb(15 27 42 / 5%);
+  --shadow: 0 28px 90px rgb(15 27 42 / 12%);
+
+  --radius: 0.875rem; /* 14px base; tarjetas → radius-xl = 18px */
 
   /* Mapeo semántico shadcn (sin colisiones) */
   --background: var(--bg);
@@ -101,16 +131,16 @@
   --card-foreground: var(--ink);
   --popover: var(--surface);
   --popover-foreground: var(--ink);
-  --primary-foreground: #ffffff;
+  --primary-foreground: var(--on-primary);
   --secondary: var(--surface-2);
   --secondary-foreground: var(--ink);
   --muted: var(--surface-2); /* shadcn «muted» = FONDO tenue */
   --muted-foreground: var(--muted-text); /* shadcn «muted-foreground» = texto atenuado */
   --accent: var(--surface-2);
   --accent-foreground: var(--ink);
-  /* Naranja de alerta legible como TEXTO (AA). El relleno de macro «grasa»
-     sigue siendo --fat (#E8590C); este es una variante más oscura para texto. */
-  --destructive: #b8480c;
+  /* Naranja-terracota legible como TEXTO (AA sobre bg y surface). Comparte hex con
+     --fat (el relleno de macro grasa ya es lo bastante oscuro para servir de texto). */
+  --destructive: #b84620;
   --destructive-foreground: #ffffff;
   --border: var(--line);
   --input: var(--line);
@@ -134,20 +164,33 @@
   --sidebar-ring: var(--primary);
 }
 
-/* ── Tema oscuro «Night comp» (05-DISENO §2) — sin blancos puros (#E8EDE8 máx) ── */
+/* ── Tema oscuro «Night comp» — Restyle v2 (05-DISENO §2) — sin blancos puros ── */
 .dark {
-  --bg: #0f1613;
-  --surface: #18221d;
-  --surface-2: #1f2b25;
-  --ink: #e8ede8;
-  --muted-text: #93a099;
-  --line: #2c3830;
-  --primary: #7b96ff;
-  --protein: #4cc98a;
-  --carb: #e0b341;
-  --fat: #f2894c;
-  --med-accent: #c48fe0;
-  --phase: color-mix(in srgb, var(--primary) 12%, transparent);
+  --canvas: #090d12;
+  --bg: #0e1319;
+  --surface: #161c24;
+  --surface-2: #202936;
+  --surface-strong: #2a3543;
+  --ink: #f3f6fa;
+  --muted-text: #acb8c6;
+  --line: #303b49; /* borde sutil de tarjeta (--line-soft del mockup) */
+  --line-strong: #748397; /* contorno fuerte de controles */
+  --primary: #7eaeff;
+  --primary-strong: #a9c9ff;
+  --primary-soft: #1d304a;
+  --on-primary: #0e1319;
+  --protein: #4ad29a;
+  --carb: #f0c45a;
+  --fat: #ff9566;
+  --cobalt: #89a1ff;
+  --sleep: #93a5ff;
+  --info: #7eaeff;
+  --special: #c2a7ff;
+  --med-accent: #c2a7ff;
+  --phase: color-mix(in srgb, var(--info) 20%, transparent);
+
+  --card-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  --shadow: 0 28px 90px rgb(0 0 0 / 38%);
 
   --background: var(--bg);
   --foreground: var(--ink);
@@ -155,15 +198,15 @@
   --card-foreground: var(--ink);
   --popover: var(--surface);
   --popover-foreground: var(--ink);
-  --primary-foreground: #0f1613; /* texto OSCURO sobre cobalto claro = par de máximo contraste */
+  --primary-foreground: var(--on-primary); /* texto OSCURO sobre azul claro = máximo contraste */
   --secondary: var(--surface-2);
   --secondary-foreground: var(--ink);
   --muted: var(--surface-2);
   --muted-foreground: var(--muted-text);
   --accent: var(--surface-2);
   --accent-foreground: var(--ink);
-  --destructive: #f2894c; /* naranja claro sobre superficies oscuras: AA como texto */
-  --destructive-foreground: #0f1613;
+  --destructive: #ff9566; /* salmón claro sobre superficies oscuras: AA como texto */
+  --destructive-foreground: #0e1319;
   --border: var(--line);
   --input: var(--line);
   --ring: var(--primary);

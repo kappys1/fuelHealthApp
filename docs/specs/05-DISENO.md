@@ -4,36 +4,61 @@
 
 Sujeto: **telemetría personal de combustible para un atleta-ingeniero**. La app se usa en tres contextos: cocina (registrar en 30 s con una mano), sofá (revisar tendencia), box/competición (consultar rápido entre WODs). No es una app de bienestar pastel ni un dashboard corporativo: es el **panel de instrumentos de un atleta** — legible, denso donde toca, con números como protagonistas.
 
-Referencia estética: marcador de tiempos de competición + cuaderno de entrenamiento. El PoC ya apuntaba ahí (Barlow Condensed + números tabulares + cobalto); la v1 lo ejecuta con precisión.
+Referencia estética: marcador de tiempos de competición + cuaderno de entrenamiento + **blueprint técnico** (Restyle v2). El PoC apuntaba a ese carácter (números tabulares + cobalto); el Restyle v2 lo reejecuta con una paleta azul precisa y tipografía Plus Jakarta Sans/Onest.
 
 **Elemento firma: el FuelGauge.** La tarjeta de presupuesto del día como panel de combustible: cifra grande tabular estilo crono de competición, barra segmentada en 4 bloques (uno por comida del plan) que se van llenando, y el "restante" como cuenta atrás. Es lo primero al abrir la app y lo único con licencia para ser espectacular; todo lo demás, disciplinado. En fase Carga/Competición el gauge cambia a su variante informativa (azul, mensaje "esperado en esta fase") — el gauge nunca regaña por hacer lo correcto.
 
 ## 2. Temas (toggle claro/oscuro + auto por sistema)
 
-Tokens como CSS variables; Tailwind los consume. Nada de grises neutros puros: todo con matiz verde-frío (mundo de box de CrossFit, no de oficina).
+> **Restyle v2 (2026-07-19):** rebrand consciente a la paleta azul **«Blueprint»** del mockup
+> `docs/mockups/fuelboard-redesign-concept-v2.html`. Se **retira la identidad verde-fría/Barlow
+> del PoC** (ver `DECISIONS.md` #71/#72 y `RESTYLE-NOTES.md`). Fuente de verdad de los hex:
+> `src/app/globals.css`, reflejada 1:1 en `src/lib/contrast.ts` (gate AA).
 
-| Token | Claro «Morning session» | Oscuro «Night comp» |
+Tokens como CSS variables; Tailwind los consume. Base fría azulada (blueprint técnico), sin grises neutros puros.
+
+| Token | Claro «Blueprint day» | Oscuro «Blueprint night» |
 |---|---|---|
-| `--bg` | `#F2F4EF` hueso frío | `#0F1613` verde-negro |
-| `--surface` | `#FFFFFF` | `#18221D` |
-| `--surface-2` (chips, filas) | `#EDEFEA` | `#1F2B25` |
-| `--ink` | `#181F1B` | `#E8EDE8` |
-| `--muted` | `#5D6862` | `#93A099` |
-| `--line` | `#D9DED5` | `#2C3830` |
-| `--primary` (kcal, acciones) | `#2247C9` cobalto | `#7B96FF` |
-| `--protein` | `#1B8A50` | `#4CC98A` |
-| `--carb` | `#B8860B` ámbar | `#E0B341` |
-| `--fat` / alerta | `#E8590C` | `#F2894C` |
-| `--phase` (info de fase) | `#2247C9` al 12% fondo | ídem |
+| `--canvas` (fondo exterior columna) | `#E9EEF3` | `#090D12` |
+| `--bg` | `#F6F8FA` | `#0E1319` |
+| `--surface` | `#FFFFFF` | `#161C24` |
+| `--surface-2` (chips, filas) | `#EEF2F6` | `#202936` |
+| `--surface-strong` | `#E2E8EE` | `#2A3543` |
+| `--ink` | `#142235` | `#F3F6FA` |
+| `--muted` (texto atenuado) | `#566678` | `#ACB8C6` |
+| `--line` (borde tarjeta) | `#DBE2E9` | `#303B49` |
+| `--line-strong` (borde control) | `#728397` | `#748397` |
+| `--primary` (kcal, acciones) | `#155DB8` | `#7EAEFF` |
+| `--primary-strong` | `#0D4A93` | `#A9C9FF` |
+| `--primary-soft` (fondo tenue) | `#E5EFFD` | `#1D304A` |
+| `--protein` | `#087A55` | `#4AD29A` |
+| `--carb` | `#946200` ámbar | `#F0C45A` |
+| `--fat` / alerta | `#B84620` terracota | `#FF9566` |
+| `--cobalt` (acento / foco) | `#3159D9` | `#89A1FF` |
+| `--sleep` | `#6177D8` | `#93A5FF` |
+| `--info` (fase / info) | `#2563C7` | `#7EAEFF` |
+| `--special` / `--med-accent` (morado) | `#6747C7` | `#C2A7FF` |
+| `--phase` (fondo fase especial) | `--info` @14% | `--info` @20% |
+| `--destructive` (error como texto) | `#B84620` | `#FF9566` |
 
-Contraste AA mínimo en ambos temas. El color de macro es un **lenguaje fijo** en toda la app (barras, chips, gráficos): azul=kcal, verde=proteína, ámbar=hidratos, naranja=grasa.
+Contraste AA verificado en ambos temas (`pnpm audit:contrast`; gate en `pnpm test`): todos los pares
+de texto ≥4.5:1, rellenos ≥3:1 — **sin un solo ajuste sobre los hex del mockup**. El color de macro es
+un **lenguaje fijo** en toda la app (barras, chips, gráficos): azul=kcal, verde=proteína, ámbar=hidratos,
+terracota=grasa. La **fase especial usa azul-info** (nunca rojo): el gauge no regaña por hacer lo correcto.
+
+Radios: base 14px → **tarjetas 18px** (`radius-xl`), controles 12px (`radius-md`), píldoras 999px
+(`radius-pill`). Sombras: `--card-shadow` (sutil, tarjetas) y `--shadow` (flotantes: sheets/diálogos).
 
 ## 3. Tipografía
 
-- **Display / números**: `Barlow Semi Condensed` 600-700 (o Barlow Condensed para cifras XL del gauge). Uso restringido: gauge, títulos de tarjeta (uppercase, tracking 1.5px, 13px), cifras de Tendencia y nav.
-- **Cuerpo**: `Instrument Sans` (400/500/600) — más carácter que Inter sin perder legibilidad. Fallback system-ui.
-- **Datos tabulares**: `font-variant-numeric: tabular-nums` obligatorio en TODA cifra (clase utilitaria `.num`). Columnas de macros en formato compacto `231 kcal · 46P/0C/5F`, siempre enteros.
-- Escala: 12 (metadatos) · 13 (datos secundarios) · 14 (cuerpo) · 16 (inputs móvil, evita zoom iOS) · 24/34/44 (cifras display).
+- **Display / números**: `Plus Jakarta Sans` (500-700). Uso: cifra XL del gauge, títulos de tarjeta
+  (uppercase, tracking 1.5px, 12-13px), cifras de Tendencia/KPIs y nav. Variable `--font-display`
+  (`--font-condensed` es alias suyo — el nuevo sistema no tiene una condensada dedicada).
+- **Cuerpo**: `Onest` (400/500/600/700) — geométrica cálida, muy legible en móvil. Fallback system-ui.
+  Variable `--font-body`.
+- **Datos tabulares**: `font-variant-numeric: tabular-nums` obligatorio en TODA cifra (clase utilitaria
+  `.num`). Columnas de macros en formato compacto `231 kcal · 46P/0C/5F`, siempre enteros.
+- Escala: 12 (metadatos) · 13 (datos secundarios) · 14-15 (cuerpo) · 16 (inputs móvil, evita zoom iOS) · 24/34/52 (cifras display).
 
 ## 4. Layout y navegación
 
