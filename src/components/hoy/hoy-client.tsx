@@ -1,10 +1,12 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Flame, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AddSheet } from "@/components/hoy/add-sheet";
 import { CheckinCierre, CheckinMatinal, WeightExpressSheet } from "@/components/hoy/checkins";
+import { CoachCard } from "@/components/hoy/coach-card";
 import { CoachSheet } from "@/components/hoy/coach-sheet";
 import { CompeticionRefuel } from "@/components/hoy/competicion-refuel";
 import { DayStatusLine } from "@/components/hoy/day-status-line";
@@ -42,6 +44,7 @@ export function HoyClient({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const t = useToday(date, initial);
   const data = t.data;
 
@@ -165,13 +168,6 @@ export function HoyClient({
         </div>
       </div>
 
-      <FuelGauge
-        targets={data.targets}
-        entries={data.view.entries}
-        phase={phase}
-        onCoach={() => setCoachOpen(true)}
-      />
-
       <DayStatusLine
         data={data}
         isToday={isToday}
@@ -179,6 +175,14 @@ export function HoyClient({
         onAddMeal={() => openAdd(mealByHour())}
         onClose={() => setCierreOpen(true)}
       />
+
+      <FuelGauge
+        targets={data.targets}
+        entries={data.view.entries}
+        phase={phase}
+      />
+
+      <CoachCard coach={data.coach} onOpen={() => setCoachOpen(true)} />
 
       {phase === "competicion" ? (
         <CompeticionRefuel meal={mealByHour()} onAdd={t.addEntries} />
@@ -258,7 +262,16 @@ export function HoyClient({
         data={data}
         onPatch={t.patchDay}
       />
-      <CoachSheet open={coachOpen} onOpenChange={setCoachOpen} date={date} />
+      <CoachSheet
+        open={coachOpen}
+        onOpenChange={(v) => {
+          setCoachOpen(v);
+          // Al cerrar, refresca el payload para que la tarjeta Coach muestre el
+          // análisis recién cacheado (texto + «hace X» actualizados).
+          if (!v) void queryClient.invalidateQueries({ queryKey: ["today", date] });
+        }}
+        date={date}
+      />
     </div>
   );
 }
