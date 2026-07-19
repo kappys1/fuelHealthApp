@@ -10,6 +10,11 @@ import { CoachCard } from "@/components/hoy/coach-card";
 import { CoachSheet } from "@/components/hoy/coach-sheet";
 import { CompeticionRefuel } from "@/components/hoy/competicion-refuel";
 import { DayStatusLine } from "@/components/hoy/day-status-line";
+import {
+  BaselineSection,
+  ContextoRelojSection,
+  EntrenamientoLine,
+} from "@/components/hoy/hoy-extras";
 import { MealTimeline } from "@/components/hoy/meal-timeline";
 import { MiDiaCard } from "@/components/hoy/mi-dia-card";
 import { useToday } from "@/components/hoy/use-today";
@@ -199,6 +204,12 @@ export function HoyClient({
         onApplyTemplate={t.applyTemplate}
         onDeleteTemplate={t.deleteTemplate}
       />
+
+      <EntrenamientoLine view={data.view} defaultSession={data.defaultSession} />
+
+      <BaselineSection baseline={data.baseline} />
+
+      <ContextoRelojSection intakeKcal={totals.kcal} view={data.view} />
 
       <MiDiaCard
         view={data.view}

@@ -73,7 +73,7 @@ export function MiDiaCard({
     .join(" · ");
 
   return (
-    <section className="rounded-xl border border-line bg-surface">
+    <section className="rounded-[18px] border border-line bg-surface shadow-[var(--card-shadow)]">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

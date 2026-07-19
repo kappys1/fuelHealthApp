@@ -282,9 +282,7 @@ function Ring({
                 strokeWidth={2.5}
                 opacity={MEAL_ALPHA[p.meal]}
               >
-                <title>
-                  {MEAL_LABELS[p.meal]}: {roundKcal(p.kcal)} kcal
-                </title>
+                <title>{`${MEAL_LABELS[p.meal]}: ${roundKcal(p.kcal)} kcal`}</title>
               </circle>
             );
           })}

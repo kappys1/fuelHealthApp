@@ -50,7 +50,7 @@ export function MealTimeline({
   const sections: MealKey[] = extras.length > 0 ? [...SECTIONS, "extra"] : SECTIONS;
 
   return (
-    <section className="rounded-xl border border-line bg-surface">
+    <section className="rounded-[18px] border border-line bg-surface shadow-[var(--card-shadow)]">
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <h2 className="card-title text-muted-foreground">Comidas</h2>
         <QuickAddMenu
