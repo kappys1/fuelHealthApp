@@ -1,4 +1,5 @@
 import { asc, desc, eq } from "drizzle-orm";
+import { dayKey, shiftDayKey } from "@/lib/dates";
 import type { GrpKey, MealKey, SessionByWeekday } from "@/lib/macros";
 import { DEFAULT_SESSION_BY_WEEKDAY } from "@/lib/macros";
 import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
@@ -126,6 +127,54 @@ export const CHAT_WEB_SEARCH_KEY = "chatWebSearch";
 export async function getChatWebSearch(): Promise<boolean> {
   const stored = await getSetting<boolean>(CHAT_WEB_SEARCH_KEY);
   return stored ?? true;
+}
+
+// ── Coach on-demand cacheado (Restyle v2 · F1, DECISIONS #71 / RESTYLE-NOTES F1-4) ──
+// El Coach de Hoy deja de llamarse al abrir: se cachea la última respuesta de
+// F-IA-6 por (fecha, modo) en `settings` (sin migración de schema) y la tarjeta de
+// Hoy muestra el texto + antigüedad + «Actualizar». El prompt F-IA-6 queda INTOCADO.
+export const COACH_CACHE_KEY = "coachCache";
+
+export type CoachMode = "hoy" | "ayer";
+
+export interface CoachCacheEntry {
+  text: string;
+  /** epoch ms de cuándo se generó (para el «hace X» servidor, no en componente). */
+  ts: number;
+}
+
+type CoachCache = Record<string, CoachCacheEntry>;
+
+/** Días que conservamos en la caché del coach (poda al escribir). */
+const COACH_CACHE_KEEP_DAYS = 60;
+
+const coachCacheField = (date: string, mode: CoachMode): string =>
+  `${date}|${mode}`;
+
+/** Análisis del coach cacheado para (fecha, modo). null si no hay. */
+export async function getCoachCacheEntry(
+  date: string,
+  mode: CoachMode,
+): Promise<CoachCacheEntry | null> {
+  const cache = await getSetting<CoachCache>(COACH_CACHE_KEY);
+  return cache?.[coachCacheField(date, mode)] ?? null;
+}
+
+/** Guarda (merge) el análisis del coach para (fecha, modo), podando lo muy antiguo. */
+export async function setCoachCacheEntry(
+  date: string,
+  mode: CoachMode,
+  entry: CoachCacheEntry,
+): Promise<void> {
+  const cache = (await getSetting<CoachCache>(COACH_CACHE_KEY)) ?? {};
+  cache[coachCacheField(date, mode)] = entry;
+  // Poda: fuera las entradas con fecha anterior a hoy−60d (evita crecer sin límite).
+  const cutoff = shiftDayKey(dayKey(), -COACH_CACHE_KEEP_DAYS);
+  for (const k of Object.keys(cache)) {
+    const d = k.split("|")[0];
+    if (d && d < cutoff) delete cache[k];
+  }
+  await setSetting(COACH_CACHE_KEY, cache);
 }
 
 export const ATHLETE_PROFILE_KEY = "athleteProfile";

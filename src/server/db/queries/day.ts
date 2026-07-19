@@ -251,3 +251,40 @@ export async function dayExists(date: string): Promise<boolean> {
 export async function entriesForDate(date: string): Promise<EntryDTO[]> {
   return (await getDayView(date)).entries;
 }
+
+/**
+ * Serie de métricas del reloj para el baseline personal (Restyle v2 · F1): los
+ * `days` días hasta `date` inclusive, desde `health_metrics` (HAE). Columnas
+ * `integer`/`real` → números JS directos. La analítica pura `healthBaseline`
+ * calcula la media 30 d y el delta; aquí solo se lee la serie (con huecos reales).
+ */
+export async function healthBaselineSeries(
+  date: string,
+  days = 31,
+): Promise<
+  {
+    date: string;
+    hrvMs: number | null;
+    restingHr: number | null;
+    sleepH: number | null;
+    steps: number | null;
+  }[]
+> {
+  const from = shiftDayKey(date, -(days - 1));
+  return await db
+    .select({
+      date: schema.healthMetrics.date,
+      hrvMs: schema.healthMetrics.hrvMs,
+      restingHr: schema.healthMetrics.restingHr,
+      sleepH: schema.healthMetrics.sleepH,
+      steps: schema.healthMetrics.steps,
+    })
+    .from(schema.healthMetrics)
+    .where(
+      and(
+        gte(schema.healthMetrics.date, from),
+        lte(schema.healthMetrics.date, date),
+      ),
+    )
+    .orderBy(asc(schema.healthMetrics.date));
+}

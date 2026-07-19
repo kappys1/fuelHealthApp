@@ -20,6 +20,7 @@ import { computeDeficit } from "@/server/analytics/deficit";
 import { energyBalance } from "@/server/analytics/energyBalance";
 import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import { getDayView } from "@/server/db/queries/day";
+import { setCoachCacheEntry } from "@/server/db/queries/lookups";
 import { getPlanContext } from "@/server/db/queries/plan";
 import { getTrendData } from "@/server/db/queries/trend";
 
@@ -129,7 +130,14 @@ export async function POST(request: Request) {
       // 100 palabras + thinking "medium": presupuesto amplio para no truncar.
       maxOutputTokens: 3072,
     });
-    return Response.json({ text });
+    // Coach on-demand (#71): cachea la respuesta por (fecha, modo) para que Hoy la
+    // muestre sin volver a llamar a la IA. Best-effort: un fallo de caché NO rompe
+    // la respuesta ni el registro (principio 7).
+    const ts = Date.now();
+    await setCoachCacheEntry(targetDate, parsed.data.mode, { text, ts }).catch(
+      () => {},
+    );
+    return Response.json({ text, ts });
   } catch (err) {
     return aiErrorResponse(err);
   }
