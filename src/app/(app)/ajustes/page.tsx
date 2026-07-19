@@ -60,7 +60,7 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-4">
+    <div className="rounded-xl border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
       <h3 className="card-title text-muted-foreground">{title}</h3>
       <div className="mt-3">{children}</div>
     </div>
@@ -148,7 +148,7 @@ export default async function AjustesPage() {
       </Group>
 
       <Group label="Cuenta">
-        <div className="rounded-xl border border-line bg-surface p-4">
+        <div className="rounded-xl border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
           <form action={logout}>
             <button
               type="submit"

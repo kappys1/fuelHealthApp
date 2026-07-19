@@ -82,7 +82,7 @@ export function PlanClient({
       <DietImport />
 
       {/* Objetivos */}
-      <section className="rounded-xl border border-line bg-surface p-4">
+      <section className="rounded-xl border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
         <h2 className="mb-3 text-[13px] font-semibold text-foreground">
           Objetivos diarios
         </h2>
@@ -133,7 +133,7 @@ export function PlanClient({
       <section className="space-y-4">
         <h2 className="text-[13px] font-semibold text-foreground">Opciones del plan</h2>
         {MEAL_ORDER.filter((m) => m !== "extra").map((meal) => (
-          <div key={meal} className="rounded-xl border border-line bg-surface">
+          <div key={meal} className="rounded-xl border border-line bg-surface shadow-[var(--card-shadow)]">
             <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
               <h3 className="text-[13px] font-semibold text-foreground">
                 {MEAL_LABELS[meal]}

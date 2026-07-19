@@ -97,7 +97,7 @@ export function Med({ initialMed }: { initialMed: MedWithDelta[] }) {
       <PrepareVisitCard onOpen={() => setVisitOpen(true)} />
 
       {/* Gráfico de composición doble eje */}
-      <section className="rounded-xl border border-line bg-surface p-4">
+      <section className="rounded-xl border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
         <div className="mb-1 flex items-center gap-1.5">
           <h2 className="card-title text-muted-foreground">Composición corporal</h2>
           <HowCalculated
@@ -111,7 +111,7 @@ export function Med({ initialMed }: { initialMed: MedWithDelta[] }) {
       </section>
 
       {/* Historial con diferencias */}
-      <section className="rounded-xl border border-line bg-surface">
+      <section className="rounded-xl border border-line bg-surface shadow-[var(--card-shadow)]">
         <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
           <h2 className="card-title text-muted-foreground">Mediciones</h2>
           <button
@@ -231,7 +231,7 @@ function deltaClass(delta: number | null, favor: "up" | "down" | "neutral"): str
 // ── Preparar visita (F-IA-7) ──
 function PrepareVisitCard({ onOpen }: { onOpen: () => void }) {
   return (
-    <section className="rounded-xl border border-line bg-surface p-4">
+    <section className="rounded-xl border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
       <h2 className="text-[13px] font-semibold text-foreground">Preparar visita</h2>
       <p className="mt-1 text-[12px] text-muted-foreground">
         Análisis de tu evolución y preguntas concretas para tu nutricionista,
