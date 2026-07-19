@@ -1,14 +1,22 @@
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
 import { isoWeekday, shiftDayKey } from "@/lib/dates";
 import { PHASE_NEXT, type PhaseKey, type SessionByWeekday } from "@/lib/macros";
+import {
+  type BaselineStat,
+  healthBaseline,
+} from "@/server/analytics/healthBaseline";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
 import {
   type DayView,
   getDayView,
   getStreak,
+  healthBaselineSeries,
   latestWeightOnOrBefore,
   phaseOnDate,
 } from "./day";
 import {
+  getCoachCacheEntry,
   getSessionByWeekday,
   listProducts,
   listTemplates,
@@ -50,6 +58,14 @@ export interface TodayPayload {
    * Carga→Competición→Recuperación→Normal). `null` si no hay sugerencia.
    */
   suggestedPhase: PhaseKey | null;
+  /** Baseline personal (Restyle v2 · F1): KPIs del reloj con media 30 d + delta. */
+  baseline: BaselineStat[];
+  /**
+   * Coach on-demand cacheado (modo «hoy») para esta fecha (Restyle v2 · F1, #71).
+   * `null` si no se ha analizado el día → la tarjeta muestra «Analizar mi día».
+   * `ago` = «hace X» calculado en SERVIDOR (regla de pureza, DECISIONS #112).
+   */
+  coach: { text: string; ts: number; ago: string } | null;
 }
 
 export async function getTodayPayload(date: string): Promise<TodayPayload> {
@@ -64,6 +80,8 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     lastWeight,
     prevPhase,
     trainingPlan,
+    baselineSeries,
+    coachEntry,
   ] = await Promise.all([
     getDayView(date),
     getPlanContext(date),
@@ -75,6 +93,8 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     latestWeightOnOrBefore(date),
     phaseOnDate(shiftDayKey(date, -1)),
     getTrainingPlanContext(date),
+    healthBaselineSeries(date),
+    getCoachCacheEntry(date, "hoy"),
   ]);
 
   const wd = String(isoWeekday(date));
@@ -85,6 +105,18 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
   // (todas las PhaseKey son especiales; Normal se guarda como null).
   const suggestedPhase =
     view.day?.phase == null && prevPhase != null ? PHASE_NEXT[prevPhase] : null;
+
+  const baseline = healthBaseline(baselineSeries, date);
+  const coach = coachEntry
+    ? {
+        text: coachEntry.text,
+        ts: coachEntry.ts,
+        ago: formatDistanceToNow(new Date(coachEntry.ts), {
+          addSuffix: true,
+          locale: es,
+        }),
+      }
+    : null;
 
   return {
     date,
@@ -108,5 +140,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     defaultSession,
     lastWeight,
     suggestedPhase,
+    baseline,
+    coach,
   };
 }
