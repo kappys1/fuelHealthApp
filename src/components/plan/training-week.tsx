@@ -74,7 +74,7 @@ export function TrainingWeek({ week }: { week: TrainingWeekView | null }) {
     <div className="space-y-4 pb-8">
       <TrainingImport />
 
-      <section className="rounded-xl border border-line bg-surface">
+      <section className="rounded-xl border border-line bg-surface shadow-[var(--card-shadow)]">
         <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
           <div className="min-w-0">
             <h2 className="truncate text-[14px] font-semibold text-foreground">

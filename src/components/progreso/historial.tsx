@@ -251,7 +251,7 @@ function TimelineItem({
           if (hasSheet) onOpenDetail(entry as HistDieta | HistEntreno);
           else if (expandable) setOpen((v) => !v);
         }}
-        className="w-full rounded-xl border border-line bg-surface p-3 text-left"
+        className="w-full rounded-xl border border-line bg-surface p-3 text-left shadow-[var(--card-shadow)]"
       >
         <div className="flex items-center justify-between gap-2">
           <span

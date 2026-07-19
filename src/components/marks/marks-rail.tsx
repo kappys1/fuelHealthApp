@@ -68,7 +68,7 @@ export function MarksRail({
                 key={m.id}
                 type="button"
                 onClick={() => setDetailId(m.id)}
-                className="min-w-[8.5rem] shrink-0 rounded-xl border border-line bg-surface p-3 text-left"
+                className="min-w-[8.5rem] shrink-0 rounded-xl border border-line bg-surface p-3 text-left shadow-[var(--card-shadow)]"
               >
                 <div className="truncate text-[13px] font-medium text-foreground">
                   {m.name}

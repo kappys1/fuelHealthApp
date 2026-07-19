@@ -8,6 +8,7 @@ import { labelForKey, shiftDayKey } from "@/lib/dates";
 import { BLOAT_LABELS, phaseLabel } from "@/lib/macros";
 import { computeAdherence } from "@/server/analytics/adherence";
 import { computeDeficit } from "@/server/analytics/deficit";
+import { caloricContribution } from "@/server/analytics/intake";
 import { ma7Series } from "@/server/analytics/ma7";
 import type { DailyRecord, DayTarget } from "@/server/analytics/types";
 import { HowCalculated } from "./how-calculated";
@@ -60,11 +61,17 @@ export function Tendencia({
     () =>
       rangeRecords
         .filter((r) => r.logged)
-        .map((r) => ({
-          label: chartLabel(r.date),
-          kcal: Math.round(r.kcal),
-          special: r.phase != null,
-        })),
+        .map((r) => {
+          const c = caloricContribution(r.prot, r.carb, r.fat);
+          return {
+            label: chartLabel(r.date),
+            protKcal: c.protKcal,
+            carbKcal: c.carbKcal,
+            fatKcal: c.fatKcal,
+            kcal: Math.round(r.kcal),
+            special: r.phase != null,
+          };
+        }),
     [rangeRecords],
   );
 
@@ -101,7 +108,7 @@ export function Tendencia({
       <AdherenceCard adherence={adherence} />
 
       {/* Gráfico de peso + ma7 */}
-      <section className="rounded-xl border border-line bg-surface p-4">
+      <section className="rounded-xl border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
         <div className="mb-1 flex items-center gap-1.5">
           <h2 className="card-title text-muted-foreground">Peso y media de 7 días</h2>
           <HowCalculated
@@ -115,14 +122,14 @@ export function Tendencia({
       </section>
 
       {/* Barras de ingesta vs objetivo */}
-      <section className="rounded-xl border border-line bg-surface p-4">
+      <section className="rounded-xl border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
         <div className="mb-1 flex items-center gap-1.5">
           <h2 className="card-title text-muted-foreground">Ingesta diaria</h2>
           <HowCalculated
-            title="Ingesta vs objetivo"
-            what="Cada barra es el total de kcal registradas ese día; la línea es tu objetivo. Los días de fase especial se muestran atenuados (no cuentan como desviación)."
-            formula="barra = suma de kcal de las comidas del día · línea = objetivo de la versión de dieta vigente."
-            action="Busca constancia alrededor de la línea; picos aislados los absorbe la calibración por peso."
+            title="Ingesta por contribución calórica"
+            what="Cada barra reparte las kcal del día entre proteína, hidratos y grasa; la línea es tu objetivo. Los días de fase especial se muestran atenuados (no cuentan como desviación)."
+            formula="proteína = g×4 · hidratos = g×4 · grasa = g×9 (Atwater) · línea = objetivo de la versión de dieta vigente."
+            action="Busca constancia alrededor de la línea y una base de proteína estable; picos aislados los absorbe la calibración por peso."
           />
         </div>
         <IntakeChart data={intakeData} target={currentTarget.kcal} />
@@ -137,7 +144,7 @@ export function Tendencia({
 function TrendCard({ deficit }: { deficit: ReturnType<typeof computeDeficit> }) {
   if (!deficit.enough) {
     return (
-      <section className="rounded-xl bg-foreground p-4 text-background">
+      <section className="rounded-[18px] bg-foreground p-4 text-background shadow-[var(--shadow)]">
         <h2 className="card-title text-background/70">
           Tu gasto y déficit reales · desde el peso
         </h2>
@@ -162,7 +169,7 @@ function TrendCard({ deficit }: { deficit: ReturnType<typeof computeDeficit> }) 
   })}`;
 
   return (
-    <section className="rounded-xl bg-foreground p-4 text-background">
+    <section className="rounded-[18px] bg-foreground p-4 text-background shadow-[var(--shadow)]">
       <div className="flex items-center gap-1.5">
         <h2 className="card-title text-background/70">
           Tu gasto y déficit reales · desde el peso
@@ -176,12 +183,24 @@ function TrendCard({ deficit }: { deficit: ReturnType<typeof computeDeficit> }) 
         />
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
+      {/* Cifra de máxima jerarquía: el déficit real diario. «Esta cifra manda». */}
+      <div className="mt-3">
+        <div
+          className="num text-[52px] leading-[0.95] font-bold"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {(deficit.deficitKcal ?? 0).toLocaleString("es-ES")}
+          <span className="ml-1.5 text-[16px] font-semibold text-background/60">
+            kcal/día
+          </span>
+        </div>
+        <p className="mt-0.5 text-[12px] font-medium text-background/70">
+          déficit real · esta cifra manda
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
         <Figure label="kg / semana" value={kgStr} />
-        <Figure
-          label="déficit kcal/día"
-          value={(deficit.deficitKcal ?? 0).toLocaleString("es-ES")}
-        />
         <Figure
           label="TDEE real"
           value={deficit.tdee != null ? deficit.tdee.toLocaleString("es-ES") : "—"}
@@ -200,10 +219,10 @@ function TrendCard({ deficit }: { deficit: ReturnType<typeof computeDeficit> }) 
 
 function Figure({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="rounded-[14px] bg-background/10 px-3 py-2.5">
       <div
         className="num text-[26px] leading-none font-bold"
-        style={{ fontFamily: "var(--font-condensed)" }}
+        style={{ fontFamily: "var(--font-display)" }}
       >
         {value}
       </div>
@@ -220,7 +239,7 @@ function AdherenceCard({
 }) {
   const { n, normalN, enRango, protOk } = adherence;
   return (
-    <section className="rounded-xl border border-line bg-surface p-4">
+    <section className="rounded-xl border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
       <div className="flex items-center gap-1.5">
         <h2 className="card-title text-muted-foreground">Adherencia · 14 días</h2>
         <HowCalculated
@@ -275,7 +294,7 @@ function LastDaysTable({ rows }: { rows: DailyRecord[] }) {
     );
   }
   return (
-    <section className="rounded-xl border border-line bg-surface">
+    <section className="rounded-xl border border-line bg-surface shadow-[var(--card-shadow)]">
       <h2 className="card-title border-b border-line px-4 py-2.5 text-muted-foreground">
         Últimos días
       </h2>

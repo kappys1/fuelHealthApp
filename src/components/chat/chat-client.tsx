@@ -343,7 +343,7 @@ function ThreadList({
       </div>
 
       {threads.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-surface-2 p-6 text-center">
+        <div className="rounded-xl border border-dashed border-line bg-surface-2 p-6 text-center shadow-[var(--card-shadow)]">
           <p className="text-[14px] text-foreground">
             Pregúntale a tus datos: tu semana, qué te hincha, comparar cargas…
           </p>
@@ -359,7 +359,7 @@ function ThreadList({
           </button>
         </div>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--card-shadow)]">
           {threads.map((t) => (
             <li key={t.id} className="flex items-center gap-2 px-4 py-3">
               <button
