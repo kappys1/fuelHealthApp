@@ -52,3 +52,45 @@ compacta on-demand) → **Comidas** → **Entrenamiento** (línea) → **Baselin
 | F1-3 | **AC 09 §7 «Hoy cabe en ~1,5 pantallas»: con la composición Intermedia el día completo ocupa ~2 pantallas** (Baseline/Contexto plegados ayudan). | El mockup (norte) es más rico que la v1; se prioriza el norte manteniendo lo secundario plegado. AC 🖐 a validar por Alex con el pulgar en la preview. |
 | F1-4 | **Coach on-demand cacheado en `settings` (key `coachCache`, jsonb) por `fecha+modo`, SIN migración de schema.** Cero llamada IA al abrir Hoy; la tarjeta muestra el último análisis + antigüedad + «Actualizar»; sin caché → CTA «Analizar mi día». | Lo más simple y aditivo (patrón `getSetting/setSetting` ya existente); no toca el prompt de F-IA-6 (intocado). Compatible con el código de `main` en la misma Neon (una key nueva en `settings`). |
 | F1-5 | **Baseline personal = 4 KPIs del mockup (HRV, FC reposo, sueño, pasos) con delta vs media 30 d** vía `server/analytics/healthBaseline` (puro, testeado). Métrica sin dato hoy → «—»; ventana con <5 días → sin delta («necesito más días»). | «Cero métricas inventadas»: todo sale de `health_metrics` (HAE). El mockup pinta series perfectas; los datos reales tienen huecos y se resuelven con estados explícitos. |
+| F1-6 | **El punto de comida sobre el anillo de kcal sustituye a los 4 notches decorativos del mockup.** | El brief pedía «puntos de comida en el anillo»; los notches del mockup son estéticos. Marcadores en la posición acumulada de cada comida registrada = misma estética, dato real. |
+
+---
+
+## F2 — Progreso (verificado en harness, ambos temas)
+
+- **Héroe de déficit** reestructurado a jerarquía máxima: cifra `kcal/día` a 52px («esta cifra
+  manda»), `kg/semana` y `TDEE real` como figuras secundarias en cajas; tarjeta invertida con
+  sombra flotante. Misma analítica (`computeDeficit`), solo presentación.
+- **Ingesta apilada por contribución calórica**: `IntakeChart` pasa de barra de kcal total a
+  **barras apiladas P×4/C×4/F×9** (lenguaje de macro fijo, días especiales atenuados, línea de
+  objetivo, leyenda). Helper puro `caloricContribution` + test (Atwater; derivación exacta).
+- Sombra `--card-shadow` en todas las tarjetas de Progreso.
+
+| # | Qué | Por qué |
+|---|---|---|
+| F2-1 | **No se añadió el toggle «Resumen · Semana \| 30 días» del mockup.** | El selector de rango (14/30/90/todo) ya cubre el periodo; el bloque «Resumen» del mockup se solapa con la tarjeta de adherencia + héroe. Diferible; se puede añadir si Alex lo pide. |
+| F2-2 | **Marcadores de MED sobre el gráfico de peso: diferidos.** El gráfico resuelve huecos plotando solo días con peso. | Los datos de MED viven en el segmento MED, no en `records` de Tendencia; threadearlos es trabajo aparte. Anotado como pendiente. |
+
+---
+
+## F3 — Plan · Chat · MED · Historial · Ajustes (pasada de restyle)
+
+Estas pantallas **ya heredaron la paleta azul, la tipografía Onest/Plus Jakarta y los radios de
+18px en F0** (todo consume tokens). En F3 se aplicó la **sombra `--card-shadow` a las tarjetas**
+para coherencia con Hoy/Progreso. **No** se hizo un rediseño profundo pantalla-a-pantalla contra
+el mockup (burbujas de chat, filas de opción del plan, evolución MED con su tratamiento exacto):
+quedan on-brand y coherentes, pero no «mockup-match». Diferido y anotado para una pasada de pulido
+posterior si Alex lo quiere (HANDOFF).
+
+---
+
+## F4 — Cierre (estado real)
+
+- **Build de producción verde** (fuentes nuevas + Serwist SW). `typecheck` + **204 tests** verdes.
+- Harness visual temporal (`/dev-gauge`) y su whitelist del proxy **retirados**.
+- **Playwright NO ejecutado** (requiere la rama de test de Neon + entorno; principio 7 prohíbe
+  escrituras contra la Neon real). Los selectores de los 4 flujos no tocan lo que cambié (gauge/
+  coach/orden); el ✨ del gauge se movió a tarjeta, pero los flujos e2e no lo usaban. **Pendiente:
+  correr `pnpm test:e2e` contra la rama de test antes de mergear a `main`.**
+- **Lighthouse NO ejecutado** en esta sesión (pendiente).
+- Iconos PWA (F0-4) siguen sin regenerar (paleta anterior); pendiente.
