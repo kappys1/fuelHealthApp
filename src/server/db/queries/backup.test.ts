@@ -31,6 +31,8 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
       baseProt: 5,
       baseCarb: 40,
       baseFat: 1,
+      clientMutationId: "90d0a527-c90f-4b5d-88ea-cf49d8f2279b",
+      clientMutationIndex: 2,
       createdAt: "2026-07-14T12:00:00.000Z",
     };
     const row = mealEntryImportRow(exported);
@@ -41,6 +43,8 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
     expect(row.baseProt).toBe(5);
     expect(row.baseCarb).toBe(40);
     expect(row.baseFat).toBe(1);
+    expect(row.clientMutationId).toBe(exported.clientMutationId);
+    expect(row.clientMutationIndex).toBe(2);
     // macros actuales intactas
     expect(row.kcal).toBe(312);
     expect(row.prot).toBe(8);
@@ -63,6 +67,8 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
     expect(row.grams).toBeNull();
     expect(row.baseG).toBeNull();
     expect(row.baseKcal).toBeNull();
+    expect(row.clientMutationId).toBeNull();
+    expect(row.clientMutationIndex).toBeNull();
     expect(row.kcal).toBe(70); // macros preservadas
   });
 });

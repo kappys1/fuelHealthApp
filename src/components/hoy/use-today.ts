@@ -38,6 +38,7 @@ export function useToday(date: string, initial: TodayPayload) {
   // ── Añadir entradas (optimista) ──
   const addEntries = useCallback(
     async (entries: EntryInput[]) => {
+      const clientMutationId = crypto.randomUUID();
       const optimistic: EntryDTO[] = entries.map((e) => ({
         id: tempId--,
         meal: e.meal,
@@ -62,16 +63,28 @@ export function useToday(date: string, initial: TodayPayload) {
       }));
       // Sin conexión: encolar y conservar el optimista (07 §2 / cola offline).
       if (isOffline()) {
-        await enqueue({ kind: "addEntries", date, entries, ts: Date.now() });
+        await enqueue({
+          kind: "addEntries",
+          date,
+          entries,
+          ts: Date.now(),
+          clientMutationId,
+        });
         toast("Sin conexión: se guardará al reconectar", { duration: 2500 });
         return;
       }
       try {
-        await api.addEntries(date, entries);
+        await api.addEntries(date, entries, clientMutationId);
         refetch();
       } catch (err) {
         if (isOffline()) {
-          await enqueue({ kind: "addEntries", date, entries, ts: Date.now() });
+          await enqueue({
+            kind: "addEntries",
+            date,
+            entries,
+            ts: Date.now(),
+            clientMutationId,
+          });
           toast("Sin conexión: se guardará al reconectar", { duration: 2500 });
           return;
         }

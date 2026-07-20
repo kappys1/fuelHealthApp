@@ -78,6 +78,8 @@ export function mealEntryImportRow(r: Record<string, unknown>) {
     baseProt: n(r.baseProt),
     baseCarb: n(r.baseCarb),
     baseFat: n(r.baseFat),
+    clientMutationId: s(r.clientMutationId),
+    clientMutationIndex: n(r.clientMutationIndex),
     createdAt: dt(r.createdAt),
   };
 }

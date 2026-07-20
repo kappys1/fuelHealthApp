@@ -123,10 +123,10 @@ export const api = {
       method: "DELETE",
     }),
 
-  addEntries: (date: string, entries: EntryInput[]) =>
+  addEntries: (date: string, entries: EntryInput[], clientMutationId?: string) =>
     req<{ entries: { id: number }[] }>("/api/entries", {
       method: "POST",
-      body: JSON.stringify({ date, entries }),
+      body: JSON.stringify({ date, entries, clientMutationId }),
     }),
 
   updateEntry: (

@@ -56,13 +56,17 @@ export interface NewEntry {
   baseFat?: number | null;
 }
 
-export async function addEntries(date: string, entries: NewEntry[]) {
+export async function addEntries(
+  date: string,
+  entries: NewEntry[],
+  clientMutationId?: string,
+) {
   if (entries.length === 0) return [];
   await ensureDay(date);
   return db
     .insert(schema.mealEntries)
     .values(
-      entries.map((e) => ({
+      entries.map((e, index) => ({
         date,
         meal: e.meal,
         name: e.name,
@@ -78,8 +82,16 @@ export async function addEntries(date: string, entries: NewEntry[]) {
         baseProt: e.baseProt ?? null,
         baseCarb: e.baseCarb ?? null,
         baseFat: e.baseFat ?? null,
+        clientMutationId: clientMutationId ?? null,
+        clientMutationIndex: clientMutationId ? index : null,
       })),
     )
+    .onConflictDoNothing({
+      target: [
+        schema.mealEntries.clientMutationId,
+        schema.mealEntries.clientMutationIndex,
+      ],
+    })
     .returning();
 }
 

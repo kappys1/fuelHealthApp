@@ -21,21 +21,28 @@ export function OfflineSync() {
 
   useEffect(() => {
     let cancelled = false;
+    let syncing = false;
     const sync = async () => {
-      if (isOffline()) {
-        await markOffline();
-        return;
-      }
-      await refreshOfflineQueueStatus();
-      if ((await queueSize()) === 0) return;
-      const done = await flushQueue();
-      if (!cancelled && done > 0) {
-        toast.success(
-          done === 1
-            ? "Sincronizado 1 registro pendiente"
-            : `Sincronizados ${done} registros pendientes`,
-        );
-        qc.invalidateQueries({ queryKey: ["today"] });
+      if (syncing) return;
+      syncing = true;
+      try {
+        if (isOffline()) {
+          await markOffline();
+          return;
+        }
+        await refreshOfflineQueueStatus();
+        if ((await queueSize()) === 0) return;
+        const done = await flushQueue();
+        if (!cancelled && done > 0) {
+          toast.success(
+            done === 1
+              ? "Sincronizado 1 registro pendiente"
+              : `Sincronizados ${done} registros pendientes`,
+          );
+          qc.invalidateQueries({ queryKey: ["today"] });
+        }
+      } finally {
+        syncing = false;
       }
     };
     void sync();
