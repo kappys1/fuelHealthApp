@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronDown, Dumbbell, HeartPulse, Watch } from "lucide-react";
-import { useState } from "react";
+import { Dumbbell, Droplets, HeartPulse, Watch } from "lucide-react";
+import { type BloatKey, BLOAT_LABELS } from "@/lib/macros";
 import {
   type BaselineStat,
   BASELINE_METRICS,
@@ -10,6 +10,7 @@ import {
 } from "@/server/analytics/healthBaseline";
 import { energyBalance } from "@/server/analytics/energyBalance";
 import type { DayView } from "@/server/db/queries/day";
+import type { DayPatch } from "@/server/db/queries/mutations";
 import { cn } from "@/lib/utils";
 
 /* Secciones de Hoy del Restyle v2 · F1 (Intermedio): Entrenamiento (línea),
@@ -61,52 +62,88 @@ export function EntrenamientoLine({
   );
 }
 
-// ── Envoltura plegable (patrón compartido de las secciones secundarias) ──
-function Collapsible({
-  title,
-  icon,
-  summary,
-  children,
+// ── Hinchazón + Agua inline en Hoy (bloat-selector del mockup) ──
+const BLOATS: BloatKey[] = ["ninguna", "leve", "moderada", "alta"];
+const WATER_CHIPS = [
+  { label: "+250 ml", d: 0.25 },
+  { label: "+500 ml", d: 0.5 },
+  { label: "+ Botella", d: 0.75 },
+];
+
+export function HinchazonAguaSection({
+  view,
+  onPatch,
+  onRevisar,
 }: {
-  title: string;
-  icon: React.ReactNode;
-  summary?: string;
-  children: React.ReactNode;
+  view: DayView;
+  onPatch: (patch: DayPatch) => void;
+  onRevisar: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const day = view.day;
   return (
-    <section className="rounded-[18px] border border-line bg-surface shadow-[var(--card-shadow)]">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-3 p-3.5 text-left"
-      >
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-primary">
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="card-title text-muted-foreground">{title}</p>
-          {summary ? (
-            <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-              {summary}
-            </p>
-          ) : null}
+    <section className="rounded-[18px] border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="card-title text-muted-foreground">Hinchazón del día</h2>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            Contexto editable, sin atribuir una causa.
+          </p>
         </div>
-        <ChevronDown
-          className={cn(
-            "size-4 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-180",
-          )}
-          aria-hidden
-        />
-      </button>
-      {open ? <div className="px-3.5 pb-4">{children}</div> : null}
+        <button
+          type="button"
+          onClick={onRevisar}
+          className="shrink-0 text-[12px] font-medium text-primary"
+        >
+          Revisar check-in
+        </button>
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-1.5">
+        {BLOATS.map((b) => (
+          <button
+            key={b}
+            type="button"
+            onClick={() => onPatch({ bloat: day?.bloat === b ? null : b })}
+            className={cn(
+              "rounded-[12px] border py-2 text-[12px] font-medium transition-colors",
+              day?.bloat === b
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-line bg-surface-2 text-muted-foreground",
+            )}
+          >
+            {BLOAT_LABELS[b]}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between">
+        <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+          <Droplets className="size-4 text-primary" aria-hidden /> Agua
+        </span>
+        <span className="num text-[12px] text-muted-foreground">
+          {(day?.waterL ?? 0).toLocaleString("es-ES")} L hoy
+        </span>
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-1.5">
+        {WATER_CHIPS.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            onClick={() =>
+              onPatch({
+                waterL: Math.round(((day?.waterL ?? 0) + c.d) * 100) / 100,
+              })
+            }
+            className="rounded-full border border-line bg-surface-2 py-2 text-[12px] font-medium text-foreground"
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
 
-// ── Baseline personal (KPIs del reloj con delta vs media 30 d) ──
+// ── Baseline personal (KPIs del reloj con delta vs media 30 d) — siempre visible ──
 function fmt(v: number, decimals: number): string {
   return v.toLocaleString("es-ES", {
     minimumFractionDigits: decimals,
@@ -124,19 +161,23 @@ export function BaselineSection({ baseline }: { baseline: BaselineStat[] }) {
   const byKey = new Map<HealthMetricKey, BaselineStat>(
     baseline.map((b) => [b.key, b]),
   );
-  const withData = baseline.filter((b) => b.today != null).length;
-  const summary =
-    withData > 0
-      ? `${withData} de ${BASELINE_METRICS.length} métricas hoy · vs media 30 d`
-      : "Sin datos del reloj hoy";
+  const sleep = byKey.get("sleepH");
+  const showSleepNote = sleep != null && sleep.today == null && sleep.nDays > 0;
 
   return (
-    <Collapsible
-      title="Baseline personal"
-      icon={<HeartPulse className="size-[18px]" aria-hidden />}
-      summary={summary}
-    >
-      <div className="grid grid-cols-2 gap-2">
+    <section className="rounded-[18px] border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
+      <div className="flex items-center gap-2">
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-2 text-primary">
+          <HeartPulse className="size-[18px]" aria-hidden />
+        </span>
+        <div>
+          <h2 className="card-title text-muted-foreground">Baseline personal</h2>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            Cómo estás hoy vs tu media de 30 días
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
         {BASELINE_METRICS.map((m) => {
           const s = byKey.get(m.key);
           const today = s?.today ?? null;
@@ -175,7 +216,13 @@ export function BaselineSection({ baseline }: { baseline: BaselineStat[] }) {
           );
         })}
       </div>
-    </Collapsible>
+      {showSleepNote ? (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          * Apple Health no registró sueño hoy. Se conserva el dato crudo, pero no se
+          interpreta como sueño real.
+        </p>
+      ) : null}
+    </section>
   );
 }
 
@@ -195,72 +242,47 @@ export function ContextoRelojSection({
   });
 
   const balance = eb.balanceKcal;
-  const summary =
-    balance != null
-      ? `${balance < 0 ? "Déficit" : "Superávit"} de ${Math.abs(
-          Math.round(balance),
-        ).toLocaleString("es-ES")} kcal (contexto)`
-      : "Sin datos de gasto del reloj";
 
   return (
-    <Collapsible
-      title="Contexto del reloj"
-      icon={<Watch className="size-[18px]" aria-hidden />}
-      summary={summary}
-    >
-      <div className="space-y-2 text-[13px]">
-        <Row label="Ingesta" value={`${Math.round(eb.intakeKcal).toLocaleString("es-ES")} kcal`} />
-        <Row
-          label="Gasto"
-          value={
-            eb.expenditureKcal != null
-              ? `${Math.round(eb.expenditureKcal).toLocaleString("es-ES")} kcal`
-              : "—"
-          }
-          hint={eb.breakdown}
-        />
-        <div className="flex items-baseline justify-between border-t border-line pt-2">
-          <span className="font-medium text-foreground">Balance</span>
-          <span
-            className={cn(
-              "num font-bold",
-              balance == null
-                ? "text-muted-foreground"
-                : balance < 0
-                  ? "text-protein"
-                  : "text-foreground",
-            )}
-          >
-            {balance != null
-              ? `${balance > 0 ? "+" : ""}${Math.round(balance).toLocaleString("es-ES")} kcal`
-              : "—"}
-          </span>
+    <section className="rounded-[18px] border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
+      <div className="flex items-center gap-2">
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-2 text-primary">
+          <Watch className="size-[18px]" aria-hidden />
+        </span>
+        <div>
+          <h2 className="card-title text-muted-foreground">
+            Balance del día · orientativo ±25%
+          </h2>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            {eb.expenditureKcal != null
+              ? `${Math.round(eb.intakeKcal).toLocaleString("es-ES")} ingesta − (${eb.breakdown})`
+              : "Sin datos de gasto del reloj"}
+          </p>
         </div>
-        <p className="text-[11px] text-muted-foreground">
-          El reloj es contexto (±). El juez del déficit real es la pendiente de la
-          báscula.
+      </div>
+
+      <div className="mt-3 flex items-end justify-between">
+        <p className="text-[12px] text-muted-foreground">
+          Apple Watch · no calibra tu déficit real (lo hace la báscula).
+        </p>
+        <p
+          className={cn(
+            "num text-[34px] leading-none font-bold",
+            balance == null
+              ? "text-muted-foreground"
+              : balance < 0
+                ? "text-protein"
+                : "text-foreground",
+          )}
+        >
+          {balance != null
+            ? `${balance > 0 ? "+" : ""}${Math.round(balance).toLocaleString("es-ES")}`
+            : "—"}
+          <span className="ml-1 text-[13px] font-semibold text-muted-foreground">
+            kcal
+          </span>
         </p>
       </div>
-    </Collapsible>
-  );
-}
-
-function Row({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-muted-foreground">
-        {label}
-        {hint ? <span className="text-[11px]"> · {hint}</span> : null}
-      </span>
-      <span className="num text-foreground">{value}</span>
-    </div>
+    </section>
   );
 }
