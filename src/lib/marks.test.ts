@@ -5,6 +5,7 @@ import {
   formatMarkValue,
   formatSeconds,
   higherIsBetter,
+  latestRecordPercentage,
   latestChange,
   latestEntry,
   marksByRecency,
@@ -166,6 +167,28 @@ describe("marksByRecency (carril «recientes» del Historial, F04)", () => {
     const copy = [...marks];
     marksByRecency(marks);
     expect(marks).toEqual(copy);
+  });
+});
+
+describe("latestRecordPercentage", () => {
+  it("usa última/récord cuando un valor mayor es mejor", () => {
+    const entries = [
+      e(1, 110, "2026-01-01"),
+      e(2, 100, "2026-02-01"),
+    ];
+    expect(latestRecordPercentage("weight", entries)).toBeCloseTo(90.91, 2);
+  });
+
+  it("invierte a récord/última cuando un tiempo menor es mejor", () => {
+    const entries = [
+      e(1, 300, "2026-01-01"),
+      e(2, 330, "2026-02-01"),
+    ];
+    expect(latestRecordPercentage("time", entries)).toBeCloseTo(90.91, 2);
+  });
+
+  it("devuelve 100 cuando la última entrada es el récord", () => {
+    expect(latestRecordPercentage("reps", [e(1, 12, "2026-01-01")])).toBe(100);
   });
 });
 

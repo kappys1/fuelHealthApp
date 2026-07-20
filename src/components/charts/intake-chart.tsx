@@ -2,35 +2,30 @@
 
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
-  ReferenceLine,
+  ComposedChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  type TooltipContentProps,
 } from "recharts";
-import { ChartTooltip } from "./chart-tooltip";
 
-/*
-  Barras de ingesta diaria con ReferenceLine del objetivo (F6.4 / 05-DISENO §5).
-  Barra en --primary; los días fuera de fase Normal se atenúan (contexto, no
-  desviación — principio 4). Línea de objetivo en --fat.
-*/
 export interface IntakePointVM {
   label: string;
-  kcal: number;
+  proteinKcal: number;
+  carbKcal: number;
+  fatKcal: number;
+  macroKcal: number;
+  recordedKcal: number;
+  discrepancyKcal: number;
+  targetKcal: number;
   special: boolean;
 }
 
-export function IntakeChart({
-  data,
-  target,
-}: {
-  data: IntakePointVM[];
-  target: number;
-}) {
+export function IntakeChart({ data }: { data: IntakePointVM[] }) {
   if (data.length === 0) {
     return (
       <p className="py-8 text-center text-[13px] text-muted-foreground">
@@ -38,47 +33,156 @@ export function IntakeChart({
       </p>
     );
   }
-  const max = Math.max(target, ...data.map((d) => d.kcal));
+  const max = Math.max(
+    ...data.flatMap((point) => [point.targetKcal, point.macroKcal, point.recordedKcal]),
+  );
 
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
-          <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
+        <ComposedChart data={data} margin={{ top: 10, right: 4, bottom: 0, left: 0 }}>
+          <CartesianGrid vertical={false} stroke="var(--line-soft)" strokeDasharray="3 3" />
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            tick={{ fontSize: 11, fill: "var(--muted-text)" }}
             tickLine={false}
-            axisLine={{ stroke: "var(--line)" }}
+            axisLine={{ stroke: "var(--line-soft)" }}
             minTickGap={24}
           />
           <YAxis
             domain={[0, Math.ceil((max + 100) / 100) * 100]}
-            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            tick={{ fontSize: 11, fill: "var(--muted-text)" }}
             tickLine={false}
             axisLine={false}
-            width={44}
+            width={36}
+            tickFormatter={(value: number) =>
+              value >= 1000
+                ? `${(value / 1000).toLocaleString("es-ES", {
+                    maximumFractionDigits: 1,
+                  })}k`
+                : String(value)
+            }
           />
-          <Tooltip cursor={{ fill: "var(--surface-2)" }} content={<ChartTooltip unit="kcal" />} />
-          <ReferenceLine
-            y={target}
-            stroke="var(--fat)"
-            strokeDasharray="4 3"
-            strokeWidth={1.5}
-            label={{
-              value: `objetivo ${target}`,
-              position: "insideTopRight",
-              fill: "var(--fat)",
-              fontSize: 10,
-            }}
-          />
-          <Bar dataKey="kcal" name="Ingesta" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-            {data.map((d, i) => (
-              <Cell key={i} fill="var(--primary)" fillOpacity={d.special ? 0.4 : 1} />
+          <Tooltip cursor={{ fill: "var(--surface-2)" }} content={<IntakeTooltip />} />
+          <Bar
+            dataKey="proteinKcal"
+            name="Proteína"
+            stackId="macros"
+            fill="var(--protein)"
+            radius={[0, 0, 3, 3]}
+            isAnimationActive={false}
+          >
+            {data.map((point) => (
+              <Cell
+                key={`protein-${point.label}`}
+                fillOpacity={point.special ? 0.45 : 1}
+              />
             ))}
           </Bar>
-        </BarChart>
+          <Bar
+            dataKey="carbKcal"
+            name="Hidratos"
+            stackId="macros"
+            fill="var(--carb)"
+            isAnimationActive={false}
+          >
+            {data.map((point) => (
+              <Cell key={`carb-${point.label}`} fillOpacity={point.special ? 0.45 : 1} />
+            ))}
+          </Bar>
+          <Bar
+            dataKey="fatKcal"
+            name="Grasa"
+            stackId="macros"
+            fill="var(--fat)"
+            radius={[3, 3, 0, 0]}
+            isAnimationActive={false}
+          >
+            {data.map((point) => (
+              <Cell key={`fat-${point.label}`} fillOpacity={point.special ? 0.45 : 1} />
+            ))}
+          </Bar>
+          <Line
+            type="monotone"
+            dataKey="recordedKcal"
+            name="Kcal registradas"
+            stroke="var(--muted-text)"
+            strokeWidth={1}
+            strokeDasharray="2 3"
+            strokeOpacity={0.75}
+            dot={false}
+            activeDot={{ r: 3 }}
+            isAnimationActive={false}
+          />
+          <Line
+            type="stepAfter"
+            dataKey="targetKcal"
+            name="Objetivo"
+            stroke="var(--primary)"
+            strokeWidth={1.5}
+            strokeDasharray="4 3"
+            dot={false}
+            activeDot={{ r: 3 }}
+            isAnimationActive={false}
+          />
+        </ComposedChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+function TooltipRow({
+  name,
+  value,
+  color,
+}: {
+  name: string;
+  value: number;
+  color?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+        {color ? (
+          <span className="size-2 rounded-full" style={{ background: color }} aria-hidden />
+        ) : null}
+        {name}
+      </span>
+      <span className="num font-medium text-foreground">
+        {Math.round(value).toLocaleString("es-ES")} kcal
+      </span>
+    </div>
+  );
+}
+
+function IntakeTooltip({
+  active,
+  payload,
+  label,
+}: Partial<TooltipContentProps<number, string>>) {
+  if (!active || !payload?.length) return null;
+  const point = payload[0]?.payload as IntakePointVM | undefined;
+  if (!point) return null;
+  return (
+    <div className="min-w-48 rounded-xl border border-line bg-surface p-3 text-[11px] shadow-card">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="font-semibold text-foreground">{label}</span>
+        {point.special ? (
+          <span className="rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info">
+            fase
+          </span>
+        ) : null}
+      </div>
+      <div className="space-y-1">
+        <TooltipRow name="Proteína" value={point.proteinKcal} color="var(--protein)" />
+        <TooltipRow name="Hidratos" value={point.carbKcal} color="var(--carb)" />
+        <TooltipRow name="Grasa" value={point.fatKcal} color="var(--fat)" />
+      </div>
+      <div className="mt-2 space-y-1 border-t border-line pt-2">
+        <TooltipRow name="Registrado" value={point.recordedKcal} />
+        <TooltipRow name="Objetivo" value={point.targetKcal} />
+        <TooltipRow name="Diferencia" value={point.discrepancyKcal} />
+      </div>
     </div>
   );
 }

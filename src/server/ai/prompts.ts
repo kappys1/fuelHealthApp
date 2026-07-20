@@ -21,11 +21,11 @@ import type { PlanOptionDTO } from "@/server/db/queries/plan";
 /**
  * Contexto de atleta COMPLETO (04-IA / doc 10 A2). Plantilla congelada, valores
  * del perfil. Usado en features conversacionales (coach F-IA-6, WOD F-IA-5,
- * preparar-visita F-IA-7, chat F-IA-8). pesoReciente = último peso (fallback 92).
+ * preparar-visita F-IA-7, chat F-IA-8). Si no hay peso reciente, se declara ausente.
  */
 export function athleteContext(
   p: AthleteProfile,
-  pesoReciente: number,
+  pesoReciente: number | null,
   trainingDays: number,
   today: string,
 ): string {
@@ -42,7 +42,9 @@ export function athleteContext(
   const lesiones = p.lesiones?.length
     ? ` Lesiones: ${p.lesiones.join(", ")}.`
     : "";
-  return `Atleta: ${p.deporte}${nivel}, ${edadPart}${alturaPart}${pesoReciente} kg. Programa: ${p.programa}; entrena ${p.franjaEntreno}, ${trainingDays} días/semana.${objPart} Suplementos que toma: ${supl}.${nota}${lesiones}`;
+  const pesoPart =
+    pesoReciente != null ? `${pesoReciente} kg` : "peso reciente no disponible";
+  return `Atleta: ${p.deporte}${nivel}, ${edadPart}${alturaPart}${pesoPart}. Programa: ${p.programa}; entrena ${p.franjaEntreno}, ${trainingDays} días/semana.${objPart} Suplementos que toma: ${supl}.${nota}${lesiones}`;
 }
 
 /**
@@ -54,13 +56,15 @@ export function athleteContext(
  */
 export function athleteContextCompact(
   p: AthleteProfile,
-  pesoReciente: number,
+  pesoReciente: number | null,
   opts?: { photoScaleException?: boolean },
 ): string {
   const obj = currentObjective(p);
   const objText = obj ? obj.texto : "sin objetivo definido";
   const alturaPart = p.alturaCm != null ? `${p.alturaCm} cm, ` : "";
-  const base = `Contexto del usuario: ${p.deporte}, ${alturaPart}${pesoReciente} kg, objetivo: ${objText}. El perfil es contexto del usuario; NO ajustes las estimaciones nutricionales según el perfil — los macros son del alimento, no de la persona.`;
+  const pesoPart =
+    pesoReciente != null ? `${pesoReciente} kg` : "peso reciente no disponible";
+  const base = `Contexto del usuario: ${p.deporte}, ${alturaPart}${pesoPart}, objetivo: ${objText}. El perfil es contexto del usuario; NO ajustes las estimaciones nutricionales según el perfil — los macros son del alimento, no de la persona.`;
   if (opts?.photoScaleException) {
     return `${base} (La altura/complexión SÍ puede servirte como referencia de escala para estimar el tamaño de las raciones en la foto.)`;
   }

@@ -115,6 +115,9 @@
   --med-accent: #6747c7;
   --phase: #6747c7;
   --phase-soft: color-mix(in srgb, var(--info) 14%, transparent);
+  --inverted: #142235;
+  --on-inverted: #ffffff;
+  --on-inverted-muted: #c5d0dc;
 
   --card-shadow: 0 8px 24px rgb(15 27 42 / 5%);
   --shadow: 0 28px 90px rgb(15 27 42 / 12%);
@@ -192,6 +195,9 @@
   --med-accent: #c2a7ff;
   --phase: #c2a7ff;
   --phase-soft: color-mix(in srgb, var(--info) 20%, transparent);
+  --inverted: #17314d;
+  --on-inverted: #f3f6fa;
+  --on-inverted-muted: #b9cbe0;
 
   --card-shadow: 0 8px 24px rgb(0 0 0 / 18%);
   --shadow: 0 28px 90px rgb(0 0 0 / 38%);

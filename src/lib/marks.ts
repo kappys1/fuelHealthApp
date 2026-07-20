@@ -32,6 +32,22 @@ export function higherIsBetter(measureType: MeasureType): boolean {
   return measureType !== "time";
 }
 
+/** Porcentaje de la última entrada respecto al récord, sensible a la dirección. */
+export function latestRecordPercentage(
+  measureType: MeasureType,
+  entries: readonly MarkEntryLike[],
+): number | null {
+  const latest = latestEntry(entries);
+  const record = bestEntry(measureType, entries);
+  if (!latest || !record) return null;
+  if (latest.value === 0 && record.value === 0) return 100;
+  if (latest.value <= 0 || record.value <= 0) return null;
+  const ratio = higherIsBetter(measureType)
+    ? latest.value / record.value
+    : record.value / latest.value;
+  return Math.min(100, Math.max(0, ratio * 100));
+}
+
 /** Solo las marcas de peso tienen calculadora de % (determinista, cero IA). */
 export function hasPercentCalculator(measureType: MeasureType): boolean {
   return measureType === "weight";
