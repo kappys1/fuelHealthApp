@@ -56,6 +56,12 @@ import type { TrainingSessionDTO } from "@/server/db/queries/training";
 
 const NONE = "__none__";
 const BLOATS: BloatKey[] = ["ninguna", "leve", "moderada", "alta"];
+const MADRID_TIME_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
 
 export function DailyChecks({
   view,
@@ -202,7 +208,7 @@ function DayDetailsSheet({
           <SheetDescription>Peso, composición, hidratación y notas personales.</SheetDescription>
         </SheetHeader>
         <div className="space-y-4 px-4 pb-6">
-          <label className="block">
+          <label htmlFor="day-weight" className="block">
             <span className="mb-1.5 block text-[12px] text-muted-foreground">Peso en ayunas</span>
             <Stepper
               value={weight == null ? "" : String(weight)}
@@ -210,9 +216,10 @@ function DayDetailsSheet({
               step={0.1}
               suffix="kg"
               ariaLabel="Peso"
+              id="day-weight"
             />
           </label>
-          <label className="block">
+          <label htmlFor="day-body-fat" className="block">
             <span className="mb-1.5 block text-[12px] text-muted-foreground">Grasa corporal</span>
             <Stepper
               value={fat == null ? "" : String(fat)}
@@ -220,9 +227,10 @@ function DayDetailsSheet({
               step={0.1}
               suffix="%"
               ariaLabel="Porcentaje de grasa"
+              id="day-body-fat"
             />
           </label>
-          <label className="block">
+          <label htmlFor="day-water" className="block">
             <span className="mb-1.5 block text-[12px] text-muted-foreground">Agua</span>
             <Stepper
               value={water == null ? "" : String(water)}
@@ -230,6 +238,7 @@ function DayDetailsSheet({
               step={0.25}
               suffix="L"
               ariaLabel="Agua"
+              id="day-water"
             />
           </label>
           <label className="block">
@@ -510,7 +519,9 @@ export function BloatEventSheet({
   onDelete: (id: number) => Promise<void>;
 }) {
   const [severity, setSeverity] = useState<BloatKey>(event?.severity ?? initialSeverity);
-  const [time, setTime] = useState(event?.occurredAt.slice(0, 5) ?? (isToday ? madridTime() : ""));
+  const [time, setTime] = useState(
+    () => event?.occurredAt.slice(0, 5) ?? (isToday ? madridTime() : ""),
+  );
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
@@ -594,12 +605,7 @@ export function BloatEventSheet({
 }
 
 function madridTime(): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    timeZone: "Europe/Madrid",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).format(new Date());
+  return MADRID_TIME_FORMATTER.format(new Date());
 }
 
 function decimalOrNull(value: string): number | null {
