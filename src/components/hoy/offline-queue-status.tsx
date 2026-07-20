@@ -19,7 +19,9 @@ export function OfflineQueueStatus() {
     ? "No se borró nada de la cola; se reintentará al recuperar la conexión."
     : syncing
       ? "Enviando la cola local de forma segura."
-      : "Sin conexión · se enviarán automáticamente al volver.";
+      : queue.online
+        ? "Con conexión · se enviarán en el siguiente intento de sincronización."
+        : "Sin conexión · se enviarán automáticamente al volver.";
 
   return (
     <section

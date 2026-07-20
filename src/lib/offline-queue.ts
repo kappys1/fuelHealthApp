@@ -17,6 +17,9 @@ export interface QueuedOp {
   entries?: EntryInput[];
   patch?: DayPatch;
   ts: number;
+  // Opcional solo para leer colas creadas antes de la migración; enqueue lo asigna
+  // siempre a los lotes addEntries y flush lo persiste antes del primer envío.
+  clientMutationId?: string;
 }
 
 interface FuelboardDB extends DBSchema {
@@ -73,7 +76,11 @@ export function isOffline(): boolean {
 
 export async function enqueue(op: Omit<QueuedOp, "id">): Promise<void> {
   const db = await getDb();
-  await db.add(STORE, op as QueuedOp);
+  const queued: QueuedOp =
+    op.kind === "addEntries"
+      ? { ...op, clientMutationId: op.clientMutationId ?? crypto.randomUUID() }
+      : op;
+  await db.add(STORE, queued);
   publish({
     online: !isOffline(),
     pending: await db.count(STORE),
@@ -106,7 +113,7 @@ export async function markOffline(): Promise<void> {
  * auto-incremental preserva el orden). Para en el primer fallo: lo que quede se
  * reintenta en la siguiente reconexión. Devuelve cuántas se aplicaron.
  */
-export async function flushQueue(): Promise<number> {
+async function flushQueueOnce(): Promise<number> {
   const db = await getDb();
   const ops = await db.getAll(STORE);
   if (ops.length === 0) {
@@ -119,7 +126,14 @@ export async function flushQueue(): Promise<number> {
   for (const op of ops) {
     try {
       if (op.kind === "addEntries" && op.entries) {
-        await api.addEntries(op.date, op.entries);
+        const clientMutationId = op.clientMutationId ?? crypto.randomUUID();
+        if (!op.clientMutationId && op.id != null) {
+          // Persistir ANTES del fetch: si llega a BD pero se pierde la respuesta,
+          // el siguiente replay conserva la misma clave y el servidor deduplica.
+          op.clientMutationId = clientMutationId;
+          await db.put(STORE, op);
+        }
+        await api.addEntries(op.date, op.entries, clientMutationId);
       } else if (op.kind === "patchDay" && op.patch) {
         await api.patchDay(op.date, op.patch);
       }
@@ -138,4 +152,15 @@ export async function flushQueue(): Promise<number> {
     phase: !online ? "offline" : failed ? "failed" : "idle",
   });
   return done;
+}
+
+let flushInFlight: Promise<number> | null = null;
+
+/** Un único replay por pestaña; online/mount no pueden drenar la cola a la vez. */
+export function flushQueue(): Promise<number> {
+  if (flushInFlight) return flushInFlight;
+  flushInFlight = flushQueueOnce().finally(() => {
+    flushInFlight = null;
+  });
+  return flushInFlight;
 }

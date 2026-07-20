@@ -30,7 +30,7 @@ Every completed row must link automated evidence, browser evidence, or both.
 | TODAY-13 | Training | Current WOD/training card and errors | Training follows meals and preserves detail, loading and error/manual paths | PENDING |
 | TODAY-14 | Baseline | Health metrics currently stored | HRV, resting HR, sleep and steps show raw value plus delta vs prior 30-day mean | GAP |
 | TODAY-15 | Watch context | Existing health/watch metrics and `energyBalance` | Context remains last, sync confidence is explicit, balance says `orientativo ±25%` | PENDING |
-| TODAY-16 | Offline queue | IndexedDB queue and replay | Reactive 0/pending/syncing/failure indicator is visible in Today | GAP |
+| TODAY-16 | Offline queue | IndexedDB queue and replay | Reactive 0/pending/syncing/failure indicator is visible in Today | PASS |
 | PLAN-01 | Plan switch | Diet/training segment | Toggle gains spacing and professional density without changing the modes | PENDING |
 | PLAN-02 | Diet targets | Versioned targets/options/variants | Compact target hierarchy and all current edit sheets remain functional | PENDING |
 | PLAN-03 | Diet import | Photo/PDF import | `Importar dieta (foto/PDF)` stays visually prominent and completes the current flow | PENDING |
@@ -56,7 +56,7 @@ Every completed row must link automated evidence, browser evidence, or both.
 | SETTINGS-03 | Sync confidence | Existing sync timestamps/data | `Última sincronización hace X` renders with real `✓/⚠` states | PASS |
 | PWA-01 | Install/offline | Manifest, service worker and offline route | Install/update/offline behavior remains operational in both themes | PENDING |
 | PWA-02 | Share target | Shared image/photo intake | OS share target still reaches the intended photo flow | PENDING |
-| PWA-03 | Replay | Offline mutation queue | Queued actions replay once, surface failures and never duplicate writes | PENDING |
+| PWA-03 | Replay | Offline mutation queue | Queued actions replay once, surface failures and never duplicate writes | PASS |
 
 ## Additive adapters
 
@@ -103,6 +103,7 @@ Use one row per completed scenario. A browser row must include theme and viewpor
 | SETTINGS-FLOWS | `import-csv.spec.ts`; export and restore-preview requests | Profile disclosure, CSV preview and restore confirmation at 390x844 | No restore applied; isolated Neon branch only | Integrator + chat/settings auditor | PASS |
 | SETTINGS-THEME | Browser selection plus reload | Claro/Oscuro/Sistema segmented control at 390x844 and 320x700 | `dark` and `system` persist through `next-themes` | Integrator | PASS |
 | SETTINGS-MOBILE | Expanded profile and all controls scanned at 320x700 | Dark/light; zero horizontal overflow | Inputs/selects 16px and 44px; every visible button/link at least 44px | Integrator | PASS |
+| OFFLINE-IDEMPOTENCY | Concurrent isolated-Neon insert with one UUID: results `0/2`, persisted indexes `0/1` | IndexedDB replay plus two simultaneous `online` events | One HTTP request, stable mutation id, queue drains to zero; probe rows deleted | Integrator + chat/settings auditor | PASS |
 
 ## Release blockers
 

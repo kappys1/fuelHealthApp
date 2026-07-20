@@ -180,33 +180,44 @@ export const bloatEvents = pgTable(
 );
 
 // ── meal_entries ──
-export const mealEntries = pgTable("meal_entries", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  date: date({ mode: "string" })
-    .notNull()
-    .references(() => days.date, { onDelete: "cascade" }),
-  meal: mealEnum().notNull(),
-  name: text().notNull(),
-  kcal: integer().notNull(),
-  prot: real().notNull(),
-  carb: real().notNull(),
-  fat: real().notNull(),
-  source: mealSourceEnum().notNull(),
-  photoUrl: text("photo_url"),
-  // Gramos como dato de primera clase (F06): cantidad actual + base inmutable de
-  // referencia para reescalar macros/kcal (factor = grams / baseG). Todas nullable
-  // (aditivas): baseG null = entrada fija sin escalado ("4 huevos", café, backfill
-  // no parseable). El escalado SIEMPRE parte de base*, nunca de valores ya escalados.
-  grams: integer(),
-  baseG: integer("base_g"),
-  baseKcal: integer("base_kcal"),
-  baseProt: real("base_prot"),
-  baseCarb: real("base_carb"),
-  baseFat: real("base_fat"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const mealEntries = pgTable(
+  "meal_entries",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    date: date({ mode: "string" })
+      .notNull()
+      .references(() => days.date, { onDelete: "cascade" }),
+    meal: mealEnum().notNull(),
+    name: text().notNull(),
+    kcal: integer().notNull(),
+    prot: real().notNull(),
+    carb: real().notNull(),
+    fat: real().notNull(),
+    source: mealSourceEnum().notNull(),
+    photoUrl: text("photo_url"),
+    // Gramos como dato de primera clase (F06): cantidad actual + base inmutable de
+    // referencia para reescalar macros/kcal (factor = grams / baseG).
+    grams: integer(),
+    baseG: integer("base_g"),
+    baseKcal: integer("base_kcal"),
+    baseProt: real("base_prot"),
+    baseCarb: real("base_carb"),
+    baseFat: real("base_fat"),
+    // Un lote offline comparte id y usa el índice estable de cada entrada. La pareja
+    // hace idempotente un replay tras perder la respuesta del servidor.
+    clientMutationId: text("client_mutation_id"),
+    clientMutationIndex: integer("client_mutation_index"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("meal_entries_client_mutation_item_unique").on(
+      t.clientMutationId,
+      t.clientMutationIndex,
+    ),
+  ],
+);
 
 // ── health_metrics (importado de Apple Health) ──
 export const healthMetrics = pgTable("health_metrics", {
