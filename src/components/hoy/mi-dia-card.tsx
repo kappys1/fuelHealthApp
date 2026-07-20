@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -10,9 +10,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/lib/client-api";
+import { labelForKey } from "@/lib/dates";
 import {
+  BLOAT_LABELS,
   PHASE_LABELS,
   type PhaseKey,
   phaseLabel,
@@ -24,12 +32,23 @@ import type { TrainingSessionDTO } from "@/server/db/queries/training";
 
 const NONE = "__none__";
 
-export function MiDiaCard({
+/**
+ * «Mi día» = flow `day-context` (Restyle v2, estructura real del mockup): sheet de
+ * corrección posterior con peso/%grasa/agua/fase/sesión/notas + analizador de WOD.
+ * Se abre desde el icono de sliders de la sección «Hinchazón del día» (la hinchazón
+ * NO se repite aquí: se corrige en el selector visible de Hoy, para no duplicar el
+ * control). Autosave optimista vía onPatch; «Guardar cambios» solo cierra.
+ */
+export function MiDiaSheet({
+  open,
+  onOpenChange,
   view,
   onPatch,
   trainingSessions = [],
   suggestedPhase = null,
 }: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
   view: DayView;
   onPatch: (patch: DayPatch) => void;
   /** Sesiones reales de la semana importada para esta fecha (doc 10 B3). */
@@ -42,15 +61,6 @@ export function MiDiaCard({
   const sessionOptions = orderedSessionOptions(
     trainingSessions.map((s) => s.nombre),
   );
-  const hasContent =
-    !!day &&
-    (day.weight != null ||
-      day.sessionLabel != null ||
-      day.phase != null ||
-      day.bloat != null ||
-      day.notes != null ||
-      day.waterL != null);
-  const [open, setOpen] = useState(!hasContent);
 
   // Valor EFECTIVO = manual (tu edición) ?? báscula (Apple Health). Así el peso y
   // el % grasa se AUTO-RELLENAN de la báscula y siguen siendo editables (tu edición
@@ -60,37 +70,46 @@ export function MiDiaCard({
   const effFat = day?.bodyFatPct ?? health?.bodyFatPct ?? null;
   const fatFromScale = day?.bodyFatPct == null && health?.bodyFatPct != null;
 
-  const summary = [
-    day?.sessionLabel,
-    phaseLabel(day?.phase),
+  const calloutTop = [day?.sessionLabel ?? view.session?.nombre, phaseLabel(day?.phase)]
+    .filter(Boolean)
+    .join(" · ");
+  const calloutBottom = [
     effWeight != null ? `${effWeight.toLocaleString("es-ES")} kg` : null,
+    day?.waterL != null ? `${day.waterL.toLocaleString("es-ES")} L de agua` : null,
+    day?.bloat ? `hinchazón ${BLOAT_LABELS[day.bloat].toLowerCase()}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
 
   return (
-    <section className="rounded-[18px] border border-line bg-surface shadow-[var(--card-shadow)]">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-3 text-left"
-        aria-expanded={open}
-      >
-        <div className="min-w-0">
-          <div className="card-title text-muted-foreground">Mi día</div>
-          <div className="num mt-0.5 truncate text-[13px] text-foreground">
-            {summary || "Sin datos del día — toca para rellenar"}
-          </div>
-        </div>
-        {open ? (
-          <ChevronUp className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        ) : (
-          <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        )}
-      </button>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="max-h-[92dvh] gap-0 overflow-y-auto">
+        <SheetHeader className="pb-1">
+          <SheetTitle
+            className="text-[18px] font-bold"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Mi día
+          </SheetTitle>
+          <p className="text-[12px] text-muted-foreground">
+            Corrección posterior · {labelForKey(view.date)}
+          </p>
+        </SheetHeader>
 
-      {open ? (
-        <div className="space-y-4 border-t border-line px-4 py-4">
+        <div className="space-y-4 px-4 pt-2 pb-6">
+          {calloutTop || calloutBottom ? (
+            <div className="rounded-[14px] border border-primary/25 bg-primary/5 px-3.5 py-2.5">
+              {calloutTop ? (
+                <p className="text-[13px] font-semibold text-primary">{calloutTop}</p>
+              ) : null}
+              {calloutBottom ? (
+                <p className="num mt-0.5 text-[12px] text-muted-foreground">
+                  {calloutBottom}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Peso (hinchazón y agua viven en la sección «Hinchazón del día» de Hoy) */}
           <label className="block">
             <span className="mb-1 block text-[12px] text-muted-foreground">
@@ -209,9 +228,17 @@ export function MiDiaCard({
               {relojLine(health) || "sin datos del reloj"}
             </p>
           ) : null}
+
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="w-full rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground"
+          >
+            Guardar cambios
+          </button>
         </div>
-      ) : null}
-    </section>
+      </SheetContent>
+    </Sheet>
   );
 }
 

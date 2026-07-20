@@ -1,6 +1,6 @@
 "use client";
 
-import { Droplets, Dumbbell } from "lucide-react";
+import { Dumbbell, GlassWater, SlidersHorizontal } from "lucide-react";
 import { type BloatKey, BLOAT_LABELS } from "@/lib/macros";
 import {
   type BaselineStat,
@@ -99,55 +99,81 @@ export function HinchazonAguaSection({
   view,
   onPatch,
   onRevisar,
+  onOpenDayContext,
 }: {
   view: DayView;
   onPatch: (patch: DayPatch) => void;
   onRevisar: () => void;
+  onOpenDayContext: () => void;
 }) {
   const day = view.day;
   return (
     <section className="rounded-[18px] border border-line bg-surface p-4 shadow-[var(--card-shadow)]">
+      {/* daily-checks-head */}
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h2 className="card-title text-muted-foreground">Hinchazón del día</h2>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
+          <strong className="block text-[15px] font-bold text-foreground">
+            Hinchazón del día
+          </strong>
+          <span className="mt-0.5 block text-[12px] text-muted-foreground">
             Contexto editable, sin atribuir una causa.
-          </p>
+          </span>
         </div>
         <button
           type="button"
           onClick={onRevisar}
-          className="shrink-0 text-[12px] font-medium text-primary"
+          className="shrink-0 text-[13px] font-semibold text-primary"
         >
           Revisar check-in
         </button>
       </div>
-      <div className="mt-3 grid grid-cols-4 gap-1.5">
-        {BLOATS.map((b) => (
-          <button
-            key={b}
-            type="button"
-            onClick={() => onPatch({ bloat: day?.bloat === b ? null : b })}
-            className={cn(
-              "rounded-[12px] border py-2 text-[12px] font-medium transition-colors",
-              day?.bloat === b
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-line bg-surface-2 text-muted-foreground",
-            )}
-          >
-            {BLOAT_LABELS[b]}
-          </button>
-        ))}
+
+      {/* bloat-options: pills */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {BLOATS.map((b) => {
+          const active = day?.bloat === b;
+          return (
+            <button
+              key={b}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onPatch({ bloat: active ? null : b })}
+              className={cn(
+                "rounded-full border px-4 py-2 text-[13px] font-medium transition-colors",
+                active
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-line bg-surface-2 text-muted-foreground",
+              )}
+            >
+              {BLOAT_LABELS[b]}
+            </button>
+          );
+        })}
       </div>
-      <div className="mt-4 flex items-center justify-between">
-        <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
-          <Droplets className="size-4 text-primary" aria-hidden /> Agua
+
+      {/* hydration-quick */}
+      <div className="mt-4 flex items-center gap-3 border-t border-line pt-4">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-primary">
+          <GlassWater className="size-[18px]" aria-hidden />
         </span>
-        <span className="num text-[12px] text-muted-foreground">
-          {(day?.waterL ?? 0).toLocaleString("es-ES")} L hoy
+        <span className="min-w-0 flex-1">
+          <strong className="block text-[14px] font-semibold text-foreground">
+            Agua
+          </strong>
+          <span className="num block text-[12px] text-muted-foreground">
+            {(day?.waterL ?? 0).toLocaleString("es-ES")} L registradas hoy
+          </span>
         </span>
+        <button
+          type="button"
+          onClick={onOpenDayContext}
+          aria-label="Corregir agua y contexto del día"
+          className="inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-line bg-surface-2 text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <SlidersHorizontal className="size-[18px]" aria-hidden />
+        </button>
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-1.5">
+      <div className="mt-2 flex flex-wrap gap-2">
         {WATER_CHIPS.map((c) => (
           <button
             key={c.label}
@@ -157,7 +183,7 @@ export function HinchazonAguaSection({
                 waterL: Math.round(((day?.waterL ?? 0) + c.d) * 100) / 100,
               })
             }
-            className="rounded-full border border-line bg-surface-2 py-2 text-[12px] font-medium text-foreground"
+            className="rounded-full border border-line bg-surface-2 px-4 py-2 text-[13px] font-medium text-foreground"
           >
             {c.label}
           </button>
