@@ -4,18 +4,22 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
-const ORDER = ["light", "dark", "system"] as const;
-type ThemeChoice = (typeof ORDER)[number];
+const CHOICES = [
+  { value: "light", label: "Claro", icon: Sun },
+  { value: "dark", label: "Oscuro", icon: Moon },
+  { value: "system", label: "Sistema", icon: Monitor },
+] as const;
+type ThemeChoice = (typeof CHOICES)[number]["value"];
 
 const LABEL: Record<ThemeChoice, string> = {
   light: "Claro",
   dark: "Oscuro",
-  system: "Auto",
+  system: "Sistema",
 };
 
 /**
- * Ciclo claro → oscuro → auto (sistema). El icono refleja la elección actual.
- * Se monta tras hidratar para evitar el desajuste de next-themes.
+ * Selector explícito claro/oscuro/sistema. Se monta tras hidratar para evitar el
+ * desajuste de next-themes y nunca obliga a descubrir un ciclo oculto.
  */
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -26,25 +30,36 @@ export function ThemeToggle() {
   useEffect(() => setMounted(true), []);
 
   const current: ThemeChoice =
-    mounted && ORDER.includes(theme as ThemeChoice)
+    mounted && CHOICES.some((choice) => choice.value === theme)
       ? (theme as ThemeChoice)
       : "system";
 
-  const next: ThemeChoice =
-    ORDER[(ORDER.indexOf(current) + 1) % ORDER.length] ?? "system";
-  const Icon =
-    current === "light" ? Sun : current === "dark" ? Moon : Monitor;
-
   return (
-    <button
-      type="button"
-      onClick={() => setTheme(next)}
-      aria-label={`Tema: ${LABEL[current]}. Cambiar a ${LABEL[next]}`}
-      title={`Tema: ${LABEL[current]}`}
-      className="inline-flex h-11 items-center gap-2 rounded-md border border-input bg-surface px-3.5 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/35 focus-visible:outline-none"
+    <div
+      className="grid grid-cols-3 gap-1 rounded-2xl bg-surface-2 p-1.5"
+      role="group"
+      aria-label="Tema de la aplicación"
     >
-      <Icon className="size-4" aria-hidden />
-      <span>{mounted ? LABEL[current] : "Tema"}</span>
-    </button>
+      {CHOICES.map(({ value, label, icon: Icon }) => {
+        const selected = mounted && current === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTheme(value)}
+            aria-pressed={selected}
+            aria-label={`Usar tema ${LABEL[value]}`}
+            className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 text-[12px] font-semibold transition-colors focus-visible:ring-3 focus-visible:ring-ring/35 focus-visible:outline-none ${
+              selected
+                ? "bg-surface text-primary shadow-sm ring-1 ring-line"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">{label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }

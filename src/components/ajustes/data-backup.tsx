@@ -4,6 +4,7 @@ import { Download, Loader2, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { api, type RestoreResult } from "@/lib/client-api";
 
 /*
@@ -37,6 +38,7 @@ export function DataBackup() {
   const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState<RestoreResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const reset = () => {
     rawRef.current = null;
@@ -85,12 +87,6 @@ export function DataBackup() {
 
   const apply = async () => {
     if (rawRef.current == null) return;
-    if (
-      !window.confirm(
-        "El restore REEMPLAZA todos los datos actuales por los del archivo. Antes se descargará un backup del estado actual. ¿Continuar?",
-      )
-    )
-      return;
     setBusy(true);
     try {
       // Backup automático pre-restore (principio 7: 0 pérdidas). Si falla, aborta.
@@ -114,6 +110,7 @@ export function DataBackup() {
       toast.error(err instanceof Error ? err.message : "No se pudo restaurar.");
     } finally {
       setBusy(false);
+      setConfirmOpen(false);
     }
   };
 
@@ -124,16 +121,17 @@ export function DataBackup() {
       .join(" · ");
 
   return (
-    <div className="space-y-3">
+    <>
+      <div className="flex flex-wrap gap-2">
       <a
         href="/api/export"
-        className="inline-flex h-10 items-center gap-2 rounded-lg border border-line bg-surface-2 px-4 text-sm text-foreground"
+        className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface-2 px-4 text-[13px] font-medium text-foreground"
       >
         <Download className="size-4 text-primary" aria-hidden />
         Exportar copia (JSON)
       </a>
 
-      <div>
+        <div>
         <input
           ref={inputRef}
           type="file"
@@ -149,7 +147,7 @@ export function DataBackup() {
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={busy}
-            className="inline-flex h-10 items-center gap-2 rounded-lg border border-line bg-surface-2 px-4 text-sm text-foreground disabled:opacity-60"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line bg-surface-2 px-4 text-[13px] font-medium text-foreground disabled:opacity-60"
           >
             {busy ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -159,7 +157,7 @@ export function DataBackup() {
             Restaurar desde copia…
           </button>
         ) : (
-          <div className="rounded-lg border border-line bg-surface-2 p-3 text-[13px]">
+          <div className="mt-3 rounded-2xl bg-surface-2 p-4 text-[13px] ring-1 ring-line">
             <p className="font-medium text-foreground">{fileName}</p>
             <p className="mt-2 text-muted-foreground">
               Se restaurará: <span className="text-foreground">{rows(preview.incoming) || "nada"}</span>.
@@ -170,12 +168,12 @@ export function DataBackup() {
             <p className="mt-1 text-muted-foreground">
               Antes se descargará un backup automático del estado actual.
             </p>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={apply}
+                onClick={() => setConfirmOpen(true)}
                 disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-medium text-primary-foreground disabled:opacity-60"
               >
                 {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
                 Restaurar (reemplaza todo)
@@ -184,14 +182,24 @@ export function DataBackup() {
                 type="button"
                 onClick={reset}
                 disabled={busy}
-                className="rounded-lg px-3 py-2 text-sm text-muted-foreground"
+                className="min-h-11 rounded-xl px-3 text-sm font-medium text-muted-foreground"
               >
                 Cancelar
               </button>
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={(open) => !busy && setConfirmOpen(open)}
+        title="Restaurar copia de seguridad"
+        description="Se reemplazarán todos los datos actuales. Antes se descargará automáticamente una copia del estado actual."
+        confirmLabel="Restaurar y reemplazar"
+        busy={busy}
+        onConfirm={apply}
+      />
+    </>
   );
 }
