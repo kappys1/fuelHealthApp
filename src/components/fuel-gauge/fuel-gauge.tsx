@@ -53,10 +53,13 @@ export function FuelGauge({
   targets,
   entries,
   phase,
+  dateLabel,
 }: {
   targets: Targets;
   entries: EntryLike[];
   phase: PhaseKey | null;
+  /** Fecha corta para el eyebrow del hero-head (p. ej. «17 jul»). */
+  dateLabel?: string;
 }) {
   const totals = dayTotals(entries);
   const subtotals = subtotalsByMeal(entries);
@@ -106,20 +109,38 @@ export function FuelGauge({
       style={{ background: special ? "var(--phase)" : "var(--surface)" }}
       aria-label="Presupuesto del día"
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="card-title text-muted-foreground">Combustible</p>
-        <span
-          className={cn(
-            "text-[13px] font-semibold",
-            competicion || special
-              ? "text-primary"
-              : v.covered
-                ? "text-protein"
-                : "text-foreground",
-          )}
-        >
-          {title}
-        </span>
+      {/* hero-head: eyebrow + H1 veredicto + state-chip */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold tracking-[0.12em] text-muted-foreground uppercase">
+            Combustible{dateLabel ? ` · ${dateLabel}` : ""}
+          </p>
+          <h2
+            className="mt-0.5 text-[20px] leading-tight font-bold text-foreground"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            {title}
+          </h2>
+        </div>
+        {competicion || special || v.covered ? (
+          <span
+            className={cn(
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+              competicion || special
+                ? "border-primary/30 bg-primary/10 text-primary"
+                : "border-protein/30 bg-protein/10 text-protein",
+            )}
+          >
+            <i
+              className="size-1.5 rounded-full"
+              style={{
+                background: competicion || special ? "var(--info)" : "var(--protein)",
+              }}
+              aria-hidden
+            />
+            {competicion ? "Repostaje" : special ? "Fase especial" : "Cubierto"}
+          </span>
+        ) : null}
       </div>
 
       {/* Fila de anillos: kcal (grande, con puntos de comida) + proteína + hidratos */}
