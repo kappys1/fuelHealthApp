@@ -1,6 +1,11 @@
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { shiftDayKey } from "@/lib/dates";
+import {
+  buildHealthBaseline,
+  type HealthBaseline,
+} from "@/server/analytics/healthBaseline";
 import { db, schema } from "@/server/db";
 import { HEALTH_FIELDS, type HealthDay } from "@/server/ingest/normalize";
 import type { WorkoutRow } from "@/server/ingest/hae-json";
@@ -149,4 +154,44 @@ export async function getHealthSyncView(): Promise<HealthSyncView | null> {
     ago: formatDistanceToNow(new Date(s.at), { addSuffix: true, locale: es }),
     stale: Date.now() - Date.parse(s.at) > STALE_MS,
   };
+}
+
+/**
+ * Baseline personal del día seleccionado. El rango histórico es exactamente los
+ * 30 días naturales anteriores ([date-30, date-1]); el propio día solo aporta el
+ * valor crudo actual y nunca entra en su media.
+ */
+export async function getHealthBaseline(date: string): Promise<HealthBaseline> {
+  const from = shiftDayKey(date, -30);
+  const to = shiftDayKey(date, -1);
+  const projection = {
+    hrvMs: schema.healthMetrics.hrvMs,
+    restingHr: schema.healthMetrics.restingHr,
+    sleepH: schema.healthMetrics.sleepH,
+    steps: schema.healthMetrics.steps,
+  };
+
+  const [currentRows, history] = await Promise.all([
+    db
+      .select(projection)
+      .from(schema.healthMetrics)
+      .where(eq(schema.healthMetrics.date, date))
+      .limit(1),
+    db
+      .select(projection)
+      .from(schema.healthMetrics)
+      .where(
+        and(
+          gte(schema.healthMetrics.date, from),
+          lte(schema.healthMetrics.date, to),
+        ),
+      ),
+  ]);
+
+  return buildHealthBaseline({
+    current: currentRows[0] ?? null,
+    history,
+    from,
+    to,
+  });
 }

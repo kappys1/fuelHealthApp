@@ -22,6 +22,11 @@ import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import { getDayView } from "@/server/db/queries/day";
 import { getPlanContext } from "@/server/db/queries/plan";
 import { getTrendData } from "@/server/db/queries/trend";
+import {
+  coachContextHash,
+  type CoachReading,
+} from "@/server/ai/coach-reading";
+import { saveCoachReading } from "@/server/db/queries/coach-reading";
 
 const bodyZ = z.object({
   date: dateZ.optional(),
@@ -106,8 +111,9 @@ export async function POST(request: Request) {
     ? pendingPlanOptions(plan.optionsByMeal, pendingMeals)
     : "";
 
+  let text: string;
   try {
-    const text = await runText({
+    text = await runText({
       kind: "coach",
       task: "coach",
       prompt: coachPrompt({
@@ -129,8 +135,22 @@ export async function POST(request: Request) {
       // 100 palabras + thinking "medium": presupuesto amplio para no truncar.
       maxOutputTokens: 3072,
     });
-    return Response.json({ text });
   } catch (err) {
     return aiErrorResponse(err);
+  }
+
+  const reading: CoachReading = {
+    baseDate: base,
+    targetDate,
+    mode: parsed.data.mode,
+    text,
+    generatedAt: new Date().toISOString(),
+    contextHash: coachContextHash(view, targets),
+  };
+  try {
+    await saveCoachReading(reading);
+    return Response.json(reading);
+  } catch (err) {
+    return serverError(err);
   }
 }

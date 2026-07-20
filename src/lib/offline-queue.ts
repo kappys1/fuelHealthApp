@@ -26,6 +26,34 @@ interface FuelboardDB extends DBSchema {
 const DB_NAME = "fuelboard-offline";
 const STORE = "queue";
 
+export type OfflineQueuePhase = "idle" | "offline" | "syncing" | "failed";
+export interface OfflineQueueSnapshot {
+  online: boolean;
+  pending: number;
+  phase: OfflineQueuePhase;
+}
+
+let snapshot: OfflineQueueSnapshot = {
+  online: true,
+  pending: 0,
+  phase: "idle",
+};
+const subscribers = new Set<() => void>();
+
+function publish(patch: Partial<OfflineQueueSnapshot>) {
+  snapshot = { ...snapshot, ...patch };
+  subscribers.forEach((listener) => listener());
+}
+
+export function subscribeOfflineQueue(listener: () => void): () => void {
+  subscribers.add(listener);
+  return () => subscribers.delete(listener);
+}
+
+export function getOfflineQueueSnapshot(): OfflineQueueSnapshot {
+  return snapshot;
+}
+
 let dbPromise: Promise<IDBPDatabase<FuelboardDB>> | null = null;
 function getDb() {
   if (!dbPromise) {
@@ -46,11 +74,31 @@ export function isOffline(): boolean {
 export async function enqueue(op: Omit<QueuedOp, "id">): Promise<void> {
   const db = await getDb();
   await db.add(STORE, op as QueuedOp);
+  publish({
+    online: !isOffline(),
+    pending: await db.count(STORE),
+    phase: isOffline() ? "offline" : "idle",
+  });
 }
 
 export async function queueSize(): Promise<number> {
   const db = await getDb();
   return db.count(STORE);
+}
+
+export async function refreshOfflineQueueStatus(): Promise<OfflineQueueSnapshot> {
+  const pending = await queueSize();
+  const online = !isOffline();
+  publish({
+    online,
+    pending,
+    phase: online ? (snapshot.phase === "syncing" ? "syncing" : "idle") : "offline",
+  });
+  return snapshot;
+}
+
+export async function markOffline(): Promise<void> {
+  publish({ online: false, phase: "offline", pending: await queueSize() });
 }
 
 /**
@@ -61,7 +109,13 @@ export async function queueSize(): Promise<number> {
 export async function flushQueue(): Promise<number> {
   const db = await getDb();
   const ops = await db.getAll(STORE);
+  if (ops.length === 0) {
+    publish({ online: !isOffline(), pending: 0, phase: isOffline() ? "offline" : "idle" });
+    return 0;
+  }
+  publish({ online: !isOffline(), pending: ops.length, phase: "syncing" });
   let done = 0;
+  let failed = false;
   for (const op of ops) {
     try {
       if (op.kind === "addEntries" && op.entries) {
@@ -72,8 +126,16 @@ export async function flushQueue(): Promise<number> {
       if (op.id != null) await db.delete(STORE, op.id);
       done++;
     } catch {
+      failed = true;
       break; // sin red aún o error transitorio: conservar el resto
     }
   }
+  const pending = await db.count(STORE);
+  const online = !isOffline();
+  publish({
+    online,
+    pending,
+    phase: !online ? "offline" : failed ? "failed" : "idle",
+  });
   return done;
 }

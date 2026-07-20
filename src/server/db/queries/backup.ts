@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { db, schema } from "@/server/db";
 import { productImportRow } from "../products-map";
-import { mealEntryImportRow, planOptionImportRow } from "./backup-map";
+import {
+  bloatEventImportRow,
+  mealEntryImportRow,
+  planOptionImportRow,
+} from "./backup-map";
 
 /*
   Export/restore JSON completo (F4.5 / principio 7: los datos son sagrados).
@@ -17,7 +21,7 @@ import { mealEntryImportRow, planOptionImportRow } from "./backup-map";
 */
 
 export const EXPORT_APP = "fuelboard";
-export const EXPORT_VERSION = 1 as const;
+export const EXPORT_VERSION = 2 as const;
 
 export interface FullExport {
   app: typeof EXPORT_APP;
@@ -31,6 +35,7 @@ export async function exportAll(): Promise<FullExport> {
     dietVersions,
     planOptions,
     days,
+    bloatEvents,
     mealEntries,
     healthMetrics,
     workouts,
@@ -49,6 +54,7 @@ export async function exportAll(): Promise<FullExport> {
     db.select().from(schema.dietVersions),
     db.select().from(schema.planOptions),
     db.select().from(schema.days),
+    db.select().from(schema.bloatEvents),
     db.select().from(schema.mealEntries),
     db.select().from(schema.healthMetrics),
     db.select().from(schema.workouts),
@@ -73,6 +79,7 @@ export async function exportAll(): Promise<FullExport> {
       dietVersions,
       planOptions,
       days,
+      bloatEvents,
       mealEntries,
       healthMetrics,
       workouts,
@@ -100,6 +107,7 @@ const importSchema = z.object({
     dietVersions: z.array(anyRow).default([]),
     planOptions: z.array(anyRow).default([]),
     days: z.array(anyRow).default([]),
+    bloatEvents: z.array(anyRow).default([]),
     mealEntries: z.array(anyRow).default([]),
     healthMetrics: z.array(anyRow).default([]),
     workouts: z.array(anyRow).default([]),
@@ -162,6 +170,7 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
   await db.delete(schema.chatThreads);
   await db.delete(schema.mealEntries);
   await db.delete(schema.planOptions);
+  await db.delete(schema.bloatEvents);
   await db.delete(schema.days);
   // training_sessions se borra tras days (days.session_ref → training_sessions);
   // luego training_plans (padre).
@@ -251,6 +260,14 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
         notes: s(r.notes),
       })),
     );
+  }
+
+  // 3b) Marcadores temporales (FK → days). Backups v1 no traen esta clave y
+  // parseImport la normaliza a [], sin fabricar una hora para days.bloat.
+  if (data.bloatEvents.length) {
+    await db
+      .insert(schema.bloatEvents)
+      .values(data.bloatEvents.map(bloatEventImportRow));
   }
 
   // 4) plan_options (FK → diet_versions remapeada; variants F08 vía mapa puro).

@@ -14,8 +14,23 @@ export const grpZ = z.enum([
 ]);
 export const phaseZ = z.enum(["carga", "competicion", "recuperacion"]);
 export const bloatZ = z.enum(["ninguna", "leve", "moderada", "alta"]);
-export const sourceZ = z.enum(["plan", "foto", "manual", "ia", "fav", "plantilla"]);
 export const dateZ = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida.");
+export const localTimeZ = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Hora inválida.")
+  .transform((value) => (value.length === 5 ? `${value}:00` : value));
+export const bloatEventCreateZ = z.object({
+  date: dateZ,
+  severity: bloatZ,
+  occurredAt: localTimeZ,
+});
+export const bloatEventPatchZ = z
+  .object({
+    severity: bloatZ.optional(),
+    occurredAt: localTimeZ.optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, "No hay cambios.");
+export const sourceZ = z.enum(["plan", "foto", "manual", "ia", "fav", "plantilla"]);
 
 // Tope del mensaje del chat: cabe un menú de comedor entero pegado. Compartido
 // para que cliente (aviso en vivo) y servidor (validación) no se desincronicen.
