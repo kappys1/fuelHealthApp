@@ -10,25 +10,26 @@ import {
 import { useState } from "react";
 import type { CoachReadingView } from "@/server/ai/coach-reading";
 
+const HOUR_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid",
+  hour: "2-digit",
+  hour12: false,
+});
+const SAVED_AT_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
 function greeting(): string {
-  const hour = Number(
-    new Intl.DateTimeFormat("es-ES", {
-      timeZone: "Europe/Madrid",
-      hour: "2-digit",
-      hour12: false,
-    }).format(new Date()),
-  );
+  const hour = Number(HOUR_FORMATTER.format(new Date()));
   if (hour < 13) return "Buenos días, Alex";
   if (hour < 20) return "Buenas tardes, Alex";
   return "Buenas noches, Alex";
 }
 
 function savedAt(value: string): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    timeZone: "Europe/Madrid",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return SAVED_AT_FORMATTER.format(new Date(value));
 }
 
 export function CoachGreetingCard({

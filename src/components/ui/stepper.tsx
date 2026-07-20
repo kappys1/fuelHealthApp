@@ -25,6 +25,7 @@ export function Stepper({
   suffix,
   className,
   ariaLabel,
+  id,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -34,6 +35,7 @@ export function Stepper({
   suffix?: string;
   className?: string;
   ariaLabel?: string;
+  id?: string;
 }) {
   const [text, setText] = useState(value);
   const [prevValue, setPrevValue] = useState(value);
@@ -78,6 +80,7 @@ export function Stepper({
       </button>
       <div className="flex min-w-0 flex-1 items-center">
         <input
+          id={id}
           aria-label={ariaLabel}
           value={text}
           inputMode="decimal"
