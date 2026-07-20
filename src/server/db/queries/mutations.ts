@@ -338,22 +338,29 @@ export async function createDietVersionFull(v: ImportedVersion) {
     .returning();
   if (!version) throw new Error("No se pudo crear la versión de dieta.");
 
-  if (v.options.length > 0) {
-    await db.insert(schema.planOptions).values(
-      v.options.map((o, i) => ({
-        dietVersionId: version.id,
-        meal: o.meal,
-        grp: o.grp as GrpEnum,
-        name: o.name,
-        baseG: o.baseG,
-        kcal: o.kcal,
-        prot: o.prot,
-        carb: o.carb,
-        fat: o.fat,
-        variants: o.variants ?? [],
-        sort: i,
-      })),
-    );
+  try {
+    if (v.options.length > 0) {
+      await db.insert(schema.planOptions).values(
+        v.options.map((o, i) => ({
+          dietVersionId: version.id,
+          meal: o.meal,
+          grp: o.grp as GrpEnum,
+          name: o.name,
+          baseG: o.baseG,
+          kcal: o.kcal,
+          prot: o.prot,
+          carb: o.carb,
+          fat: o.fat,
+          variants: o.variants ?? [],
+          sort: i,
+        })),
+      );
+    }
+  } catch (error) {
+    await db
+      .delete(schema.dietVersions)
+      .where(eq(schema.dietVersions.id, version.id));
+    throw error;
   }
   return version;
 }

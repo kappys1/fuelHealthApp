@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { MarkChart } from "@/components/charts/mark-chart";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Sheet,
   SheetContent,
@@ -70,6 +71,8 @@ export function MarkDetailSheet({
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingMark, setDeletingMark] = useState(false);
   // Undo INLINE (dentro del sheet): un toast de Sonner se renderiza fuera del sheet
   // modal y no recibe clics (react-remove-scroll). El registro recién borrado se
   // guarda aquí para ofrecer «Deshacer» durante 6 s dentro del propio sheet.
@@ -95,32 +98,31 @@ export function MarkDetailSheet({
   const change = latestChange(mark.measureType, mark.entries);
 
   const deleteMark = async () => {
-    if (
-      !window.confirm(
-        `¿Borrar la marca «${mark.name}» y sus ${mark.entries.length} registros? No se puede deshacer.`,
-      )
-    )
-      return;
+    setDeletingMark(true);
     try {
       await onDeleteMark(mark.id);
       toast.success("Marca borrada.");
+      setDeleteOpen(false);
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
+    } finally {
+      setDeletingMark(false);
     }
   };
 
   return (
-    <Sheet open onOpenChange={(v) => !v && onClose()}>
+    <>
+      <Sheet open onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="bottom" className="max-h-[92dvh] gap-0 overflow-y-auto">
         <SheetHeader className="pb-1">
           <SheetTitle className="flex items-center justify-between gap-2 pr-6">
             <span className="min-w-0 truncate">{mark.name}</span>
             <button
               type="button"
-              onClick={deleteMark}
+              onClick={() => setDeleteOpen(true)}
               aria-label="Borrar marca"
-              className="shrink-0 text-muted-foreground hover:text-destructive"
+              className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
             >
               <Trash2 className="size-4" aria-hidden />
             </button>
@@ -199,7 +201,7 @@ export function MarkDetailSheet({
                   setAdding((v) => !v);
                   setEditingId(null);
                 }}
-                className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-[12px] text-primary"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-line bg-surface-2 px-3 text-[12px] font-semibold text-primary"
               >
                 <Plus className="size-3.5" aria-hidden /> Registro
               </button>
@@ -281,7 +283,7 @@ export function MarkDetailSheet({
                         setEditingId(e.id);
                         setAdding(false);
                       }}
-                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                      className="app-icon-button shrink-0 border-0 bg-transparent hover:text-foreground"
                     >
                       <Pencil className="size-4" aria-hidden />
                     </button>
@@ -289,7 +291,7 @@ export function MarkDetailSheet({
                       type="button"
                       aria-label="Borrar registro"
                       onClick={() => handleDelete(e)}
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
                     >
                       <Trash2 className="size-4" aria-hidden />
                     </button>
@@ -304,8 +306,18 @@ export function MarkDetailSheet({
             </div>
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Borrar marca y registros"
+        description={`Se borrará «${mark.name}» junto con ${mark.entries.length} ${mark.entries.length === 1 ? "registro" : "registros"}. Esta acción no se puede deshacer.`}
+        confirmLabel="Borrar marca"
+        busy={deletingMark}
+        onConfirm={deleteMark}
+      />
+    </>
   );
 }
 
@@ -327,14 +339,14 @@ function PercentCalculator({
         <span className="text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">
           Calculadora de %
         </span>
-        <div className="flex items-center gap-1 rounded-lg border border-input bg-surface px-3">
+        <div className="flex min-h-11 items-center gap-1 rounded-lg border border-input bg-surface px-3">
           <input
             value={pct}
             onChange={(e) => setPct(e.target.value)}
             onFocus={(e) => e.currentTarget.select()}
             inputMode="decimal"
             aria-label="Porcentaje"
-            className="num h-10 w-12 bg-transparent text-right text-base outline-none"
+            className="num h-11 w-12 bg-transparent text-right text-base outline-none"
           />
           <span className="text-[13px] text-muted-foreground">%</span>
         </div>
@@ -430,7 +442,7 @@ function EntryForm({
         onChange={setValueStr}
         autoFocus
       />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
         <input
           type="date"
           value={date}
@@ -450,7 +462,7 @@ function EntryForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-3 py-2 text-sm text-muted-foreground"
+          className="min-h-11 rounded-xl px-4 text-sm font-semibold text-muted-foreground"
         >
           Cancelar
         </button>
@@ -458,7 +470,7 @@ function EntryForm({
           type="button"
           onClick={save}
           disabled={busy}
-          className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+          className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
           {entry ? "Guardar" : "Añadir"}
         </button>

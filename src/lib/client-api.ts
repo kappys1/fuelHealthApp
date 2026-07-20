@@ -18,6 +18,7 @@ import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
 import type { DayPatch, MedInput } from "@/server/db/queries/mutations";
 import type { TodayPayload } from "@/server/db/queries/today";
 import type { BloatEventDTO } from "@/server/db/queries/bloat";
+import type { PlanOptionDTO } from "@/server/db/queries/plan";
 import type {
   CoachMode,
   CoachReading,
@@ -74,6 +75,18 @@ export interface ProductInput {
   grupo: GrpKey | null;
   source: "etiqueta" | "manual" | "legacy";
   pinned: boolean;
+}
+
+export interface PlanOptionInput {
+  meal: MealKey;
+  grp: GrpKey;
+  name: string;
+  baseG: number | null;
+  kcal: number;
+  prot: number;
+  carb: number;
+  fat: number;
+  variants: PlanVariant[];
 }
 
 export const api = {
@@ -222,6 +235,7 @@ export const api = {
     programa: string;
     etiqueta: string;
     source: "pdf" | "foto" | "texto";
+    weekStart?: string;
     sessions: {
       key: string;
       nombre: string;
@@ -275,14 +289,14 @@ export const api = {
       body: JSON.stringify(t),
     }),
 
-  addOption: (opt: unknown) =>
-    req<{ option: unknown }>("/api/plan/options", {
+  addOption: (opt: PlanOptionInput) =>
+    req<{ option: PlanOptionDTO }>("/api/plan/options", {
       method: "POST",
       body: JSON.stringify(opt),
     }),
 
-  updateOption: (id: number, patch: unknown) =>
-    req<{ option: unknown }>(`/api/plan/options/${id}`, {
+  updateOption: (id: number, patch: Partial<PlanOptionInput>) =>
+    req<{ option: PlanOptionDTO }>(`/api/plan/options/${id}`, {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),

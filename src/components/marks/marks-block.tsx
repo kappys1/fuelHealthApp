@@ -57,8 +57,8 @@ export function MarksBlock({
   );
 
   return (
-    <section className="rounded-xl border border-line bg-surface">
-      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
+    <section className="wellness-card overflow-hidden ring-1 ring-line">
+      <div className="flex items-center justify-between border-b border-line px-4 py-3.5">
         <div>
           <h2 className="text-[14px] font-semibold text-foreground">Marcas</h2>
           <p className="text-[12px] text-muted-foreground">
@@ -68,7 +68,7 @@ export function MarksBlock({
         <button
           type="button"
           onClick={() => setRegisterOpen(true)}
-          className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-[12px] font-medium text-primary"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-line bg-surface-2 px-3 text-[12px] font-semibold text-primary"
         >
           <Plus className="size-4" aria-hidden /> Marca
         </button>
@@ -83,7 +83,7 @@ export function MarksBlock({
         <>
           {/* Buscador en vivo (F04): filtra la lista por nombre sobre lo cargado. */}
           <div className="border-b border-line px-4 py-2.5">
-            <div className="flex items-center gap-2 rounded-lg border border-input bg-surface-2 px-3">
+            <div className="flex min-h-11 items-center gap-2 rounded-xl border border-input bg-surface-2 pl-3">
               <Search
                 className="size-4 shrink-0 text-muted-foreground"
                 aria-hidden
@@ -92,7 +92,7 @@ export function MarksBlock({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar marca (snatch, Fran…)"
-                className="h-10 w-full bg-transparent text-base outline-none"
+                className="h-11 w-full bg-transparent text-base outline-none"
                 aria-label="Buscar marca"
               />
               {query ? (
@@ -100,7 +100,7 @@ export function MarksBlock({
                   type="button"
                   onClick={() => setQuery("")}
                   aria-label="Limpiar búsqueda"
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  className="app-icon-button shrink-0 border-0 bg-transparent hover:text-foreground"
                 >
                   <X className="size-4" aria-hidden />
                 </button>
