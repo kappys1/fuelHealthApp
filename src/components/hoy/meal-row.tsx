@@ -111,7 +111,7 @@ export function MealRow({
           type="button"
           onClick={() => onDelete(entry)}
           aria-label={`Borrar ${entry.name}`}
-          className="app-icon-button shrink-0 border-0 bg-transparent text-muted-foreground hover:text-destructive"
+          className="grid size-11 shrink-0 place-items-center rounded-lg bg-transparent text-muted-foreground transition-colors hover:bg-surface hover:text-destructive focus-visible:ring-3 focus-visible:ring-ring/35 focus-visible:outline-none"
         >
           <Trash2 className="size-4" aria-hidden />
         </button>
