@@ -1,19 +1,19 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Flame, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { HeaderDatePicker } from "@/components/hoy-date-picker";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { api } from "@/lib/client-api";
-import { dayKey, labelForKey, shiftDayKey } from "@/lib/dates";
+import { dayKey, shiftDayKey } from "@/lib/dates";
 
 /*
-  Topbar compartido (Restyle v2 · chrome global, estructura real del mockup).
-  - En Hoy: badge «F» + navegación de día (‹ Hoy · 17 jul ›) + racha 🔥 + Ajustes.
-    La fecha sale de ?date; la racha, de la query compartida ['today', date] (misma
-    caché que la pantalla, sin fetch extra dentro del staleTime).
-  - En el resto: badge «F» + eyebrow FUELBOARD + subtítulo por ruta + Ajustes.
-  El H1 grande de cada pantalla lo pone la propia pantalla.
+  Topbar compartido (Restyle v2 · chrome global, estructura real del mockup image #3).
+  Izquierda: badge «F». Centro: eyebrow FUELBOARD + (en Hoy) navegación de día con
+  calendario + racha 🔥; en el resto, subtítulo por ruta. Derecha: toggle de tema +
+  avatar (→ perfil/Ajustes). El H1 grande de cada pantalla lo pone la propia pantalla.
 */
 const SUBTITLE: Record<string, string> = {
   "/plan": "Tu plan actual",
@@ -28,7 +28,7 @@ export function AppTopbar() {
 
   return (
     <header
-      className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-line bg-background/90 px-4 pb-2.5 backdrop-blur"
+      className="sticky top-0 z-30 flex items-center gap-3 border-b border-line bg-background/90 px-4 pb-2.5 backdrop-blur"
       style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.625rem)" }}
     >
       <Link href="/hoy" aria-label="Fuelboard" className="shrink-0">
@@ -41,31 +41,33 @@ export function AppTopbar() {
         </span>
       </Link>
 
-      {isHoy ? <HoyNav /> : <ScreenTitle pathname={pathname} />}
+      <div className="min-w-0 flex-1">
+        <span className="block text-[10px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
+          Fuelboard
+        </span>
+        {isHoy ? <HoyNav /> : <ScreenSubtitle pathname={pathname} />}
+      </div>
 
-      <Link
-        href="/ajustes"
-        aria-label="Ajustes"
-        className="inline-flex size-9 shrink-0 items-center justify-center rounded-[10px] border border-line bg-surface text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        <Settings className="size-[18px]" aria-hidden />
-      </Link>
+      <div className="flex shrink-0 items-center gap-2">
+        <ThemeToggle compact />
+        <Link
+          href="/ajustes"
+          aria-label="Perfil y ajustes"
+          className="grid size-9 place-items-center rounded-full bg-primary text-[14px] font-bold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          A
+        </Link>
+      </div>
     </header>
   );
 }
 
-function ScreenTitle({ pathname }: { pathname: string }) {
+function ScreenSubtitle({ pathname }: { pathname: string }) {
   const key = Object.keys(SUBTITLE).find((k) => pathname.startsWith(k));
-  const subtitle = key ? SUBTITLE[key] : "Tu día";
   return (
-    <div className="min-w-0 flex-1">
-      <span className="block text-[10px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
-        Fuelboard
-      </span>
-      <span className="block truncate text-[13px] font-semibold text-foreground">
-        {subtitle}
-      </span>
-    </div>
+    <span className="block truncate text-[13px] font-semibold text-foreground">
+      {key ? SUBTITLE[key] : "Tu día"}
+    </span>
   );
 }
 
@@ -83,39 +85,29 @@ function HoyNav() {
   });
   const streak = data?.streak ?? 0;
 
-  const short = labelForKey(date).replace(/^\S+\s/, "");
-  const go = (delta: number) =>
-    router.push(`/hoy?date=${shiftDayKey(date, delta)}`);
-
   return (
-    <div className="flex min-w-0 flex-1 items-center justify-center gap-1">
+    <div className="flex items-center gap-1">
       <button
         type="button"
         aria-label="Día anterior"
-        onClick={() => go(-1)}
-        className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
+        onClick={() => router.push(`/hoy?date=${shiftDayKey(date, -1)}`)}
+        className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="size-4" aria-hidden />
       </button>
-      <button
-        type="button"
-        onClick={() => router.push("/hoy")}
-        className="min-w-0 truncate text-[13px] font-semibold text-foreground"
-      >
-        {isToday ? `Hoy · ${short}` : labelForKey(date)}
-      </button>
+      <HeaderDatePicker date={date} />
       <button
         type="button"
         aria-label="Día siguiente"
-        onClick={() => go(1)}
+        onClick={() => router.push(`/hoy?date=${shiftDayKey(date, 1)}`)}
         disabled={isToday}
-        className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-40"
+        className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:text-foreground disabled:opacity-40"
       >
         <ChevronRight className="size-4" aria-hidden />
       </button>
-      <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[12px] text-muted-foreground">
+      <span className="ml-1 inline-flex items-center gap-1 text-[12px] text-muted-foreground">
         <Flame className="size-3.5 text-primary" aria-hidden />
-        <span className="num">{streak}</span>
+        <span className="num">{streak}</span> días
       </span>
     </div>
   );

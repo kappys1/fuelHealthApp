@@ -17,7 +17,7 @@ const LABEL: Record<ThemeChoice, string> = {
  * Ciclo claro → oscuro → auto (sistema). El icono refleja la elección actual.
  * Se monta tras hidratar para evitar el desajuste de next-themes.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const { theme, setTheme } = useTheme();
   // Guard de hidratación de next-themes: hasta montar en cliente no sabemos el
   // tema resuelto. El setState en efecto es intencionado (patrón oficial).
@@ -34,6 +34,20 @@ export function ThemeToggle() {
     ORDER[(ORDER.indexOf(current) + 1) % ORDER.length] ?? "system";
   const Icon =
     current === "light" ? Sun : current === "dark" ? Moon : Monitor;
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={() => setTheme(next)}
+        aria-label={`Tema: ${LABEL[current]}. Cambiar a ${LABEL[next]}`}
+        title={`Tema: ${LABEL[current]}`}
+        className="inline-flex size-9 items-center justify-center rounded-[10px] border border-line bg-surface text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <Icon className="size-[18px]" aria-hidden />
+      </button>
+    );
+  }
 
   return (
     <button
