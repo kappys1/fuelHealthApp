@@ -61,7 +61,7 @@ export function DayStatusLine({
     <button
       type="button"
       onClick={action}
-      className="flex w-full items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-left"
+      className="flex min-h-11 w-full items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 text-left"
     >
       <span className="text-[13px] font-medium text-primary">{msg}</span>
       <ChevronRight className="size-4 text-primary" aria-hidden />

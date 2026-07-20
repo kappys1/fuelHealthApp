@@ -10,198 +10,221 @@ import {
   WifiOff,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useReducer } from "react";
 import { toast } from "sonner";
 import { Markdown } from "@/components/ui/markdown";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import { api } from "@/lib/client-api";
 import { useOnline } from "@/lib/use-online";
+import type {
+  CoachMode,
+  CoachReading,
+  CoachReadingView,
+} from "@/server/ai/coach-reading";
 
-/*
-  Coach diario (F-IA-6) tras el ✨ del FuelGauge, en sheet. Dos modos: «¿Cómo voy
-  hoy?» (día en curso) y «Analizar ayer» (día terminado). Respuesta en texto plano
-  (white-space: pre-wrap). Deshabilitado sin conexión con motivo visible (07 §4).
-*/
-type Mode = "hoy" | "ayer";
+interface CoachSheetState {
+  mode: CoachMode | null;
+  loading: boolean;
+  text: string | null;
+  error: string | null;
+  copied: boolean;
+  bridging: boolean;
+  cachedVisible: boolean;
+}
+
+type CoachSheetAction =
+  | { type: "reset"; showCache: boolean }
+  | { type: "start"; mode: CoachMode }
+  | { type: "success"; text: string }
+  | { type: "error"; message: string }
+  | { type: "copied"; value: boolean }
+  | { type: "bridging"; value: boolean };
+
+const INITIAL_STATE: CoachSheetState = {
+  mode: null,
+  loading: false,
+  text: null,
+  error: null,
+  copied: false,
+  bridging: false,
+  cachedVisible: true,
+};
+
+function coachSheetReducer(
+  state: CoachSheetState,
+  action: CoachSheetAction,
+): CoachSheetState {
+  switch (action.type) {
+    case "reset":
+      return { ...INITIAL_STATE, cachedVisible: action.showCache };
+    case "start":
+      return {
+        ...state,
+        mode: action.mode,
+        loading: true,
+        text: null,
+        error: null,
+        cachedVisible: false,
+      };
+    case "success":
+      return { ...state, loading: false, text: action.text };
+    case "error":
+      return { ...state, loading: false, error: action.message };
+    case "copied":
+      return { ...state, copied: action.value };
+    case "bridging":
+      return { ...state, bridging: action.value };
+  }
+}
 
 export function CoachSheet({
   open,
   onOpenChange,
   date,
+  initialReading,
+  onReading,
 }: {
   open: boolean;
-  onOpenChange: (v: boolean) => void;
+  onOpenChange: (open: boolean) => void;
   date: string;
+  initialReading: CoachReadingView | null;
+  onReading: (reading: CoachReading) => void;
 }) {
   const online = useOnline();
   const router = useRouter();
-  const [mode, setMode] = useState<Mode | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [text, setText] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [bridging, setBridging] = useState(false);
+  const [state, dispatch] = useReducer(coachSheetReducer, INITIAL_STATE);
 
-  const reset = () => {
-    setMode(null);
-    setText(null);
-    setError(null);
-    setCopied(false);
-    setBridging(false);
+  const shownText = state.text ??
+    (state.cachedVisible ? initialReading?.text ?? null : null);
+  const shownMode: CoachMode | null = state.mode ?? (shownText ? "hoy" : null);
+
+  const reset = (showCache = true) => {
+    dispatch({ type: "reset", showCache });
   };
 
-  const run = async (m: Mode) => {
-    setMode(m);
-    setLoading(true);
-    setText(null);
-    setError(null);
+  const run = async (nextMode: CoachMode) => {
+    dispatch({ type: "start", mode: nextMode });
     try {
-      const r = await api.coach(date, m);
-      setText(r.text);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo analizar el día.");
-    } finally {
-      setLoading(false);
+      const reading = await api.coach(date, nextMode);
+      dispatch({ type: "success", text: reading.text });
+      if (nextMode === "hoy") onReading(reading);
+    } catch (caught) {
+      dispatch({
+        type: "error",
+        message:
+          caught instanceof Error ? caught.message : "No se pudo analizar el día.",
+      });
     }
   };
 
   const copy = async () => {
-    if (!text) return;
+    if (!shownText) return;
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      await navigator.clipboard.writeText(shownText);
+      dispatch({ type: "copied", value: true });
+      setTimeout(() => dispatch({ type: "copied", value: false }), 1500);
     } catch {
       toast.error("No se pudo copiar.");
     }
   };
 
-  // Puente Coach → Chat (F01 Fase 2 · A1): siembra un hilo con la pregunta y el
-  // texto del coach como respuesta del asistente, y abre el Chat en ese hilo.
   const continueInChat = async () => {
-    if (!text || !mode || bridging) return;
-    setBridging(true);
+    if (!shownText || !shownMode || state.bridging) return;
+    dispatch({ type: "bridging", value: true });
     try {
-      const userMessage = mode === "hoy" ? "¿Cómo voy hoy?" : "Analizar ayer";
-      const { threadId } = await api.seedChatThread(userMessage, text);
+      const userMessage = shownMode === "hoy" ? "¿Cómo voy hoy?" : "Analizar ayer";
+      const { threadId } = await api.seedChatThread(userMessage, shownText);
       onOpenChange(false);
       reset();
       router.push(`/chat?thread=${threadId}`);
-    } catch (err) {
-      setBridging(false);
-      toast.error(err instanceof Error ? err.message : "No se pudo abrir el chat.");
+    } catch (caught) {
+      dispatch({ type: "bridging", value: false });
+      toast.error(
+        caught instanceof Error ? caught.message : "No se pudo abrir el chat.",
+      );
     }
   };
 
   return (
     <Sheet
       open={open}
-      onOpenChange={(v) => {
-        onOpenChange(v);
-        if (!v) reset();
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) reset();
       }}
     >
-      <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-y-auto">
-        <SheetHeader className="pb-2">
+      <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto">
+        <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="size-4 text-primary" aria-hidden /> Coach
           </SheetTitle>
+          <SheetDescription>Lecturas guardadas y análisis bajo demanda.</SheetDescription>
         </SheetHeader>
 
         <div className="px-4 pb-6">
-          {mode == null ? (
-            <>
-              <p className="text-[13px] text-muted-foreground">
-                Un vistazo rápido a tu día con el contexto completo (comidas, peso,
-                sesión, notas). Observa y sugiere; no prescribe dieta.
-              </p>
-              <div className="mt-4 grid gap-2">
-                <ModeButton
-                  label="¿Cómo voy hoy?"
-                  hint="Qué te falta para cuadrar el día"
-                  disabled={!online}
-                  onClick={() => run("hoy")}
-                />
-                <ModeButton
-                  label="Analizar ayer"
-                  hint="Qué hiciste bien y acciones para hoy"
-                  disabled={!online}
-                  onClick={() => run("ayer")}
-                />
+          {state.loading ? (
+            <div className="flex items-center gap-2 py-8 text-[14px] text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" aria-hidden /> Analizando tu día…
+            </div>
+          ) : state.error ? (
+            <div role="alert" className="rounded-xl border border-destructive/40 bg-destructive/8 p-3 text-[13px] text-destructive">
+              {state.error}
+              <div className="mt-3 flex gap-2">
+                <button type="button" onClick={() => reset(true)} className="min-h-11 rounded-xl px-3 text-[12px] font-medium text-foreground">
+                  Volver a la guardada
+                </button>
+                <button type="button" onClick={() => void run(state.mode ?? "hoy")} className="min-h-11 rounded-xl px-3 text-[12px] font-semibold text-destructive">
+                  Reintentar
+                </button>
               </div>
-              {!online ? (
-                <p className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground">
-                  <WifiOff className="size-3.5" aria-hidden /> Sin conexión: el coach
-                  necesita red.
-                </p>
-              ) : null}
-            </>
-          ) : (
+            </div>
+          ) : shownText ? (
             <>
               <button
                 type="button"
-                onClick={reset}
-                className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground"
+                onClick={() => reset(false)}
+                className="mb-3 inline-flex min-h-11 items-center gap-1.5 text-[12px] font-medium text-muted-foreground"
               >
-                <ArrowLeft className="size-4" aria-hidden />
-                {mode === "hoy" ? "¿Cómo voy hoy?" : "Analizar ayer"}
+                <ArrowLeft className="size-4" aria-hidden /> Otras lecturas
               </button>
-
-              {loading ? (
-                <div className="flex items-center gap-2 py-8 text-[14px] text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" aria-hidden /> Analizando tu
-                  día…
-                </div>
-              ) : error ? (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5 text-[13px] text-destructive">
-                  {error}
-                  <button
-                    type="button"
-                    onClick={() => run(mode)}
-                    className="mt-2 block text-[12px] font-medium underline"
-                  >
-                    Reintentar
-                  </button>
-                </div>
-              ) : text ? (
-                <>
-                  <Markdown
-                    text={text}
-                    className="space-y-2 text-[14px] leading-relaxed text-foreground"
-                  />
-                  <div className="mt-4 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={copy}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-[13px] text-foreground"
-                    >
-                      {copied ? (
-                        <Check className="size-4 text-protein" aria-hidden />
-                      ) : (
-                        <Copy className="size-4" aria-hidden />
-                      )}
-                      {copied ? "Copiado" : "Copiar"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={continueInChat}
-                      disabled={bridging}
-                      className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium text-primary hover:bg-surface-2 disabled:opacity-50"
-                    >
-                      {bridging ? (
-                        <Loader2 className="size-4 animate-spin" aria-hidden />
-                      ) : (
-                        <ArrowRight className="size-4" aria-hidden />
-                      )}
-                      Seguir en el chat
-                    </button>
-                  </div>
-                </>
+              {state.cachedVisible && initialReading ? (
+                <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-[11px] text-muted-foreground">
+                  {initialReading.stale
+                    ? "Hay datos nuevos. Esta es la última lectura guardada."
+                    : "Lectura guardada · abrirla no consume IA."}
+                </p>
+              ) : null}
+              <p className="mb-2 text-[11px] font-semibold text-primary">
+                {shownMode === "ayer" ? "Lectura de ayer" : "Lectura de hoy"}
+              </p>
+              <Markdown text={shownText} className="space-y-2 text-[14px] leading-relaxed text-foreground" />
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => void copy()} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-line-strong bg-surface text-[12px] font-medium text-foreground">
+                  {state.copied ? <Check className="size-4 text-protein" aria-hidden /> : <Copy className="size-4" aria-hidden />}
+                  {state.copied ? "Copiado" : "Copiar"}
+                </button>
+                <button type="button" onClick={() => void continueInChat()} disabled={state.bridging} className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary text-[12px] font-semibold text-primary-foreground disabled:opacity-50">
+                  {state.bridging ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <ArrowRight className="size-4" aria-hidden />}
+                  Seguir en Chat
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid gap-2">
+                <ModeButton label="¿Cómo voy hoy?" hint="Lectura del día en curso" disabled={!online} onClick={() => void run("hoy")} />
+                <ModeButton label="Analizar ayer" hint="Revisión del último día cerrado" disabled={!online} onClick={() => void run("ayer")} />
+              </div>
+              {!online ? (
+                <p className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground">
+                  <WifiOff className="size-3.5" aria-hidden /> El Coach necesita conexión.
+                </p>
               ) : null}
             </>
           )}
@@ -219,7 +242,7 @@ function ModeButton({
 }: {
   label: string;
   hint: string;
-  disabled?: boolean;
+  disabled: boolean;
   onClick: () => void;
 }) {
   return (
@@ -227,10 +250,13 @@ function ModeButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex flex-col items-start rounded-xl border border-line bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-2 disabled:opacity-50"
+      className="flex min-h-[70px] items-center justify-between rounded-2xl border border-line bg-surface px-4 text-left shadow-card disabled:opacity-50"
     >
-      <span className="text-[15px] font-semibold text-foreground">{label}</span>
-      <span className="text-[12px] text-muted-foreground">{hint}</span>
+      <span>
+        <strong className="block text-[14px] font-semibold text-foreground">{label}</strong>
+        <span className="mt-1 block text-[11px] text-muted-foreground">{hint}</span>
+      </span>
+      <ArrowRight className="size-4 text-primary" aria-hidden />
     </button>
   );
 }

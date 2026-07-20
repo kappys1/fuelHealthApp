@@ -46,7 +46,17 @@ export function weekdayName(key: string): string {
 
 /** Valida una clave 'YYYY-MM-DD'. */
 export function isDayKey(s: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(s);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  try {
+    return dayKey(keyToInstant(s)) === s;
+  } catch {
+    return false;
+  }
+}
+
+/** Día navegable de Hoy: calendario válido y nunca posterior al día actual. */
+export function selectedDay(raw: string | null | undefined, today = dayKey()): string {
+  return raw && isDayKey(raw) && raw <= today ? raw : today;
 }
 
 /** Días de calendario entre dos claves de día (b − a). Positivo si b es posterior. */

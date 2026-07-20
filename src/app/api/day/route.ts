@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { badRequest, ensureAuth, parseBody, serverError } from "@/lib/api";
 import { dayKey } from "@/lib/dates";
+import { retry } from "@/lib/retry";
 import { bloatZ, dateZ, phaseZ } from "@/lib/schemas";
 import { getTodayPayload } from "@/server/db/queries/today";
 import { upsertDayFields } from "@/server/db/queries/mutations";
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
   if (!dateZ.safeParse(date).success) return badRequest("Fecha inválida.");
 
   try {
-    return Response.json(await getTodayPayload(date));
+    return Response.json(await retry(() => getTodayPayload(date)));
   } catch (err) {
     return serverError(err);
   }

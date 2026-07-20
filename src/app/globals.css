@@ -305,6 +305,27 @@
     line-height: 1.3;
     letter-spacing: 0;
   }
+  .section-title {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-size: var(--type-section);
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
+    color: var(--ink);
+  }
+  .section-copy {
+    margin-top: 2px;
+    color: var(--muted-text);
+    font-size: var(--type-caption);
+    line-height: 1.4;
+  }
+  .ui-label {
+    color: var(--muted-text);
+    font-size: var(--type-caption);
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
   .app-label {
     color: var(--muted-text);
     font-size: var(--type-label);

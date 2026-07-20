@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isDayKey } from "@/lib/dates";
 import { MEASURE_TYPES } from "@/lib/marks";
 import { TRAINING_TIPOS } from "@/lib/training";
 
@@ -14,7 +15,7 @@ export const grpZ = z.enum([
 ]);
 export const phaseZ = z.enum(["carga", "competicion", "recuperacion"]);
 export const bloatZ = z.enum(["ninguna", "leve", "moderada", "alta"]);
-export const dateZ = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida.");
+export const dateZ = z.string().refine(isDayKey, "Fecha inválida.");
 export const localTimeZ = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Hora inválida.")

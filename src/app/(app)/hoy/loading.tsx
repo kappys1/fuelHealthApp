@@ -4,49 +4,61 @@ import { Skeleton } from "@/components/ui/skeleton";
 // para que no haya layout shift cuando entra el contenido real.
 export default function HoyLoading() {
   return (
-    <div className="space-y-3">
-      {/* Cabecera: fecha navegable + racha */}
+    <div className="space-y-6" role="status" aria-label="Cargando Hoy">
+      <span className="sr-only">Cargando Hoy…</span>
       <div className="flex items-center justify-between">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-6 w-10" />
+        <Skeleton className="h-12 w-40 rounded-xl" />
+        <Skeleton className="h-11 w-20 rounded-full" />
       </div>
 
-      {/* FuelGauge */}
-      <div className="rounded-xl border border-line bg-surface p-4">
-        <div className="flex items-start justify-between">
-          <Skeleton className="h-11 w-40" />
-          <Skeleton className="size-9 rounded-lg" />
-        </div>
-        <Skeleton className="mt-3 h-3.5 w-full rounded-full" />
-        <div className="mt-3 space-y-2">
-          <Skeleton className="h-2.5 w-full rounded-full" />
-          <div className="grid grid-cols-2 gap-3">
-            <Skeleton className="h-1.5 w-full rounded-full" />
-            <Skeleton className="h-1.5 w-full rounded-full" />
+      <div className="wellness-card p-[18px]">
+        <div className="flex gap-3">
+          <Skeleton className="size-10 rounded-xl" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-10 w-full" />
           </div>
+          <Skeleton className="size-11 rounded-xl" />
         </div>
-        <Skeleton className="mt-3 h-9 w-full rounded-lg" />
       </div>
 
-      {/* Timeline de comidas */}
-      <div className="rounded-xl border border-line bg-surface">
-        <div className="border-b border-line px-4 py-3">
-          <Skeleton className="h-4 w-24" />
+      <div className="wellness-card p-[18px]">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-5 w-44" />
+          </div>
+          <Skeleton className="h-8 w-16 rounded-full" />
         </div>
+        <div className="mt-4 grid grid-cols-[1.38fr_.86fr_.86fr] items-center gap-2">
+          <Skeleton className="aspect-square w-full rounded-full" />
+          <Skeleton className="aspect-square w-full rounded-full" />
+          <Skeleton className="aspect-square w-full rounded-full" />
+        </div>
+        <Skeleton className="mt-4 h-2 w-full rounded-full" />
+        <Skeleton className="mt-4 h-12 w-full rounded-xl" />
+      </div>
+
+      <div>
+        <Skeleton className="mb-3 h-6 w-24" />
+        <div className="wellness-card overflow-hidden">
         <div className="divide-y divide-line">
           {["almuerzo", "comida", "merienda", "cena"].map((m) => (
-            <div key={m} className="flex items-center justify-between px-4 py-3.5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="size-7 rounded-lg" />
+            <div key={m} className="flex min-h-[74px] items-center gap-3 px-[18px] py-3">
+              <Skeleton className="size-9 rounded-full" />
+              <Skeleton className="h-8 flex-1" />
+              <Skeleton className="h-5 w-12" />
             </div>
           ))}
         </div>
+        </div>
       </div>
 
-      {/* Mi día colapsada */}
-      <div className="rounded-xl border border-line bg-surface px-4 py-3">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="mt-2 h-4 w-56" />
+      <div className="wellness-card p-[18px]">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="mt-4 h-11 w-full rounded-xl" />
+        <Skeleton className="mt-3 h-20 w-full rounded-xl" />
       </div>
     </div>
   );
