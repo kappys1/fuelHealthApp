@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import {
@@ -106,7 +106,14 @@ export function MealRow({
               {displayMacro(entry.fat)}F
             </span>
           </span>
-          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => onDelete(entry)}
+          aria-label={`Borrar ${entry.name}`}
+          className="app-icon-button shrink-0 border-0 bg-transparent text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="size-4" aria-hidden />
         </button>
       </div>
 
@@ -125,10 +132,6 @@ export function MealRow({
               onSave(patch);
               setOpen(false);
             }}
-            onDelete={() => {
-              onDelete(entry);
-              setOpen(false);
-            }}
           />
         </SheetContent>
       </Sheet>
@@ -140,7 +143,6 @@ function EditForm({
   entry,
   onCancel,
   onSave,
-  onDelete,
 }: {
   entry: EntryDTO;
   onCancel: () => void;
@@ -153,7 +155,6 @@ function EditForm({
     fat: number;
     grams?: number | null;
   }) => void;
-  onDelete: () => void;
 }) {
   const [name, setName] = useState(entry.name);
   const [meal, setMeal] = useState<MealKey>(entry.meal);
@@ -244,13 +245,6 @@ function EditForm({
           Guardar
         </button>
       </div>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-[13px] font-medium text-destructive"
-      >
-        <Trash2 className="size-4" aria-hidden /> Borrar entrada
-      </button>
     </div>
   );
 }
