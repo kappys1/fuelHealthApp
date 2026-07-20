@@ -17,6 +17,11 @@ import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
 import type { DayPatch, MedInput } from "@/server/db/queries/mutations";
 import type { TodayPayload } from "@/server/db/queries/today";
+import type { BloatEventDTO } from "@/server/db/queries/bloat";
+import type {
+  CoachMode,
+  CoachReading,
+} from "@/server/ai/coach-reading";
 
 /*
   Fetchers tipados del cliente. Los errores del servidor (mensaje + status) se
@@ -79,6 +84,30 @@ export const api = {
     req<{ ok: true }>("/api/day", {
       method: "PATCH",
       body: JSON.stringify({ date, patch }),
+    }),
+
+  createBloatEvent: (input: {
+    date: string;
+    severity: "ninguna" | "leve" | "moderada" | "alta";
+    occurredAt: string;
+  }) =>
+    req<{ event: BloatEventDTO }>("/api/bloat-events", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  updateBloatEvent: (
+    id: number,
+    patch: Partial<Pick<BloatEventDTO, "severity" | "occurredAt">>,
+  ) =>
+    req<{ event: BloatEventDTO }>(`/api/bloat-events/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+
+  deleteBloatEvent: (id: number) =>
+    req<{ event: BloatEventDTO }>(`/api/bloat-events/${id}`, {
+      method: "DELETE",
     }),
 
   addEntries: (date: string, entries: EntryInput[]) =>
@@ -378,8 +407,8 @@ export const api = {
       body: "{}",
     }),
 
-  coach: (date: string, mode: "hoy" | "ayer") =>
-    req<{ text: string }>("/api/ai/coach", {
+  coach: (date: string, mode: CoachMode) =>
+    req<CoachReading>("/api/ai/coach", {
       method: "POST",
       body: JSON.stringify({ date, mode }),
     }),

@@ -3,7 +3,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { flushQueue, isOffline, queueSize } from "@/lib/offline-queue";
+import {
+  flushQueue,
+  isOffline,
+  markOffline,
+  queueSize,
+  refreshOfflineQueueStatus,
+} from "@/lib/offline-queue";
 
 /*
   Sincroniza la cola offline al reconectar (o al montar si ya hay red y hay cosas
@@ -16,7 +22,11 @@ export function OfflineSync() {
   useEffect(() => {
     let cancelled = false;
     const sync = async () => {
-      if (isOffline()) return;
+      if (isOffline()) {
+        await markOffline();
+        return;
+      }
+      await refreshOfflineQueueStatus();
       if ((await queueSize()) === 0) return;
       const done = await flushQueue();
       if (!cancelled && done > 0) {
@@ -30,9 +40,12 @@ export function OfflineSync() {
     };
     void sync();
     window.addEventListener("online", sync);
+    const offline = () => void markOffline();
+    window.addEventListener("offline", offline);
     return () => {
       cancelled = true;
       window.removeEventListener("online", sync);
+      window.removeEventListener("offline", offline);
     };
   }, [qc]);
 

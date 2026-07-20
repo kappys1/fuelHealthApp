@@ -193,8 +193,9 @@ export function useToday(date: string, initial: TodayPayload) {
   useEffect(() => {
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      void flush();
     };
-  }, []);
+  }, [flush]);
 
   // ── Productos (F07 · catálogo, optimista sobre data.products) ──
   const createProduct = useCallback(

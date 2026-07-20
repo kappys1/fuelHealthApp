@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { mealEntryImportRow, planOptionImportRow } from "./backup-map";
+import {
+  bloatEventImportRow,
+  mealEntryImportRow,
+  planOptionImportRow,
+} from "./backup-map";
 
 /*
   Round-trip export → restore de una entrada con base+cantidad (F06, AC6).
@@ -122,5 +126,21 @@ describe("planOptionImportRow — round-trip de variantes (F08, AC5)", () => {
     expect(row.variants).toEqual([]);
     expect(row.baseG).toBeNull();
     expect(row.kcal).toBe(60);
+  });
+});
+
+describe("bloatEventImportRow — round-trip temporal", () => {
+  it("conserva fecha, hora local y severidad", () => {
+    const row = bloatEventImportRow({
+      id: 3,
+      date: "2026-07-20",
+      severity: "moderada",
+      occurredAt: "20:10:00",
+      createdAt: "2026-07-20T18:10:00.000Z",
+    });
+    expect(row.date).toBe("2026-07-20");
+    expect(row.severity).toBe("moderada");
+    expect(row.occurredAt).toBe("20:10:00");
+    expect(row.createdAt.toISOString()).toBe("2026-07-20T18:10:00.000Z");
   });
 });

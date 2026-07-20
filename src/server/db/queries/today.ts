@@ -2,6 +2,12 @@ import { isoWeekday, shiftDayKey } from "@/lib/dates";
 import { PHASE_NEXT, type PhaseKey, type SessionByWeekday } from "@/lib/macros";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
 import {
+  coachContextHash,
+  coachReadingView,
+  type CoachReadingView,
+} from "@/server/ai/coach-reading";
+import { getCoachReading } from "./coach-reading";
+import {
   type DayView,
   getDayView,
   getStreak,
@@ -23,6 +29,13 @@ import {
   type PlanOptionDTO,
 } from "./plan";
 import { getTrainingPlanContext, type TrainingSessionDTO } from "./training";
+import {
+  getHealthBaseline,
+  getHealthSyncView,
+  type HealthSyncView,
+} from "./health";
+import type { HealthBaseline } from "@/server/analytics/healthBaseline";
+import { listBloatEvents, type BloatEventDTO } from "./bloat";
 
 /**
  * Payload agregado de la pantalla Hoy: lo que el RSC pasa como initialData y lo
@@ -50,6 +63,14 @@ export interface TodayPayload {
    * Carga→Competición→Recuperación→Normal). `null` si no hay sugerencia.
    */
   suggestedPhase: PhaseKey | null;
+  /** Métricas crudas del día comparadas con los 30 días naturales anteriores. */
+  baseline: HealthBaseline;
+  /** Confianza de la última importación de Apple Health. */
+  healthSync: HealthSyncView | null;
+  /** Lectura persistida; null hasta que el usuario la solicite explícitamente. */
+  coachReading: CoachReadingView | null;
+  /** Marcadores temporales reales; no incluye el resumen legacy sin hora. */
+  bloatEvents: BloatEventDTO[];
 }
 
 export async function getTodayPayload(date: string): Promise<TodayPayload> {
@@ -64,6 +85,10 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     lastWeight,
     prevPhase,
     trainingPlan,
+    baseline,
+    healthSync,
+    cachedCoachReading,
+    bloatEvents,
   ] = await Promise.all([
     getDayView(date),
     getPlanContext(date),
@@ -75,11 +100,23 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     latestWeightOnOrBefore(date),
     phaseOnDate(shiftDayKey(date, -1)),
     getTrainingPlanContext(date),
+    getHealthBaseline(date),
+    getHealthSyncView(),
+    getCoachReading(date, "hoy"),
+    listBloatEvents(date),
   ]);
 
   const wd = String(isoWeekday(date));
   const defaultSession = sessionByWeekday[wd] ?? "Descanso";
   const trainingSessions = trainingPlan?.sessions ?? [];
+  const targets = plan?.targets ?? {
+    kcal: 1800,
+    prot: 110,
+    carb: 0,
+    fat: 0,
+    carbDerived: true,
+    fatDerived: true,
+  };
 
   // Sugerir la siguiente fase solo si hoy aún no la tiene y ayer fue especial
   // (todas las PhaseKey son especiales; Normal se guarda como null).
@@ -89,14 +126,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
   return {
     date,
     view,
-    targets: plan?.targets ?? {
-      kcal: 1800,
-      prot: 110,
-      carb: 0,
-      fat: 0,
-      carbDerived: true,
-      fatDerived: true,
-    },
+    targets,
     derived: plan?.derived ?? { kcal: 0, prot: 0, carb: 0, fat: 0, kmin: 0, kmax: 0 },
     optionsByMeal: plan?.optionsByMeal ?? {},
     products,
@@ -108,5 +138,12 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     defaultSession,
     lastWeight,
     suggestedPhase,
+    baseline,
+    healthSync,
+    coachReading: coachReadingView(
+      cachedCoachReading,
+      coachContextHash(view, targets),
+    ),
+    bloatEvents,
   };
 }

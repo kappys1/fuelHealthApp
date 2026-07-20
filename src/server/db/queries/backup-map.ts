@@ -81,3 +81,13 @@ export function mealEntryImportRow(r: Record<string, unknown>) {
     createdAt: dt(r.createdAt),
   };
 }
+
+/** Mapea el marcador temporal sin inventar hora para exports antiguos. */
+export function bloatEventImportRow(r: Record<string, unknown>) {
+  return {
+    date: String(r.date),
+    severity: r.severity as (typeof schema.bloatEnum.enumValues)[number],
+    occurredAt: String(r.occurredAt),
+    createdAt: dt(r.createdAt),
+  };
+}

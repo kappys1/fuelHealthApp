@@ -1,12 +1,14 @@
 import {
   boolean,
   date,
+  index,
   integer,
   jsonb,
   pgEnum,
   pgTable,
   real,
   text,
+  time,
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
@@ -157,6 +159,25 @@ export const days = pgTable("days", {
   bloat: bloatEnum(),
   notes: text(),
 });
+
+// ── bloat_events (marcadores temporales del día) ──
+// `days.bloat` se mantiene como resumen legacy. Esta tabla añade la hora real y
+// permite varios marcadores sin inventar timestamps para registros antiguos.
+export const bloatEvents = pgTable(
+  "bloat_events",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    date: date({ mode: "string" })
+      .notNull()
+      .references(() => days.date, { onDelete: "cascade" }),
+    severity: bloatEnum().notNull(),
+    occurredAt: time("occurred_at", { precision: 0 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("bloat_events_date_time_idx").on(t.date, t.occurredAt)],
+);
 
 // ── meal_entries ──
 export const mealEntries = pgTable("meal_entries", {

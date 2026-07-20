@@ -64,6 +64,13 @@
       "when": 1784271627811,
       "tag": "0008_nappy_vapor",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1784545826982,
+      "tag": "0009_simple_giant_girl",
+      "breakpoints": true
     }
   ]
 }
