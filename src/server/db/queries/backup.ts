@@ -341,7 +341,8 @@ export async function previewImport(data: ImportData): Promise<ImportPreview> {
 const n = (v: unknown): number | null =>
   v == null || v === "" ? null : Number(v);
 const s = (v: unknown): string | null => (v == null ? null : String(v));
-const dt = (v: unknown): Date => (v ? new Date(String(v)) : new Date());
+const dt = (v: unknown): Date =>
+  v instanceof Date ? new Date(v.getTime()) : v ? new Date(String(v)) : new Date();
 
 export interface ImportResult {
   restored: TableCounts;
