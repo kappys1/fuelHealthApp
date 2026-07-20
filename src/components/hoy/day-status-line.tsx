@@ -1,13 +1,7 @@
 "use client";
 
-import { CheckCircle2, ChevronRight, Moon, Scale, UtensilsCrossed } from "lucide-react";
+import { ChevronRight, Moon, Scale, UtensilsCrossed } from "lucide-react";
 import type { TodayPayload } from "@/server/db/queries/today";
-
-function greeting(hour: number): string {
-  if (hour < 12) return "Buenos días";
-  if (hour < 21) return "Buenas tardes";
-  return "Buenas noches";
-}
 
 /** Hora actual (0-23) en Europe/Madrid. */
 function madridHour(): number {
@@ -65,23 +59,9 @@ export function DayStatusLine({
     Icon = Moon;
   }
 
-  // Sin acción pendiente → banner positivo (el día va al día). El mockup muestra
-  // «Tu estado hoy» siempre; aquí es el estado «todo cubierto».
-  if (!msg || !action) {
-    return (
-      <div className="flex w-full items-center gap-3 rounded-[14px] border border-protein/25 bg-protein/5 px-3.5 py-2.5">
-        <CheckCircle2 className="size-5 shrink-0 text-protein" aria-hidden />
-        <span className="min-w-0">
-          <span className="block text-[13px] font-semibold text-foreground">
-            {greeting(hour)} · vas al día
-          </span>
-          <span className="block text-[12px] text-muted-foreground">
-            Peso, comidas y cierre cubiertos.
-          </span>
-        </span>
-      </div>
-    );
-  }
+  // Sin acción pendiente → nada (el coach-welcome de arriba ya saluda). La línea de
+  // estado es SOLO la acción contextual pendiente (09 §3), como en la v1.
+  if (!msg || !action) return null;
 
   return (
     <button

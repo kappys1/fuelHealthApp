@@ -13,20 +13,16 @@ import {
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/lib/client-api";
 import {
-  BLOAT_LABELS,
-  type BloatKey,
   PHASE_LABELS,
   type PhaseKey,
   phaseLabel,
 } from "@/lib/macros";
 import { orderedSessionOptions, sessionPatchFor } from "@/lib/training";
-import { cn } from "@/lib/utils";
 import type { DayView } from "@/server/db/queries/day";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { TrainingSessionDTO } from "@/server/db/queries/training";
 
 const NONE = "__none__";
-const BLOATS: BloatKey[] = ["ninguna", "leve", "moderada", "alta"];
 
 export function MiDiaCard({
   view,
@@ -95,48 +91,21 @@ export function MiDiaCard({
 
       {open ? (
         <div className="space-y-4 border-t border-line px-4 py-4">
-          {/* Peso + agua */}
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="mb-1 block text-[12px] text-muted-foreground">
-                Peso (kg, ayunas){weightFromScale ? " · de la báscula" : ""}
-              </span>
-              <Stepper
-                value={effWeight != null ? String(effWeight) : ""}
-                onChange={(v) =>
-                  onPatch({ weight: v === "" ? null : Number(v.replace(",", ".")) })
-                }
-                step={0.1}
-                suffix="kg"
-                ariaLabel="Peso"
-              />
-            </label>
-            <div>
-              <span className="num mb-1 block text-[12px] text-muted-foreground">
-                Agua {day?.waterL != null ? `· ${day.waterL.toLocaleString("es-ES")} L` : ""}
-              </span>
-              <div className="flex gap-1.5">
-                {[
-                  { label: "+250", d: 0.25 },
-                  { label: "+500", d: 0.5 },
-                  { label: "botella", d: 0.75 },
-                ].map((c) => (
-                  <button
-                    key={c.label}
-                    type="button"
-                    onClick={() =>
-                      onPatch({
-                        waterL: Math.round(((day?.waterL ?? 0) + c.d) * 100) / 100,
-                      })
-                    }
-                    className="flex-1 rounded-lg border border-line bg-surface-2 py-2 text-[12px]"
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          {/* Peso (hinchazón y agua viven en la sección «Hinchazón del día» de Hoy) */}
+          <label className="block">
+            <span className="mb-1 block text-[12px] text-muted-foreground">
+              Peso (kg, ayunas){weightFromScale ? " · de la báscula" : ""}
+            </span>
+            <Stepper
+              value={effWeight != null ? String(effWeight) : ""}
+              onChange={(v) =>
+                onPatch({ weight: v === "" ? null : Number(v.replace(",", ".")) })
+              }
+              step={0.1}
+              suffix="kg"
+              ariaLabel="Peso"
+            />
+          </label>
 
           {/* % grasa */}
           <label className="block">
@@ -217,28 +186,6 @@ export function MiDiaCard({
                 </button>
               ) : null}
             </label>
-          </div>
-
-          {/* Hinchazón */}
-          <div>
-            <span className="mb-1 block text-[12px] text-muted-foreground">Hinchazón</span>
-            <div className="grid grid-cols-4 gap-1.5">
-              {BLOATS.map((b) => (
-                <button
-                  key={b}
-                  type="button"
-                  onClick={() => onPatch({ bloat: day?.bloat === b ? null : b })}
-                  className={cn(
-                    "rounded-lg border py-2 text-[12px]",
-                    day?.bloat === b
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-line bg-surface-2 text-foreground",
-                  )}
-                >
-                  {BLOAT_LABELS[b]}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Notas */}
