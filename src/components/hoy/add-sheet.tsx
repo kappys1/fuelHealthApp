@@ -68,7 +68,15 @@ export interface ProductActions {
   togglePin: (id: number) => void;
 }
 
-type Layer = "home" | "plan" | "photo" | "describe" | "product" | "products" | "editor";
+type Layer =
+  | "home"
+  | "plan"
+  | "photo"
+  | "describe"
+  | "manual"
+  | "product"
+  | "products"
+  | "editor";
 
 export function AddSheet({
   open,
@@ -191,12 +199,21 @@ export function AddSheet({
 
   const headerLabel: Record<Layer, string> = {
     home: "Añadir",
-    plan: "Del plan",
-    photo: "Foto",
-    describe: "Describir",
+    plan: "Añadir del plan",
+    photo: "Foto de la comida",
+    describe: "Describir comida",
+    manual: "Entrada manual",
     product: selectedProduct?.name ?? "Producto",
     products: "Mis productos",
     editor: editingProduct ? "Editar producto" : "Nuevo producto",
+  };
+  const headerSub: Partial<Record<Layer, string>> = {
+    plan: "Opciones y gramos en vivo",
+    photo: "Cámara o galería · revisión obligatoria",
+    describe: "Lenguaje natural · resultado editable",
+    manual: "Macros conocidos · sin IA",
+    products: "Fijar, editar o borrar",
+    editor: "Se fija y no se vuelve a estimar",
   };
 
   return (
@@ -205,13 +222,21 @@ export function AddSheet({
         <SheetHeader className="pb-1">
           <SheetTitle>
             {layer !== "home" ? (
-              <button
-                type="button"
-                onClick={back}
-                className="inline-flex items-center gap-1 text-[15px] font-semibold text-foreground"
-              >
-                <ChevronLeft className="size-4" aria-hidden /> {headerLabel[layer]}
-              </button>
+              <div>
+                <button
+                  type="button"
+                  onClick={back}
+                  className="inline-flex items-center gap-1 text-[16px] font-bold text-foreground"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  <ChevronLeft className="size-4" aria-hidden /> {headerLabel[layer]}
+                </button>
+                {headerSub[layer] ? (
+                  <span className="mt-0.5 block pl-5 text-[12px] font-normal text-muted-foreground">
+                    {headerSub[layer]}
+                  </span>
+                ) : null}
+              </div>
             ) : (
               <div>
                 <span
@@ -255,7 +280,6 @@ export function AddSheet({
             onGoLayer={setLayer}
             onAddProduct={addProduct}
             onOpenCatalog={() => setLayer("products")}
-            onNewProduct={() => openEditor(null, "home")}
             onAddResult={(r) => {
               if (r.baseG != null) return; // se maneja con stepper inline abajo
               commit([
@@ -277,6 +301,14 @@ export function AddSheet({
             meal={meal}
             options={corpus.optionsByMeal[meal] ?? []}
             onAdd={commit}
+          />
+        ) : layer === "manual" ? (
+          <ManualLayer
+            meal={meal}
+            onAdd={(e) => {
+              commit(e);
+              setLayer("home");
+            }}
           />
         ) : layer === "product" && selectedProduct ? (
           <ProductStepperLayer
@@ -332,7 +364,6 @@ function HomeLayer({
   onGoLayer,
   onAddProduct,
   onOpenCatalog,
-  onNewProduct,
   onAddResult,
   onAddScaled,
 }: {
@@ -345,7 +376,6 @@ function HomeLayer({
   onGoLayer: (l: Layer) => void;
   onAddProduct: (p: ProductDTO) => void;
   onOpenCatalog: () => void;
-  onNewProduct: () => void;
   onAddResult: (r: ResultRow) => void;
   onAddScaled: (e: EntryInput[]) => void;
 }) {
@@ -486,7 +516,7 @@ function HomeLayer({
             <BigAccess
               icon={<Plus className="size-5" aria-hidden />}
               label="Manual"
-              onClick={onNewProduct}
+              onClick={() => onGoLayer("manual")}
             />
           </div>
         </div>
@@ -653,6 +683,72 @@ function ScalableResult({
   );
 }
 
+// ── Capa entrada manual (mockup food-manual): nombre + macros → añade al día ──
+function ManualLayer({
+  meal,
+  onAdd,
+}: {
+  meal: MealKey;
+  onAdd: (e: EntryInput[]) => void;
+}) {
+  const [name, setName] = useState("");
+  const [kcal, setKcal] = useState("");
+  const [prot, setProt] = useState("");
+  const [carb, setCarb] = useState("");
+  const [fat, setFat] = useState("");
+  const num = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
+  const canAdd = name.trim() !== "" && kcal.trim() !== "";
+
+  return (
+    <div className="space-y-3 px-4 py-3">
+      <label className="block">
+        <span className="mb-1 block text-[12px] text-muted-foreground">Nombre</span>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="p. ej. Ensalada de la abuela"
+          className="w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+          aria-label="Nombre"
+        />
+      </label>
+      <div>
+        <span className="mb-1 block text-[12px] text-muted-foreground">
+          kcal · Proteína · Hidratos · Grasa
+        </span>
+        <div className="grid grid-cols-4 gap-2">
+          <MiniField label="kcal" value={kcal} onChange={setKcal} />
+          <MiniField label="Prot" value={prot} onChange={setProt} />
+          <MiniField label="Hidr" value={carb} onChange={setCarb} />
+          <MiniField label="Grasa" value={fat} onChange={setFat} />
+        </div>
+      </div>
+      <p className="text-[12px] text-muted-foreground">
+        Destino: {MEAL_LABELS[meal]}. Macros conocidos, sin IA.
+      </p>
+      <button
+        type="button"
+        disabled={!canAdd}
+        onClick={() =>
+          onAdd([
+            {
+              meal,
+              name: name.trim(),
+              kcal: Math.round(num(kcal)),
+              prot: num(prot),
+              carb: num(carb),
+              fat: num(fat),
+              source: "manual",
+            },
+          ])
+        }
+        className="w-full rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
+      >
+        Añadir entrada
+      </button>
+    </div>
+  );
+}
+
 function PlanLayer({
   meal,
   options,
@@ -677,6 +773,9 @@ function PlanLayer({
 
   return (
     <div className="space-y-4 px-4 py-3">
+      <p className="text-[12px] text-muted-foreground">
+        Mostrando la pauta de {MEAL_LABELS[meal]}.
+      </p>
       {grouped.map(({ grp, opts }) => (
         <div key={grp}>
           <h3 className="mb-1 text-[12px] text-muted-foreground">{grp}</h3>
@@ -1198,6 +1297,10 @@ function DescribeLayer({
           className="w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
         />
       </label>
+      <p className="text-[12px] text-muted-foreground">
+        Manda el selector: se añadirá a {MEAL_LABELS[meal]}. La IA no cambia el destino
+        por su cuenta.
+      </p>
       <button
         type="button"
         onClick={analyze}
