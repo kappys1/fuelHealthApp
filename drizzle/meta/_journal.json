@@ -71,6 +71,13 @@
       "when": 1784545826982,
       "tag": "0009_simple_giant_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784550472601,
+      "tag": "0010_calm_red_ghost",
+      "breakpoints": true
     }
   ]
 }
