@@ -87,7 +87,8 @@ export function favoritesToProducts(favs: FavRow[]): FavoritesToProducts {
 
 const n = (v: unknown): number | null =>
   v == null || v === "" ? null : Number(v);
-const dt = (v: unknown): Date => (v ? new Date(String(v)) : new Date());
+const dt = (v: unknown): Date =>
+  v instanceof Date ? new Date(v.getTime()) : v ? new Date(String(v)) : new Date();
 
 /**
  * Mapea una fila de products del archivo de export a la fila de inserción del

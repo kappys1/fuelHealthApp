@@ -93,6 +93,29 @@ describe("productImportRow — round-trip export→restore (AC4)", () => {
     expect(row.updatedAt).toEqual(new Date("2026-07-16T11:00:00.000Z"));
   });
 
+  it("conserva milisegundos cuando Drizzle entrega las fechas como Date", () => {
+    const createdAt = new Date("2026-07-16T21:14:34.271Z");
+    const updatedAt = new Date("2026-07-16T21:42:02.036Z");
+    const row = productImportRow({
+      name: "Café con leche",
+      baseG: null,
+      baseKcal: 18,
+      baseProt: 0.6,
+      baseCarb: 1,
+      baseFat: 1,
+      grupo: null,
+      source: "legacy",
+      pinned: true,
+      createdAt,
+      updatedAt,
+    });
+
+    expect(row.createdAt).not.toBe(createdAt);
+    expect(row.updatedAt).not.toBe(updatedAt);
+    expect(row.createdAt?.toISOString()).toBe("2026-07-16T21:14:34.271Z");
+    expect(row.updatedAt?.toISOString()).toBe("2026-07-16T21:42:02.036Z");
+  });
+
   it("producto fijo (baseG null) y grupo null sobreviven el round-trip", () => {
     const row = productImportRow({
       name: "Café + leche 300 ml",
