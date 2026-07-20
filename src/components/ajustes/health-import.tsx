@@ -9,7 +9,8 @@ import { api, type HealthImportResult } from "@/lib/client-api";
 /*
   Import CSV de Health Auto Export con VISTA PREVIA antes de aplicar (07 §4 / F4.2).
   El usuario elige el CSV → se muestra el resumen (filas, métricas, kJ→kcal, cuántos
-  días machacan valores manuales) → confirmar aplica el upsert.
+  días coinciden con valores manuales) → confirmar aplica el upsert sin sustituir
+  la corrección manual en la vista efectiva.
 */
 export function HealthImport() {
   const router = useRouter();
@@ -100,8 +101,8 @@ export function HealthImport() {
             {preview.hadKj ? <li>kJ convertidos a kcal (÷4,184)</li> : null}
             {preview.hadMl ? <li>mL convertidos a L</li> : null}
             {preview.overwriteManual > 0 ? (
-              <li className="text-destructive">
-                {preview.overwriteManual} días machacan valores manuales
+              <li className="text-muted-foreground">
+                {preview.overwriteManual} días también tienen valores manuales; se conservarán
               </li>
             ) : null}
           </ul>

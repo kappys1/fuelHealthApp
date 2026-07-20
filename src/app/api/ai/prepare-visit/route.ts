@@ -58,8 +58,8 @@ export async function POST() {
       prompt: prepareVisitPrompt({
         atleta: atleta.full,
         today,
-        kcal: currentTarget.kcal,
-        prot: currentTarget.prot,
+        kcal: currentTarget.kcal > 0 ? currentTarget.kcal : null,
+        prot: currentTarget.prot > 0 ? currentTarget.prot : null,
         meds: medLines(meds),
         tendencia: trendSummary(deficit),
         filas: dayLines(visitRecords, 30, {

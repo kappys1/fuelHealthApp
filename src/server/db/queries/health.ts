@@ -13,9 +13,9 @@ import { getSetting, setSetting } from "./lookups";
 
 /*
   Capa BD de Salud (Fase 3). health_metrics va SEPARADO de days a propósito:
-  al fusionar la vista efectiva de un día, health_metrics tiene PRECEDENCIA sobre
-  days para las métricas solapadas (peso, agua, % grasa) — principio 6: los datos
-  reales machacan a los manuales cuando traen valor.
+  al fusionar la vista efectiva de un día, `days` tiene precedencia para las
+  métricas solapadas (peso, agua, % grasa). Health conserva la lectura importada
+  y rellena huecos, sin sustituir una corrección manual consciente.
 */
 
 export const HEALTH_SYNC_KEY = "healthSync";
@@ -26,7 +26,7 @@ export interface HealthSyncStatus {
   imported: number;
 }
 
-/** Métricas de days que health puede pisar (para el aviso de la vista previa). */
+/** Métricas manuales que también aparecen en una importación (aviso de preview). */
 const MANUAL_OVERLAP: (keyof HealthDay & string)[] = ["weight", "waterL", "bodyFatPct"];
 
 /**
@@ -94,7 +94,7 @@ export async function insertWorkouts(rows: WorkoutRow[]): Promise<number> {
 
 /**
  * Cuántos de los días entrantes traen una métrica (peso/agua/%grasa) que YA
- * existe manualmente en `days` → la importación la pisará en la vista efectiva.
+ * existe manualmente en `days`. La vista efectiva conservará el dato manual.
  */
 export async function countManualOverwrites(days: HealthDay[]): Promise<number> {
   const dates = days

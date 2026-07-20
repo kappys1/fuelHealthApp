@@ -11,6 +11,8 @@ import {
   GlassWater,
   HeartPulse,
   Moon,
+  Minus,
+  Plus,
   Scale,
   TriangleAlert,
   Watch,
@@ -33,6 +35,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Stepper } from "@/components/ui/stepper";
+import { effectiveHealthMetric } from "@/lib/effective-health";
 import {
   BLOAT_LABELS,
   type BloatKey,
@@ -65,20 +68,40 @@ const MADRID_TIME_FORMATTER = new Intl.DateTimeFormat("es-ES", {
 
 export function DailyChecks({
   view,
+  isToday,
   bloatEvents,
   onPatch,
   onBloat,
+  onAddBloat,
   onReviewCheckin,
 }: {
   view: DayView;
+  isToday: boolean;
   bloatEvents: BloatEventDTO[];
   onPatch: (patch: DayPatch) => void;
   onBloat: (severity: BloatKey) => void;
+  onAddBloat: () => void;
   onReviewCheckin: () => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const currentBloat = bloatEvents.at(-1)?.severity ?? view.day?.bloat ?? null;
-  const water = view.day?.waterL ?? view.health?.waterL ?? 0;
+  const water = effectiveHealthMetric(view.day?.waterL, view.health?.waterL) ?? 0;
+  const weight = effectiveHealthMetric(view.day?.weight, view.health?.weight);
+  const bodyFat = effectiveHealthMetric(
+    view.day?.bodyFatPct,
+    view.health?.bodyFatPct,
+  );
+  const detailSummary = [
+    weight == null
+      ? null
+      : `${weight.toLocaleString("es-ES", { maximumFractionDigits: 1 })} kg`,
+    bodyFat == null
+      ? null
+      : `${bodyFat.toLocaleString("es-ES", { maximumFractionDigits: 1 })} % grasa`,
+    view.day?.notes?.trim() ? "Con notas" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <section className="wellness-card p-[18px]" aria-labelledby="daily-checks-title">
@@ -89,13 +112,15 @@ export function DailyChecks({
           </h2>
           <p className="mt-0.5 text-[11px] text-muted-foreground">Agua y digestión</p>
         </div>
-        <button
-          type="button"
-          onClick={onReviewCheckin}
-          className="min-h-11 rounded-lg px-2 text-[12px] font-semibold text-primary"
-        >
-          Revisar check-in
-        </button>
+        {isToday ? (
+          <button
+            type="button"
+            onClick={onReviewCheckin}
+            className="min-h-11 rounded-lg px-2 text-[12px] font-semibold text-primary"
+          >
+            Revisar check-in
+          </button>
+        ) : null}
       </div>
 
       <div className="mt-4">
@@ -103,7 +128,18 @@ export function DailyChecks({
           <span className="grid size-7 place-items-center rounded-lg bg-primary-soft text-special">
             <Waves className="size-4" aria-hidden />
           </span>
-          <span className="text-[12px] font-medium text-foreground">Hinchazón del día</span>
+          <span className="min-w-0 flex-1 text-[12px] font-medium text-foreground">
+            Hinchazón del día
+          </span>
+          <button
+            type="button"
+            onClick={onAddBloat}
+            className="app-icon-button"
+            aria-label="Registrar otro marcador de hinchazón con hora"
+            title="Registrar otro marcador"
+          >
+            <Plus className="size-4" aria-hidden />
+          </button>
         </div>
         <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Nivel de hinchazón">
           {BLOATS.map((severity) => (
@@ -170,8 +206,15 @@ export function DailyChecks({
         onClick={() => setDetailsOpen(true)}
         className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-xl text-left text-[12px] text-muted-foreground"
       >
-        <Scale className="size-4 text-primary" aria-hidden />
-        <span className="flex-1">Peso, composición y notas</span>
+        <Scale className="size-4 shrink-0 text-primary" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <strong className="block text-[12px] font-semibold text-foreground">
+            Peso, composición y notas
+          </strong>
+          <span className="mt-0.5 block truncate font-display text-[11px] tabular-nums text-muted-foreground">
+            {detailSummary || "Sin datos registrados"}
+          </span>
+        </span>
         <ArrowRight className="size-4" aria-hidden />
       </button>
 
@@ -196,9 +239,9 @@ function DayDetailsSheet({
   view: DayView;
   onPatch: (patch: DayPatch) => void;
 }) {
-  const weight = view.day?.weight ?? view.health?.weight ?? null;
-  const fat = view.day?.bodyFatPct ?? view.health?.bodyFatPct ?? null;
-  const water = view.day?.waterL ?? view.health?.waterL ?? null;
+  const weight = effectiveHealthMetric(view.day?.weight, view.health?.weight);
+  const fat = effectiveHealthMetric(view.day?.bodyFatPct, view.health?.bodyFatPct);
+  const water = effectiveHealthMetric(view.day?.waterL, view.health?.waterL);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -390,8 +433,9 @@ export function BaselineSection({ baseline }: { baseline: HealthBaseline }) {
           const metric = baseline.metrics[key];
           const invalidSleep = key === "sleepH" && metric.current != null && metric.current <= 0;
           const delta = metric.delta;
-          const good = delta != null && (key === "restingHr" ? delta < 0 : delta > 0);
-          const DeltaIcon = delta != null && delta > 0 ? ArrowUp : ArrowDown;
+          const neutral = delta === 0;
+          const good = delta != null && !neutral && (key === "restingHr" ? delta < 0 : delta > 0);
+          const DeltaIcon = neutral ? Minus : delta != null && delta > 0 ? ArrowUp : ArrowDown;
           return (
             <article key={key} className="rounded-2xl border border-line bg-surface p-3.5 shadow-card">
               <div className="flex items-center justify-between gap-2">
@@ -413,7 +457,9 @@ export function BaselineSection({ baseline }: { baseline: HealthBaseline }) {
                     ? "text-carb"
                     : delta == null
                       ? "text-muted-foreground"
-                      : good
+                      : neutral
+                        ? "text-muted-foreground"
+                        : good
                         ? "text-protein"
                         : "text-fat",
                 )}

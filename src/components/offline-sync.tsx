@@ -7,6 +7,7 @@ import {
   flushQueue,
   isOffline,
   markOffline,
+  OFFLINE_QUEUE_ENQUEUED_EVENT,
   queueSize,
   refreshOfflineQueueStatus,
 } from "@/lib/offline-queue";
@@ -22,36 +23,51 @@ export function OfflineSync() {
   useEffect(() => {
     let cancelled = false;
     let syncing = false;
+    let syncRequested = false;
     const sync = async () => {
-      if (syncing) return;
+      if (syncing) {
+        syncRequested = true;
+        return;
+      }
       syncing = true;
       try {
-        if (isOffline()) {
-          await markOffline();
-          return;
-        }
-        await refreshOfflineQueueStatus();
-        if ((await queueSize()) === 0) return;
-        const done = await flushQueue();
-        if (!cancelled && done > 0) {
-          toast.success(
-            done === 1
-              ? "Sincronizado 1 registro pendiente"
-              : `Sincronizados ${done} registros pendientes`,
-          );
-          qc.invalidateQueries({ queryKey: ["today"] });
-        }
+        do {
+          syncRequested = false;
+          if (isOffline()) {
+            await markOffline();
+            return;
+          }
+          await refreshOfflineQueueStatus();
+          const before = await queueSize();
+          if (before === 0) return;
+          const done = await flushQueue();
+          if (!cancelled && done > 0) {
+            toast.success(
+              done === 1
+                ? "Sincronizado 1 registro pendiente"
+                : `Sincronizados ${done} registros pendientes`,
+            );
+            qc.invalidateQueries({ queryKey: ["today"] });
+          }
+          const after = await queueSize();
+          // Sigue drenando si llegaron operaciones después del snapshot inicial.
+          // Sin progreso, conserva la cola en estado failed y espera otro evento.
+          if (after >= before && done === 0) return;
+        } while (syncRequested || (await queueSize()) > 0);
       } finally {
         syncing = false;
+        if (syncRequested && !cancelled) void sync();
       }
     };
     void sync();
     window.addEventListener("online", sync);
+    window.addEventListener(OFFLINE_QUEUE_ENQUEUED_EVENT, sync);
     const offline = () => void markOffline();
     window.addEventListener("offline", offline);
     return () => {
       cancelled = true;
       window.removeEventListener("online", sync);
+      window.removeEventListener(OFFLINE_QUEUE_ENQUEUED_EVENT, sync);
       window.removeEventListener("offline", offline);
     };
   }, [qc]);

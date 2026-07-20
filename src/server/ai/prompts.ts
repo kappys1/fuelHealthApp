@@ -87,8 +87,8 @@ export function planOptionsList(options: PlanOptionDTO[]): string {
 export function photoPrompt(args: {
   contexto: string;
   meal: MealKey;
-  kcalObjetivo: number;
-  protObjetivo: number;
+  kcalObjetivo: number | null;
+  protObjetivo: number | null;
   listaOpciones: string;
   note?: string | null;
 }): string {
@@ -96,7 +96,15 @@ export function photoPrompt(args: {
   const noteClause = args.note?.trim()
     ? ` ACLARACIONES DEL USUARIO (prevalecen sobre lo que parezca verse en la foto): "${args.note.trim()}".`
     : "";
-  return `${args.contexto} Eres un nutricionista deportivo. Analiza la foto de esta comida ("${mealLabel}") de un plan de ${args.kcalObjetivo} kcal y ${args.protObjetivo} g de proteína diarios. Opciones pautadas para esta comida: ${args.listaOpciones}. Identifica CADA alimento por separado, estima su ración en gramos y sus macros.${noteClause} Valora si el conjunto encaja con lo pautado (tipo de alimento y tamaño de ración). Responde SOLO con JSON válido, sin markdown ni texto extra: {"items": [{"nombre": string corto SIN gramos (ej. "Hamburguesa ternera magra"), "gramos": number (ración estimada en g o ml), "kcal": number, "proteina_g": number, "carbohidratos_g": number, "grasa_g": number}], "encaja_plan": boolean, "comentario": string breve indicando si la ración se pasa, se queda corta o encaja}`;
+  const planContext =
+    args.kcalObjetivo != null && args.protObjetivo != null
+      ? `de un plan de ${args.kcalObjetivo} kcal y ${args.protObjetivo} g de proteína diarios. Opciones pautadas para esta comida: ${args.listaOpciones}.`
+      : "sin una pauta nutricional configurada. No inventes un objetivo ni evalúes encaje con un plan inexistente.";
+  const verdict =
+    args.kcalObjetivo != null
+      ? "Valora si el conjunto encaja con lo pautado (tipo de alimento y tamaño de ración)."
+      : "Devuelve encaja_plan: null y limita el comentario a describir la estimación.";
+  return `${args.contexto} Eres un nutricionista deportivo. Analiza la foto de esta comida ("${mealLabel}") ${planContext} Identifica CADA alimento por separado, estima su ración en gramos y sus macros.${noteClause} ${verdict} Responde SOLO con JSON válido, sin markdown ni texto extra: {"items": [{"nombre": string corto SIN gramos (ej. "Hamburguesa ternera magra"), "gramos": number (ración estimada en g o ml), "kcal": number, "proteina_g": number, "carbohidratos_g": number, "grasa_g": number}], "encaja_plan": boolean|null, "comentario": string breve}`;
 }
 
 // ── F-IA-2 · Estimar macros desde texto ──
@@ -117,11 +125,15 @@ export function planOptionPrompt(
 // ── F-IA-4 · Volcado del día ──
 export function dayDumpPrompt(
   texto: string,
-  kcal: number,
-  prot: number,
+  kcal: number | null,
+  prot: number | null,
   contexto: string,
 ): string {
-  return `${contexto} Registro dictado de comidas de un día (plan de ${kcal} kcal, ${prot} g proteína). Texto del usuario: "${texto}". Trocéalo en items de comida. Para cada item asigna: comida ("almuerzo","comida","merienda","cena" o "extra" si no está claro), nombre corto, gramos (la ración en gramos SOLO cuando sea razonable estimarla; si el item no tiene una cantidad estimable —p. ej. "un puñado de nueces", "una sopa"— devuelve gramos: null; NUNCA inventes una cifra por rellenar el campo), y estima kcal, proteína, hidratos y grasa con valores medios de tablas españolas (ante ambigüedad, la variante más común, de forma consistente). Responde SOLO con JSON válido, sin markdown: {"items":[{"comida":string,"nombre":string,"gramos":number|null,"proteina_g":number,"kcal":number,"carbohidratos_g":number,"grasa_g":number}]}`;
+  const planContext =
+    kcal != null && prot != null
+      ? `plan de ${kcal} kcal, ${prot} g proteína`
+      : "sin pauta nutricional configurada";
+  return `${contexto} Registro dictado de comidas de un día (${planContext}). Texto del usuario: "${texto}". Trocéalo en items de comida. Para cada item asigna: comida ("almuerzo","comida","merienda","cena" o "extra" si no está claro), nombre corto, gramos (la ración en gramos SOLO cuando sea razonable estimarla; si el item no tiene una cantidad estimable —p. ej. "un puñado de nueces", "una sopa"— devuelve gramos: null; NUNCA inventes una cifra por rellenar el campo), y estima kcal, proteína, hidratos y grasa con valores medios de tablas españolas (ante ambigüedad, la variante más común, de forma consistente). Responde SOLO con JSON válido, sin markdown: {"items":[{"comida":string,"nombre":string,"gramos":number|null,"proteina_g":number,"kcal":number,"carbohidratos_g":number,"grasa_g":number}]}`;
 }
 
 // ── F-IA-5 · Analizar sesión pegada (WOD) ──
@@ -158,10 +170,10 @@ export function coachPrompt(args: {
   /** Día que se evalúa: = today en modo hoy; today−1 en modo ayer. */
   targetDate: string;
   mode: "hoy" | "ayer";
-  kcal: number;
-  prot: number;
-  carb: number;
-  fat: number;
+  kcal: number | null;
+  prot: number | null;
+  carb: number | null;
+  fat: number | null;
   dayContext: string;
   /** Opciones del plan de las comidas pendientes (F01 Fase 1; "" si ninguna). */
   planPendiente: string;
@@ -176,7 +188,11 @@ export function coachPrompt(args: {
       : `HOY es ${args.today} (${weekdayName(args.today)}).`;
   // P1 en el header: el objetivo es pauta de INGESTA, no la vara para juzgar si
   // «se pasó». El juez del déficit es la báscula (déficit real, en dayData).
-  const header = `${dateLine}\n\n${args.atleta} Objetivos diarios: ${args.kcal} kcal, ${args.prot} g proteína, ~${args.carb} g hidratos, ~${args.fat} g grasa. Estos objetivos son la pauta de INGESTA, no la vara para juzgar si «se pasó»: el juez del déficit es la báscula (peso/tendencia), no las kcal del día. Un margen moderado sobre el objetivo un día de entreno o muy activo NO es una desviación. En fases de Carga/Competición, superar kcal es lo esperado.`;
+  const targetContext =
+    args.kcal != null && args.prot != null && args.carb != null && args.fat != null
+      ? `Objetivos diarios: ${args.kcal} kcal, ${args.prot} g proteína, ~${args.carb} g hidratos, ~${args.fat} g grasa. Estos objetivos son la pauta de INGESTA, no la vara para juzgar si «se pasó»: el juez del déficit es la báscula (peso/tendencia), no las kcal del día. Un margen moderado sobre el objetivo un día de entreno o muy activo NO es una desviación. En fases de Carga/Competición, superar kcal es lo esperado.`
+      : "No hay una pauta nutricional configurada para esta fecha. No inventes objetivos ni juzgues kcal o macros contra una pauta inexistente.";
+  const header = `${dateLine}\n\n${args.atleta} ${targetContext}`;
   // Guardarraíles (doc 10 A3 + F01 Fase 1 + DECISIONS #53 + F05 Fase 0): la
   // anti-prescripción (suplementos/dieta/kcal) es propia del coach; el bloque
   // compartido (no-diagnóstico, pseudociencia, no-sobreatribución, entreno-
@@ -203,8 +219,8 @@ export function prepareVisitPrompt(args: {
   atleta: string;
   /** Día actual, para anclar la fecha (F01 Fase 0, por paridad). */
   today: string;
-  kcal: number;
-  prot: number;
+  kcal: number | null;
+  prot: number | null;
   meds: string;
   tendencia: string;
   filas: string;
@@ -214,7 +230,11 @@ export function prepareVisitPrompt(args: {
   const marksBlock = args.marks?.trim()
     ? `\n\nMarcas de rendimiento (PRs y progresión):\n${args.marks.trim()}`
     : "";
-  return `HOY es ${args.today} (${weekdayName(args.today)}). ${args.atleta} Pauta actual del nutricionista (Regenera): ${args.kcal} kcal, ${args.prot} g proteína.\n\nMediciones del nutricionista (pliegues):\n${args.meds}\n\n${args.tendencia}\n\nRegistro de los últimos días:\n${args.filas}${marksBlock}\n\nPrepara su visita al nutricionista: (1) análisis breve de la evolución según estos datos, (2) 4-6 preguntas concretas y bien fundamentadas para hacerle en consulta (ajuste de kcal/proteína, hinchazón, carga de competición, timing con el entreno…), basadas SOLO en lo que muestran los datos, señalando el dato que motiva cada pregunta. Si citas una marca de rendimiento, hazlo como evidencia observada, sin atribuir su cambio a la nutrición. Máximo 200 palabras, en español, sin saludos.`;
+  const pauta =
+    args.kcal != null && args.prot != null
+      ? `Pauta actual del nutricionista (Regenera): ${args.kcal} kcal, ${args.prot} g proteína.`
+      : "No hay una pauta nutricional vigente registrada; no inventes objetivos.";
+  return `HOY es ${args.today} (${weekdayName(args.today)}). ${args.atleta} ${pauta}\n\nMediciones del nutricionista (pliegues):\n${args.meds}\n\n${args.tendencia}\n\nRegistro de los últimos días:\n${args.filas}${marksBlock}\n\nPrepara su visita al nutricionista: (1) análisis breve de la evolución según estos datos, (2) 4-6 preguntas concretas y bien fundamentadas para hacerle en consulta (ajuste de kcal/proteína, hinchazón, carga de competición, timing con el entreno…), basadas SOLO en lo que muestran los datos, señalando el dato que motiva cada pregunta. Si citas una marca de rendimiento, hazlo como evidencia observada, sin atribuir su cambio a la nutrición. Máximo 200 palabras, en español, sin saludos.`;
 }
 
 // ── F-IA-8 · Chat sobre tus datos (system prompt; se regenera cada turno) ──

@@ -27,9 +27,9 @@ interface Targets {
 const GAUGE_MEALS: MealKey[] = ["almuerzo", "comida", "merienda", "cena", "extra"];
 const MEAL_OPACITY: Record<MealKey, number> = {
   almuerzo: 1,
-  comida: 0.8,
-  merienda: 0.62,
-  cena: 0.44,
+  comida: 0.94,
+  merienda: 0.88,
+  cena: 0.82,
   extra: 1,
 };
 
@@ -45,10 +45,13 @@ export function FuelGauge({
   const totals = dayTotals(entries);
   const meals = subtotalsByMeal(entries);
   const verdict = gaugeVerdict(targets, totals, phase);
+  const hasTarget = targets.kcal > 0 || targets.prot > 0;
   const special = verdict.phase !== "normal";
   const competition = verdict.phase === "competicion";
 
-  const headline = competition
+  const headline = !hasTarget
+    ? "Sin objetivo configurado"
+    : competition
     ? "Repostaje de competición"
     : special
       ? `Fase ${phaseLabel(phase)}`
@@ -85,7 +88,13 @@ export function FuelGauge({
           )}
         >
           {special ? <Flag className="size-3.5" aria-hidden /> : null}
-          {special ? phaseLabel(phase) : entries.length > 0 ? "En curso" : "Sin registros"}
+          {special
+            ? phaseLabel(phase)
+            : !hasTarget
+              ? "Solo registro"
+              : entries.length > 0
+                ? "En curso"
+                : "Sin registros"}
         </span>
       </div>
 
@@ -136,14 +145,24 @@ export function FuelGauge({
           <span>Distribución por comidas</span>
           <span className="font-display tabular-nums">{entries.length} entradas</span>
         </div>
-        <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
+        <div
+          className="flex h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
+          role="img"
+          aria-label={GAUGE_MEALS.filter((meal) => meals[meal].kcal > 0)
+            .map(
+              (meal) =>
+                `${MEAL_LABELS[meal]}: ${roundKcal(meals[meal].kcal)} kilocalorías`,
+            )
+            .join(", ") || "Sin calorías distribuidas por comidas"}
+        >
           {GAUGE_MEALS.map((meal) => {
             const width =
-              targets.kcal > 0 ? (meals[meal].kcal / targets.kcal) * 100 : 0;
+              (targets.kcal > 0 ? meals[meal].kcal / targets.kcal : meals[meal].kcal / Math.max(1, totals.kcal)) * 100;
             return width > 0 ? (
               <span
                 key={meal}
                 className="h-full shrink-0"
+                aria-hidden
                 style={{
                   width: `${Math.min(width, 100)}%`,
                   background: meal === "extra" ? "var(--fat)" : "var(--primary)",
@@ -162,26 +181,32 @@ export function FuelGauge({
           special ? "bg-primary-soft text-primary" : "bg-surface-2 text-muted-foreground",
         )}
       >
-        {special ? (
+        {!hasTarget ? (
+          <span>
+            Configura una dieta en Plan para comparar el registro con una pauta.
+          </span>
+        ) : special ? (
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
         ) : (
           <CircleDashed className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
         )}
-        {special ? (
-          <span>
-            Superar el objetivo es esperado en esta fase; no cuenta como desviación.
-          </span>
-        ) : verdict.covered ? (
-          <span className="font-medium text-protein">Objetivos cubiertos.</span>
-        ) : (
-          <span>
-            <strong className="font-semibold text-foreground">Faltan</strong>{" "}
-            {verdict.kcalRemaining.toLocaleString("es-ES")} kcal
-            {targets.prot > 0 ? ` · ${displayMacro(verdict.prot.remaining)} g prot` : ""}
-            {targets.carb > 0 ? ` · ${displayMacro(verdict.carb.remaining)} g hidr` : ""}
-            {targets.fat > 0 ? ` · ${displayMacro(verdict.fat.remaining)} g grasa` : ""}
-          </span>
-        )}
+        {hasTarget ? (
+          special ? (
+            <span>
+              Superar el objetivo es esperado en esta fase; no cuenta como desviación.
+            </span>
+          ) : verdict.covered ? (
+            <span className="font-medium text-protein">Objetivos cubiertos.</span>
+          ) : (
+            <span>
+              <strong className="font-semibold text-foreground">Faltan</strong>{" "}
+              {verdict.kcalRemaining.toLocaleString("es-ES")} kcal
+              {targets.prot > 0 ? ` · ${displayMacro(verdict.prot.remaining)} g prot` : ""}
+              {targets.carb > 0 ? ` · ${displayMacro(verdict.carb.remaining)} g hidr` : ""}
+              {targets.fat > 0 ? ` · ${displayMacro(verdict.fat.remaining)} g grasa` : ""}
+            </span>
+          )
+        ) : null}
       </div>
     </section>
   );
@@ -245,7 +270,7 @@ function BudgetRing({
           transform="rotate(-90 60 60)"
         />
         {main ? (
-          <g stroke="var(--line-strong)" strokeWidth="1.5" strokeLinecap="round">
+          <g stroke="var(--line)" strokeWidth="1.5" strokeLinecap="round">
             <line x1="60" y1="7" x2="60" y2="12" />
             <line x1="113" y1="60" x2="108" y2="60" />
             <line x1="60" y1="113" x2="60" y2="108" />
@@ -262,10 +287,10 @@ function BudgetRing({
         >
           {shown}
         </strong>
-        <span className={cn("mt-1 text-muted-foreground", main ? "text-[11px]" : "text-[9px]") }>
+        <span className={cn("mt-1 text-muted-foreground", main ? "text-[11px]" : "text-[10px]") }>
           {shortLabel ?? label}
         </span>
-        <small className={cn("font-display tabular-nums text-muted-foreground", main ? "text-[10px]" : "text-[8px]") }>
+        <small className="font-display text-[10px] tabular-nums text-muted-foreground">
           {target > 0 ? `de ${targetShown}${unit ? ` ${unit}` : ""}` : "sin objetivo"}
         </small>
       </span>

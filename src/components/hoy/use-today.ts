@@ -6,7 +6,13 @@ import { toast } from "sonner";
 import { api, type EntryInput, type ProductInput } from "@/lib/client-api";
 import type { BloatKey } from "@/lib/macros";
 import type { CoachReading } from "@/server/ai/coach-reading";
-import { enqueue, isOffline } from "@/lib/offline-queue";
+import {
+  cancelQueuedBloatUpsert,
+  enqueue,
+  isOffline,
+  updateQueuedBloatUpsert,
+} from "@/lib/offline-queue";
+import { isRetriableRequestError } from "@/lib/request-errors";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { EntryDTO } from "@/server/db/queries/day";
 import type { TodayPayload } from "@/server/db/queries/today";
@@ -77,7 +83,7 @@ export function useToday(date: string, initial: TodayPayload) {
         await api.addEntries(date, entries, clientMutationId);
         refetch();
       } catch (err) {
-        if (isOffline()) {
+        if (isOffline() || isRetriableRequestError(err)) {
           await enqueue({
             kind: "addEntries",
             date,
@@ -85,7 +91,12 @@ export function useToday(date: string, initial: TodayPayload) {
             ts: Date.now(),
             clientMutationId,
           });
-          toast("Sin conexión: se guardará al reconectar", { duration: 2500 });
+          toast(
+            isOffline()
+              ? "Sin conexión: se guardará al reconectar"
+              : "Conexión interrumpida: pendiente de sincronizar",
+            { duration: 2500 },
+          );
           return;
         }
         toast.error(err instanceof Error ? err.message : "No se pudo añadir.");
@@ -169,23 +180,30 @@ export function useToday(date: string, initial: TodayPayload) {
   const flush = useCallback(async () => {
     const patch = pending.current;
     pending.current = {};
-    if (Object.keys(patch).length === 0) return;
+    if (Object.keys(patch).length === 0) return true;
     if (isOffline()) {
       await enqueue({ kind: "patchDay", date, patch, ts: Date.now() });
       toast("Sin conexión: se guardará al reconectar", { duration: 2000 });
-      return;
+      return true;
     }
     try {
       await api.patchDay(date, patch);
       toast.success("Guardado ✓", { duration: 1200 });
+      return true;
     } catch (err) {
-      if (isOffline()) {
+      if (isOffline() || isRetriableRequestError(err)) {
         await enqueue({ kind: "patchDay", date, patch, ts: Date.now() });
-        toast("Sin conexión: se guardará al reconectar", { duration: 2000 });
-        return;
+        toast(
+          isOffline()
+            ? "Sin conexión: se guardará al reconectar"
+            : "Conexión interrumpida: pendiente de sincronizar",
+          { duration: 2000 },
+        );
+        return true;
       }
       toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
       refetch();
+      return false;
     }
   }, [date, refetch]);
 
@@ -201,6 +219,25 @@ export function useToday(date: string, initial: TodayPayload) {
       pending.current = { ...pending.current, ...patch };
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => void flush(), 600);
+    },
+    [date, setData, flush],
+  );
+
+  const patchDayNow = useCallback(
+    async (patch: DayPatch) => {
+      setData((p) => ({
+        ...p,
+        view: {
+          ...p.view,
+          day: { ...(p.view.day ?? emptyDay(date)), ...patch },
+        },
+      }));
+      pending.current = { ...pending.current, ...patch };
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+      return flush();
     },
     [date, setData, flush],
   );
@@ -342,7 +379,12 @@ export function useToday(date: string, initial: TodayPayload) {
   const setCoachReading = useCallback((reading: CoachReading) => {
     setData((p) => ({
       ...p,
-      coachReading: { ...reading, stale: false },
+      coachReading:
+        reading.mode === "hoy" ? { ...reading, stale: false } : p.coachReading,
+      coachReadings: {
+        ...p.coachReadings,
+        [reading.mode]: { ...reading, stale: false },
+      },
     }));
   }, [setData]);
 
@@ -355,18 +397,62 @@ export function useToday(date: string, initial: TodayPayload) {
     async (severity: BloatKey, occurredAt: string) => {
       try {
         const { event } = await api.createBloatEvent({ date, severity, occurredAt });
-        setData((p) => ({
-          ...p,
-          bloatEvents: [...p.bloatEvents, event].sort((a, b) =>
+        setData((p) => {
+          const events = [...p.bloatEvents, event].sort((a, b) =>
             a.occurredAt.localeCompare(b.occurredAt),
-          ),
-          view: {
-            ...p.view,
-            day: { ...(p.view.day ?? emptyDay(date)), bloat: severity },
-          },
-        }));
+          );
+          return {
+            ...p,
+            bloatEvents: events,
+            view: {
+              ...p.view,
+              day: {
+                ...(p.view.day ?? emptyDay(date)),
+                bloat: events.at(-1)?.severity ?? null,
+              },
+            },
+          };
+        });
         toast.success("Marcador guardado");
       } catch (err) {
+        if (isOffline() || isRetriableRequestError(err)) {
+          await enqueue({
+            kind: "upsertBloat",
+            date,
+            severity,
+            occurredAt,
+            ts: Date.now(),
+          });
+          setData((p) => {
+            const existing = p.bloatEvents.find(
+              (item) => item.occurredAt.slice(0, 5) === occurredAt.slice(0, 5),
+            );
+            const optimistic = {
+              id: existing?.id ?? tempId--,
+              date,
+              severity,
+              occurredAt: occurredAt.length === 5 ? `${occurredAt}:00` : occurredAt,
+              createdAt: existing?.createdAt ?? new Date().toISOString(),
+            };
+            const events = existing
+              ? p.bloatEvents.map((item) => (item.id === existing.id ? optimistic : item))
+              : [...p.bloatEvents, optimistic];
+            return {
+              ...p,
+              bloatEvents: events.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)),
+              view: {
+                ...p.view,
+                day: { ...(p.view.day ?? emptyDay(date)), bloat: severity },
+              },
+            };
+          });
+          toast(
+            isOffline()
+              ? "Sin conexión: marcador pendiente"
+              : "Conexión interrumpida: marcador pendiente",
+          );
+          return;
+        }
         toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
         throw err;
       }
@@ -379,6 +465,29 @@ export function useToday(date: string, initial: TodayPayload) {
       id: number,
       patch: { severity?: BloatKey; occurredAt?: string },
     ) => {
+      const localEvent = query.data.bloatEvents.find((item) => item.id === id);
+      if (id < 0 && localEvent) {
+        const severity = patch.severity ?? localEvent.severity;
+        const occurredAt = patch.occurredAt ?? localEvent.occurredAt;
+        if (
+          !(await updateQueuedBloatUpsert(
+            date,
+            localEvent.occurredAt,
+            severity,
+            occurredAt,
+          ))
+        ) {
+          throw new Error("No se encontró el marcador pendiente.");
+        }
+        setData((p) => ({
+          ...p,
+          bloatEvents: p.bloatEvents
+            .map((item) => (item.id === id ? { ...item, severity, occurredAt } : item))
+            .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt)),
+        }));
+        toast("Marcador pendiente actualizado");
+        return;
+      }
       try {
         const { event } = await api.updateBloatEvent(id, patch);
         setData((p) => {
@@ -400,15 +509,69 @@ export function useToday(date: string, initial: TodayPayload) {
         });
         toast.success("Marcador actualizado");
       } catch (err) {
+        if (isOffline() || isRetriableRequestError(err)) {
+          await enqueue({
+            kind: "updateBloat",
+            date,
+            eventId: id,
+            bloatPatch: patch,
+            ts: Date.now(),
+          });
+          setData((p) => {
+            const events = p.bloatEvents
+              .map((item) => (item.id === id ? { ...item, ...patch } : item))
+              .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+            const latest = events.at(-1);
+            return {
+              ...p,
+              bloatEvents: events,
+              view: {
+                ...p.view,
+                day: {
+                  ...(p.view.day ?? emptyDay(date)),
+                  bloat: latest?.severity ?? null,
+                },
+              },
+            };
+          });
+          toast(
+            isOffline()
+              ? "Sin conexión: cambio pendiente"
+              : "Conexión interrumpida: cambio pendiente",
+          );
+          return;
+        }
         toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+        refetch();
         throw err;
       }
     },
-    [date, setData],
+    [date, query.data.bloatEvents, setData, refetch],
   );
 
   const deleteBloatEvent = useCallback(
     async (id: number) => {
+      const localEvent = query.data.bloatEvents.find((item) => item.id === id);
+      if (id < 0 && localEvent) {
+        await cancelQueuedBloatUpsert(date, localEvent.occurredAt);
+        setData((p) => {
+          const events = p.bloatEvents.filter((item) => item.id !== id);
+          const latest = events.at(-1);
+          return {
+            ...p,
+            bloatEvents: events,
+            view: {
+              ...p.view,
+              day: {
+                ...(p.view.day ?? emptyDay(date)),
+                bloat: latest?.severity ?? null,
+              },
+            },
+          };
+        });
+        toast("Marcador pendiente eliminado");
+        return;
+      }
       try {
         await api.deleteBloatEvent(id);
         setData((p) => {
@@ -428,11 +591,41 @@ export function useToday(date: string, initial: TodayPayload) {
         });
         toast("Marcador eliminado");
       } catch (err) {
+        if (isOffline() || isRetriableRequestError(err)) {
+          await enqueue({
+            kind: "deleteBloat",
+            date,
+            eventId: id,
+            ts: Date.now(),
+          });
+          setData((p) => {
+            const events = p.bloatEvents.filter((item) => item.id !== id);
+            const latest = events.at(-1);
+            return {
+              ...p,
+              bloatEvents: events,
+              view: {
+                ...p.view,
+                day: {
+                  ...(p.view.day ?? emptyDay(date)),
+                  bloat: latest?.severity ?? null,
+                },
+              },
+            };
+          });
+          toast(
+            isOffline()
+              ? "Sin conexión: eliminación pendiente"
+              : "Conexión interrumpida: eliminación pendiente",
+          );
+          return;
+        }
         toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
+        refetch();
         throw err;
       }
     },
-    [date, setData],
+    [date, query.data.bloatEvents, setData, refetch],
   );
 
   return {
@@ -442,6 +635,7 @@ export function useToday(date: string, initial: TodayPayload) {
     updateEntry,
     deleteEntry,
     patchDay,
+    patchDayNow,
     createProduct,
     updateProduct,
     deleteProduct,

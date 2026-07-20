@@ -41,7 +41,6 @@ export async function DELETE(
 
   try {
     const event = await deleteBloatEvent(id);
-    if (!event) return badRequest("Marcador no encontrado.");
     return Response.json({ event });
   } catch (err) {
     return serverError(err);

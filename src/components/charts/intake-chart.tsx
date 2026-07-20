@@ -75,7 +75,9 @@ export function IntakeChart({ data }: { data: IntakePointVM[] }) {
             {data.map((point) => (
               <Cell
                 key={`protein-${point.label}`}
-                fillOpacity={point.special ? 0.45 : 1}
+                fillOpacity={1}
+                stroke={point.special ? "var(--info)" : "none"}
+                strokeWidth={point.special ? 1 : 0}
               />
             ))}
           </Bar>
@@ -87,7 +89,12 @@ export function IntakeChart({ data }: { data: IntakePointVM[] }) {
             isAnimationActive={false}
           >
             {data.map((point) => (
-              <Cell key={`carb-${point.label}`} fillOpacity={point.special ? 0.45 : 1} />
+              <Cell
+                key={`carb-${point.label}`}
+                fillOpacity={1}
+                stroke={point.special ? "var(--info)" : "none"}
+                strokeWidth={point.special ? 1 : 0}
+              />
             ))}
           </Bar>
           <Bar
@@ -99,7 +106,12 @@ export function IntakeChart({ data }: { data: IntakePointVM[] }) {
             isAnimationActive={false}
           >
             {data.map((point) => (
-              <Cell key={`fat-${point.label}`} fillOpacity={point.special ? 0.45 : 1} />
+              <Cell
+                key={`fat-${point.label}`}
+                fillOpacity={1}
+                stroke={point.special ? "var(--info)" : "none"}
+                strokeWidth={point.special ? 1 : 0}
+              />
             ))}
           </Bar>
           <Line

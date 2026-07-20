@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight, Flame, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { FuelGauge } from "@/components/fuel-gauge/fuel-gauge";
 import { AddSheet } from "@/components/hoy/add-sheet";
 import { CheckinCierre, CheckinMatinal, WeightExpressSheet } from "@/components/hoy/checkins";
@@ -67,6 +68,8 @@ export function HoyClient({
   const searchParams = useSearchParams();
   const todayState = useToday(date, initial);
   const data = todayState.data;
+  const today = dayKey();
+  const isToday = date === today;
   const [addOpen, setAddOpen] = useState(() => searchParams.get("add") === "1");
   const [addMeal, setAddMeal] = useState<MealKey>(() =>
     searchParams.get("add") === "1" ? mealByHour() : "comida",
@@ -74,14 +77,12 @@ export function HoyClient({
   const [matinalOpen, setMatinalOpen] = useState(false);
   const [cierreOpen, setCierreOpen] = useState(false);
   const [weightOpen, setWeightOpen] = useState(
-    () => searchParams.get("checkin") === "weight",
+    () => isToday && searchParams.get("checkin") === "weight",
   );
   const [coachOpen, setCoachOpen] = useState(false);
   const [sharedFile, setSharedFile] = useState<File | null>(null);
   const [bloatEditor, setBloatEditor] = useState<BloatEditor | null>(null);
 
-  const today = dayKey();
-  const isToday = date === today;
   const openAdd = (meal: MealKey) => {
     setAddMeal(meal);
     setAddOpen(true);
@@ -108,9 +109,15 @@ export function HoyClient({
             );
             setAddMeal(mealByHour());
             setAddOpen(true);
+          } else {
+            setAddMeal(mealByHour());
+            setAddOpen(true);
+            toast.error("No se encontró la imagen compartida. Puedes elegirla de nuevo.");
           }
         } catch {
-          // La ausencia de Cache API no bloquea el registro manual.
+          setAddMeal(mealByHour());
+          setAddOpen(true);
+          toast.error("No se pudo recuperar la imagen compartida. Puedes elegirla de nuevo.");
         }
       })();
     }
@@ -122,7 +129,9 @@ export function HoyClient({
   useEffect(() => {
     if (!data || !isToday) return;
     const consumed = roundKcal(dayTotals(data.view.entries).kcal);
-    document.title = `${consumed.toLocaleString("es-ES")} / ${data.targets.kcal.toLocaleString("es-ES")} · Fuelboard`;
+    document.title = data.targets.kcal > 0
+      ? `${consumed.toLocaleString("es-ES")} / ${data.targets.kcal.toLocaleString("es-ES")} · Fuelboard`
+      : `${consumed.toLocaleString("es-ES")} kcal · Fuelboard`;
     return () => {
       document.title = "Fuelboard";
     };
@@ -141,14 +150,23 @@ export function HoyClient({
   const selectBloat = (severity: BloatKey) => {
     const latest = data.bloatEvents.at(-1);
     if (latest) {
-      void todayState.updateBloatEvent(latest.id, { severity });
+      void todayState.updateBloatEvent(latest.id, { severity }).catch(() => undefined);
       return;
     }
     if (isToday) {
-      void todayState.createBloatEvent(severity, currentMadridTime());
+      void todayState.createBloatEvent(severity, currentMadridTime()).catch(() => undefined);
       return;
     }
     setBloatEditor({ event: null, severity });
+  };
+
+  const saveCurrentBloat = async (severity: BloatKey) => {
+    const latest = data.bloatEvents.at(-1);
+    if (latest) {
+      await todayState.updateBloatEvent(latest.id, { severity });
+      return;
+    }
+    await todayState.createBloatEvent(severity, currentMadridTime());
   };
 
   return (
@@ -235,9 +253,17 @@ export function HoyClient({
 
       <DailyChecks
         view={data.view}
+        isToday={isToday}
         bloatEvents={data.bloatEvents}
         onPatch={todayState.patchDay}
         onBloat={selectBloat}
+        onAddBloat={() =>
+          setBloatEditor({
+            event: null,
+            severity:
+              data.bloatEvents.at(-1)?.severity ?? data.view.day?.bloat ?? "leve",
+          })
+        }
         onReviewCheckin={() => setMatinalOpen(true)}
       />
 
@@ -291,12 +317,15 @@ export function HoyClient({
         initialFile={sharedFile}
       />
       <CheckinMatinal
+        key={`matinal-${date}-${matinalOpen ? "open" : "closed"}`}
         open={matinalOpen}
         onOpenChange={setMatinalOpen}
         data={data}
         onPatch={todayState.patchDay}
+        onBloat={saveCurrentBloat}
       />
       <CheckinCierre
+        key={`cierre-${date}-${cierreOpen ? "open" : "closed"}`}
         open={cierreOpen}
         onOpenChange={setCierreOpen}
         data={data}
@@ -304,16 +333,18 @@ export function HoyClient({
         onAddMeal={() => openAdd(mealByHour())}
       />
       <WeightExpressSheet
+        key={`weight-${date}-${weightOpen ? "open" : "closed"}`}
         open={weightOpen}
         onOpenChange={setWeightOpen}
         data={data}
-        onPatch={todayState.patchDay}
+        onPatch={todayState.patchDayNow}
+        onBloat={saveCurrentBloat}
       />
       <CoachSheet
         open={coachOpen}
         onOpenChange={setCoachOpen}
         date={date}
-        initialReading={data.coachReading}
+        initialReadings={data.coachReadings}
         onReading={todayState.setCoachReading}
       />
       {bloatEditor ? (

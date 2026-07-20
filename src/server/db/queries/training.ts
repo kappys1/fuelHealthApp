@@ -11,6 +11,7 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { shiftDayKey } from "@/lib/dates";
 import {
   sessionKcal,
@@ -48,6 +49,8 @@ export interface TrainingPlanDTO {
   validFrom: string;
   validTo: string | null;
   source: TrainingSource;
+  importRequestId: string | null;
+  importFingerprint: string | null;
 }
 
 export interface TrainingPlanContext {
@@ -132,153 +135,208 @@ export interface ImportedTrainingPlan {
   sessions: ImportedTrainingSession[];
 }
 
-/**
- * Crea un plan de entreno COMPLETO desde una importación (F-IA-10): inserta el plan
- * + sus sesiones. Cierra el plan abierto anterior que solape (valid_to = día previo
- * a valid_from) para que no haya dos planes vigentes a la vez. Nada se persiste
- * hasta que el usuario confirma la vista previa.
- */
-export async function createTrainingPlanFull(
-  p: ImportedTrainingPlan,
-): Promise<{
+export interface ImportedTrainingAssignment {
+  sessionIndex: number;
+  date: string;
+}
+
+interface AtomicTrainingResult {
   plan: TrainingPlanDTO;
   sessions: TrainingSessionDTO[];
-  closedPlanIds: number[];
-}> {
-  const previousOpen = await db
-    .select({ id: schema.trainingPlans.id })
-    .from(schema.trainingPlans)
-    .where(
-      and(
-        isNull(schema.trainingPlans.validTo),
-        lte(schema.trainingPlans.validFrom, p.validFrom),
-      ),
-    );
-  const closedPlanIds = previousOpen.map((row) => row.id);
+  assigned: number;
+  skipped: number;
+  replayed: boolean;
+}
 
-  const [plan] = await db
-    .insert(schema.trainingPlans)
-    .values({
-      programa: p.programa,
-      etiqueta: p.etiqueta,
-      source: p.source,
-      validFrom: p.validFrom,
-      validTo: p.validTo,
-    })
-    .returning();
-  if (!plan) throw new Error("No se pudo crear el plan de entreno.");
-
-  try {
-    let sessions: TrainingSessionDTO[] = [];
-    if (p.sessions.length > 0) {
-      sessions = (await db
-        .insert(schema.trainingSessions)
-        .values(
-          p.sessions.map((s, i) => ({
-            planId: plan.id,
-            key: s.key,
-            nombre: s.nombre,
-            tipo: s.tipo,
-            contenido: s.contenido,
-            kcalMin: s.kcalMin,
-            kcalMax: s.kcalMax,
-            duracionMin: s.duracionMin,
-            sort: i,
-          })),
-        )
-        .returning()) as TrainingSessionDTO[];
-    }
-
-    // El plan anterior solo se cierra cuando el nuevo ya está completo.
-    if (closedPlanIds.length > 0) {
-      await db
-        .update(schema.trainingPlans)
-        .set({ validTo: shiftDayKey(p.validFrom, -1) })
-        .where(inArray(schema.trainingPlans.id, closedPlanIds));
-    }
-
-    return { plan: plan as TrainingPlanDTO, sessions, closedPlanIds };
-  } catch (error) {
-    await db.delete(schema.trainingPlans).where(eq(schema.trainingPlans.id, plan.id));
-    await restoreTrainingPlans(closedPlanIds);
-    throw error;
+export class TrainingPlanOverlapError extends Error {
+  constructor() {
+    super("Ya existe un plan para esa semana. Elimínalo antes de importar otro.");
+    this.name = "TrainingPlanOverlapError";
   }
 }
 
-export async function restoreTrainingPlans(ids: number[]): Promise<void> {
-  if (ids.length === 0) return;
-  await db
-    .update(schema.trainingPlans)
-    .set({ validTo: null })
-    .where(inArray(schema.trainingPlans.id, ids));
+async function hasPlanForWeek(validFrom: string): Promise<boolean> {
+  const [plan] = await db
+    .select({ id: schema.trainingPlans.id })
+    .from(schema.trainingPlans)
+    .where(eq(schema.trainingPlans.validFrom, validFrom));
+  return Boolean(plan);
 }
 
-export interface DayAssignment {
-  date: string;
-  sessionRef: number | null;
-  sessionLabel: string;
-  sessionKcal: number | null;
-}
-
-/**
- * Asigna sesiones a días (upsert de days.sessionRef/-Label/-Kcal) SIN pisar los
- * días que ya tienen una sesión registrada (doc 10 B2: "sin pisar días ya
- * registrados manualmente"). Secuencial (neon-http sin transacción interactiva).
- */
-export async function assignSessionsToDays(
-  assignments: DayAssignment[],
-): Promise<{ assigned: number; skipped: number }> {
-  let assigned = 0;
-  let skipped = 0;
-  const applied: DayAssignment[] = [];
-  try {
-    for (const a of assignments) {
-      const [existing] = await db
-        .select({ sessionLabel: schema.days.sessionLabel })
+async function trainingImportResult(
+  requestId: string,
+  fingerprint: string,
+  requestedAssignments: number,
+  replayed: boolean,
+): Promise<AtomicTrainingResult | null> {
+  const [plan] = await db
+    .select()
+    .from(schema.trainingPlans)
+    .where(eq(schema.trainingPlans.importRequestId, requestId));
+  if (!plan) return null;
+  if (plan.importFingerprint !== fingerprint) {
+    throw new Error("El identificador de importación pertenece a otra vista previa.");
+  }
+  const sessions = (await db
+    .select()
+    .from(schema.trainingSessions)
+    .where(eq(schema.trainingSessions.planId, plan.id))
+    .orderBy(asc(schema.trainingSessions.sort))) as TrainingSessionDTO[];
+  const ids = sessions.map((session) => session.id);
+  const assignedRows = ids.length
+    ? await db
+        .select({ date: schema.days.date })
         .from(schema.days)
-        .where(eq(schema.days.date, a.date));
-      if (existing?.sessionLabel) {
-        skipped++;
-        continue;
-      }
-      await db
+        .where(inArray(schema.days.sessionRef, ids))
+    : [];
+  const assigned = Math.min(requestedAssignments, assignedRows.length);
+  return {
+    plan: plan as TrainingPlanDTO,
+    sessions,
+    assigned,
+    skipped: Math.max(0, requestedAssignments - assigned),
+    replayed,
+  };
+}
+
+/** Plan, sesiones, cierre del anterior y asignaciones: una sola transacción HTTP. */
+export async function createTrainingPlanAtomic(
+  p: ImportedTrainingPlan,
+  assignments: ImportedTrainingAssignment[],
+  requestId: string,
+  fingerprint: string,
+): Promise<AtomicTrainingResult> {
+  const existing = await trainingImportResult(
+    requestId,
+    fingerprint,
+    assignments.length,
+    true,
+  );
+  if (existing) return existing;
+
+  const [[planIdRow], sessionIdRows] = await Promise.all([
+    db
+      .select({
+        id: sql<number>`nextval(pg_get_serial_sequence('training_plans', 'id'))::int`,
+      })
+      .from(sql`(select 1) as allocation`),
+    db
+      .select({
+        id: sql<number>`nextval(pg_get_serial_sequence('training_sessions', 'id'))::int`,
+      })
+      .from(sql`generate_series(1, ${p.sessions.length})`),
+  ]);
+  if (!planIdRow || sessionIdRows.length !== p.sessions.length) {
+    throw new Error("No se pudieron reservar los ids de la semana.");
+  }
+  const planId = Number(planIdRow.id);
+  const sessionIds = sessionIdRows.map((row) => Number(row.id));
+
+  const queries: BatchItem<"pg">[] = [
+    db.execute(
+      sql`select pg_advisory_xact_lock(hashtext('fuelboard:training-import'))`,
+    ),
+    db.execute(sql`
+      select 1 / case
+        when exists (
+          select 1
+          from ${schema.trainingPlans}
+          where ${schema.trainingPlans.validFrom} = ${p.validFrom}
+        ) then 0
+        else 1
+      end
+    `),
+    db
+      .insert(schema.trainingPlans)
+      .overridingSystemValue()
+      .values({
+        id: planId,
+        programa: p.programa,
+        etiqueta: p.etiqueta,
+        source: p.source,
+        validFrom: p.validFrom,
+        validTo: p.validTo,
+        importRequestId: requestId,
+        importFingerprint: fingerprint,
+      }),
+    db
+      .insert(schema.trainingSessions)
+      .overridingSystemValue()
+      .values(
+        p.sessions.map((session, index) => ({
+          id: sessionIds[index]!,
+          planId,
+          key: session.key,
+          nombre: session.nombre,
+          tipo: session.tipo,
+          contenido: session.contenido,
+          kcalMin: session.kcalMin,
+          kcalMax: session.kcalMax,
+          duracionMin: session.duracionMin,
+          sort: index,
+        })),
+      ),
+  ];
+  queries.push(
+    db
+      .update(schema.trainingPlans)
+      .set({ validTo: shiftDayKey(p.validFrom, -1) })
+      .where(
+        and(
+          ne(schema.trainingPlans.id, planId),
+          isNull(schema.trainingPlans.validTo),
+          lte(schema.trainingPlans.validFrom, p.validFrom),
+        ),
+      ),
+  );
+  for (const assignment of assignments) {
+    const session = p.sessions[assignment.sessionIndex];
+    const sessionRef = sessionIds[assignment.sessionIndex];
+    if (!session || sessionRef == null) {
+      throw new Error("La asignación apunta a una sesión inexistente.");
+    }
+    queries.push(
+      db
         .insert(schema.days)
         .values({
-          date: a.date,
-          sessionRef: a.sessionRef,
-          sessionLabel: a.sessionLabel,
-          sessionKcal: a.sessionKcal,
+          date: assignment.date,
+          sessionRef,
+          sessionLabel: session.nombre,
+          sessionKcal: sessionKcal(session.kcalMin, session.kcalMax),
         })
         .onConflictDoUpdate({
           target: schema.days.date,
           set: {
-            sessionRef: a.sessionRef,
-            sessionLabel: a.sessionLabel,
-            sessionKcal: a.sessionKcal,
+            sessionRef,
+            sessionLabel: session.nombre,
+            sessionKcal: sessionKcal(session.kcalMin, session.kcalMax),
           },
-        });
-      applied.push(a);
-      assigned++;
-    }
-  } catch (error) {
-    await Promise.all(
-      applied.map((a) =>
-        db
-          .update(schema.days)
-          .set({ sessionRef: null, sessionLabel: null, sessionKcal: null })
-          .where(
-            and(
-              eq(schema.days.date, a.date),
-              a.sessionRef == null
-                ? isNull(schema.days.sessionRef)
-                : eq(schema.days.sessionRef, a.sessionRef),
-            ),
-          ),
-      ),
+          setWhere: isNull(schema.days.sessionLabel),
+        }),
     );
+  }
+
+  try {
+    await db.batch(queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
+  } catch (error) {
+    const raced = await trainingImportResult(
+      requestId,
+      fingerprint,
+      assignments.length,
+      true,
+    );
+    if (raced) return raced;
+    if (await hasPlanForWeek(p.validFrom)) throw new TrainingPlanOverlapError();
     throw error;
   }
-  return { assigned, skipped };
+  const created = await trainingImportResult(
+    requestId,
+    fingerprint,
+    assignments.length,
+    false,
+  );
+  if (!created) throw new Error("La semana no quedó persistida.");
+  return created;
 }
 
 export interface TrainingSessionWithDay extends TrainingSessionDTO {
@@ -437,7 +495,22 @@ export async function reassignTrainingSession(
   }
 }
 
-/** Borra un plan (cascade a sus sesiones; days.session_ref → null por el FK). */
+/** Borra un plan y limpia todos los campos desnormalizados de sus días. */
 export async function deleteTrainingPlan(id: number): Promise<void> {
-  await db.delete(schema.trainingPlans).where(eq(schema.trainingPlans.id, id));
+  const sessions = await db
+    .select({ id: schema.trainingSessions.id })
+    .from(schema.trainingSessions)
+    .where(eq(schema.trainingSessions.planId, id));
+  const ids = sessions.map((session) => session.id);
+  const queries: BatchItem<"pg">[] = [];
+  if (ids.length > 0) {
+    queries.push(
+      db
+        .update(schema.days)
+        .set({ sessionRef: null, sessionLabel: null, sessionKcal: null })
+        .where(inArray(schema.days.sessionRef, ids)),
+    );
+  }
+  queries.push(db.delete(schema.trainingPlans).where(eq(schema.trainingPlans.id, id)));
+  await db.batch(queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
 }

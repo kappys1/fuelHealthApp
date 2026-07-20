@@ -192,7 +192,9 @@ export function MealTimeline({
                   </span>
                   <span className="min-w-0 flex-1">
                     <strong className="block text-[13px] font-semibold text-foreground">
-                      Hinchazón {event.severity}
+                      {event.severity === "ninguna"
+                        ? "Sin hinchazón"
+                        : `Hinchazón ${event.severity}`}
                     </strong>
                   </span>
                   <time className="font-display text-[12px] tabular-nums text-muted-foreground">

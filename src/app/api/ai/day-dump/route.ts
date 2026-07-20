@@ -34,8 +34,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const kcal = plan?.targets.kcal ?? 1800;
-    const prot = plan?.targets.prot ?? 110;
+    const kcal = plan?.targets.kcal ?? null;
+    const prot = plan?.targets.prot ?? null;
     const result = await runStructured({
       // Tabla 04-IA: F-IA-4 usa el modelo de visión (troceo fiable), pensamiento
       // "estimate" (thinking low) por la regla de determinismo.

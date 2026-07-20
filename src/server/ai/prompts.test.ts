@@ -25,6 +25,7 @@ import {
   chatSummaryPrompt,
   chatSystemPrompt,
   coachPrompt,
+  photoPrompt,
   prepareVisitPrompt,
   sharedGuardrails,
 } from "./prompts";
@@ -35,6 +36,22 @@ import {
 */
 
 const TODAY = "2026-07-12";
+
+describe("foto sin pauta nutricional", () => {
+  it("declara el objetivo ausente y exige un veredicto null", () => {
+    const prompt = photoPrompt({
+      contexto: "Contexto del usuario.",
+      meal: "comida",
+      kcalObjetivo: null,
+      protObjetivo: null,
+      listaOpciones: "",
+    });
+
+    expect(prompt).toContain("sin una pauta nutricional configurada");
+    expect(prompt).toContain("encaja_plan: null");
+    expect(prompt).not.toMatch(/plan de \d+ kcal/);
+  });
+});
 
 describe("ATHLETE_CONTEXT dinámico (doc 10 A2)", () => {
   it("el contexto completo sale del perfil (edita el perfil → cambia el texto)", () => {

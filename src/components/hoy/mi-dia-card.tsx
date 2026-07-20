@@ -13,6 +13,10 @@ import {
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/lib/client-api";
 import {
+  effectiveHealthMetric,
+  importedHealthIsFallback,
+} from "@/lib/effective-health";
+import {
   BLOAT_LABELS,
   type BloatKey,
   PHASE_LABELS,
@@ -59,10 +63,13 @@ export function MiDiaCard({
   // Valor EFECTIVO = manual (tu edición) ?? báscula (Apple Health). Así el peso y
   // el % grasa se AUTO-RELLENAN de la báscula y siguen siendo editables (tu edición
   // manda ese día). Ver también la precedencia en getTrendData.
-  const effWeight = day?.weight ?? health?.weight ?? null;
-  const weightFromScale = day?.weight == null && health?.weight != null;
-  const effFat = day?.bodyFatPct ?? health?.bodyFatPct ?? null;
-  const fatFromScale = day?.bodyFatPct == null && health?.bodyFatPct != null;
+  const effWeight = effectiveHealthMetric(day?.weight, health?.weight);
+  const weightFromScale = importedHealthIsFallback(day?.weight, health?.weight);
+  const effFat = effectiveHealthMetric(day?.bodyFatPct, health?.bodyFatPct);
+  const fatFromScale = importedHealthIsFallback(
+    day?.bodyFatPct,
+    health?.bodyFatPct,
+  );
 
   const summary = [
     day?.sessionLabel,

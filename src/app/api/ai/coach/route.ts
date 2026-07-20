@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     return serverError(err);
   }
 
-  const targets = plan?.targets ?? { kcal: 1800, prot: 110, carb: 0, fat: 0 };
+  const targets = plan?.targets ?? { kcal: 0, prot: 0, carb: 0, fat: 0 };
 
   // Veredicto + balance + déficit real JUZGADOS EN SERVIDOR (principio 1): el
   // modelo NO recalcula, recibe el mismo juicio determinista que el FuelGauge
@@ -79,12 +79,14 @@ export async function POST(request: Request) {
       : sesionCalendario.toLowerCase().includes("descanso")
         ? "descanso"
         : `día de entreno según calendario: ${sesionCalendario}`;
-  const dataLines = [
-    gaugeVerdictLine(verdict, {
-      faseLabel: phaseLabel(view.day?.phase ?? null),
-      sessionLabel,
-    }),
-  ];
+  const dataLines = plan
+    ? [
+        gaugeVerdictLine(verdict, {
+          faseLabel: phaseLabel(view.day?.phase ?? null),
+          sessionLabel,
+        }),
+      ]
+    : ["Sin pauta nutricional configurada: no evaluar kcal ni macros contra un objetivo."];
   // Balance ingesta−gasto y déficit real solo en modo "ayer" (día cerrado): a
   // mitad de un día en curso el gasto aún no está completo → sería engañoso.
   if (parsed.data.mode === "ayer") {
@@ -121,10 +123,10 @@ export async function POST(request: Request) {
         today: base,
         targetDate,
         mode: parsed.data.mode,
-        kcal: targets.kcal,
-        prot: targets.prot,
-        carb: targets.carb,
-        fat: targets.fat,
+        kcal: plan?.targets.kcal ?? null,
+        prot: plan?.targets.prot ?? null,
+        carb: plan?.targets.carb ?? null,
+        fat: plan?.targets.fat ?? null,
         dayContext: dayContext(view, {
           sessionByWeekday: atleta.sessionByWeekday,
           date: targetDate,

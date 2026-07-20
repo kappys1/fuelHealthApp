@@ -1,4 +1,5 @@
 import { dayKey, isoWeekday } from "@/lib/dates";
+import { effectiveHealthMetric } from "@/lib/effective-health";
 import {
   BLOAT_LABELS,
   type MealKey,
@@ -361,7 +362,7 @@ export function dayContext(
   }
 
   const ctx: string[] = [];
-  const weight = day?.weight ?? health?.weight ?? null;
+  const weight = effectiveHealthMetric(day?.weight, health?.weight);
   if (weight != null) ctx.push(`peso ${num(weight, 1)} kg`);
   if (view.session) {
     // Sesión REAL del plan de entreno (doc 10 B3): nombre + tipo + gasto estimado.
@@ -380,7 +381,7 @@ export function dayContext(
     );
   }
   ctx.push(`fase ${phaseLabel(day?.phase ?? null)}`);
-  const waterL = day?.waterL ?? health?.waterL ?? null;
+  const waterL = effectiveHealthMetric(day?.waterL, health?.waterL);
   if (waterL != null) ctx.push(`agua ${num(waterL, 1)} L`);
   if (day?.bloat) ctx.push(`hinchazón ${BLOAT_LABELS[day.bloat].toLowerCase()}`);
   if (health?.steps != null) ctx.push(`${num(health.steps)} pasos`);

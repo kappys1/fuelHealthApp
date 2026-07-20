@@ -35,14 +35,16 @@ export function computeAdherence(
     (r) => r.logged && r.date >= lo && r.date <= today,
   );
 
-  const normal = win.filter((r) => r.phase == null);
+  const normal = win.filter(
+    (r) => r.phase == null && r.target.kcal > 0 && r.target.prot > 0,
+  );
   const enRango = normal.filter(
     (r) =>
       r.target.kcal > 0 &&
       Math.abs(r.kcal - r.target.kcal) / r.target.kcal <= KCAL_TOLERANCE,
   ).length;
   const protOk = normal.filter(
-    (r) => r.prot >= PROT_MIN_RATIO * r.target.prot,
+    (r) => r.target.prot > 0 && r.prot >= PROT_MIN_RATIO * r.target.prot,
   ).length;
 
   return {

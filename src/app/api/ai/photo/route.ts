@@ -56,8 +56,8 @@ export async function POST(request: Request) {
         // sirve de referencia de tamaño de ración en la foto.
         contexto: atleta.compactPhoto,
         meal,
-        kcalObjetivo: plan?.targets.kcal ?? 1800,
-        protObjetivo: plan?.targets.prot ?? 110,
+        kcalObjetivo: plan?.targets.kcal ?? null,
+        protObjetivo: plan?.targets.prot ?? null,
         listaOpciones: planOptionsList(plan?.optionsByMeal[meal] ?? []),
         note,
       }),

@@ -4,6 +4,7 @@ import type { DerivedTargets } from "@/server/analytics/planDerived";
 import {
   coachContextHash,
   coachReadingView,
+  type CoachMode,
   type CoachReadingView,
 } from "@/server/ai/coach-reading";
 import { getCoachReading } from "./coach-reading";
@@ -69,11 +70,14 @@ export interface TodayPayload {
   healthSync: HealthSyncView | null;
   /** Lectura persistida; null hasta que el usuario la solicite explícitamente. */
   coachReading: CoachReadingView | null;
+  /** Cache por modo; permite reabrir hoy/ayer sin volver a invocar la IA. */
+  coachReadings: Record<CoachMode, CoachReadingView | null>;
   /** Marcadores temporales reales; no incluye el resumen legacy sin hora. */
   bloatEvents: BloatEventDTO[];
 }
 
 export async function getTodayPayload(date: string): Promise<TodayPayload> {
+  const previousDate = shiftDayKey(date, -1);
   const [
     view,
     plan,
@@ -87,7 +91,10 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     trainingPlan,
     baseline,
     healthSync,
-    cachedCoachReading,
+    cachedTodayCoachReading,
+    cachedYesterdayCoachReading,
+    previousView,
+    previousPlan,
     bloatEvents,
   ] = await Promise.all([
     getDayView(date),
@@ -98,11 +105,14 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     getStreak(date),
     getSessionByWeekday(),
     latestWeightOnOrBefore(date),
-    phaseOnDate(shiftDayKey(date, -1)),
+    phaseOnDate(previousDate),
     getTrainingPlanContext(date),
     getHealthBaseline(date),
     getHealthSyncView(),
     getCoachReading(date, "hoy"),
+    getCoachReading(date, "ayer"),
+    getDayView(previousDate),
+    getPlanContext(previousDate),
     listBloatEvents(date),
   ]);
 
@@ -110,12 +120,28 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
   const defaultSession = sessionByWeekday[wd] ?? "Descanso";
   const trainingSessions = trainingPlan?.sessions ?? [];
   const targets = plan?.targets ?? {
-    kcal: 1800,
-    prot: 110,
+    kcal: 0,
+    prot: 0,
     carb: 0,
     fat: 0,
     carbDerived: true,
     fatDerived: true,
+  };
+  const previousTargets = previousPlan?.targets ?? {
+    kcal: 0,
+    prot: 0,
+    carb: 0,
+    fat: 0,
+  };
+  const coachReadings: Record<CoachMode, CoachReadingView | null> = {
+    hoy: coachReadingView(
+      cachedTodayCoachReading,
+      coachContextHash(view, targets),
+    ),
+    ayer: coachReadingView(
+      cachedYesterdayCoachReading,
+      coachContextHash(previousView, previousTargets),
+    ),
   };
 
   // Sugerir la siguiente fase solo si hoy aún no la tiene y ayer fue especial
@@ -140,10 +166,8 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     suggestedPhase,
     baseline,
     healthSync,
-    coachReading: coachReadingView(
-      cachedCoachReading,
-      coachContextHash(view, targets),
-    ),
+    coachReading: coachReadings.hoy,
+    coachReadings,
     bloatEvents,
   };
 }

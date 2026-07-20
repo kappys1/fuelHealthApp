@@ -208,7 +208,7 @@ export function AddSheet({
               <button
                 type="button"
                 onClick={back}
-                className="inline-flex items-center gap-1 text-foreground"
+                className="inline-flex min-h-11 items-center gap-1 pr-3 text-foreground"
               >
                 <ChevronLeft className="size-4" aria-hidden /> {headerLabel[layer]}
               </button>
@@ -221,7 +221,7 @@ export function AddSheet({
         {/* Selector de comida (preseleccionada) */}
         <div className="px-4">
           <Select value={meal} onValueChange={(v) => setMeal(v as MealKey)}>
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="h-11 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -237,7 +237,8 @@ export function AddSheet({
         {justAdded ? (
           <div className="mx-4 mt-3 flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2">
             <span className="num text-[14px] text-foreground">
-              {justAdded.total.toLocaleString("es-ES")} / {targetKcal.toLocaleString("es-ES")} ·{" "}
+              {justAdded.total.toLocaleString("es-ES")}
+              {targetKcal > 0 ? ` / ${targetKcal.toLocaleString("es-ES")}` : ""} kcal ·{" "}
               <span className="text-protein">+{justAdded.delta}</span>
             </span>
             <button
@@ -1029,7 +1030,11 @@ function PhotoLayer({
           <div
             className={cn(
               "rounded-lg px-3 py-2",
-              result.encaja_plan ? "bg-protein/10" : "bg-fat/10",
+              result.encaja_plan == null
+                ? "bg-surface-2"
+                : result.encaja_plan
+                  ? "bg-protein/10"
+                  : "bg-fat/10",
             )}
           >
             <div className="num text-[14px] font-semibold text-foreground">
@@ -1037,8 +1042,20 @@ function PhotoLayer({
               {displayMacro(total.carb)}C/{displayMacro(total.fat)}F
             </div>
             <div className="mt-0.5 text-[13px]">
-              <span className={result.encaja_plan ? "text-protein" : "text-fat"}>
-                {result.encaja_plan ? "✓ encaja" : "✗ fuera de plan"}
+              <span
+                className={
+                  result.encaja_plan == null
+                    ? "text-muted-foreground"
+                    : result.encaja_plan
+                      ? "text-protein"
+                      : "text-fat"
+                }
+              >
+                {result.encaja_plan == null
+                  ? "Sin pauta para comparar"
+                  : result.encaja_plan
+                    ? "✓ encaja"
+                    : "✗ fuera de plan"}
               </span>{" "}
               <span className="text-muted-foreground">— {result.comentario}</span>
             </div>
@@ -1392,7 +1409,17 @@ function ProductsLayer({
   };
   const handleUndo = () => {
     if (!justDeleted) return;
-    const { id: _id, ...input } = justDeleted;
+    const input: ProductInput = {
+      name: justDeleted.name,
+      baseG: justDeleted.baseG,
+      baseKcal: justDeleted.baseKcal,
+      baseProt: justDeleted.baseProt,
+      baseCarb: justDeleted.baseCarb,
+      baseFat: justDeleted.baseFat,
+      grupo: justDeleted.grupo,
+      source: justDeleted.source,
+      pinned: justDeleted.pinned,
+    };
     actions.create(input);
     setJustDeleted(null);
   };
