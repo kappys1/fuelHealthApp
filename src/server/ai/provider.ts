@@ -1,4 +1,3 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { ProviderOptions } from "@ai-sdk/provider-utils";
 import type { LanguageModel, ToolSet } from "ai";
@@ -7,8 +6,8 @@ import { aiApiKey, aiProvider, modelId, type ModelKind } from "./env";
 /*
   Adaptador de proveedor (02-ARQUITECTURA §1/§3). El resto de la app solo conoce
   `resolveModel(kind)` y `determinismSettings(...)`; el proveedor concreto se
-  decide por `AI_PROVIDER`. Google y Anthropic comparten la clave agnóstica
-  `AI_API_KEY`; el resto de features y prompts no conoce el proveedor concreto.
+  decide por `AI_PROVIDER`. Hoy está cableado Google (@ai-sdk/google); añadir
+  otro proveedor = instalar su paquete + un caso aquí, sin tocar features/prompts.
 */
 
 let googleProvider: ReturnType<typeof createGoogleGenerativeAI> | null = null;
@@ -21,14 +20,6 @@ function google() {
   return googleProvider;
 }
 
-let anthropicProvider: ReturnType<typeof createAnthropic> | null = null;
-function anthropic() {
-  if (!anthropicProvider) {
-    anthropicProvider = createAnthropic({ apiKey: aiApiKey() });
-  }
-  return anthropicProvider;
-}
-
 export function resolveModel(kind: ModelKind): LanguageModel {
   const provider = aiProvider();
   const id = modelId(kind);
@@ -36,10 +27,9 @@ export function resolveModel(kind: ModelKind): LanguageModel {
     case "google":
       return google()(id);
     case "anthropic":
-      return anthropic()(id);
     case "openai":
       throw new Error(
-        `AI_PROVIDER="${provider}" aún no está cableado en server/ai/provider.ts.`,
+        `AI_PROVIDER="${provider}" aún no está cableado. Instala @ai-sdk/${provider} y añade el caso en server/ai/provider.ts (los prompts y features no cambian).`,
       );
   }
 }
