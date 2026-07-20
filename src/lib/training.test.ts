@@ -5,6 +5,7 @@ import {
   planSpanFromAssignments,
   sessionKcal,
   sessionPatchFor,
+  trainingWeekSpan,
   TRAINING_TIPO_LABELS,
   TRAINING_TIPOS,
 } from "./training";
@@ -31,6 +32,17 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
   it("planSpanFromAssignments: ignora vacíos y devuelve null sin fechas", () => {
     expect(planSpanFromAssignments(["", "no-fecha"])).toBeNull();
     expect(planSpanFromAssignments([])).toBeNull();
+  });
+
+  it("trainingWeekSpan: normaliza cualquier día a lunes-domingo", () => {
+    expect(trainingWeekSpan("2026-07-15")).toEqual({
+      validFrom: "2026-07-13",
+      validTo: "2026-07-19",
+    });
+    expect(trainingWeekSpan("2026-07-19")).toEqual({
+      validFrom: "2026-07-13",
+      validTo: "2026-07-19",
+    });
   });
 
   it("orderedSessionOptions: con plan = sesiones reales + Competición/Descanso, SIN genéricas", () => {

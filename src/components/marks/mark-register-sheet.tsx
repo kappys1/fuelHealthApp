@@ -189,7 +189,7 @@ export function MarkRegisterSheet({
 
           {/* Tipo + unidad: solo al crear una marca nueva */}
           {isNew ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-[12px] text-muted-foreground">
                   Tipo de medida
@@ -263,7 +263,7 @@ export function MarkRegisterSheet({
           </label>
 
           {/* Fecha + nota */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
             <label className="block">
               <span className="mb-1 block text-[12px] text-muted-foreground">
                 Fecha
@@ -294,7 +294,7 @@ export function MarkRegisterSheet({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground"
+              className="min-h-11 rounded-xl px-4 text-sm font-semibold text-muted-foreground"
             >
               Cancelar
             </button>
@@ -302,7 +302,7 @@ export function MarkRegisterSheet({
               type="button"
               onClick={submit}
               disabled={busy}
-              className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+              className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               {busy ? "Guardando…" : "Guardar"}
             </button>

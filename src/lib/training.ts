@@ -1,4 +1,5 @@
 import { SESSIONS } from "@/lib/macros";
+import { isoWeekday, shiftDayKey } from "@/lib/dates";
 
 /*
   Helpers puros de entrenamiento (doc 10 Fase B). Client-safe: NO importa el schema
@@ -60,6 +61,15 @@ export function planSpanFromAssignments(
   const last = valid[valid.length - 1];
   if (!first || !last) return null;
   return { validFrom: first, validTo: last };
+}
+
+/** Semana canónica lunes-domingo que contiene `date`. */
+export function trainingWeekSpan(date: string): {
+  validFrom: string;
+  validTo: string;
+} {
+  const validFrom = shiftDayKey(date, -(isoWeekday(date) - 1));
+  return { validFrom, validTo: shiftDayKey(validFrom, 6) };
 }
 
 /**

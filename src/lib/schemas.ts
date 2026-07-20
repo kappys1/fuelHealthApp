@@ -133,6 +133,8 @@ export const trainingPlanCreateZ = z.object({
   programa: z.string().min(1).max(120),
   etiqueta: z.string().min(1).max(120),
   source: trainingSourceZ,
+  // Clientes V2 persisten el rango lunes-domingo aunque haya días sin asignar.
+  weekStart: dateZ.optional(),
   sessions: z.array(trainingSessionCreateZ).min(1).max(20),
   // sessionIndex apunta al índice de `sessions` (orden de la vista previa).
   assignments: z

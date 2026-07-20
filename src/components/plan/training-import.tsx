@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   CalendarPlus,
   Loader2,
   Sparkles,
@@ -26,7 +27,13 @@ import {
 } from "@/components/ui/sheet";
 import { fileToAiFile } from "@/lib/ai-files";
 import { api } from "@/lib/client-api";
-import { dayKey, isoWeekday, labelForKey, shiftDayKey } from "@/lib/dates";
+import {
+  dayKey,
+  daysBetween,
+  isoWeekday,
+  labelForKey,
+  shiftDayKey,
+} from "@/lib/dates";
 import {
   TRAINING_TIPO_LABELS,
   type TrainingTipo,
@@ -87,19 +94,20 @@ export function TrainingImport() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-left"
+        className="wellness-card group flex min-h-[86px] w-full items-center gap-3 border border-primary/20 p-5 text-left transition-colors hover:border-primary/40"
       >
-        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <CalendarPlus className="size-5" aria-hidden />
         </span>
-        <span className="min-w-0">
-          <span className="block text-[14px] font-semibold text-foreground">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold text-foreground">
             Importar semana de entreno
           </span>
-          <span className="block text-[12px] text-muted-foreground">
+          <span className="mt-1 block text-[12px] leading-relaxed text-muted-foreground">
             PDF, foto o texto de tu programación. Asignas cada sesión a un día.
           </span>
         </span>
+        <ArrowRight className="size-[18px] shrink-0 text-primary transition-transform group-hover:translate-x-0.5" aria-hidden />
       </button>
       {open ? <ImportSheet onClose={() => setOpen(false)} /> : null}
     </>
@@ -191,6 +199,11 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
       toast.error("Pon el programa y la etiqueta (ej. «Week 29»).");
       return;
     }
+    const assignedDates = valid.flatMap((row) => (row.date ? [row.date] : []));
+    if (new Set(assignedDates).size !== assignedDates.length) {
+      toast.error("Asigna como máximo una sesión a cada día.");
+      return;
+    }
     const source: "pdf" | "foto" | "texto" =
       mode === "text"
         ? "texto"
@@ -209,6 +222,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
         programa: programa.trim(),
         etiqueta: etiqueta.trim(),
         source,
+        weekStart,
         sessions: valid.map((r) => ({
           key: r.clave.trim() || "—",
           nombre: r.nombre.trim(),
@@ -247,7 +261,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className={`flex-1 rounded-lg border py-2 text-[13px] font-medium ${
+                className={`min-h-11 flex-1 rounded-lg border px-3 text-[13px] font-medium ${
                   mode === m
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-line bg-surface-2 text-muted-foreground"
@@ -271,7 +285,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-surface-2 py-4 text-[14px] text-foreground"
+                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-surface-2 px-3 text-[14px] text-foreground"
               >
                 <Upload className="size-4 text-primary" aria-hidden />
                 {files.length > 0
@@ -288,7 +302,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
               onChange={(e) => setTexto(e.target.value)}
               rows={6}
               placeholder="Pega o escribe la programación de la semana (T1: … / T2: … / …)."
-              className="w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-[14px] outline-none focus-visible:border-ring"
+              className="w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-base outline-none focus-visible:border-ring"
             />
           )}
 
@@ -298,7 +312,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
                 type="button"
                 onClick={analyze}
                 disabled={analyzing || !online}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {analyzing ? (
                   <>
@@ -324,7 +338,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
           ) : (
             <>
               {/* Programa / etiqueta / semana */}
-              <section className="grid grid-cols-2 gap-2 rounded-xl border border-line bg-surface p-3">
+              <section className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-3 min-[380px]:grid-cols-2">
                 <Field label="Programa">
                   <TextInput value={programa} onChange={setPrograma} placeholder="The Progrm" />
                 </Field>
@@ -335,8 +349,19 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
                   <input
                     type="date"
                     value={weekStart}
-                    onChange={(e) => setWeekStart(e.target.value || weekStart)}
-                    className="num h-11 w-full rounded-lg border border-input bg-surface px-2 text-[13px] outline-none focus-visible:border-ring"
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const next = mondayOf(e.target.value);
+                      const delta = daysBetween(weekStart, next);
+                      setRows((current) =>
+                        current?.map((row) => ({
+                          ...row,
+                          date: row.date ? shiftDayKey(row.date, delta) : "",
+                        })) ?? null,
+                      );
+                      setWeekStart(next);
+                    }}
+                    className="num h-11 w-full rounded-lg border border-input bg-surface px-2 text-base outline-none focus-visible:border-ring"
                     aria-label="Semana empieza el"
                   />
                 </Field>
@@ -357,7 +382,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
                 type="button"
                 onClick={save}
                 disabled={saving}
-                className="w-full rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+                className="min-h-11 w-full rounded-xl bg-primary px-4 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {saving ? "Creando…" : "Crear semana de entreno"}
               </button>
@@ -387,21 +412,21 @@ function SessionEditor({
           value={row.clave}
           onChange={(e) => onPatch({ clave: e.target.value })}
           placeholder="T1"
-          className="w-14 shrink-0 rounded-lg border border-input bg-surface px-2 py-2 text-center text-[13px] outline-none focus-visible:border-ring"
+          className="min-h-11 w-14 shrink-0 rounded-lg border border-input bg-surface px-2 text-center text-base outline-none focus-visible:border-ring"
           aria-label="Clave"
         />
         <input
           value={row.nombre}
           onChange={(e) => onPatch({ nombre: e.target.value })}
           placeholder="Nombre de la sesión"
-          className="min-w-0 flex-1 rounded-lg border border-input bg-surface px-2.5 py-2 text-[14px] outline-none focus-visible:border-ring"
+          className="min-h-11 min-w-0 flex-1 rounded-lg border border-input bg-surface px-2.5 text-base outline-none focus-visible:border-ring"
           aria-label="Nombre"
         />
         <button
           type="button"
           onClick={onRemove}
           aria-label="Quitar sesión"
-          className="shrink-0 text-muted-foreground hover:text-destructive"
+          className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
         >
           <Trash2 className="size-4" aria-hidden />
         </button>
@@ -412,14 +437,14 @@ function SessionEditor({
         onChange={(e) => onPatch({ contenido: e.target.value })}
         rows={2}
         placeholder="Contenido de la sesión"
-        className="w-full rounded-lg border border-input bg-surface px-2.5 py-2 text-[13px] outline-none focus-visible:border-ring"
+        className="w-full rounded-lg border border-input bg-surface px-2.5 py-2.5 text-base outline-none focus-visible:border-ring"
         aria-label="Contenido"
       />
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
         <Field label="Tipo">
           <Select value={row.tipo} onValueChange={(v) => onPatch({ tipo: v as TrainingTipo })}>
-            <SelectTrigger className="h-9 w-full text-[13px]">
+            <SelectTrigger className="h-11 w-full text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -436,7 +461,7 @@ function SessionEditor({
             value={row.date || "none"}
             onValueChange={(v) => onPatch({ date: v === "none" ? "" : v })}
           >
-            <SelectTrigger className="h-9 w-full text-[13px]">
+            <SelectTrigger className="h-11 w-full text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -451,7 +476,7 @@ function SessionEditor({
         </Field>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-3">
         <MiniInput label="kcal mín" value={row.kcalMin} onChange={(v) => onPatch({ kcalMin: v })} />
         <MiniInput label="kcal máx" value={row.kcalMax} onChange={(v) => onPatch({ kcalMax: v })} />
         <MiniInput label="min" value={row.duracionMin} onChange={(v) => onPatch({ duracionMin: v })} />
@@ -474,7 +499,7 @@ function TextInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="h-11 w-full rounded-lg border border-input bg-surface px-2.5 text-[14px] outline-none focus-visible:border-ring"
+      className="h-11 w-full rounded-lg border border-input bg-surface px-2.5 text-base outline-none focus-visible:border-ring"
     />
   );
 }
@@ -489,7 +514,7 @@ function MiniInput({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="flex items-center gap-1 rounded-lg border border-input bg-surface px-2">
+    <label className="flex min-h-11 items-center gap-1 rounded-lg border border-input bg-surface px-2">
       <span className="text-[11px] text-muted-foreground">{label}</span>
       <input
         value={value}
@@ -499,7 +524,7 @@ function MiniInput({
           if (raw === "" || /^[0-9]*$/.test(raw)) onChange(raw);
         }}
         onFocus={(e) => e.currentTarget.select()}
-        className="num h-9 w-full min-w-0 bg-transparent text-center text-base outline-none"
+        className="num h-11 w-full min-w-0 bg-transparent text-center text-base outline-none"
         aria-label={label}
       />
     </label>

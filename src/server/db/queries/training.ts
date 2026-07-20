@@ -12,7 +12,11 @@ import {
   sql,
 } from "drizzle-orm";
 import { shiftDayKey } from "@/lib/dates";
-import { sessionKcal, type TrainingTipo } from "@/lib/training";
+import {
+  sessionKcal,
+  trainingWeekSpan,
+  type TrainingTipo,
+} from "@/lib/training";
 import { db, schema } from "@/server/db";
 
 /*
@@ -136,17 +140,21 @@ export interface ImportedTrainingPlan {
  */
 export async function createTrainingPlanFull(
   p: ImportedTrainingPlan,
-): Promise<{ plan: TrainingPlanDTO; sessions: TrainingSessionDTO[] }> {
-  // Cierra planes abiertos anteriores que empezaron antes del nuevo valid_from.
-  await db
-    .update(schema.trainingPlans)
-    .set({ validTo: shiftDayKey(p.validFrom, -1) })
+): Promise<{
+  plan: TrainingPlanDTO;
+  sessions: TrainingSessionDTO[];
+  closedPlanIds: number[];
+}> {
+  const previousOpen = await db
+    .select({ id: schema.trainingPlans.id })
+    .from(schema.trainingPlans)
     .where(
       and(
         isNull(schema.trainingPlans.validTo),
         lte(schema.trainingPlans.validFrom, p.validFrom),
       ),
     );
+  const closedPlanIds = previousOpen.map((row) => row.id);
 
   const [plan] = await db
     .insert(schema.trainingPlans)
@@ -160,27 +168,49 @@ export async function createTrainingPlanFull(
     .returning();
   if (!plan) throw new Error("No se pudo crear el plan de entreno.");
 
-  let sessions: TrainingSessionDTO[] = [];
-  if (p.sessions.length > 0) {
-    sessions = (await db
-      .insert(schema.trainingSessions)
-      .values(
-        p.sessions.map((s, i) => ({
-          planId: plan.id,
-          key: s.key,
-          nombre: s.nombre,
-          tipo: s.tipo,
-          contenido: s.contenido,
-          kcalMin: s.kcalMin,
-          kcalMax: s.kcalMax,
-          duracionMin: s.duracionMin,
-          sort: i,
-        })),
-      )
-      .returning()) as TrainingSessionDTO[];
-  }
+  try {
+    let sessions: TrainingSessionDTO[] = [];
+    if (p.sessions.length > 0) {
+      sessions = (await db
+        .insert(schema.trainingSessions)
+        .values(
+          p.sessions.map((s, i) => ({
+            planId: plan.id,
+            key: s.key,
+            nombre: s.nombre,
+            tipo: s.tipo,
+            contenido: s.contenido,
+            kcalMin: s.kcalMin,
+            kcalMax: s.kcalMax,
+            duracionMin: s.duracionMin,
+            sort: i,
+          })),
+        )
+        .returning()) as TrainingSessionDTO[];
+    }
 
-  return { plan: plan as TrainingPlanDTO, sessions };
+    // El plan anterior solo se cierra cuando el nuevo ya está completo.
+    if (closedPlanIds.length > 0) {
+      await db
+        .update(schema.trainingPlans)
+        .set({ validTo: shiftDayKey(p.validFrom, -1) })
+        .where(inArray(schema.trainingPlans.id, closedPlanIds));
+    }
+
+    return { plan: plan as TrainingPlanDTO, sessions, closedPlanIds };
+  } catch (error) {
+    await db.delete(schema.trainingPlans).where(eq(schema.trainingPlans.id, plan.id));
+    await restoreTrainingPlans(closedPlanIds);
+    throw error;
+  }
+}
+
+export async function restoreTrainingPlans(ids: number[]): Promise<void> {
+  if (ids.length === 0) return;
+  await db
+    .update(schema.trainingPlans)
+    .set({ validTo: null })
+    .where(inArray(schema.trainingPlans.id, ids));
 }
 
 export interface DayAssignment {
@@ -200,32 +230,53 @@ export async function assignSessionsToDays(
 ): Promise<{ assigned: number; skipped: number }> {
   let assigned = 0;
   let skipped = 0;
-  for (const a of assignments) {
-    const [existing] = await db
-      .select({ sessionLabel: schema.days.sessionLabel })
-      .from(schema.days)
-      .where(eq(schema.days.date, a.date));
-    if (existing?.sessionLabel) {
-      skipped++;
-      continue;
-    }
-    await db
-      .insert(schema.days)
-      .values({
-        date: a.date,
-        sessionRef: a.sessionRef,
-        sessionLabel: a.sessionLabel,
-        sessionKcal: a.sessionKcal,
-      })
-      .onConflictDoUpdate({
-        target: schema.days.date,
-        set: {
+  const applied: DayAssignment[] = [];
+  try {
+    for (const a of assignments) {
+      const [existing] = await db
+        .select({ sessionLabel: schema.days.sessionLabel })
+        .from(schema.days)
+        .where(eq(schema.days.date, a.date));
+      if (existing?.sessionLabel) {
+        skipped++;
+        continue;
+      }
+      await db
+        .insert(schema.days)
+        .values({
+          date: a.date,
           sessionRef: a.sessionRef,
           sessionLabel: a.sessionLabel,
           sessionKcal: a.sessionKcal,
-        },
-      });
-    assigned++;
+        })
+        .onConflictDoUpdate({
+          target: schema.days.date,
+          set: {
+            sessionRef: a.sessionRef,
+            sessionLabel: a.sessionLabel,
+            sessionKcal: a.sessionKcal,
+          },
+        });
+      applied.push(a);
+      assigned++;
+    }
+  } catch (error) {
+    await Promise.all(
+      applied.map((a) =>
+        db
+          .update(schema.days)
+          .set({ sessionRef: null, sessionLabel: null, sessionKcal: null })
+          .where(
+            and(
+              eq(schema.days.date, a.date),
+              a.sessionRef == null
+                ? isNull(schema.days.sessionRef)
+                : eq(schema.days.sessionRef, a.sessionRef),
+            ),
+          ),
+      ),
+    );
+    throw error;
   }
   return { assigned, skipped };
 }
@@ -240,46 +291,54 @@ export interface TrainingWeekView {
   sessions: TrainingSessionWithDay[];
 }
 
-/**
- * Semana de entreno para la pestaña «Entrenos» (doc 10 B3b): el plan que cubre
- * `today`; si ninguno lo cubre, el más reciente. Cada sesión trae el día asignado.
- */
+/** Semana de entreno para la pestaña «Entrenos»: devuelve el plan que solapa la
+ * semana lunes-domingo de `date`. Una semana vacía permanece vacía. */
 export async function getTrainingWeekView(
-  today: string,
+  date: string,
 ): Promise<TrainingWeekView | null> {
-  let ctx = await getTrainingPlanContext(today);
-  if (!ctx) {
-    const [latest] = await db
-      .select()
-      .from(schema.trainingPlans)
-      .orderBy(desc(schema.trainingPlans.validFrom), desc(schema.trainingPlans.id))
-      .limit(1);
-    if (!latest) return null;
-    const sessions = (await db
-      .select()
-      .from(schema.trainingSessions)
-      .where(eq(schema.trainingSessions.planId, latest.id))
-      .orderBy(
-        asc(schema.trainingSessions.sort),
-        asc(schema.trainingSessions.id),
-      )) as TrainingSessionDTO[];
-    ctx = { plan: latest as TrainingPlanDTO, sessions };
-  }
+  const span = trainingWeekSpan(date);
+  const [plan] = await db
+    .select()
+    .from(schema.trainingPlans)
+    .where(
+      and(
+        lte(schema.trainingPlans.validFrom, span.validTo),
+        or(
+          isNull(schema.trainingPlans.validTo),
+          gte(schema.trainingPlans.validTo, span.validFrom),
+        ),
+      ),
+    )
+    .orderBy(desc(schema.trainingPlans.validFrom), desc(schema.trainingPlans.id))
+    .limit(1);
+  if (!plan) return null;
 
-  const ids = ctx.sessions.map((s) => s.id);
+  const sessions = (await db
+    .select()
+    .from(schema.trainingSessions)
+    .where(eq(schema.trainingSessions.planId, plan.id))
+    .orderBy(asc(schema.trainingSessions.sort), asc(schema.trainingSessions.id))) as TrainingSessionDTO[];
+
+  const ids = sessions.map((s) => s.id);
   const dayRows = ids.length
     ? await db
         .select({ date: schema.days.date, sessionRef: schema.days.sessionRef })
         .from(schema.days)
-        .where(inArray(schema.days.sessionRef, ids))
+        .where(
+          and(
+            inArray(schema.days.sessionRef, ids),
+            gte(schema.days.date, span.validFrom),
+            lte(schema.days.date, span.validTo),
+          ),
+        )
     : [];
   const dateBySession = new Map(
     dayRows.flatMap((r) => (r.sessionRef != null ? [[r.sessionRef, r.date]] : [])),
   );
 
   return {
-    plan: ctx.plan,
-    sessions: ctx.sessions.map((s) => ({
+    plan: plan as TrainingPlanDTO,
+    sessions: sessions.map((s) => ({
       ...s,
       assignedDate: dateBySession.get(s.id) ?? null,
     })),
@@ -293,6 +352,13 @@ export interface TrainingSessionPatch {
   kcalMin?: number | null;
   kcalMax?: number | null;
   duracionMin?: number | null;
+}
+
+export class TrainingAssignmentConflictError extends Error {
+  constructor() {
+    super("Ese día ya tiene una sesión. Desasígnala antes de mover otra aquí.");
+    this.name = "TrainingAssignmentConflictError";
+  }
 }
 
 /** Edita una sesión y refresca los campos desnormalizados del día asignado (B3b). */
@@ -326,6 +392,22 @@ export async function reassignTrainingSession(
     .from(schema.trainingSessions)
     .where(eq(schema.trainingSessions.id, sessionId));
   if (!s) return;
+
+  if (newDate) {
+    const [destination] = await db
+      .select({
+        sessionRef: schema.days.sessionRef,
+        sessionLabel: schema.days.sessionLabel,
+      })
+      .from(schema.days)
+      .where(eq(schema.days.date, newDate));
+    if (
+      destination?.sessionLabel &&
+      destination.sessionRef !== sessionId
+    ) {
+      throw new TrainingAssignmentConflictError();
+    }
+  }
 
   // Quita la asignación anterior (todas menos el día destino).
   await db
