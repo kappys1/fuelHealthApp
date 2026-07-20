@@ -173,7 +173,18 @@ export function trendSummary(deficit: DeficitResult): string {
   }
   const kg = deficit.kgPerWeek;
   const kgStr = `${kg > 0 ? "+" : ""}${num(kg, 2)} kg/semana`;
-  return `${kgStr}, déficit real ~${num(deficit.deficitKcal ?? 0)} kcal/día, gasto real estimado ${num(deficit.tdee ?? 0)} kcal/día.`;
+  const parts = [kgStr];
+  if (deficit.deficitKcal != null) {
+    parts.push(
+      deficit.deficitKcal >= 0
+        ? `déficit real ~${num(deficit.deficitKcal)} kcal/día`
+        : `superávit estimado ~${num(Math.abs(deficit.deficitKcal))} kcal/día`,
+    );
+  }
+  if (deficit.tdee != null) {
+    parts.push(`gasto real estimado ${num(deficit.tdee)} kcal/día`);
+  }
+  return `${parts.join(", ")}.`;
 }
 
 /** Tendencia + adherencia para el chat (F-IA-8 §3): mismas cifras que la pantalla. */

@@ -1,14 +1,20 @@
 "use client";
 
-import { Scale } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Flame, Scale, Target, UtensilsCrossed } from "lucide-react";
+import Link from "next/link";
+import { useMemo } from "react";
 import { IntakeChart } from "@/components/charts/intake-chart";
 import { WeightChart } from "@/components/charts/weight-chart";
 import { labelForKey, shiftDayKey } from "@/lib/dates";
-import { BLOAT_LABELS, phaseLabel } from "@/lib/macros";
 import { computeAdherence } from "@/server/analytics/adherence";
 import { computeDeficit } from "@/server/analytics/deficit";
 import { ma7Series } from "@/server/analytics/ma7";
+import {
+  computeLoggingStreak,
+  computeProgressSummary,
+  macroEnergy,
+  type SummaryWindowDays,
+} from "@/server/analytics/progressSummary";
 import type { DailyRecord, DayTarget } from "@/server/analytics/types";
 import { HowCalculated } from "./how-calculated";
 
@@ -18,298 +24,425 @@ const RANGES = [
   { key: "90", label: "90 d", days: 90 },
   { key: "todo", label: "Todo", days: null },
 ] as const;
-type RangeKey = (typeof RANGES)[number]["key"];
+export type ProgressRange = (typeof RANGES)[number]["key"];
 
-/** «mié 8 jul» → «8 jul» para los ejes/tablas compactas. */
 const chartLabel = (date: string) => labelForKey(date).replace(/^\S+\s/, "");
-const kcal = (n: number) => Math.round(n).toLocaleString("es-ES");
+const integer = (value: number) => Math.round(value).toLocaleString("es-ES");
+const periodLabel = (from: string, to: string) =>
+  `${chartLabel(from)} – ${chartLabel(to)}`;
+const progressHref = (nextRange: ProgressRange, nextSummary: SummaryWindowDays) => {
+  const params = new URLSearchParams();
+  if (nextRange !== "90") params.set("range", nextRange);
+  if (nextSummary !== 7) params.set("summary", String(nextSummary));
+  const query = params.toString();
+  return query ? `/progreso?${query}` : "/progreso";
+};
 
 export function Tendencia({
   records,
   currentTarget,
   today,
+  range,
+  summaryDays,
 }: {
   records: DailyRecord[];
   currentTarget: DayTarget;
   today: string;
+  range: ProgressRange;
+  summaryDays: SummaryWindowDays;
 }) {
-  const [range, setRange] = useState<RangeKey>("90");
-
   const rangeRecords = useMemo(() => {
-    const def = RANGES.find((r) => r.key === range);
-    if (!def || def.days == null) return records;
-    const lo = shiftDayKey(today, -(def.days - 1));
-    return records.filter((r) => r.date >= lo && r.date <= today);
-  }, [records, range, today]);
+    const definition = RANGES.find((item) => item.key === range);
+    if (!definition || definition.days == null) return records;
+    const from = shiftDayKey(today, -(definition.days - 1));
+    return records.filter((record) => record.date >= from && record.date <= today);
+  }, [range, records, today]);
 
   const deficit = useMemo(() => computeDeficit(rangeRecords), [rangeRecords]);
   const adherence = useMemo(() => computeAdherence(records, today, 14), [records, today]);
+  const summary = useMemo(
+    () => computeProgressSummary(records, today, summaryDays),
+    [records, summaryDays, today],
+  );
+  const streak = useMemo(() => computeLoggingStreak(records, today), [records, today]);
 
   const weightData = useMemo(() => {
-    const ma7 = new Map(ma7Series(rangeRecords).map((p) => [p.date, p.ma7]));
+    // La ma7 necesita los 6 días anteriores al borde visible; se calcula sobre toda
+    // la historia y solo después se recorta el gráfico.
+    const ma7 = new Map(ma7Series(records).map((point) => [point.date, point.ma7]));
     return rangeRecords
-      .filter((r) => r.weight != null)
-      .map((r) => ({
-        label: chartLabel(r.date),
-        weight: r.weight,
-        ma7: ma7.get(r.date) ?? null,
+      .filter((record) => record.weight != null)
+      .map((record) => ({
+        label: chartLabel(record.date),
+        weight: record.weight,
+        ma7: ma7.get(record.date) ?? null,
       }));
-  }, [rangeRecords]);
+  }, [rangeRecords, records]);
 
   const intakeData = useMemo(
     () =>
       rangeRecords
-        .filter((r) => r.logged)
-        .map((r) => ({
-          label: chartLabel(r.date),
-          kcal: Math.round(r.kcal),
-          special: r.phase != null,
+        .filter((record) => record.logged)
+        .map((record) => ({
+          label: chartLabel(record.date),
+          targetKcal: record.target.kcal,
+          special: record.phase != null,
+          ...macroEnergy(record),
         })),
     [rangeRecords],
   );
-
-  const lastDays = useMemo(() => records.slice(-14).reverse(), [records]);
+  const averageDiscrepancy =
+    intakeData.length > 0
+      ? Math.round(
+          intakeData.reduce((total, point) => total + point.discrepancyKcal, 0) /
+            intakeData.length,
+        )
+      : null;
 
   return (
-    <div className="space-y-4 pb-4">
-      {/* Selector de rango (F6.6) */}
-      <div className="flex justify-end">
+    <div className="space-y-7">
+      <div className="space-y-3">
+        <div>
+          <h2 className="app-section-title">Tendencia real</h2>
+          <p className="section-copy">Peso, ingesta y constancia</p>
+        </div>
         <div
-          className="inline-flex rounded-lg border border-line bg-surface-2 p-0.5"
+          className="grid min-h-[52px] w-full grid-cols-4 rounded-xl bg-surface-2 p-1"
           role="group"
           aria-label="Rango temporal"
         >
-          {RANGES.map((r) => (
-            <button
-              key={r.key}
-              type="button"
-              onClick={() => setRange(r.key)}
-              aria-pressed={range === r.key}
-              className={`num rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors ${
-                range === r.key
+          {RANGES.map((item) => (
+            <Link
+              key={item.key}
+              href={progressHref(item.key, summaryDays)}
+              scroll={false}
+              aria-current={range === item.key ? "true" : undefined}
+              className={`num flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2 text-[12px] font-semibold transition-colors ${
+                range === item.key
                   ? "bg-surface text-foreground shadow-sm"
                   : "text-muted-foreground"
               }`}
             >
-              {r.label}
-            </button>
+              {item.label}
+            </Link>
           ))}
         </div>
       </div>
 
       <TrendCard deficit={deficit} />
-      <AdherenceCard adherence={adherence} />
 
-      {/* Gráfico de peso + ma7 */}
-      <section className="rounded-xl border border-line bg-surface p-4">
-        <div className="mb-1 flex items-center gap-1.5">
-          <h2 className="card-title text-muted-foreground">Peso y media de 7 días</h2>
+      <SummaryCard
+        summary={summary}
+        currentTarget={currentTarget}
+        range={range}
+        hrefFor={progressHref}
+      />
+
+      <section aria-labelledby="consistency-title">
+        <div className="mb-3">
+          <h2 id="consistency-title" className="app-section-title">
+            Consistencia
+          </h2>
+          <p className="section-copy">Señales simples, sin puntuaciones inventadas</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <KpiCard
+            Icon={Target}
+            iconTone="text-protein bg-protein/10"
+            label="Adherencia · 14 d"
+            value={
+              adherence.normalN > 0
+                ? `${Math.round((adherence.enRango / adherence.normalN) * 100)}%`
+                : "—"
+            }
+            detail={`${adherence.enRango}/${adherence.normalN} kcal · ${adherence.protOk}/${adherence.normalN} proteína`}
+          />
+          <KpiCard
+            Icon={Flame}
+            iconTone="text-fat bg-fat/10"
+            label="Racha de registro"
+            value={`${streak}`}
+            detail={streak === 1 ? "día seguido" : "días seguidos"}
+          />
+        </div>
+      </section>
+
+      <section className="wellness-card p-5" aria-labelledby="weight-chart-title">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 id="weight-chart-title" className="app-section-title">
+              Peso y media móvil
+            </h2>
+            <p className="section-copy">Peso diario fino · media 7 d destacada</p>
+          </div>
           <HowCalculated
             title="Media móvil de 7 días"
-            what="La línea gruesa suaviza el ruido diario del peso (sodio, glucógeno, WODs) promediando los 7 días previos."
-            formula="ma7(día) = media de los pesos de [día−6, día]. Se excluyen los días de fase especial y los 2 días tras una competición."
-            action="Fíjate en la pendiente de la línea gruesa, no en los saltos diarios de la fina."
+            what="La línea gruesa suaviza el ruido diario del peso promediando los 7 días previos."
+            formula="ma7(día) = media de los pesos de [día−6, día]. Se excluyen las fases especiales y los 2 días tras competir."
+            action="Fíjate en la pendiente de la línea gruesa, no en saltos diarios."
           />
         </div>
         <WeightChart data={weightData} />
       </section>
 
-      {/* Barras de ingesta vs objetivo */}
-      <section className="rounded-xl border border-line bg-surface p-4">
-        <div className="mb-1 flex items-center gap-1.5">
-          <h2 className="card-title text-muted-foreground">Ingesta diaria</h2>
+      <section className="wellness-card p-5" aria-labelledby="intake-chart-title">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h2 id="intake-chart-title" className="app-section-title">
+              Ingesta diaria
+            </h2>
+            <p className="section-copy">Contribución energética de cada macro</p>
+          </div>
           <HowCalculated
-            title="Ingesta vs objetivo"
-            what="Cada barra es el total de kcal registradas ese día; la línea es tu objetivo. Los días de fase especial se muestran atenuados (no cuentan como desviación)."
-            formula="barra = suma de kcal de las comidas del día · línea = objetivo de la versión de dieta vigente."
-            action="Busca constancia alrededor de la línea; picos aislados los absorbe la calibración por peso."
+            title="Energía por macronutriente"
+            what="Cada barra apila kcal de proteína, hidratos y grasa. La línea sigue el objetivo vigente de cada día."
+            formula="proteína = g×4 · hidratos = g×4 · grasa = g×9. La diferencia frente a las kcal registradas se informa aparte."
+            action="Busca consistencia alrededor del objetivo; las fases especiales son contexto, no desviación."
           />
         </div>
-        <IntakeChart data={intakeData} target={currentTarget.kcal} />
+        <MacroLegend />
+        <IntakeChart data={intakeData} />
+        {averageDiscrepancy != null ? (
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            Diferencia media registro − macros:{" "}
+            <span className="num font-semibold text-foreground">
+              {averageDiscrepancy > 0 ? "+" : ""}
+              {integer(averageDiscrepancy)} kcal
+            </span>
+            . Se muestra aparte y no se mezcla en las barras.
+          </p>
+        ) : null}
       </section>
-
-      <LastDaysTable rows={lastDays} />
     </div>
   );
 }
 
-// ── TrendCard invertida (F6.2 / 05-DISENO §5): única tarjeta de jerarquía máxima ──
 function TrendCard({ deficit }: { deficit: ReturnType<typeof computeDeficit> }) {
   if (!deficit.enough) {
     return (
-      <section className="rounded-xl bg-foreground p-4 text-background">
-        <h2 className="card-title text-background/70">
-          Tu gasto y déficit reales · desde el peso
-        </h2>
-        <div className="mt-3 flex items-start gap-3">
-          <Scale className="mt-0.5 size-5 shrink-0 text-background/70" aria-hidden />
-          <p className="text-[13px] text-background/90">
-            Necesito ≥8 pesajes en al menos una semana para calcular tu déficit
-            real. Pésate a diario en ayunas.
-            <br />
-            <span className="num text-background/70">
-              Llevas {deficit.weighins}/8 pesajes válidos.
-            </span>
-          </p>
+      <section className="rounded-[22px] bg-[var(--inverted)] p-5 text-[var(--on-inverted)] shadow-card">
+        <p className="text-[11px] font-semibold text-[var(--on-inverted-muted)]">
+          BALANCE REAL · DESDE EL PESO
+        </p>
+        <div className="mt-4 flex items-start gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/10">
+            <Scale className="size-5" aria-hidden />
+          </span>
+          <div>
+            <h2 className="text-[17px] font-semibold leading-snug">
+              Necesito ≥8 pesajes para mostrar una tendencia fiable
+            </h2>
+            <p className="mt-2 text-[12px] leading-relaxed text-[var(--on-inverted-muted)]">
+              Llevas <span className="num font-semibold">{deficit.weighins}/8</span>{" "}
+              pesajes válidos. Regístralos en ayunas y la tarjeta se calculará sola.
+            </p>
+          </div>
         </div>
       </section>
     );
   }
 
-  const kg = deficit.kgPerWeek ?? 0;
-  const kgStr = `${kg > 0 ? "+" : ""}${kg.toLocaleString("es-ES", {
+  const kgPerWeek = deficit.kgPerWeek ?? 0;
+  const kgValue = `${kgPerWeek > 0 ? "+" : ""}${kgPerWeek.toLocaleString("es-ES", {
     maximumFractionDigits: 2,
   })}`;
 
   return (
-    <section className="rounded-xl bg-foreground p-4 text-background">
-      <div className="flex items-center gap-1.5">
-        <h2 className="card-title text-background/70">
-          Tu gasto y déficit reales · desde el peso
-        </h2>
+    <section className="rounded-[22px] bg-[var(--inverted)] p-5 text-[var(--on-inverted)] shadow-card">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold text-[var(--on-inverted-muted)]">
+            BALANCE REAL · DESDE EL PESO
+          </p>
+          <h2 className="mt-1 text-[16px] font-semibold">La cifra que manda</h2>
+        </div>
         <HowCalculated
           invert
           title="Déficit y TDEE reales"
-          what="El gasto real sale de cuánto cambia tu peso medio, no del reloj (que se equivoca 15-30% en fuerza/CrossFit)."
-          formula="déficit/día = −(kg/semana × 7.700 ÷ 7). TDEE = ingesta media de días Normal + déficit. kg/semana = pendiente de la ma7."
-          action="Esta es la cifra que manda. Si el déficit es más agresivo de lo pautado, coméntalo con tu nutricionista."
+          what="El gasto real sale del cambio de tu peso medio, no del reloj."
+          formula="déficit/día = −(kg/semana × 7.700 ÷ 7). TDEE = ingesta media Normal + déficit."
+          action="Si el déficit se aleja de la pauta, coméntalo con tu nutricionista."
         />
       </div>
-
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <Figure label="kg / semana" value={kgStr} />
-        <Figure
-          label="déficit kcal/día"
-          value={(deficit.deficitKcal ?? 0).toLocaleString("es-ES")}
+      <div className="mt-5 grid grid-cols-3 gap-3">
+        <HeroFigure label="kg / semana" value={kgValue} />
+        <HeroFigure
+          label={(deficit.deficitKcal ?? 0) >= 0 ? "déficit estimado" : "superávit estimado"}
+          value={integer(Math.abs(deficit.deficitKcal ?? 0))}
+          unit="kcal / día"
         />
-        <Figure
+        <HeroFigure
           label="TDEE real"
-          value={deficit.tdee != null ? deficit.tdee.toLocaleString("es-ES") : "—"}
+          value={deficit.tdee != null ? integer(deficit.tdee) : "—"}
+          unit="kcal"
         />
       </div>
-
-      <p className="mt-3 text-[12px] text-background/60">
-        Las kcal del reloj y las sesiones son contexto ·{" "}
-        <span className="num">{deficit.weighins}</span> pesajes en{" "}
-        <span className="num">{deficit.spanDays}</span> días · ingesta media{" "}
-        <span className="num">{(deficit.intakeMean ?? 0).toLocaleString("es-ES")}</span> kcal
+      <p className="mt-5 border-t border-white/15 pt-3 text-[11px] leading-relaxed text-[var(--on-inverted-muted)]">
+        {deficit.weighins} pesajes en {deficit.spanDays} días · ingesta media{" "}
+        {integer(deficit.intakeMean ?? 0)} kcal · el reloj queda como contexto.
       </p>
     </section>
   );
 }
 
-function Figure({ label, value }: { label: string; value: string }) {
+function HeroFigure({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
-    <div>
-      <div
-        className="num text-[26px] leading-none font-bold"
-        style={{ fontFamily: "var(--font-condensed)" }}
-      >
-        {value}
+    <div className="min-w-0">
+      <div className="num truncate text-[24px] font-semibold leading-none">{value}</div>
+      {unit ? <div className="mt-1 text-[10px] text-[var(--on-inverted-muted)]">{unit}</div> : null}
+      <div className={`${unit ? "mt-0.5" : "mt-1.5"} text-[10px] leading-tight text-[var(--on-inverted-muted)]`}>
+        {label}
       </div>
-      <div className="mt-1 text-[11px] text-background/60">{label}</div>
     </div>
   );
 }
 
-// ── Adherencia (F6.3) ──
-function AdherenceCard({
-  adherence,
+function SummaryCard({
+  summary,
+  currentTarget,
+  range,
+  hrefFor,
 }: {
-  adherence: ReturnType<typeof computeAdherence>;
+  summary: ReturnType<typeof computeProgressSummary>;
+  currentTarget: DayTarget;
+  range: ProgressRange;
+  hrefFor: (range: ProgressRange, days: SummaryWindowDays) => string;
 }) {
-  const { n, normalN, enRango, protOk } = adherence;
   return (
-    <section className="rounded-xl border border-line bg-surface p-4">
-      <div className="flex items-center gap-1.5">
-        <h2 className="card-title text-muted-foreground">Adherencia · 14 días</h2>
-        <HowCalculated
-          title="Adherencia (14 días)"
-          what="Cuántos días has registrado y, de los de fase Normal, cuántos caen en rango de kcal y de proteína. Las fases especiales se excluyen (pasarse ahí no es desviación)."
-          formula="en rango = |kcal − objetivo| / objetivo ≤ 10% · proteína OK = prot ≥ 90% del objetivo. Solo días Normal."
-          action="Si registras poco, el resto de métricas pierden fiabilidad: la constancia es lo primero."
+    <section className="wellness-card p-5" aria-labelledby="summary-title">
+      <div className="flex flex-col gap-3 min-[370px]:flex-row min-[370px]:items-start min-[370px]:justify-between">
+        <div>
+          <h2 id="summary-title" className="app-section-title">
+            Resumen {summary.days === 7 ? "semanal" : "mensual"}
+          </h2>
+          <p className="section-copy">
+            {periodLabel(summary.from, summary.to)} · {summary.contextDays}{" "}
+            {summary.contextDays === 1 ? "fase especial" : "fases especiales"}
+          </p>
+        </div>
+        <div className="flex min-h-[52px] self-start rounded-xl bg-surface-2 p-1" role="group" aria-label="Periodo del resumen">
+          {([7, 30] as const).map((days) => (
+            <Link
+              key={days}
+              href={hrefFor(range, days)}
+              scroll={false}
+              aria-current={summary.days === days ? "true" : undefined}
+              className={`flex min-h-11 items-center rounded-lg px-3 text-[11px] font-semibold ${
+                summary.days === days
+                  ? "bg-surface text-foreground shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {days === 7 ? "Semanal" : "Mensual"}
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 border-y border-line">
+        <SummaryMetric
+          label="Ingesta media"
+          value={summary.averageKcal != null ? `${integer(summary.averageKcal)} kcal` : "—"}
+        />
+        <SummaryMetric
+          label="Proteína media"
+          value={summary.averageProtein != null ? `${integer(summary.averageProtein)} g` : "—"}
+          right
+        />
+        <SummaryMetric
+          label="Días registrados"
+          value={`${summary.loggedDays}/${summary.days}`}
+          bottom
+        />
+        <SummaryMetric
+          label="En rango normal"
+          value={`${summary.kcalInRange}/${summary.normalDays}`}
+          right
+          bottom
+        />
+        <SummaryMetric
+          label="Pasos medios"
+          value={summary.averageSteps != null ? integer(summary.averageSteps) : "—"}
+          bottom
+        />
+        <SummaryMetric
+          label="Proteína suficiente"
+          value={`${summary.proteinOnTarget}/${summary.normalDays}`}
+          right
+          bottom
         />
       </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-        <Stat value={`${n}`} label="días con registro" />
-        <Stat value={`${enRango}/${normalN}`} label="en rango kcal" tone="protein" />
-        <Stat value={`${protOk}/${normalN}`} label="proteína ✓" tone="protein" />
-      </div>
+      <p className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+        <UtensilsCrossed className="size-3.5 text-primary" aria-hidden />
+        Objetivo vigente: <span className="num font-semibold text-foreground">{integer(currentTarget.kcal)} kcal</span>
+      </p>
     </section>
   );
 }
 
-function Stat({
-  value,
+function SummaryMetric({
   label,
-  tone,
+  value,
+  right = false,
+  bottom = false,
 }: {
-  value: string;
   label: string;
-  tone?: "protein";
+  value: string;
+  right?: boolean;
+  bottom?: boolean;
 }) {
   return (
-    <div className="rounded-lg bg-surface-2 px-2 py-2.5">
-      <div
-        className={`num text-[22px] leading-none font-bold ${
-          tone === "protein" ? "text-protein" : "text-foreground"
-        }`}
-        style={{ fontFamily: "var(--font-condensed)" }}
-      >
-        {value}
-      </div>
-      <div className="mt-1 text-[11px] text-muted-foreground">{label}</div>
+    <div
+      className={`py-3.5 ${right ? "border-l border-line pl-4" : "pr-4"} ${
+        bottom ? "border-t border-line" : ""
+      }`}
+    >
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="num mt-1 text-[18px] font-semibold text-foreground">{value}</div>
     </div>
   );
 }
 
-// ── Últimos días (F4.4) — al final de Tendencia (09 §2) ──
-function LastDaysTable({ rows }: { rows: DailyRecord[] }) {
-  if (rows.length === 0) {
-    return (
-      <section className="rounded-xl border border-dashed border-line bg-surface-2 p-6">
-        <p className="text-[13px] text-muted-foreground">
-          Aún no hay días registrados. Empieza en Hoy: pésate y añade tus comidas.
-        </p>
-      </section>
-    );
-  }
+function KpiCard({
+  Icon,
+  iconTone,
+  label,
+  value,
+  detail,
+}: {
+  Icon: typeof Target;
+  iconTone: string;
+  label: string;
+  value: string;
+  detail: string;
+}) {
   return (
-    <section className="rounded-xl border border-line bg-surface">
-      <h2 className="card-title border-b border-line px-4 py-2.5 text-muted-foreground">
-        Últimos días
-      </h2>
-      <ul className="divide-y divide-line">
-        {rows.map((r) => (
-          <li key={r.date} className="px-4 py-2.5">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[13px] font-medium text-foreground">
-                {labelForKey(r.date)}
-              </span>
-              <span className="num text-[13px] text-muted-foreground">
-                {r.weight != null ? `${r.weight.toLocaleString("es-ES")} kg` : "— kg"}
-                {" · "}
-                {r.logged ? `${kcal(r.kcal)} kcal` : "sin registro"}
-              </span>
-            </div>
-            <div className="num mt-0.5 text-[12px] text-muted-foreground">
-              {[
-                r.sessionLabel ?? null,
-                phaseLabel(r.phase),
-                r.activeKcal != null ? `${r.activeKcal} act.` : null,
-                r.steps != null ? `${r.steps.toLocaleString("es-ES")} pasos` : null,
-                r.hrvMs != null ? `HRV ${Math.round(r.hrvMs)}` : null,
-                r.sleepH != null && r.sleepH > 0
-                  ? `${r.sleepH.toLocaleString("es-ES")} h`
-                  : null,
-                r.bloat ? `hinchazón ${BLOAT_LABELS[r.bloat].toLowerCase()}` : null,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <article className="wellness-card min-w-0 p-4">
+      <span className={`flex size-9 items-center justify-center rounded-xl ${iconTone}`}>
+        <Icon className="size-[18px]" aria-hidden />
+      </span>
+      <p className="mt-4 text-[11px] text-muted-foreground">{label}</p>
+      <p className="num mt-1 text-[26px] font-semibold leading-none text-foreground">{value}</p>
+      <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">{detail}</p>
+    </article>
+  );
+}
+
+function MacroLegend() {
+  return (
+    <div className="mb-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground" aria-label="Leyenda de macronutrientes">
+      {[
+        ["Proteína", "var(--protein)"],
+        ["Hidratos", "var(--carb)"],
+        ["Grasa", "var(--fat)"],
+        ["Registrado", "var(--muted-text)"],
+        ["Objetivo", "var(--primary)"],
+      ].map(([label, color]) => (
+        <span key={label} className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full" style={{ background: color }} aria-hidden />
+          {label}
+        </span>
+      ))}
+    </div>
   );
 }

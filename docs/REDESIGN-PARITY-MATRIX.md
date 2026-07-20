@@ -36,16 +36,16 @@ Every completed row must link automated evidence, browser evidence, or both.
 | PLAN-03 | Diet import | Photo/PDF import | `Importar dieta (foto/PDF)` stays visually prominent and completes the current flow | PENDING |
 | PLAN-04 | Training weeks | Current/last applicable training plan | Previous/current week navigation resolves the selected week honestly by URL | GAP |
 | PLAN-05 | Training CRUD | Import, edit, assign and delete week/session | All existing actions remain present; empty weeks do not fall back deceptively | PENDING |
-| PROG-01 | Progress sections | Trend, History and MED segments | Existing segments and filters remain available through URL-addressable state | GAP |
-| PROG-02 | Summary period | Existing trend analytics | `Semanal` is trailing 7 days; `Mensual` is today minus 29 through today inclusive | GAP |
-| PROG-03 | KPIs | Existing real calculations | Deficit, kg/week, real TDEE, adherence 14d and streak use existing formulas only | PENDING |
-| PROG-04 | Weight chart | Existing weight and MA7 series | Thin raw line plus thicker MA7, no large points, `<8` state is honest | PENDING |
-| PROG-05 | Intake chart | Existing daily kcal/macros | Each kcal bar segments protein `g×4`, carbs `g×4`, fat `g×9`; discrepancy is separate | GAP |
-| PROG-06 | MED summary | Existing measurement CRUD/deltas | Latest MED is a navigable summary, not a duplicate tab replacement | PENDING |
-| PROG-07 | Marks summary | Current records and percentages | Recent marks navigate to detail; time metrics invert the record percentage | PENDING |
-| PROG-08 | Share report | Backup export and visit prep are not equivalent | Show share only when a real 7/30/custom progress report exists | GAP |
-| HIST-01 | History filters | 3m/6m/year/all/custom and four content types | All filters, details and `ir al actual` remain after restyling | PENDING |
-| MED-01 | Measurements | Add, detail, edit, delete, chart and visit prep | Every operation remains reachable; MED and scale data stay distinct | PENDING |
+| PROG-01 | Progress sections | Trend, History and MED segments | Existing segments and filters remain available through URL-addressable state | PASS |
+| PROG-02 | Summary period | Existing trend analytics | `Semanal` is trailing 7 days; `Mensual` is today minus 29 through today inclusive | PASS |
+| PROG-03 | KPIs | Existing real calculations | Balance from weight, kg/week, real TDEE, adherence 14d and streak use existing formulas only | PASS |
+| PROG-04 | Weight chart | Existing weight and MA7 series | Thin raw line plus thicker MA7, no large points, `<8` state is honest | PASS |
+| PROG-05 | Intake chart | Existing daily kcal/macros | Each kcal bar segments protein `g×4`, carbs `g×4`, fat `g×9`; discrepancy is separate | PASS |
+| PROG-06 | MED segment | Existing measurement CRUD/deltas | MED stays in its own segment; rows open detail instead of duplicating MED in Trend | PASS |
+| PROG-07 | Marks summary | Current records and percentages | Recent marks live in History, navigate to detail and invert percentages for time | PASS |
+| PROG-08 | Share report | Backup export and visit prep are not equivalent | Share stays hidden until a real 7/30/custom progress report exists | PASS |
+| HIST-01 | History filters | 3m/6m/year/all/custom and four content types | All filters, details and `ir al actual` remain after restyling | PASS |
+| MED-01 | Measurements | Add, detail, edit, delete, chart and visit prep | Every operation remains reachable; MED and scale data stay distinct | PASS |
 | MARK-01 | Marks list | Add, list and open detail | `+ Marca` is the only list-level mutation; rows open full history | PENDING |
 | MARK-02 | Mark detail | Calculator, history, edit and delete | Edit/delete belong to the selected record in detail, never the exercise overview | PENDING |
 | CHAT-01 | Thread list | Existing list/open/delete behavior | Relative date, count and topic summary render from real metadata | GAP |
@@ -91,6 +91,12 @@ Use one row per completed scenario. A browser row must include theme and viewpor
 | FOUNDATION-BUILD | `pnpm build`: 42 routes generated | Pending | Neon branch only | Integrator | PASS |
 | FOUNDATION-REACT | `react-doctor --diff`: 97/100, no changed-file issues | Not applicable | Not applicable | Integrator | PASS |
 | FOUNDATION-MOBILE | Runtime checks at 390x844 and 320x568 | Light/dark Today and Settings; zero horizontal overflow | Inputs compute at 16px; theme meta follows selection | Integrator + foundation auditor | PASS |
+| PROGRESS-CALC | `progressSummary.test.ts`, existing deficit/adherence/MA7 tests | Not applicable | Inclusive 7/30 windows; exact macro energy; signed discrepancy; streak | Integrator + progress auditor | PASS |
+| PROGRESS-DATA | Read-only query against isolated Neon branch | Trend, 7d and 30d values rendered from the same records | 13 logged days; 8 eligible weights; signed balance `-403`; no production writes | Integrator + progress auditor | PASS |
+| PROGRESS-URL | Browser back/forward/reload on Trend, MED and History | `range`, `summary`, history range/type/from/to persist in URLs | No fallback or invented filter state | Integrator | PASS |
+| PROGRESS-MOBILE | Playwright runtime checks at 390x844 and 320x760 | Light/dark Trend; History custom range; MED form/detail | Zero overflow/errors; visible inputs 16px; controls at least 44px | Integrator | PASS |
+| PROGRESS-AA | `pnpm audit:contrast` | Light/dark inverted primary card inspected | Inverted text pairs: light 16.03/10.25; dark 12.24/8.01 | Integrator | PASS |
+| PROGRESS-QUALITY | `pnpm test`: 24 files, 215 tests; `pnpm build`: 43 routes; React Doctor changed scope: no issues | `http://localhost:3012/progreso` | Isolated Neon branch only | Integrator | PASS |
 
 ## Release blockers
 

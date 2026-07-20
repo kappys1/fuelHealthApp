@@ -17,6 +17,7 @@ import {
   planSummary,
   recentMealsDetail,
   trendJudgeLine,
+  trendSummary,
 } from "./context";
 import {
   athleteContext,
@@ -75,6 +76,31 @@ describe("ATHLETE_CONTEXT dinámico (doc 10 A2)", () => {
       photoScaleException: true,
     });
     expect(c).toContain("referencia de escala");
+  });
+
+  it("declara el peso ausente en vez de inventar un valor", () => {
+    const full = athleteContext(DEFAULT_ATHLETE_PROFILE, null, 6, TODAY);
+    const compact = athleteContextCompact(DEFAULT_ATHLETE_PROFILE, null);
+    expect(full).toContain("peso reciente no disponible");
+    expect(compact).toContain("peso reciente no disponible");
+    expect(full).not.toContain("92 kg");
+  });
+});
+
+describe("resumen de tendencia honesto", () => {
+  it("nombra el déficit firmado negativo como superávit y omite TDEE ausente", () => {
+    const summary = trendSummary({
+      enough: true,
+      weighins: 8,
+      spanDays: 12,
+      kgPerWeek: 0.37,
+      deficitKcal: -403,
+      intakeMean: 1821,
+      tdee: null,
+    });
+    expect(summary).toContain("superávit estimado ~403 kcal/día");
+    expect(summary).not.toContain("déficit real ~-403");
+    expect(summary).not.toContain("0 kcal/día");
   });
 });
 

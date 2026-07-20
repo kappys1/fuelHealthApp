@@ -2,6 +2,7 @@
 
 import {
   ArrowRight,
+  CalendarDays,
   ChevronDown,
   ChevronUp,
   Dumbbell,
@@ -9,6 +10,7 @@ import {
   Target,
   UtensilsCrossed,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
@@ -23,8 +25,10 @@ import {
   type GrpKey,
   MEAL_LABELS,
   MEAL_ORDER,
+  phaseLabel,
   type MealKey,
 } from "@/lib/macros";
+import type { DailyRecord } from "@/server/analytics/types";
 import { TRAINING_TIPO_LABELS } from "@/lib/training";
 import type {
   HistDieta,
@@ -73,18 +77,50 @@ const TYPE_FILTERS: { key: HistorialKind | "all"; label: string }[] = [
 
 export function Historial({
   entries,
+  records,
   today,
   marks,
+  range,
+  type,
+  from,
+  to,
+  progressRange,
+  summaryDays,
 }: {
   entries: HistorialEntry[];
+  records: DailyRecord[];
   today: string;
   marks: MarkDTO[];
+  range: Range;
+  type: HistorialKind | "all";
+  from: string;
+  to: string;
+  progressRange: "14" | "30" | "90" | "todo";
+  summaryDays: 7 | 30;
 }) {
-  const [range, setRange] = useState<Range>("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [typeSel, setTypeSel] = useState<HistorialKind | "all">("all");
+  const router = useRouter();
   const [detail, setDetail] = useState<HistDieta | HistEntreno | null>(null);
+
+  const historyHref = ({
+    nextRange = range,
+    nextType = type,
+    nextFrom = from,
+    nextTo = to,
+  }: {
+    nextRange?: Range;
+    nextType?: HistorialKind | "all";
+    nextFrom?: string;
+    nextTo?: string;
+  } = {}) => {
+    const params = new URLSearchParams({ tab: "historial" });
+    if (progressRange !== "90") params.set("range", progressRange);
+    if (summaryDays !== 7) params.set("summary", String(summaryDays));
+    if (nextRange !== "all") params.set("historyRange", nextRange);
+    if (nextType !== "all") params.set("historyType", nextType);
+    if (nextRange === "custom" && nextFrom) params.set("from", nextFrom);
+    if (nextRange === "custom" && nextTo) params.set("to", nextTo);
+    return `/progreso?${params.toString()}`;
+  };
 
   const filtered = useMemo(() => {
     let list = entries;
@@ -95,35 +131,43 @@ export function Historial({
       const cutoff = shiftDayKey(today, -days);
       list = list.filter((e) => e.date >= cutoff);
     }
-    if (typeSel !== "all") list = list.filter((e) => e.kind === typeSel);
+    if (type !== "all") list = list.filter((e) => e.kind === type);
     return list;
-  }, [entries, range, from, to, typeSel, today]);
+  }, [entries, range, from, to, type, today]);
 
   return (
-    <section className="space-y-4">
-      <p className="text-[12px] leading-snug text-muted-foreground">
-        Cómo has llegado hasta aquí. Solo lectura — el pasado no se edita, solo se
-        consulta.
-      </p>
+    <section className="space-y-6">
+      <div>
+        <h2 className="app-section-title">Tu historial</h2>
+        <p className="section-copy">Objetivos, pautas y mediciones en una cronología</p>
+      </div>
 
       {/* Carril de marcas (F03): consulta rápida; abre el mismo sheet de detalle. */}
       <MarksRail initialMarks={marks} today={today} />
 
+      <RecentDays records={records} />
+
+      <div>
+        <h2 className="app-section-title">Historial completo</h2>
+        <p className="section-copy">Filtra versiones, objetivos y mediciones</p>
+      </div>
+
       {/* rango temporal */}
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         {RANGES.map((r) => (
           <Chip
             key={r.key}
             label={r.label}
             on={range === r.key}
-            onClick={() => setRange(r.key)}
+            href={historyHref({ nextRange: r.key })}
           />
         ))}
         <Chip
-          label="📅 rango…"
+          label="Rango"
           on={range === "custom"}
           dashed
-          onClick={() => setRange("custom")}
+          Icon={CalendarDays}
+          href={historyHref({ nextRange: "custom" })}
         />
       </div>
       {range === "custom" ? (
@@ -131,36 +175,46 @@ export function Historial({
           <input
             type="date"
             value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="num h-9 flex-1 rounded-lg border border-input bg-surface px-2 text-[13px] outline-none focus-visible:border-ring"
+            onChange={(e) =>
+              router.replace(historyHref({ nextRange: "custom", nextFrom: e.target.value }), {
+                scroll: false,
+              })
+            }
+            max={today}
+            className="num h-11 min-w-0 flex-1 rounded-xl border border-input bg-surface px-2 text-base outline-none focus-visible:border-ring"
             aria-label="Desde"
           />
           <span className="text-[12px] text-muted-foreground">→</span>
           <input
             type="date"
             value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="num h-9 flex-1 rounded-lg border border-input bg-surface px-2 text-[13px] outline-none focus-visible:border-ring"
+            onChange={(e) =>
+              router.replace(historyHref({ nextRange: "custom", nextTo: e.target.value }), {
+                scroll: false,
+              })
+            }
+            max={today}
+            className="num h-11 min-w-0 flex-1 rounded-xl border border-input bg-surface px-2 text-base outline-none focus-visible:border-ring"
             aria-label="Hasta"
           />
         </div>
       ) : null}
 
       {/* filtros por tipo */}
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         {TYPE_FILTERS.map((t) => (
           <Chip
             key={t.key}
             label={t.label}
-            on={typeSel === t.key}
+            on={type === t.key}
             dot={t.key === "all" ? undefined : TYPE[t.key].color}
-            onClick={() => setTypeSel(t.key)}
+            href={historyHref({ nextType: t.key })}
           />
         ))}
       </div>
 
       {filtered.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-line bg-surface-2 p-6 text-center text-sm text-muted-foreground">
+        <p className="wellness-card p-6 text-center text-[13px] text-muted-foreground ring-1 ring-dashed ring-line">
           Nada en este rango.
         </p>
       ) : (
@@ -189,29 +243,97 @@ export function Historial({
   );
 }
 
+function RecentDays({ records }: { records: DailyRecord[] }) {
+  const recent = records.slice(-7).reverse();
+  return (
+    <section aria-labelledby="recent-days-title">
+      <div className="mb-3">
+        <h2 id="recent-days-title" className="app-section-title">
+          Últimos días
+        </h2>
+        <p className="section-copy">Peso, ingesta y contexto real</p>
+      </div>
+      {recent.length === 0 ? (
+        <p className="wellness-card p-5 text-[12px] text-muted-foreground">
+          Aún no hay días registrados.
+        </p>
+      ) : (
+        <div className="wellness-card divide-y divide-line overflow-hidden">
+          {recent.map((record) => {
+            const context = [
+              record.steps != null
+                ? `${record.steps.toLocaleString("es-ES")} pasos`
+                : null,
+              record.hrvMs != null ? `HRV ${Math.round(record.hrvMs)}` : null,
+              record.activeKcal != null ? `${Math.round(record.activeKcal)} activas` : null,
+              record.phase != null ? phaseLabel(record.phase) : null,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <div key={record.date} className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-3 px-4 py-3.5">
+                <span className="num text-[11px] font-semibold text-muted-foreground">
+                  {chartDate(record.date)}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0 truncate text-[13px] font-semibold text-foreground">
+                      {record.sessionLabel ?? "Sin sesión registrada"}
+                    </span>
+                    <span className="num shrink-0 text-right text-[11px] font-semibold text-foreground">
+                      {record.weight != null
+                        ? `${record.weight.toLocaleString("es-ES", {
+                            maximumFractionDigits: 1,
+                          })} kg`
+                        : "— kg"}
+                      <span className="block font-normal text-muted-foreground">
+                        {record.logged
+                          ? `${Math.round(record.kcal).toLocaleString("es-ES")} kcal`
+                          : "sin ingesta"}
+                      </span>
+                    </span>
+                  </div>
+                  {context ? (
+                    <p className="mt-1 truncate text-[10.5px] text-muted-foreground">{context}</p>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+const chartDate = (date: string) => labelForKey(date).replace(/^\S+\s/, "");
+
 function Chip({
   label,
   on,
   dot,
   dashed,
-  onClick,
+  href,
+  Icon,
 }: {
   label: string;
   on: boolean;
   dot?: string;
   dashed?: boolean;
-  onClick: () => void;
+  href: string;
+  Icon?: typeof CalendarDays;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] ${
+    <Link
+      href={href}
+      scroll={false}
+      className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold ${
         on
-          ? "border border-primary bg-primary/15 text-foreground"
-          : "border border-line bg-surface-2 text-muted-foreground"
+          ? "border border-primary bg-primary-soft text-primary-strong"
+          : "border border-line bg-surface text-muted-foreground"
       } ${dashed ? "border-dashed" : ""}`}
     >
+      {Icon ? <Icon className="size-3.5" aria-hidden /> : null}
       {dot ? (
         <span
           className="size-[7px] rounded-full"
@@ -220,7 +342,7 @@ function Chip({
         />
       ) : null}
       {label}
-    </button>
+    </Link>
   );
 }
 
@@ -251,7 +373,7 @@ function TimelineItem({
           if (hasSheet) onOpenDetail(entry as HistDieta | HistEntreno);
           else if (expandable) setOpen((v) => !v);
         }}
-        className="w-full rounded-xl border border-line bg-surface p-3 text-left"
+        className="wellness-card min-h-11 w-full p-4 text-left ring-1 ring-line"
       >
         <div className="flex items-center justify-between gap-2">
           <span
@@ -317,8 +439,8 @@ function summaryOf(e: HistorialEntry): React.ReactNode {
     case "med":
       return (
         <>
-          Pliegues — grasa <b>{num(e.fatKg ?? 0, 1)} %</b> · músculo{" "}
-          <b>{num(e.muscleKg ?? 0, 1)} kg</b>
+          Pliegues — grasa <b>{e.fatKg == null ? "—" : `${num(e.fatKg, 1)} kg`}</b> · músculo{" "}
+          <b>{e.muscleKg == null ? "—" : `${num(e.muscleKg, 1)} kg`}</b>
         </>
       );
   }
@@ -327,7 +449,7 @@ function summaryOf(e: HistorialEntry): React.ReactNode {
 function MedDetail({ entry }: { entry: Extract<HistorialEntry, { kind: "med" }> }) {
   return (
     <div className="mt-2 grid gap-1.5 border-t border-line pt-2 text-[12px]">
-      <DeltaRow label="Grasa" value={entry.fatKg} unit="%" delta={entry.delta.fatKg} good="down" />
+      <DeltaRow label="Grasa" value={entry.fatKg} unit="kg" delta={entry.delta.fatKg} good="down" />
       <DeltaRow label="Músculo" value={entry.muscleKg} unit="kg" delta={entry.delta.muscleKg} good="up" />
       <DeltaRow label="Peso" value={entry.weightKg} unit="kg" delta={entry.delta.weightKg} good="neutral" />
     </div>

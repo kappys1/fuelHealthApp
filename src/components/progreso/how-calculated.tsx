@@ -34,8 +34,8 @@ export function HowCalculated({
           aria-label={`Cómo se calcula: ${title}`}
           className={
             invert
-              ? "inline-flex size-5 items-center justify-center rounded-full text-background/70 hover:text-background focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none"
-              : "inline-flex size-5 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+              ? "inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-[var(--on-inverted-muted)] hover:text-[var(--on-inverted)] focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
+              : "inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-surface-2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           }
         >
           <Info className="size-4" aria-hidden />
