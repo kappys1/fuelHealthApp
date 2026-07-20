@@ -72,7 +72,7 @@ export function Stepper({
         type="button"
         aria-label="Restar"
         onClick={() => bump(-step)}
-        className="flex w-10 shrink-0 items-center justify-center bg-surface-2 text-foreground active:translate-y-px"
+        className="flex w-11 shrink-0 items-center justify-center bg-surface-2 text-foreground active:translate-y-px"
       >
         <Minus className="size-4" aria-hidden />
       </button>
@@ -98,7 +98,7 @@ export function Stepper({
         type="button"
         aria-label="Sumar"
         onClick={() => bump(step)}
-        className="flex w-10 shrink-0 items-center justify-center bg-surface-2 text-foreground active:translate-y-px"
+        className="flex w-11 shrink-0 items-center justify-center bg-surface-2 text-foreground active:translate-y-px"
       >
         <Plus className="size-4" aria-hidden />
       </button>

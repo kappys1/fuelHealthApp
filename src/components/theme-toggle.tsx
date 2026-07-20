@@ -41,10 +41,10 @@ export function ThemeToggle() {
       onClick={() => setTheme(next)}
       aria-label={`Tema: ${LABEL[current]}. Cambiar a ${LABEL[next]}`}
       title={`Tema: ${LABEL[current]}`}
-      className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 text-[13px] text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      className="inline-flex h-11 items-center gap-2 rounded-md border border-input bg-surface px-3.5 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/35 focus-visible:outline-none"
     >
       <Icon className="size-4" aria-hidden />
-      <span className="card-title">{mounted ? LABEL[current] : "Tema"}</span>
+      <span>{mounted ? LABEL[current] : "Tema"}</span>
     </button>
   );
 }
