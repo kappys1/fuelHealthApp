@@ -441,30 +441,29 @@ function OptionRow({
   return (
     <>
       <div className="flex items-center gap-1 px-4 py-3">
-        <div className="min-w-0 flex-1 py-1">
-          <div className="truncate text-[14px] font-medium text-foreground">{option.name}</div>
-          <div className="num mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+        <button
+          type="button"
+          aria-label={`Editar ${option.name}`}
+          onClick={() => setEditing(true)}
+          className="min-h-11 min-w-0 flex-1 rounded-xl px-1 py-1 text-left transition-colors hover:bg-surface-2/70"
+        >
+          <span className="block truncate text-[14px] font-medium text-foreground">
+            {option.name}
+          </span>
+          <span className="num mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
             {option.grp}
             {option.baseG != null ? ` · ${option.baseG} g` : ""} · {option.kcal} kcal ·{" "}
             {displayMacro(option.prot)}P/{displayMacro(option.carb)}C/{displayMacro(option.fat)}F
-          </div>
+          </span>
           {option.variants.length > 0 ? (
-            <div className="mt-1 text-[11px] text-primary">
+            <span className="mt-1 block text-[11px] text-primary">
               {option.variants.length} variantes · {option.variants.map((variant) => variant.nombre).join(" · ")}
-            </div>
+            </span>
           ) : null}
-        </div>
-        <button
-          type="button"
-          aria-label="Editar opción"
-          onClick={() => setEditing(true)}
-          className="app-icon-button shrink-0 border-0 bg-transparent"
-        >
-          <Pencil className="size-4" aria-hidden />
         </button>
         <button
           type="button"
-          aria-label="Borrar opción"
+          aria-label={`Borrar ${option.name}`}
           onClick={() => setDeleteOpen(true)}
           className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
         >

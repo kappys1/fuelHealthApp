@@ -3,14 +3,19 @@
 import {
   AlertCircle,
   ArrowLeft,
+  ChartNoAxesCombined,
   Check,
   ChevronRight,
   Copy,
+  Gauge,
   Loader2,
   MessageCircle,
   MessageSquarePlus,
+  ScanSearch,
   Send,
+  Sparkles,
   Trash2,
+  Waves,
   WifiOff,
 } from "lucide-react";
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
@@ -36,11 +41,28 @@ import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
   presentacionales y viven como subcomponentes; los refs que los effects necesitan
   se pasan hacia abajo, así el comportamiento no cambia al trocear el JSX.
 */
-const SUGGESTED = [
-  "¿Cómo va mi semana?",
-  "¿Qué me hincha?",
-  "Compara mis dos últimas cargas",
-];
+const QUICK_PROMPTS = [
+  {
+    text: "¿Cómo cierro bien el día?",
+    Icon: Gauge,
+    color: "var(--carb)",
+  },
+  {
+    text: "¿Cómo va mi semana?",
+    Icon: ChartNoAxesCombined,
+    color: "var(--cobalt)",
+  },
+  {
+    text: "Compara mis dos cargas",
+    Icon: Waves,
+    color: "var(--special)",
+  },
+  {
+    text: "¿Qué coincide con mi hinchazón?",
+    Icon: ScanSearch,
+    color: "var(--protein)",
+  },
+] as const;
 
 interface UIMessage extends Omit<MessageDTO, "id" | "createdAt"> {
   id: string;
@@ -355,6 +377,11 @@ export function ChatClient({
   const activeThread =
     activeId == null ? null : threads.find((thread) => thread.id === activeId) ?? null;
 
+  const startWithPrompt = (prompt: string) => {
+    newThread();
+    void send(prompt);
+  };
+
   if (view === "list") {
     return (
       <>
@@ -364,6 +391,8 @@ export function ChatClient({
           onNew={newThread}
           onOpen={openThread}
           onRemove={setPendingDelete}
+          onPrompt={startWithPrompt}
+          online={online}
         />
         <ConfirmDialog
           open={pendingDelete != null}
@@ -452,28 +481,103 @@ function ThreadList({
   onNew,
   onOpen,
   onRemove,
+  onPrompt,
+  online,
 }: {
   threads: ThreadDTO[];
   nowIso: string;
   onNew: () => void;
   onOpen: (id: number) => void;
   onRemove: (thread: ThreadDTO) => void;
+  onPrompt: (prompt: string) => void;
+  online: boolean;
 }) {
+  const [managing, setManaging] = useState(false);
+
   return (
-    <section className="space-y-6 pb-8">
-      <div className="flex items-end justify-between gap-3">
+    <section className="space-y-7 pb-8">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="ui-label">Coach y datos</p>
+          <p className="ui-label">Coach con tus datos</p>
           <h1 className="app-page-title mt-1">Chat</h1>
         </div>
         <button
           type="button"
           onClick={onNew}
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground"
+          aria-label="Nueva conversación"
+          className="app-icon-button shrink-0 border-primary/20 bg-primary text-primary-foreground hover:bg-primary-strong hover:text-primary-foreground"
         >
-          <MessageSquarePlus className="size-4" aria-hidden /> Nuevo
+          <MessageSquarePlus className="size-[18px]" aria-hidden />
         </button>
       </div>
+
+      <section
+        className="rounded-[22px] bg-[var(--inverted)] p-5 text-[var(--on-inverted)] shadow-card"
+        aria-labelledby="chat-welcome-title"
+      >
+        <span className="flex size-11 items-center justify-center rounded-xl bg-primary/25 text-[var(--on-inverted)]">
+          <Sparkles className="size-5" strokeWidth={1.8} aria-hidden />
+        </span>
+        <h2
+          id="chat-welcome-title"
+          className="mt-5 max-w-[310px] font-display text-[24px] font-semibold leading-[1.18]"
+        >
+          ¿Qué quieres entender hoy?
+        </h2>
+        <p className="mt-2 max-w-[360px] text-[13px] leading-relaxed text-[var(--on-inverted-muted)]">
+          Pregunta por tu dieta, el reparto de comidas, una carga, tu evolución o lo
+          que muestran tus últimos días.
+        </p>
+        <p
+          className="mt-4 flex items-center gap-2 text-[12px] font-semibold"
+          style={{
+            color:
+              "color-mix(in srgb, var(--protein) 38%, var(--on-inverted))",
+          }}
+        >
+          <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden />
+          Plan, salud y entrenamientos actualizados
+        </p>
+      </section>
+
+      <section aria-labelledby="quick-prompts-title">
+        <h2 id="quick-prompts-title" className="section-title">
+          Preguntas rápidas
+        </h2>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {QUICK_PROMPTS.map(({ text, Icon, color }) => (
+            <button
+              key={text}
+              type="button"
+              disabled={!online}
+              onClick={() => onPrompt(text)}
+              className="wellness-card flex min-h-[112px] flex-col items-start justify-between border border-line p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary-soft/30 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Icon className="size-5" style={{ color }} strokeWidth={1.8} aria-hidden />
+              <span className="mt-4 text-[13px] font-semibold leading-snug text-foreground">
+                {text}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="thread-list-title">
+        <div className="mb-3 flex min-h-11 items-center justify-between gap-3">
+          <h2 id="thread-list-title" className="section-title">
+            Conversaciones
+          </h2>
+          {threads.length > 0 ? (
+            <button
+              type="button"
+              aria-pressed={managing}
+              onClick={() => setManaging((value) => !value)}
+              className="min-h-11 rounded-xl px-2 text-[13px] font-semibold text-primary"
+            >
+              {managing ? "Listo" : "Gestionar"}
+            </button>
+          ) : null}
+        </div>
 
       {threads.length === 0 ? (
         <div className="wellness-card p-6 text-center ring-1 ring-dashed ring-line">
@@ -495,13 +599,13 @@ function ThreadList({
           </button>
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="wellness-card divide-y divide-line overflow-hidden">
           {threads.map((thread) => (
-            <li key={thread.id} className="wellness-card flex items-center overflow-hidden ring-1 ring-line">
+            <li key={thread.id} className="flex min-h-[82px] items-center">
               <button
                 type="button"
                 onClick={() => onOpen(thread.id)}
-                className="flex min-h-[78px] min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left"
+                className="flex min-h-[82px] min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2/60"
               >
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
                   <MessageCircle className="size-[18px]" aria-hidden />
@@ -515,25 +619,35 @@ function ThreadList({
                       {thread.preview}
                     </span>
                   ) : null}
-                  <span className="mt-1 block text-[11px] text-muted-foreground">
-                    {relativeDate(thread.updatedAt, nowIso)} · {thread.messageCount}{" "}
-                    {thread.messageCount === 1 ? "mensaje" : "mensajes"}
-                  </span>
                 </span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span className="text-right text-[11px] text-muted-foreground">
+                    {relativeDate(thread.updatedAt, nowIso)}
+                  </span>
+                  {!managing ? (
+                    <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+                  ) : null}
+                </span>
               </button>
-              <button
-                type="button"
-                aria-label="Borrar hilo"
-                onClick={() => onRemove(thread)}
-                className="app-icon-button mr-2 shrink-0 border-0 bg-transparent text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="size-4" aria-hidden />
-              </button>
+              {managing ? (
+                <button
+                  type="button"
+                  aria-label={`Borrar conversación ${thread.title}`}
+                  onClick={() => onRemove(thread)}
+                  className="app-icon-button mr-2 shrink-0 border-0 bg-transparent text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
       )}
+        <p className="mt-3 flex items-start gap-2 px-1 text-[11px] leading-relaxed text-muted-foreground">
+          <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+          Los títulos resumen el tema del hilo; se generarán automáticamente con IA.
+        </p>
+      </section>
     </section>
   );
 }
@@ -626,7 +740,7 @@ function MessageArea({
             Empieza con una pregunta sobre tus datos:
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {SUGGESTED.map((q) => (
+            {QUICK_PROMPTS.slice(0, 3).map(({ text: q }) => (
               <button
                 key={q}
                 type="button"
