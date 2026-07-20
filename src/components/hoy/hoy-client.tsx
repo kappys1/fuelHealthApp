@@ -1,8 +1,8 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Flame, Plus } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Plus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AddSheet } from "@/components/hoy/add-sheet";
 import { CheckinCierre, CheckinMatinal, WeightExpressSheet } from "@/components/hoy/checkins";
@@ -20,7 +20,7 @@ import { MealTimeline } from "@/components/hoy/meal-timeline";
 import { MiDiaSheet } from "@/components/hoy/mi-dia-card";
 import { useToday } from "@/components/hoy/use-today";
 import { FuelGauge } from "@/components/fuel-gauge/fuel-gauge";
-import { dayKey, labelForKey, shiftDayKey } from "@/lib/dates";
+import { dayKey, labelForKey } from "@/lib/dates";
 import type { MealKey } from "@/lib/macros";
 import { roundKcal } from "@/lib/macros";
 import { dayTotals } from "@/server/analytics/dayTotals";
@@ -48,7 +48,6 @@ export function HoyClient({
   date: string;
   initial: TodayPayload;
 }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const t = useToday(date, initial);
@@ -130,8 +129,6 @@ export function HoyClient({
   const totals = dayTotals(data.view.entries);
   const phase = data.view.day?.phase ?? null;
 
-  const go = (delta: number) => router.push(`/hoy?date=${shiftDayKey(date, delta)}`);
-
   return (
     // El botón fijo «+ Añadir comida» flota sobre la nav (~safe-area+116px de alto
     // total desde abajo). `main` ya aporta pb-24 (96px) para la nav; aquí solo se
@@ -141,40 +138,7 @@ export function HoyClient({
       className="space-y-3"
       style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 44px)" }}
     >
-      {/* Cabecera: fecha navegable + racha (09 §3) */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            aria-label="Día anterior"
-            onClick={() => go(-1)}
-            className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface text-muted-foreground"
-          >
-            <ChevronLeft className="size-4" aria-hidden />
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push("/hoy")}
-            className="min-w-[92px] text-center text-[13px] font-semibold text-foreground"
-          >
-            {isToday ? "Hoy" : labelForKey(date)}
-          </button>
-          <button
-            type="button"
-            aria-label="Día siguiente"
-            onClick={() => go(1)}
-            disabled={isToday}
-            className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface text-muted-foreground disabled:opacity-40"
-          >
-            <ChevronRight className="size-4" aria-hidden />
-          </button>
-        </div>
-        <div className="inline-flex items-center gap-1 text-[13px] text-muted-foreground">
-          <Flame className="size-4 text-primary" aria-hidden />
-          <span className="num">{data.streak}</span>
-        </div>
-      </div>
-
+      {/* Fecha navegable + racha viven ahora en el topbar (AppTopbar, variante Hoy). */}
       <CoachWelcome coach={data.coach} onOpen={() => setCoachOpen(true)} />
 
       <FuelGauge
@@ -283,6 +247,9 @@ export function HoyClient({
         onPatch={t.patchDay}
         trainingSessions={data.trainingSessions}
         suggestedPhase={data.suggestedPhase}
+        onCheckinMatinal={() => setMatinalOpen(true)}
+        onPesoExpres={() => setWeightOpen(true)}
+        onCierre={() => setCierreOpen(true)}
       />
       <CoachSheet
         open={coachOpen}

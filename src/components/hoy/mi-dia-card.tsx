@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
+import { ChevronRight, ClipboardCheck, Loader2, MoonStar, Scale, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -46,6 +46,9 @@ export function MiDiaSheet({
   onPatch,
   trainingSessions = [],
   suggestedPhase = null,
+  onCheckinMatinal,
+  onPesoExpres,
+  onCierre,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -55,6 +58,10 @@ export function MiDiaSheet({
   trainingSessions?: TrainingSessionDTO[];
   /** Fase sugerida tras un día especial (09 §5); valor propuesto, un toque para aplicar. */
   suggestedPhase?: PhaseKey | null;
+  /** Accesos rápidos del flow (abren los sheets existentes tras cerrar este). */
+  onCheckinMatinal: () => void;
+  onPesoExpres: () => void;
+  onCierre: () => void;
 }) {
   const day = view.day;
   const health = view.health;
@@ -229,6 +236,37 @@ export function MiDiaSheet({
             </p>
           ) : null}
 
+          {/* flow-list: accesos rápidos a los rituales existentes (day-context del mockup) */}
+          <div className="divide-y divide-line overflow-hidden rounded-[14px] border border-line">
+            <FlowRow
+              icon={<ClipboardCheck className="size-[18px]" aria-hidden />}
+              label="Revisar check-in matinal"
+              hint="Peso, hinchazón y sesión · tres pasos"
+              onClick={() => {
+                onOpenChange(false);
+                onCheckinMatinal();
+              }}
+            />
+            <FlowRow
+              icon={<Scale className="size-[18px]" aria-hidden />}
+              label="Peso exprés"
+              hint="Solo corrige el peso de hoy"
+              onClick={() => {
+                onOpenChange(false);
+                onPesoExpres();
+              }}
+            />
+            <FlowRow
+              icon={<MoonStar className="size-[18px]" aria-hidden />}
+              label="Revisar cierre del día"
+              hint="Comidas pendientes, notas y racha"
+              onClick={() => {
+                onOpenChange(false);
+                onCierre();
+              }}
+            />
+          </div>
+
           <button
             type="button"
             onClick={() => onOpenChange(false)}
@@ -239,6 +277,35 @@ export function MiDiaSheet({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function FlowRow({
+  icon,
+  label,
+  hint,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  hint: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 bg-surface px-3.5 py-3 text-left transition-colors hover:bg-surface-2"
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-2 text-primary">
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] font-semibold text-foreground">{label}</span>
+        <span className="block text-[12px] text-muted-foreground">{hint}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+    </button>
   );
 }
 
