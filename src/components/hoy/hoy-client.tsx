@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AddSheet } from "@/components/hoy/add-sheet";
 import { CheckinCierre, CheckinMatinal, WeightExpressSheet } from "@/components/hoy/checkins";
-import { CoachCard } from "@/components/hoy/coach-card";
+import { CoachWelcome } from "@/components/hoy/coach-card";
 import { CoachSheet } from "@/components/hoy/coach-sheet";
 import { CompeticionRefuel } from "@/components/hoy/competicion-refuel";
 import { DayStatusLine } from "@/components/hoy/day-status-line";
@@ -174,13 +174,7 @@ export function HoyClient({
         </div>
       </div>
 
-      <DayStatusLine
-        data={data}
-        isToday={isToday}
-        onWeight={() => setMatinalOpen(true)}
-        onAddMeal={() => openAdd(mealByHour())}
-        onClose={() => setCierreOpen(true)}
-      />
+      <CoachWelcome coach={data.coach} onOpen={() => setCoachOpen(true)} />
 
       <FuelGauge
         targets={data.targets}
@@ -189,7 +183,13 @@ export function HoyClient({
         dateLabel={labelForKey(date).replace(/^\S+\s/, "")}
       />
 
-      <CoachCard coach={data.coach} onOpen={() => setCoachOpen(true)} />
+      <DayStatusLine
+        data={data}
+        isToday={isToday}
+        onWeight={() => setMatinalOpen(true)}
+        onAddMeal={() => openAdd(mealByHour())}
+        onClose={() => setCierreOpen(true)}
+      />
 
       {phase === "competicion" ? (
         <CompeticionRefuel meal={mealByHour()} onAdd={t.addEntries} />

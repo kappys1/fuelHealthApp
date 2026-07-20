@@ -4,6 +4,7 @@ import { Check, ChevronDown, Plus } from "lucide-react";
 import { useState } from "react";
 import { MealRow } from "@/components/hoy/meal-row";
 import { QuickAddMenu } from "@/components/hoy/quick-add-menu";
+import { SectionHead } from "@/components/hoy/hoy-extras";
 import { type MealKey, MEAL_LABELS, roundKcal } from "@/lib/macros";
 import { subtotalsByMeal } from "@/server/analytics/dayTotals";
 import type { EntryDTO } from "@/server/db/queries/day";
@@ -48,43 +49,64 @@ export function MealTimeline({
   const subtotals = subtotalsByMeal(entries);
   const extras = entries.filter((e) => e.meal === "extra");
   const sections: MealKey[] = extras.length > 0 ? [...SECTIONS, "extra"] : SECTIONS;
-  const doneCount = sections.filter(
-    (m) => entries.some((e) => e.meal === m),
-  ).length;
+  const doneCount = sections.filter((m) => entries.some((e) => e.meal === m)).length;
+
+  // Estado de apertura por comida en el padre → permite «Expandir/Contraer» todo.
+  const [open, setOpen] = useState<Set<MealKey>>(
+    () => new Set(sections.filter((m) => entries.some((e) => e.meal === m))),
+  );
+  const allOpen = sections.every((m) => open.has(m));
+  const toggle = (m: MealKey) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m);
+      else next.add(m);
+      return next;
+    });
+  const toggleAll = () =>
+    setOpen(allOpen ? new Set<MealKey>() : new Set(sections));
 
   return (
-    <section className="rounded-[18px] border border-line bg-surface shadow-[var(--card-shadow)]">
-      <div className="flex items-center justify-between border-b border-line px-4 py-3">
-        <div>
-          <h2 className="card-title text-muted-foreground">Comidas</h2>
-          <p className="mt-0.5 num text-[12px] text-muted-foreground">
-            {entries.length} {entries.length === 1 ? "entrada" : "entradas"} ·{" "}
-            {doneCount} {doneCount === 1 ? "comida" : "comidas"}
-          </p>
-        </div>
-        <QuickAddMenu
-          templates={templates}
-          onCopyYesterday={onCopyYesterday}
-          onSaveTemplate={onSaveTemplate}
-          onApplyTemplate={onApplyTemplate}
-          onDeleteTemplate={onDeleteTemplate}
-        />
-      </div>
+    <div className="space-y-2">
+      <SectionHead
+        title="Comidas"
+        subtitle={`${entries.length} ${entries.length === 1 ? "entrada" : "entradas"} · ${doneCount} ${doneCount === 1 ? "momento" : "momentos"}`}
+        action={
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="text-[12px] font-medium text-primary"
+            >
+              {allOpen ? "Contraer" : "Expandir"}
+            </button>
+            <QuickAddMenu
+              templates={templates}
+              onCopyYesterday={onCopyYesterday}
+              onSaveTemplate={onSaveTemplate}
+              onApplyTemplate={onApplyTemplate}
+              onDeleteTemplate={onDeleteTemplate}
+            />
+          </div>
+        }
+      />
 
-      <div className="divide-y divide-line">
+      <div className="space-y-2">
         {sections.map((meal) => (
           <MealItem
             key={meal}
             meal={meal}
             rows={entries.filter((e) => e.meal === meal)}
             kcal={subtotals[meal].kcal}
+            open={open.has(meal)}
+            onToggle={() => toggle(meal)}
             onAdd={onAddToMeal}
             onSaveEntry={onSaveEntry}
             onDelete={onDeleteEntry}
           />
         ))}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -92,6 +114,8 @@ function MealItem({
   meal,
   rows,
   kcal,
+  open,
+  onToggle,
   onAdd,
   onSaveEntry,
   onDelete,
@@ -99,31 +123,26 @@ function MealItem({
   meal: MealKey;
   rows: EntryDTO[];
   kcal: number;
+  open: boolean;
+  onToggle: () => void;
   onAdd: (meal: MealKey) => void;
   onSaveEntry: SaveEntry;
   onDelete: (entry: EntryDTO) => void;
 }) {
   const done = rows.length > 0;
-  // Colapsable (patrón mockup): resuelve los días largos (9+ entradas). Las comidas
-  // registradas arrancan abiertas (ver la comida es el caso común); las vacías,
-  // cerradas. El `+` y la edición en línea (MealRow) se preservan intactos.
-  const [open, setOpen] = useState(done);
-
   return (
-    <article>
-      <div className="flex items-center gap-2 px-4 py-2.5">
+    <article className="rounded-[16px] border border-line bg-surface shadow-[var(--card-shadow)]">
+      <div className="flex items-center gap-2 px-3.5 py-2.5">
         <button
           type="button"
-          onClick={() => setOpen((o) => !o)}
+          onClick={onToggle}
           aria-expanded={open}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
           <span
             className={cn(
               "grid size-7 shrink-0 place-items-center rounded-full",
-              done
-                ? "bg-protein/15 text-protein"
-                : "border border-line text-muted-foreground",
+              done ? "bg-protein/15 text-protein" : "border border-line text-muted-foreground",
             )}
           >
             {done ? (
@@ -137,9 +156,7 @@ function MealItem({
               {MEAL_LABELS[meal]}
             </span>
             <span className="block text-[12px] text-muted-foreground">
-              {done
-                ? `${rows.length} ${rows.length === 1 ? "entrada" : "entradas"}`
-                : "sin registrar"}
+              {done ? `${rows.length} ${rows.length === 1 ? "entrada" : "entradas"}` : "sin registrar"}
             </span>
           </span>
           {done ? (
@@ -166,7 +183,7 @@ function MealItem({
       </div>
 
       {open ? (
-        <div className="px-4 pb-2">
+        <div className="border-t border-line px-3.5 py-2">
           {done ? (
             rows.map((e) => (
               <MealRow
