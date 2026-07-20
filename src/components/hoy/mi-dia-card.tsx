@@ -297,7 +297,7 @@ function relojLine(health: NonNullable<DayView["health"]>): string {
 
 /** F-IA-5 · Analizar sesión pegada (WOD). El gasto es CONTEXTO (±25%), no la
  *  verdad — la verdad del gasto es el peso (principio 1). */
-function WodAnalyzer({
+export function WodAnalyzer({
   date,
   onPatch,
 }: {

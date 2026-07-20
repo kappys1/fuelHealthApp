@@ -95,7 +95,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     listProducts(),
     recentDistinctEntries(50),
     listTemplates(),
-    getStreak(),
+    getStreak(date),
     getSessionByWeekday(),
     latestWeightOnOrBefore(date),
     phaseOnDate(shiftDayKey(date, -1)),

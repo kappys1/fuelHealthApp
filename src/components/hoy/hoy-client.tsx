@@ -3,35 +3,58 @@
 import { ChevronLeft, ChevronRight, Flame, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { FuelGauge } from "@/components/fuel-gauge/fuel-gauge";
 import { AddSheet } from "@/components/hoy/add-sheet";
 import { CheckinCierre, CheckinMatinal, WeightExpressSheet } from "@/components/hoy/checkins";
+import { CoachGreetingCard } from "@/components/hoy/coach-greeting-card";
 import { CoachSheet } from "@/components/hoy/coach-sheet";
 import { CompeticionRefuel } from "@/components/hoy/competicion-refuel";
 import { DayStatusLine } from "@/components/hoy/day-status-line";
 import { MealTimeline } from "@/components/hoy/meal-timeline";
-import { MiDiaCard } from "@/components/hoy/mi-dia-card";
+import { OfflineQueueStatus } from "@/components/hoy/offline-queue-status";
+import {
+  BaselineSection,
+  BloatEventSheet,
+  DailyChecks,
+  TrainingSection,
+  WatchContextSection,
+} from "@/components/hoy/today-context";
 import { useToday } from "@/components/hoy/use-today";
-import { FuelGauge } from "@/components/fuel-gauge/fuel-gauge";
 import { dayKey, labelForKey, shiftDayKey } from "@/lib/dates";
-import type { MealKey } from "@/lib/macros";
+import type { BloatKey, MealKey } from "@/lib/macros";
 import { roundKcal } from "@/lib/macros";
 import { dayTotals } from "@/server/analytics/dayTotals";
+import type { BloatEventDTO } from "@/server/db/queries/bloat";
 import type { TodayPayload } from "@/server/db/queries/today";
 
-/** Comida por defecto según la hora (09 §4). */
+const MADRID_TIME_FORMATTER = new Intl.DateTimeFormat("es-ES", {
+  timeZone: "Europe/Madrid",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
 function mealByHour(): MealKey {
-  const h = Number(
+  const hour = Number(
     new Intl.DateTimeFormat("es-ES", {
       timeZone: "Europe/Madrid",
       hour: "2-digit",
-      hour12: false,
+      hourCycle: "h23",
     }).format(new Date()),
   );
-  if (h < 11) return "almuerzo";
-  if (h < 16) return "comida";
-  if (h < 20) return "merienda";
+  if (hour < 11) return "almuerzo";
+  if (hour < 16) return "comida";
+  if (hour < 20) return "merienda";
   return "cena";
 }
+
+function currentMadridTime(): string {
+  return MADRID_TIME_FORMATTER.format(new Date());
+}
+
+type BloatEditor =
+  | { event: BloatEventDTO; severity: BloatKey }
+  | { event: null; severity: BloatKey };
 
 export function HoyClient({
   date,
@@ -42,37 +65,28 @@ export function HoyClient({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const t = useToday(date, initial);
-  const data = t.data;
-
-  // Atajos del manifest (?add=1 · ?checkin=weight): se resuelven en el estado
-  // inicial (sin setState en efecto → sin renders en cascada).
+  const todayState = useToday(date, initial);
+  const data = todayState.data;
   const [addOpen, setAddOpen] = useState(() => searchParams.get("add") === "1");
   const [addMeal, setAddMeal] = useState<MealKey>(() =>
     searchParams.get("add") === "1" ? mealByHour() : "comida",
   );
   const [matinalOpen, setMatinalOpen] = useState(false);
   const [cierreOpen, setCierreOpen] = useState(false);
-  // Shortcut del manifest «Peso de hoy» → sheet exprés de peso (09 §5b: abre
-  // directamente ESTE sheet). La línea de estado matinal abre el check-in de 3
-  // pasos (09 §5); ver DECISIONS.md.
   const [weightOpen, setWeightOpen] = useState(
     () => searchParams.get("checkin") === "weight",
   );
   const [coachOpen, setCoachOpen] = useState(false);
   const [sharedFile, setSharedFile] = useState<File | null>(null);
+  const [bloatEditor, setBloatEditor] = useState<BloatEditor | null>(null);
 
   const today = dayKey();
   const isToday = date === today;
-
   const openAdd = (meal: MealKey) => {
     setAddMeal(meal);
     setAddOpen(true);
   };
 
-  // Share target (?share=1): recupera la imagen compartida del cache del SW y abre
-  // la capa de foto. La escritura de estado va en el callback async (no síncrona en
-  // el efecto). Al terminar limpia la URL para no reabrir en un re-render.
   useEffect(() => {
     const add = searchParams.get("add");
     const checkin = searchParams.get("checkin");
@@ -83,9 +97,9 @@ export function HoyClient({
       void (async () => {
         try {
           const cache = await caches.open("fuelboard-shared");
-          const res = await cache.match("/shared-image");
-          if (res) {
-            const blob = await res.blob();
+          const response = await cache.match("/shared-image");
+          if (response) {
+            const blob = await response.blob();
             await cache.delete("/shared-image");
             setSharedFile(
               new File([blob], "compartida.jpg", {
@@ -96,16 +110,15 @@ export function HoyClient({
             setAddOpen(true);
           }
         } catch {
-          /* sin cache/soporte: degradar sin romper */
+          // La ausencia de Cache API no bloquea el registro manual.
         }
       })();
     }
     window.history.replaceState(null, "", isToday ? "/hoy" : `/hoy?date=${date}`);
+    // Los shortcuts solo se consumen durante el montaje inicial.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Título de documento dinámico (07 §6): "1.240 / 1.800 · Fuelboard" — visible en
-  // el multitarea. Solo para el día de hoy; se restaura al salir de la pestaña.
   useEffect(() => {
     if (!data || !isToday) return;
     const consumed = roundKcal(dayTotals(data.view.entries).kcal);
@@ -119,58 +132,79 @@ export function HoyClient({
 
   const totals = dayTotals(data.view.entries);
   const phase = data.view.day?.phase ?? null;
+  const go = (delta: number) => {
+    const next = shiftDayKey(date, delta);
+    if (next > today) return;
+    router.push(next === today ? "/hoy" : `/hoy?date=${next}`);
+  };
 
-  const go = (delta: number) => router.push(`/hoy?date=${shiftDayKey(date, delta)}`);
+  const selectBloat = (severity: BloatKey) => {
+    const latest = data.bloatEvents.at(-1);
+    if (latest) {
+      void todayState.updateBloatEvent(latest.id, { severity });
+      return;
+    }
+    if (isToday) {
+      void todayState.createBloatEvent(severity, currentMadridTime());
+      return;
+    }
+    setBloatEditor({ event: null, severity });
+  };
 
   return (
-    // El botón fijo «+ Añadir comida» flota sobre la nav (~safe-area+116px de alto
-    // total desde abajo). `main` ya aporta pb-24 (96px) para la nav; aquí solo se
-    // suma lo justo para que «Mi día» no quede tapada al hacer scroll, sin dejar
-    // un hueco enorme.
-    <div
-      className="space-y-3"
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 44px)" }}
-    >
-      {/* Cabecera: fecha navegable + racha (09 §3) */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
+    <div className="space-y-6 pb-16">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center rounded-xl border border-line bg-surface p-0.5 shadow-card">
           <button
             type="button"
             aria-label="Día anterior"
             onClick={() => go(-1)}
-            className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface text-muted-foreground"
+            className="grid size-11 shrink-0 place-items-center rounded-[10px] text-muted-foreground hover:bg-surface-2"
           >
             <ChevronLeft className="size-4" aria-hidden />
           </button>
-          <button
-            type="button"
-            onClick={() => router.push("/hoy")}
-            className="min-w-[92px] text-center text-[13px] font-semibold text-foreground"
-          >
-            {isToday ? "Hoy" : labelForKey(date)}
-          </button>
+          <label className="relative grid min-h-11 min-w-0 flex-1 cursor-pointer place-items-center px-1.5">
+            <span className="truncate text-center text-[12px] font-semibold text-foreground">
+              {isToday ? `Hoy · ${labelForKey(date).replace(/^\S+\s/, "")}` : labelForKey(date)}
+            </span>
+            <input
+              type="date"
+              value={date}
+              max={today}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (!next || next > today) return;
+                router.push(next === today ? "/hoy" : `/hoy?date=${next}`);
+              }}
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
+              aria-label="Ir a una fecha"
+            />
+          </label>
           <button
             type="button"
             aria-label="Día siguiente"
             onClick={() => go(1)}
-            disabled={isToday}
-            className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface text-muted-foreground disabled:opacity-40"
+            disabled={date >= today}
+            className="grid size-11 shrink-0 place-items-center rounded-[10px] text-muted-foreground hover:bg-surface-2 disabled:opacity-35"
           >
             <ChevronRight className="size-4" aria-hidden />
           </button>
         </div>
-        <div className="inline-flex items-center gap-1 text-[13px] text-muted-foreground">
-          <Flame className="size-4 text-primary" aria-hidden />
-          <span className="num">{data.streak}</span>
-        </div>
+        <span
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3 font-display text-[12px] font-semibold tabular-nums text-foreground shadow-card"
+          aria-label={`Racha de ${data.streak} días`}
+        >
+          {data.streak} días <Flame className="size-4 text-fat" aria-hidden />
+        </span>
       </div>
 
-      <FuelGauge
-        targets={data.targets}
-        entries={data.view.entries}
-        phase={phase}
-        onCoach={() => setCoachOpen(true)}
+      <CoachGreetingCard
+        reading={data.coachReading}
+        onOpen={() => setCoachOpen(true)}
+        onRefresh={todayState.refreshCoach}
       />
+
+      <OfflineQueueStatus />
 
       <DayStatusLine
         data={data}
@@ -180,45 +214,62 @@ export function HoyClient({
         onClose={() => setCierreOpen(true)}
       />
 
+      <FuelGauge targets={data.targets} entries={data.view.entries} phase={phase} />
+
       {phase === "competicion" ? (
-        <CompeticionRefuel meal={mealByHour()} onAdd={t.addEntries} />
+        <CompeticionRefuel meal={mealByHour()} onAdd={todayState.addEntries} />
       ) : null}
 
       <MealTimeline
         entries={data.view.entries}
         templates={data.templates}
-        onAddToMeal={openAdd}
-        onSaveEntry={(id, patch) => t.updateEntry(id, patch)}
-        onDeleteEntry={t.deleteEntry}
-        onCopyYesterday={t.copyYesterday}
-        onSaveTemplate={t.saveTemplate}
-        onApplyTemplate={t.applyTemplate}
-        onDeleteTemplate={t.deleteTemplate}
+        bloatEvents={data.bloatEvents}
+        onSaveEntry={(id, patch) => todayState.updateEntry(id, patch)}
+        onDeleteEntry={todayState.deleteEntry}
+        onCopyYesterday={todayState.copyYesterday}
+        onSaveTemplate={todayState.saveTemplate}
+        onApplyTemplate={todayState.applyTemplate}
+        onDeleteTemplate={todayState.deleteTemplate}
+        onEditBloat={(event) => setBloatEditor({ event, severity: event.severity })}
       />
 
-      <MiDiaCard
+      <DailyChecks
         view={data.view}
-        onPatch={t.patchDay}
+        bloatEvents={data.bloatEvents}
+        onPatch={todayState.patchDay}
+        onBloat={selectBloat}
+        onReviewCheckin={() => setMatinalOpen(true)}
+      />
+
+      <TrainingSection
+        view={data.view}
+        onPatch={todayState.patchDay}
         trainingSessions={data.trainingSessions}
         suggestedPhase={data.suggestedPhase}
       />
 
-      {/* Botón primario fijo «+ Añadir comida» (09 §3) */}
+      <BaselineSection baseline={data.baseline} />
+      <WatchContextSection view={data.view} healthSync={data.healthSync} />
+
       <button
         type="button"
         onClick={() => openAdd(mealByHour())}
-        className="fixed inset-x-0 z-10 mx-auto flex w-[calc(100%-2rem)] max-w-[528px] items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground shadow-lg"
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 68px)" }}
+        className="fixed z-30 grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_12px_30px_rgb(21_93_184/35%)] focus-visible:ring-3 focus-visible:ring-ring/35 focus-visible:outline-none"
+        style={{
+          right: "max(18px, calc((100vw - 560px) / 2 + 18px))",
+          bottom: "calc(env(safe-area-inset-bottom) + var(--nav-h) + 14px)",
+        }}
+        aria-label="Añadir comida"
+        title="Añadir comida"
       >
-        <Plus className="size-5" aria-hidden /> Añadir comida
+        <Plus className="size-6" aria-hidden />
       </button>
 
-      {/* Sheets */}
       <AddSheet
         open={addOpen}
-        onOpenChange={(v) => {
-          setAddOpen(v);
-          if (!v) setSharedFile(null);
+        onOpenChange={(open) => {
+          setAddOpen(open);
+          if (!open) setSharedFile(null);
         }}
         meal={addMeal}
         setMeal={setAddMeal}
@@ -228,37 +279,58 @@ export function HoyClient({
           recents: data.recents,
         }}
         products={{
-          create: t.createProduct,
-          update: t.updateProduct,
-          remove: t.deleteProduct,
-          togglePin: t.toggleProductPin,
+          create: todayState.createProduct,
+          update: todayState.updateProduct,
+          remove: todayState.deleteProduct,
+          togglePin: todayState.toggleProductPin,
         }}
         targetKcal={data.targets.kcal}
         currentKcal={roundKcal(totals.kcal)}
         date={date}
-        onAdd={t.addEntries}
+        onAdd={todayState.addEntries}
         initialFile={sharedFile}
       />
       <CheckinMatinal
         open={matinalOpen}
         onOpenChange={setMatinalOpen}
         data={data}
-        onPatch={t.patchDay}
+        onPatch={todayState.patchDay}
       />
       <CheckinCierre
         open={cierreOpen}
         onOpenChange={setCierreOpen}
         data={data}
-        onPatch={t.patchDay}
+        onPatch={todayState.patchDay}
         onAddMeal={() => openAdd(mealByHour())}
       />
       <WeightExpressSheet
         open={weightOpen}
         onOpenChange={setWeightOpen}
         data={data}
-        onPatch={t.patchDay}
+        onPatch={todayState.patchDay}
       />
-      <CoachSheet open={coachOpen} onOpenChange={setCoachOpen} date={date} />
+      <CoachSheet
+        open={coachOpen}
+        onOpenChange={setCoachOpen}
+        date={date}
+        initialReading={data.coachReading}
+        onReading={todayState.setCoachReading}
+      />
+      {bloatEditor ? (
+        <BloatEventSheet
+          key={bloatEditor.event?.id ?? `new-${bloatEditor.severity}`}
+          open
+          onOpenChange={(open) => {
+            if (!open) setBloatEditor(null);
+          }}
+          event={bloatEditor.event}
+          initialSeverity={bloatEditor.severity}
+          isToday={isToday}
+          onCreate={todayState.createBloatEvent}
+          onUpdate={todayState.updateBloatEvent}
+          onDelete={todayState.deleteBloatEvent}
+        />
+      ) : null}
     </div>
   );
 }

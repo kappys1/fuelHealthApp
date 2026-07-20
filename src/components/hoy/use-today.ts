@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { api, type EntryInput, type ProductInput } from "@/lib/client-api";
+import type { BloatKey } from "@/lib/macros";
+import type { CoachReading } from "@/server/ai/coach-reading";
 import { enqueue, isOffline } from "@/lib/offline-queue";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { EntryDTO } from "@/server/db/queries/day";
@@ -324,6 +326,102 @@ export function useToday(date: string, initial: TodayPayload) {
     [refetch],
   );
 
+  const setCoachReading = useCallback((reading: CoachReading) => {
+    setData((p) => ({
+      ...p,
+      coachReading: { ...reading, stale: false },
+    }));
+  }, [setData]);
+
+  const refreshCoach = useCallback(async () => {
+    const reading = await api.coach(date, "hoy");
+    setCoachReading(reading);
+  }, [date, setCoachReading]);
+
+  const createBloatEvent = useCallback(
+    async (severity: BloatKey, occurredAt: string) => {
+      try {
+        const { event } = await api.createBloatEvent({ date, severity, occurredAt });
+        setData((p) => ({
+          ...p,
+          bloatEvents: [...p.bloatEvents, event].sort((a, b) =>
+            a.occurredAt.localeCompare(b.occurredAt),
+          ),
+          view: {
+            ...p.view,
+            day: { ...(p.view.day ?? emptyDay(date)), bloat: severity },
+          },
+        }));
+        toast.success("Marcador guardado");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+        throw err;
+      }
+    },
+    [date, setData],
+  );
+
+  const updateBloatEvent = useCallback(
+    async (
+      id: number,
+      patch: { severity?: BloatKey; occurredAt?: string },
+    ) => {
+      try {
+        const { event } = await api.updateBloatEvent(id, patch);
+        setData((p) => {
+          const events = p.bloatEvents
+            .map((item) => (item.id === id ? event : item))
+            .sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+          const latest = events.at(-1);
+          return {
+            ...p,
+            bloatEvents: events,
+            view: {
+              ...p.view,
+              day: {
+                ...(p.view.day ?? emptyDay(date)),
+                bloat: latest?.severity ?? null,
+              },
+            },
+          };
+        });
+        toast.success("Marcador actualizado");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+        throw err;
+      }
+    },
+    [date, setData],
+  );
+
+  const deleteBloatEvent = useCallback(
+    async (id: number) => {
+      try {
+        await api.deleteBloatEvent(id);
+        setData((p) => {
+          const events = p.bloatEvents.filter((item) => item.id !== id);
+          const latest = events.at(-1);
+          return {
+            ...p,
+            bloatEvents: events,
+            view: {
+              ...p.view,
+              day: {
+                ...(p.view.day ?? emptyDay(date)),
+                bloat: latest?.severity ?? null,
+              },
+            },
+          };
+        });
+        toast("Marcador eliminado");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
+        throw err;
+      }
+    },
+    [date, setData],
+  );
+
   return {
     data: query.data,
     isFetching: query.isFetching,
@@ -339,6 +437,11 @@ export function useToday(date: string, initial: TodayPayload) {
     applyTemplate,
     saveTemplate,
     deleteTemplate,
+    refreshCoach,
+    setCoachReading,
+    createBloatEvent,
+    updateBloatEvent,
+    deleteBloatEvent,
   };
 }
 
