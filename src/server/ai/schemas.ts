@@ -20,7 +20,7 @@ export const photoItemZ = z.object({
 });
 export const photoResultZ = z.object({
   items: z.array(photoItemZ),
-  encaja_plan: z.boolean(),
+  encaja_plan: z.boolean().nullable(),
   comentario: z.string(),
 });
 export type PhotoResult = z.infer<typeof photoResultZ>;

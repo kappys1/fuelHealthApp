@@ -5,6 +5,34 @@ import {
   planOptionImportRow,
 } from "./backup-map";
 
+async function importParser() {
+  process.env.DATABASE_URL ??= "postgresql://test:test@localhost/test";
+  return (await import("./backup")).parseImport;
+}
+
+function emptyV2Data() {
+  return {
+    dietVersions: [],
+    planOptions: [],
+    days: [],
+    bloatEvents: [],
+    mealEntries: [],
+    healthMetrics: [],
+    workouts: [],
+    medMeasurements: [],
+    favorites: [],
+    products: [],
+    dayTemplates: [],
+    settings: [],
+    chatThreads: [],
+    chatMessages: [],
+    trainingPlans: [],
+    trainingSessions: [],
+    performanceMarks: [],
+    markEntries: [],
+  };
+}
+
 /*
   Round-trip export → restore de una entrada con base+cantidad (F06, AC6).
   El export vuelca la fila tal cual (select *); el restore la reinserta vía
@@ -148,5 +176,68 @@ describe("bloatEventImportRow — round-trip temporal", () => {
     expect(row.severity).toBe("moderada");
     expect(row.occurredAt).toBe("20:10:00");
     expect(row.createdAt.toISOString()).toBe("2026-07-20T18:10:00.000Z");
+  });
+});
+
+describe("parseImport — preflight destructivo", () => {
+  it("exige identidad y versión de Fuelboard", async () => {
+    const parseImport = await importParser();
+    expect(() => parseImport({ data: {} })).toThrow(/export de Fuelboard válido/);
+    expect(() => parseImport({ app: "otra-app", version: 2, data: {} })).toThrow(
+      /export de Fuelboard válido/,
+    );
+  });
+
+  it("rechaza un export v2 truncado aunque conserve identidad y versión", async () => {
+    const parseImport = await importParser();
+    expect(() =>
+      parseImport({ app: "fuelboard", version: 2, data: {} }),
+    ).toThrow(/export de Fuelboard válido/);
+  });
+
+  it("acepta v1 completo y añade solo la tabla temporal que aún no existía", async () => {
+    const parseImport = await importParser();
+    const { bloatEvents, ...v1Data } = emptyV2Data();
+    void bloatEvents;
+    expect(parseImport({ app: "fuelboard", version: 1, data: v1Data }).bloatEvents).toEqual(
+      [],
+    );
+  });
+
+  it("rechaza fechas inválidas antes de mostrar la vista previa", async () => {
+    const parseImport = await importParser();
+    expect(() =>
+      parseImport({
+        app: "fuelboard",
+        version: 2,
+        data: { ...emptyV2Data(), days: [{ date: "not-a-date" }] },
+      }),
+    ).toThrow(/days\[0\]\.date/);
+  });
+
+  it("rechaza relaciones huérfanas antes de tocar la base", async () => {
+    const parseImport = await importParser();
+    expect(() =>
+      parseImport({
+        app: "fuelboard",
+        version: 2,
+        data: {
+          ...emptyV2Data(),
+          mealEntries: [
+            {
+              id: 1,
+              date: "2026-07-20",
+              meal: "comida",
+              name: "Arroz",
+              kcal: 200,
+              prot: 4,
+              carb: 42,
+              fat: 1,
+              source: "manual",
+            },
+          ],
+        },
+      }),
+    ).toThrow(/mealEntries\[0\]\.date/);
   });
 });

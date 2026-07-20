@@ -23,6 +23,7 @@
     "migrate:products": "NODE_EXTRA_CA_CERTS=\"$HOME/.config/roche-ca.pem\" tsx src/server/db/migrate-products.ts",
     "hash-password": "tsx scripts/hash-password.ts",
     "audit:contrast": "tsx scripts/audit-contrast.ts",
+    "verify:data-safety": "NODE_EXTRA_CA_CERTS=\"$HOME/.config/roche-ca.pem\" tsx scripts/verify-data-safety.ts",
     "doctor": "npx react-doctor@latest"
   },
   "dependencies": {

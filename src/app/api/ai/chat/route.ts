@@ -17,6 +17,10 @@ import {
   trendAndAdherence,
 } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
+import {
+  persistedTextStreamResponse,
+  verifiedTextDeltas,
+} from "@/server/ai/persisted-text-stream";
 import { chatSummaryPrompt, chatSystemPrompt } from "@/server/ai/prompts";
 import { resolveModel, webSearchTools } from "@/server/ai/provider";
 import { mealEntriesInRange } from "@/server/db/queries/day";
@@ -235,28 +239,20 @@ export async function POST(request: Request) {
       // el prompt (persona + tope de palabras), no este número.
       providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } },
       maxOutputTokens: 4096,
-      onError: ({ error }) => {
-        console.error("[chat] stream error:", error);
-        void releaseAssistantTurn(assistantMessageId).catch((persistError) => {
-          console.error("[chat] no se pudo liberar el turno fallido:", persistError);
+      abortSignal: request.signal,
+    });
+    return persistedTextStreamResponse({
+      deltas: verifiedTextDeltas(result.fullStream),
+      onComplete: async (text) => {
+        await completeAssistantTurn(assistantMessageId, text);
+        await touchThread(threadId).catch((persistError) => {
+          console.error("[chat] no se pudo actualizar el hilo:", persistError);
         });
       },
-      onFinish: async ({ text }) => {
-        if (!text.trim()) {
-          await releaseAssistantTurn(assistantMessageId).catch(() => undefined);
-          return;
-        }
-        try {
-          await completeAssistantTurn(assistantMessageId, text);
-          await touchThread(threadId);
-        } catch (persistError) {
-          // No se silencia: la UI habrá visto el stream, pero el lock permanece y
-          // un reintento podrá recuperarlo o regenerarlo al expirar.
-          console.error("[chat] no se pudo persistir la respuesta:", persistError);
-        }
+      onError: async (error) => {
+        console.error("[chat] stream incompleto:", error);
+        await releaseAssistantTurn(assistantMessageId);
       },
-    });
-    return result.toTextStreamResponse({
       headers: {
         "X-Thread-Id": String(threadId),
         "X-Chat-Turn-Id": turnId,

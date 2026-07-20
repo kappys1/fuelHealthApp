@@ -32,6 +32,8 @@ interface CoachSheetState {
   mode: CoachMode | null;
   loading: boolean;
   text: string | null;
+  contextHash: string | null;
+  generatedAt: string | null;
   error: string | null;
   copied: boolean;
   bridging: boolean;
@@ -40,8 +42,9 @@ interface CoachSheetState {
 
 type CoachSheetAction =
   | { type: "reset"; showCache: boolean }
+  | { type: "show"; reading: CoachReadingView }
   | { type: "start"; mode: CoachMode }
-  | { type: "success"; text: string }
+  | { type: "success"; reading: CoachReading }
   | { type: "error"; message: string }
   | { type: "copied"; value: boolean }
   | { type: "bridging"; value: boolean };
@@ -50,6 +53,8 @@ const INITIAL_STATE: CoachSheetState = {
   mode: null,
   loading: false,
   text: null,
+  contextHash: null,
+  generatedAt: null,
   error: null,
   copied: false,
   bridging: false,
@@ -69,11 +74,29 @@ function coachSheetReducer(
         mode: action.mode,
         loading: true,
         text: null,
+        contextHash: null,
+        generatedAt: null,
         error: null,
         cachedVisible: false,
       };
+    case "show":
+      return {
+        ...INITIAL_STATE,
+        mode: action.reading.mode,
+        text: action.reading.text,
+        contextHash: action.reading.contextHash,
+        generatedAt: action.reading.generatedAt,
+        cachedVisible: true,
+      };
     case "success":
-      return { ...state, loading: false, text: action.text };
+      return {
+        ...state,
+        loading: false,
+        mode: action.reading.mode,
+        text: action.reading.text,
+        contextHash: action.reading.contextHash,
+        generatedAt: action.reading.generatedAt,
+      };
     case "error":
       return { ...state, loading: false, error: action.message };
     case "copied":
@@ -87,22 +110,29 @@ export function CoachSheet({
   open,
   onOpenChange,
   date,
-  initialReading,
+  initialReadings,
   onReading,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   date: string;
-  initialReading: CoachReadingView | null;
+  initialReadings: Record<CoachMode, CoachReadingView | null>;
   onReading: (reading: CoachReading) => void;
 }) {
   const online = useOnline();
   const router = useRouter();
   const [state, dispatch] = useReducer(coachSheetReducer, INITIAL_STATE);
 
+  const defaultReading = initialReadings.hoy;
   const shownText = state.text ??
-    (state.cachedVisible ? initialReading?.text ?? null : null);
-  const shownMode: CoachMode | null = state.mode ?? (shownText ? "hoy" : null);
+    (state.cachedVisible ? defaultReading?.text ?? null : null);
+  const shownMode: CoachMode | null = state.mode ??
+    (state.cachedVisible ? defaultReading?.mode ?? null : null);
+  const cachedReading = shownMode ? initialReadings[shownMode] : null;
+  const shownContextHash = state.contextHash ??
+    (state.cachedVisible ? defaultReading?.contextHash ?? null : null);
+  const shownGeneratedAt = state.generatedAt ??
+    (state.cachedVisible ? defaultReading?.generatedAt ?? null : null);
 
   const reset = (showCache = true) => {
     dispatch({ type: "reset", showCache });
@@ -112,8 +142,8 @@ export function CoachSheet({
     dispatch({ type: "start", mode: nextMode });
     try {
       const reading = await api.coach(date, nextMode);
-      dispatch({ type: "success", text: reading.text });
-      if (nextMode === "hoy") onReading(reading);
+      dispatch({ type: "success", reading });
+      onReading(reading);
     } catch (caught) {
       dispatch({
         type: "error",
@@ -135,11 +165,22 @@ export function CoachSheet({
   };
 
   const continueInChat = async () => {
-    if (!shownText || !shownMode || state.bridging) return;
+    if (
+      !shownText ||
+      !shownMode ||
+      !shownContextHash ||
+      !shownGeneratedAt ||
+      state.bridging
+    ) return;
     dispatch({ type: "bridging", value: true });
     try {
       const userMessage = shownMode === "hoy" ? "¿Cómo voy hoy?" : "Analizar ayer";
-      const { threadId } = await api.seedChatThread(userMessage, shownText);
+      const handoffId = `coach:${shownMode}:${shownContextHash}:${shownGeneratedAt}`;
+      const { threadId } = await api.seedChatThread(
+        userMessage,
+        shownText,
+        handoffId,
+      );
       onOpenChange(false);
       reset();
       router.push(`/chat?thread=${threadId}`);
@@ -193,9 +234,9 @@ export function CoachSheet({
               >
                 <ArrowLeft className="size-4" aria-hidden /> Otras lecturas
               </button>
-              {state.cachedVisible && initialReading ? (
+              {state.cachedVisible && cachedReading ? (
                 <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-[11px] text-muted-foreground">
-                  {initialReading.stale
+                  {cachedReading.stale
                     ? "Hay datos nuevos. Esta es la última lectura guardada."
                     : "Lectura guardada · abrirla no consume IA."}
                 </p>
@@ -218,8 +259,22 @@ export function CoachSheet({
           ) : (
             <>
               <div className="grid gap-2">
-                <ModeButton label="¿Cómo voy hoy?" hint="Lectura del día en curso" disabled={!online} onClick={() => void run("hoy")} />
-                <ModeButton label="Analizar ayer" hint="Revisión del último día cerrado" disabled={!online} onClick={() => void run("ayer")} />
+                <ModeButton
+                  label="¿Cómo voy hoy?"
+                  hint={initialReadings.hoy ? "Abrir lectura guardada" : "Lectura del día en curso"}
+                  disabled={!online && !initialReadings.hoy}
+                  onClick={() => initialReadings.hoy
+                    ? dispatch({ type: "show", reading: initialReadings.hoy })
+                    : void run("hoy")}
+                />
+                <ModeButton
+                  label="Analizar ayer"
+                  hint={initialReadings.ayer ? "Abrir lectura guardada" : "Revisión del último día cerrado"}
+                  disabled={!online && !initialReadings.ayer}
+                  onClick={() => initialReadings.ayer
+                    ? dispatch({ type: "show", reading: initialReadings.ayer })
+                    : void run("ayer")}
+                />
               </div>
               {!online ? (
                 <p className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground">

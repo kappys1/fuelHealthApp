@@ -72,6 +72,27 @@ describe("progress summary", () => {
     expect(summary.averageSteps).toBeNull();
   });
 
+  it("mantiene el consumo pero no juzga días que todavía no tenían pauta", () => {
+    const summary = computeProgressSummary(
+      [
+        record("2026-07-19", {
+          kcal: 1600,
+          prot: 90,
+          target: { kcal: 0, prot: 0 },
+        }),
+        record("2026-07-20"),
+      ],
+      "2026-07-20",
+      7,
+    );
+
+    expect(summary.loggedDays).toBe(2);
+    expect(summary.averageKcal).toBe(1700);
+    expect(summary.normalDays).toBe(1);
+    expect(summary.kcalInRange).toBe(1);
+    expect(summary.proteinOnTarget).toBe(1);
+  });
+
   it("mantiene la racha desde ayer cuando hoy aún no tiene registro", () => {
     const rows = [record("2026-07-17"), record("2026-07-18"), record("2026-07-19")];
     expect(computeLoggingStreak(rows, "2026-07-20")).toBe(3);

@@ -35,7 +35,10 @@ export function computeProgressSummary(
 ): ProgressSummary {
   const from = shiftDayKey(today, -(days - 1));
   const logged = trailingRecords(records, today, days).filter((record) => record.logged);
-  const normal = logged.filter((record) => record.phase == null);
+  const normal = logged.filter(
+    (record) =>
+      record.phase == null && record.target.kcal > 0 && record.target.prot > 0,
+  );
   const average = (values: number[]) =>
     values.length > 0
       ? Math.round(values.reduce((total, value) => total + value, 0) / values.length)
@@ -62,7 +65,8 @@ export function computeProgressSummary(
           KCAL_TOLERANCE,
     ).length,
     proteinOnTarget: normal.filter(
-      (record) => record.prot >= record.target.prot * PROT_MIN_RATIO,
+      (record) =>
+        record.target.prot > 0 && record.prot >= record.target.prot * PROT_MIN_RATIO,
     ).length,
   };
 }

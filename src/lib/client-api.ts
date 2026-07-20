@@ -23,6 +23,7 @@ import type {
   CoachMode,
   CoachReading,
 } from "@/server/ai/coach-reading";
+import { ApiError } from "@/lib/request-errors";
 
 /*
   Fetchers tipados del cliente. Los errores del servidor (mensaje + status) se
@@ -42,7 +43,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
     } catch {
       /* respuesta no-JSON */
     }
-    throw new Error(msg);
+    throw new ApiError(msg, res.status);
   }
   return res.json() as Promise<T>;
 }
@@ -119,7 +120,7 @@ export const api = {
     }),
 
   deleteBloatEvent: (id: number) =>
-    req<{ event: BloatEventDTO }>(`/api/bloat-events/${id}`, {
+    req<{ event: BloatEventDTO | null }>(`/api/bloat-events/${id}`, {
       method: "DELETE",
     }),
 
@@ -232,6 +233,7 @@ export const api = {
     }),
 
   createTrainingPlan: (payload: {
+    requestId: string;
     programa: string;
     etiqueta: string;
     source: "pdf" | "foto" | "texto";
@@ -431,10 +433,14 @@ export const api = {
   listThreads: () => req<{ threads: ThreadDTO[] }>("/api/chat/threads"),
 
   // Puente Coach → Chat (F01 Fase 2): siembra un hilo (user + assistant) sin IA.
-  seedChatThread: (userMessage: string, assistantMessage: string) =>
+  seedChatThread: (
+    userMessage: string,
+    assistantMessage: string,
+    handoffId: string,
+  ) =>
     req<{ threadId: number }>("/api/chat/threads", {
       method: "POST",
-      body: JSON.stringify({ userMessage, assistantMessage }),
+      body: JSON.stringify({ userMessage, assistantMessage, handoffId }),
     }),
 
   getThread: (id: number) =>

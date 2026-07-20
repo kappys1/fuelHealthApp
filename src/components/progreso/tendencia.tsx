@@ -374,7 +374,13 @@ function SummaryCard({
       </div>
       <p className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
         <UtensilsCrossed className="size-3.5 text-primary" aria-hidden />
-        Objetivo vigente: <span className="num font-semibold text-foreground">{integer(currentTarget.kcal)} kcal</span>
+        {currentTarget.kcal > 0 ? (
+          <>
+            Objetivo vigente: <span className="num font-semibold text-foreground">{integer(currentTarget.kcal)} kcal</span>
+          </>
+        ) : (
+          <span>Sin objetivo vigente en Plan.</span>
+        )}
       </p>
     </section>
   );

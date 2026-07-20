@@ -38,4 +38,24 @@ describe("computeAdherence (03 §3 / F6.3)", () => {
     expect(a.enRango).toBe(3); // 07-05, 10, 12 (no 11)
     expect(a.protOk).toBe(3); // 07-05, 10, 12 (no 11: 90 < 99)
   });
+
+  it("no juzga como adherencia un día anterior a la primera pauta", () => {
+    const a = computeAdherence(
+      [
+        rec("2026-07-12", {
+          logged: true,
+          kcal: 0,
+          prot: 0,
+          target: { kcal: 0, prot: 0 },
+        }),
+        rec("2026-07-13", { logged: true, kcal: 1800, prot: 110 }),
+      ],
+      today,
+    );
+
+    expect(a.n).toBe(2);
+    expect(a.normalN).toBe(1);
+    expect(a.enRango).toBe(1);
+    expect(a.protOk).toBe(1);
+  });
 });

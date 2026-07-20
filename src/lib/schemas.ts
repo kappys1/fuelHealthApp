@@ -130,6 +130,7 @@ export const trainingSessionCreateZ = z.object({
   duracionMin: z.number().int().min(0).max(1000).nullable(),
 });
 export const trainingPlanCreateZ = z.object({
+  requestId: z.uuid(),
   programa: z.string().min(1).max(120),
   etiqueta: z.string().min(1).max(120),
   source: trainingSourceZ,

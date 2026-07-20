@@ -246,7 +246,7 @@ export async function completeAssistantTurn(
   messageId: number,
   content: string,
 ): Promise<void> {
-  await db
+  const [completed] = await db
     .update(schema.chatMessages)
     .set({ content })
     .where(
@@ -254,7 +254,11 @@ export async function completeAssistantTurn(
         eq(schema.chatMessages.id, messageId),
         eq(schema.chatMessages.content, ""),
       ),
-    );
+    )
+    .returning({ id: schema.chatMessages.id });
+  if (!completed) {
+    throw new Error("El turno del chat ya no pertenece a esta respuesta.");
+  }
 }
 
 export async function releaseAssistantTurn(messageId: number): Promise<void> {

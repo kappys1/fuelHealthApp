@@ -11,6 +11,7 @@ const SERVER_SNAPSHOT: OfflineQueueSnapshot = {
   online: true,
   pending: 0,
   phase: "idle",
+  failure: null,
 };
 
 export function useOfflineQueue(): OfflineQueueSnapshot {

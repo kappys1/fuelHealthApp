@@ -176,7 +176,7 @@ export const bloatEvents = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [index("bloat_events_date_time_idx").on(t.date, t.occurredAt)],
+  (t) => [unique("bloat_events_date_time_unique").on(t.date, t.occurredAt)],
 );
 
 // ── meal_entries ──
@@ -373,6 +373,8 @@ export const trainingPlans = pgTable("training_plans", {
   validFrom: date("valid_from", { mode: "string" }).notNull(),
   validTo: date("valid_to", { mode: "string" }),
   source: trainingSourceEnum().notNull(),
+  importRequestId: text("import_request_id").unique(),
+  importFingerprint: text("import_fingerprint"),
 });
 
 export const trainingSessions = pgTable("training_sessions", {

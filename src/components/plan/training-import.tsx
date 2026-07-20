@@ -118,6 +118,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const online = useOnline();
   const fileRef = useRef<HTMLInputElement>(null);
+  const requestIdRef = useRef<string | null>(null);
 
   const [mode, setMode] = useState<"file" | "text">("file");
   const [files, setFiles] = useState<File[]>([]);
@@ -164,6 +165,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
   };
 
   const applyResult = (r: TrainingImportResult) => {
+    requestIdRef.current = crypto.randomUUID();
     if (r.programa) setPrograma(r.programa);
     if (r.etiqueta) setEtiqueta(r.etiqueta);
     const next: SRow[] = r.sesiones.map((s) => ({
@@ -219,6 +221,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
     setSaving(true);
     try {
       const res = await api.createTrainingPlan({
+        requestId: requestIdRef.current ?? (requestIdRef.current = crypto.randomUUID()),
         programa: programa.trim(),
         etiqueta: etiqueta.trim(),
         source,
