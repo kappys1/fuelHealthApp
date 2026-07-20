@@ -10,7 +10,8 @@ import * as schema from "../schema";
 const n = (v: unknown): number | null =>
   v == null || v === "" ? null : Number(v);
 const s = (v: unknown): string | null => (v == null ? null : String(v));
-const dt = (v: unknown): Date => (v ? new Date(String(v)) : new Date());
+const dt = (v: unknown): Date =>
+  v instanceof Date ? new Date(v.getTime()) : v ? new Date(String(v)) : new Date();
 
 /**
  * Mapea una fila de meal_entries del archivo de export a la fila de inserción,

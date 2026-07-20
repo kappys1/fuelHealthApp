@@ -78,6 +78,24 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
     expect(row.prot).toBe(8);
   });
 
+  it("conserva los milisegundos cuando Drizzle entrega createdAt como Date", () => {
+    const createdAt = new Date("2026-07-20T16:25:44.970Z");
+    const row = mealEntryImportRow({
+      date: "2026-07-20",
+      meal: "merienda",
+      name: "Pan integral",
+      kcal: 142,
+      prot: 7,
+      carb: 22,
+      fat: 2,
+      source: "manual",
+      createdAt,
+    });
+
+    expect(row.createdAt).not.toBe(createdAt);
+    expect(row.createdAt.toISOString()).toBe("2026-07-20T16:25:44.970Z");
+  });
+
   it("un export previo a F06 (sin campos base) degrada a entrada fija (null)", () => {
     const legacy = {
       date: "2026-06-01",
