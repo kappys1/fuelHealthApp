@@ -438,7 +438,7 @@ export const api = {
     }),
 
   getThread: (id: number) =>
-    req<{ id: number; title: string; messages: MessageDTO[] }>(
+    req<{ id: number; title: string; updatedAt: string; messages: MessageDTO[] }>(
       `/api/chat/threads/${id}`,
     ),
 

@@ -48,8 +48,8 @@ Every completed row must link automated evidence, browser evidence, or both.
 | MED-01 | Measurements | Add, detail, edit, delete, chart and visit prep | Every operation remains reachable; MED and scale data stay distinct | PASS |
 | MARK-01 | Marks list | Add, list and open detail | `+ Marca` is the only list-level mutation; rows open full history | PENDING |
 | MARK-02 | Mark detail | Calculator, history, edit and delete | Edit/delete belong to the selected record in detail, never the exercise overview | PENDING |
-| CHAT-01 | Thread list | Existing list/open/delete behavior | Relative date, count and topic summary render from real metadata | GAP |
-| CHAT-02 | Thread detail | Streaming, copy, offline and keyboard behavior | Open/send/receive/copy/delete survive; AI failure is visible and retryable | PENDING |
+| CHAT-01 | Thread list | Existing list/open/delete behavior | Relative date, count and topic summary render from real metadata | PASS |
+| CHAT-02 | Thread detail | Streaming, copy, offline and keyboard behavior | Open/send/receive/copy/delete survive; AI failure is visible and retryable | PASS |
 | CHAT-03 | Coach handoff | Coach can lead into Chat | The cached reading opens the corresponding context/thread without regenerating it | GAP |
 | SETTINGS-01 | Preferences | Profile, theme, web search, session map and logout | Every current field/action remains present in the redesigned settings page | PENDING |
 | SETTINGS-02 | Data tools | Health CSV import, backup and previews | Import/export/preview behavior and validation remain complete | PENDING |
@@ -97,6 +97,9 @@ Use one row per completed scenario. A browser row must include theme and viewpor
 | PROGRESS-MOBILE | Playwright runtime checks at 390x844 and 320x760 | Light/dark Trend; History custom range; MED form/detail | Zero overflow/errors; visible inputs 16px; controls at least 44px | Integrator | PASS |
 | PROGRESS-AA | `pnpm audit:contrast` | Light/dark inverted primary card inspected | Inverted text pairs: light 16.03/10.25; dark 12.24/8.01 | Integrator | PASS |
 | PROGRESS-QUALITY | `pnpm test`: 24 files, 215 tests; `pnpm build`: 43 routes; React Doctor changed scope: no issues | `http://localhost:3012/progreso` | Isolated Neon branch only | Integrator | PASS |
+| CHAT-METADATA | `relative-time.test.ts`; typed aggregate query | Light/dark thread list at 390x844 and 320x700 | Real relative date, non-empty preview and message count | Integrator + chat auditor | PASS |
+| CHAT-RECOVERY | Concurrent isolated-Neon turn claim: `claimed/pending`, then exact `complete` replay | Detail and load/send error states at 390x844 and 320x700 | Additive `turn_id`; one owner per turn; temporary test thread deleted | Integrator + chat auditor | PASS |
+| CHAT-MOBILE | Runtime DOM scan | Light/dark list/detail/errors; zero horizontal overflow | Textarea 16px; all visible buttons at least 44px | Integrator | PASS |
 
 ## Release blockers
 

@@ -378,6 +378,7 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
       data.chatMessages.map((r) => ({
         threadId: threadMap.get(Number(r.threadId)) ?? Number(r.threadId),
         role: r.role as typeof schema.chatRoleEnum.enumValues[number],
+        turnId: typeof r.turnId === "string" ? r.turnId : null,
         content: String(r.content ?? ""),
         createdAt: dt(r.createdAt),
       })),

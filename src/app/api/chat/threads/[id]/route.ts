@@ -22,6 +22,7 @@ export async function GET(
     return Response.json({
       id: thread.id,
       title: thread.title,
+      updatedAt: thread.updatedAt,
       messages: thread.messages,
     });
   } catch (err) {

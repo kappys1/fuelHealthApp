@@ -330,11 +330,17 @@ export const chatMessages = pgTable("chat_messages", {
     .notNull()
     .references(() => chatThreads.id, { onDelete: "cascade" }),
   role: chatRoleEnum().notNull(),
+  // Identificador estable del turno enviado por el cliente. Permite recuperar una
+  // respuesta tras perder el stream sin duplicar preguntas ni respuestas.
+  turnId: text("turn_id"),
   content: text().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => [
+  unique("chat_messages_turn_role_unique").on(t.turnId, t.role),
+  index("chat_messages_thread_created_idx").on(t.threadId, t.createdAt),
+]);
 
 // ── settings (key/value jsonb: lastExport, prefs de tema, etc.) ──
 export const settings = pgTable("settings", {
