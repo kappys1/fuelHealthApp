@@ -48,51 +48,86 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Tokens de marca Fuelboard (utilidades: bg-surface, text-protein, ...) */
+  --color-canvas: var(--canvas);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-strong: var(--surface-strong);
   --color-ink: var(--ink);
-  --color-line: var(--line);
+  /* `border-line` sigue siendo el borde sutil de las tarjetas existentes. Los
+     controles que necesitan contraste 3:1 usan `border-line-strong`. */
+  --color-line: var(--line-soft);
+  --color-line-strong: var(--line);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-energy: var(--primary);
   --color-protein: var(--protein);
   --color-carb: var(--carb);
   --color-fat: var(--fat);
+  --color-cobalt: var(--cobalt);
+  --color-sleep: var(--sleep);
+  --color-info: var(--info);
+  --color-special: var(--special);
+  --color-med: var(--med-accent);
   --color-phase: var(--phase);
 
-  /* Tipografía: display/condensed (Barlow) + cuerpo (Instrument Sans) */
+  /* Rebrand consciente: Onest + Plus Jakarta Sans; no hay condensada dedicada. */
   --font-sans: var(--font-body);
   --font-body: var(--font-body);
   --font-display: var(--font-display);
-  --font-condensed: var(--font-condensed);
+  --font-condensed: var(--font-display);
   --font-heading: var(--font-display);
   --font-mono: var(--font-body);
 
-  /* Radios: tarjetas radio 12 (05-DISENO §4) */
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  --shadow-card: var(--card-shadow);
+  --shadow-float: var(--shadow);
 }
 
-/* ── Tema claro «Morning session» (05-DISENO §2) ── */
+/* Tema claro primario: Wellness Blueprint. */
 :root {
-  /* Paleta base del spec */
-  --bg: #f2f4ef;
+  --canvas: #e9eef3;
+  --bg: #f6f8fa;
   --surface: #ffffff;
-  --surface-2: #edefea;
-  --ink: #181f1b;
-  --muted-text: #5d6862; /* «--muted» del spec = color de TEXTO atenuado */
-  --line: #d9ded5;
-  --primary: #2247c9;
-  --protein: #1b8a50;
-  /* Ámbar «hidratos»: #B8860B del spec oscurecido a #B0800A para llegar a ≥3:1
-     también sobre --bg (WCAG 1.4.11); cambio visual mínimo, sigue ámbar. */
-  --carb: #b0800a;
-  --fat: #e8590c;
-  /* Acento MED (Historial, doc 10 B4): morado oscurecido para contraste sobre blanco. */
-  --med-accent: #8a4bbf;
-  --phase: color-mix(in srgb, var(--primary) 12%, transparent);
+  --surface-2: #eef2f6;
+  --surface-strong: #e2e8ee;
+  --ink: #142235;
+  --muted-text: #566678;
+  --line: #728397;
+  --line-soft: #dbe2e9;
+  --primary: #155db8;
+  --primary-strong: #0d4a93;
+  --primary-soft: #e5effd;
+  --on-primary: #ffffff;
+  --protein: #087a55;
+  --carb: #946200;
+  --fat: #b84620;
+  --cobalt: #3159d9;
+  --sleep: #6177d8;
+  --info: #2563c7;
+  --special: #6747c7;
+  --med-accent: #6747c7;
+  --phase: #6747c7;
+  --phase-soft: color-mix(in srgb, var(--info) 14%, transparent);
 
-  --radius: 0.75rem; /* 12px */
+  --card-shadow: 0 8px 24px rgb(15 27 42 / 5%);
+  --shadow: 0 28px 90px rgb(15 27 42 / 12%);
+  --radius: 1rem;
+
+  --type-chart: 11px;
+  --type-caption: 11px;
+  --type-label: 12px;
+  --type-body-sm: 13px;
+  --type-body: 15px;
+  --type-title: 16px;
+  --type-section: 18px;
+  --type-page: 28px;
 
   /* Mapeo semántico shadcn (sin colisiones) */
   --background: var(--bg);
@@ -101,18 +136,16 @@
   --card-foreground: var(--ink);
   --popover: var(--surface);
   --popover-foreground: var(--ink);
-  --primary-foreground: #ffffff;
+  --primary-foreground: var(--on-primary);
   --secondary: var(--surface-2);
   --secondary-foreground: var(--ink);
   --muted: var(--surface-2); /* shadcn «muted» = FONDO tenue */
   --muted-foreground: var(--muted-text); /* shadcn «muted-foreground» = texto atenuado */
   --accent: var(--surface-2);
   --accent-foreground: var(--ink);
-  /* Naranja de alerta legible como TEXTO (AA). El relleno de macro «grasa»
-     sigue siendo --fat (#E8590C); este es una variante más oscura para texto. */
-  --destructive: #b8480c;
+  --destructive: #b84620;
   --destructive-foreground: #ffffff;
-  --border: var(--line);
+  --border: var(--line-soft);
   --input: var(--line);
   --ring: var(--primary);
 
@@ -130,24 +163,38 @@
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: var(--surface-2);
   --sidebar-accent-foreground: var(--ink);
-  --sidebar-border: var(--line);
+  --sidebar-border: var(--line-soft);
   --sidebar-ring: var(--primary);
 }
 
-/* ── Tema oscuro «Night comp» (05-DISENO §2) — sin blancos puros (#E8EDE8 máx) ── */
+/* Tema oscuro diseñado de forma independiente: azul profundo, nunca negro puro. */
 .dark {
-  --bg: #0f1613;
-  --surface: #18221d;
-  --surface-2: #1f2b25;
-  --ink: #e8ede8;
-  --muted-text: #93a099;
-  --line: #2c3830;
-  --primary: #7b96ff;
-  --protein: #4cc98a;
-  --carb: #e0b341;
-  --fat: #f2894c;
-  --med-accent: #c48fe0;
-  --phase: color-mix(in srgb, var(--primary) 12%, transparent);
+  --canvas: #090d12;
+  --bg: #0e1319;
+  --surface: #161c24;
+  --surface-2: #202936;
+  --surface-strong: #2a3543;
+  --ink: #f3f6fa;
+  --muted-text: #acb8c6;
+  --line: #748397;
+  --line-soft: #303b49;
+  --primary: #7eaeff;
+  --primary-strong: #a9c9ff;
+  --primary-soft: #1d304a;
+  --on-primary: #0e1319;
+  --protein: #4ad29a;
+  --carb: #f0c45a;
+  --fat: #ff9566;
+  --cobalt: #89a1ff;
+  --sleep: #93a5ff;
+  --info: #7eaeff;
+  --special: #c2a7ff;
+  --med-accent: #c2a7ff;
+  --phase: #c2a7ff;
+  --phase-soft: color-mix(in srgb, var(--info) 20%, transparent);
+
+  --card-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  --shadow: 0 28px 90px rgb(0 0 0 / 38%);
 
   --background: var(--bg);
   --foreground: var(--ink);
@@ -155,16 +202,16 @@
   --card-foreground: var(--ink);
   --popover: var(--surface);
   --popover-foreground: var(--ink);
-  --primary-foreground: #0f1613; /* texto OSCURO sobre cobalto claro = par de máximo contraste */
+  --primary-foreground: var(--on-primary);
   --secondary: var(--surface-2);
   --secondary-foreground: var(--ink);
   --muted: var(--surface-2);
   --muted-foreground: var(--muted-text);
   --accent: var(--surface-2);
   --accent-foreground: var(--ink);
-  --destructive: #f2894c; /* naranja claro sobre superficies oscuras: AA como texto */
-  --destructive-foreground: #0f1613;
-  --border: var(--line);
+  --destructive: #ff9566;
+  --destructive-foreground: #0e1319;
+  --border: var(--line-soft);
   --input: var(--line);
   --ring: var(--primary);
 
@@ -177,10 +224,10 @@
   --sidebar: var(--surface);
   --sidebar-foreground: var(--ink);
   --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: #0f1613;
+  --sidebar-primary-foreground: #0e1319;
   --sidebar-accent: var(--surface-2);
   --sidebar-accent-foreground: var(--ink);
-  --sidebar-border: var(--line);
+  --sidebar-border: var(--line-soft);
   --sidebar-ring: var(--primary);
 }
 
@@ -188,28 +235,107 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-    font-family: var(--font-body), system-ui, sans-serif;
-  }
   html {
+    min-height: 100%;
+    background: var(--canvas);
+    color-scheme: light;
     @apply font-sans;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-canvas text-foreground;
+    min-height: 100%;
+    font-family: var(--font-body), system-ui, sans-serif;
+    font-size: var(--type-body);
+    line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button,
+  [role="button"] {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  button:disabled,
+  [role="button"][aria-disabled="true"] {
+    cursor: default;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 24%, transparent);
   }
 }
 
 @layer utilities {
   /* Cifras tabulares obligatorias en TODA cifra (05-DISENO §3) */
   .num {
+    font-family: var(--font-display), system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum" 1;
   }
-  /* Títulos de tarjeta: condensed uppercase, tracking 1.5px, 13px */
+  /* Etiquetas compactas, sin tracking negativo ni identidad condensada. */
   .card-title {
     font-family: var(--font-display), system-ui, sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    font-size: 13px;
+    letter-spacing: 0;
+    font-size: var(--type-label);
     font-weight: 600;
+  }
+  .wellness-card {
+    border-radius: 22px;
+    background: var(--surface);
+    box-shadow: var(--card-shadow);
+  }
+  .wellness-panel {
+    border-radius: 16px;
+    background: var(--surface-2);
+  }
+  .app-page-title {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-size: var(--type-page);
+    font-weight: 600;
+    line-height: 1.16;
+    letter-spacing: 0;
+  }
+  .app-section-title {
+    font-family: var(--font-display), system-ui, sans-serif;
+    font-size: var(--type-section);
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
+  }
+  .app-label {
+    color: var(--muted-text);
+    font-size: var(--type-label);
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+  .app-icon-button {
+    display: inline-grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--muted-text);
+    transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+  }
+  .app-icon-button:hover {
+    border-color: color-mix(in srgb, var(--primary) 42%, var(--line-soft));
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+}
+
+/* Evita el zoom automático de iOS y blinda todos los sheets/formularios. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
   }
 }
 
@@ -244,5 +370,5 @@
    panel fijo del hilo de Chat para anclar el composer justo encima de la nav.
    (El `top` del panel se mide por JS, no con var CSS: ver chat-client.tsx.) */
 :root {
-  --nav-h: calc(57px + env(safe-area-inset-bottom));
+  --nav-h: calc(72px + env(safe-area-inset-bottom));
 }

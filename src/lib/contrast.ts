@@ -7,23 +7,23 @@
 
 export type TokenName =
   | "bg" | "surface" | "surface-2" | "ink" | "muted" | "line"
-  | "primary" | "primary-fg" | "protein" | "carb" | "fat"
+  | "primary" | "primary-fg" | "protein" | "carb" | "fat" | "phase"
   | "destructive" | "destructive-fg";
 
 export const TOKENS: Record<"light" | "dark", Record<TokenName, string>> = {
   light: {
-    bg: "#f2f4ef", surface: "#ffffff", "surface-2": "#edefea",
-    ink: "#181f1b", muted: "#5d6862", line: "#d9ded5",
-    primary: "#2247c9", "primary-fg": "#ffffff",
-    protein: "#1b8a50", carb: "#b0800a", fat: "#e8590c",
-    destructive: "#b8480c", "destructive-fg": "#ffffff",
+    bg: "#f6f8fa", surface: "#ffffff", "surface-2": "#eef2f6",
+    ink: "#142235", muted: "#566678", line: "#728397",
+    primary: "#155db8", "primary-fg": "#ffffff",
+    protein: "#087a55", carb: "#946200", fat: "#b84620", phase: "#6747c7",
+    destructive: "#b84620", "destructive-fg": "#ffffff",
   },
   dark: {
-    bg: "#0f1613", surface: "#18221d", "surface-2": "#1f2b25",
-    ink: "#e8ede8", muted: "#93a099", line: "#2c3830",
-    primary: "#7b96ff", "primary-fg": "#0f1613",
-    protein: "#4cc98a", carb: "#e0b341", fat: "#f2894c",
-    destructive: "#f2894c", "destructive-fg": "#0f1613",
+    bg: "#0e1319", surface: "#161c24", "surface-2": "#202936",
+    ink: "#f3f6fa", muted: "#acb8c6", line: "#748397",
+    primary: "#7eaeff", "primary-fg": "#0e1319",
+    protein: "#4ad29a", carb: "#f0c45a", fat: "#ff9566", phase: "#c2a7ff",
+    destructive: "#ff9566", "destructive-fg": "#0e1319",
   },
 };
 
@@ -39,18 +39,23 @@ export const PAIRS: Array<[TokenName, TokenName, string, PairType]> = [
   ["muted", "surface-2", "texto atenuado / superficie-2", "text"],
   ["primary", "bg", "primario texto / fondo (nav activa)", "text"],
   ["primary", "surface", "primario texto / tarjeta", "text"],
+  ["primary", "surface-2", "primario texto / superficie-2", "text"],
   ["primary-fg", "primary", "texto del botón primario", "text"],
   ["destructive", "surface", "error / tarjeta", "text"],
   ["destructive", "bg", "error / fondo", "text"],
   ["destructive-fg", "destructive", "texto sobre destructive", "text"],
-  ["protein", "surface", "proteína (relleno) / tarjeta", "large"],
-  ["protein", "bg", "proteína (relleno) / fondo", "large"],
-  ["carb", "surface", "hidratos (relleno) / tarjeta", "large"],
-  ["carb", "bg", "hidratos (relleno) / fondo", "large"],
-  ["fat", "surface", "grasa (relleno) / tarjeta", "large"],
-  ["fat", "bg", "grasa (relleno) / fondo", "large"],
+  ["protein", "surface", "proteína texto / tarjeta", "text"],
+  ["carb", "surface", "hidratos texto / tarjeta", "text"],
+  ["fat", "surface", "grasa texto / tarjeta", "text"],
+  ["phase", "surface", "fase texto / tarjeta", "text"],
   ["line", "surface", "borde / tarjeta", "ui"],
   ["line", "bg", "borde / fondo", "ui"],
+  ["line", "surface-2", "borde / superficie-2", "ui"],
+  ["primary", "surface", "primario relleno / tarjeta", "large"],
+  ["protein", "surface", "proteína relleno / tarjeta", "large"],
+  ["carb", "surface", "hidratos relleno / tarjeta", "large"],
+  ["fat", "surface", "grasa relleno / tarjeta", "large"],
+  ["phase", "surface", "fase relleno / tarjeta", "large"],
 ];
 
 export const MIN: Record<PairType, number> = { text: 4.5, large: 3, ui: 3 };
@@ -95,7 +100,7 @@ export function audit(): { rows: AuditRow[]; failures: number } {
     for (const [fg, bg, label, type] of PAIRS) {
       const r = ratio(t[fg], t[bg]);
       const min = MIN[type];
-      const gating = type !== "ui";
+      const gating = true;
       const ok = r >= min;
       if (gating && !ok) failures++;
       rows.push({ theme, label, type, ratio: r, min, ok, gating });

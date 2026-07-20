@@ -1,15 +1,15 @@
 "use client";
 
-import { Activity, CalendarDays, MessageCircle, TrendingUp } from "lucide-react";
+import { CalendarDays, ChartNoAxesCombined, House, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useKeyboardOpen } from "@/lib/use-keyboard-open";
 
 // 4 pestañas (09-FLUJOS-UX §2). Ajustes NO es pestaña: va en el header.
 const TABS = [
-  { href: "/hoy", label: "Hoy", Icon: Activity },
+  { href: "/hoy", label: "Hoy", Icon: House },
   { href: "/plan", label: "Plan", Icon: CalendarDays },
-  { href: "/progreso", label: "Progreso", Icon: TrendingUp },
+  { href: "/progreso", label: "Progreso", Icon: ChartNoAxesCombined },
   { href: "/chat", label: "Chat", Icon: MessageCircle },
 ] as const;
 
@@ -30,14 +30,15 @@ export function BottomNav() {
 
   return (
     <nav
-      className={`fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur transition-transform ${
+      className={`fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface shadow-[0_-8px_24px_rgb(15_27_42/0.04)] transition-transform dark:shadow-[0_-8px_24px_rgb(0_0_0/0.18)] ${
         kbOpen ? "translate-y-full" : "translate-y-0"
       }`}
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-hidden={kbOpen}
+      inert={kbOpen ? true : undefined}
       aria-label="Navegación principal"
     >
-      <ul className="mx-auto flex w-full max-w-[560px]">
+      <ul className="mx-auto grid h-[72px] w-full max-w-[560px] grid-cols-4 px-2">
         {TABS.map(({ href, label, Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
@@ -46,25 +47,14 @@ export function BottomNav() {
                 href={href}
                 prefetch
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-[56px] flex-col items-center justify-center gap-1 pt-1.5 text-[11px] transition-colors ${
+                className={`flex min-h-[72px] flex-col items-center justify-center gap-1.5 text-[11px] font-semibold transition-colors ${
                   active
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon className="size-5" aria-hidden />
-                <span
-                  className="uppercase tracking-wide"
-                  style={{ fontFamily: "var(--font-display)" }}
-                >
-                  {label}
-                </span>
-                <span
-                  className={`mt-0.5 h-[3px] w-6 rounded-full ${
-                    active ? "bg-primary" : "bg-transparent"
-                  }`}
-                  aria-hidden
-                />
+                <Icon className="size-5" strokeWidth={active ? 2.2 : 1.8} aria-hidden />
+                <span>{label}</span>
               </Link>
             </li>
           );

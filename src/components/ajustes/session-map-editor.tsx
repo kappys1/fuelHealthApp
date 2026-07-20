@@ -35,15 +35,15 @@ export function SessionMapEditor({ initial }: { initial: Record<string, string> 
   return (
     <div className="space-y-2">
       {DAYS.map((d) => (
-        <div key={d} className="flex items-center gap-3">
-          <span className="w-24 shrink-0 text-[13px] text-foreground">
+        <div key={d} className="grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-3">
+          <span className="text-[13px] text-foreground">
             {WEEKDAY_LABELS[d]}
           </span>
           <Select
             value={map[d] ?? "Descanso"}
             onValueChange={(v) => setMap((m) => ({ ...m, [d]: v }))}
           >
-            <SelectTrigger className="h-9 flex-1">
+            <SelectTrigger size="sm" className="w-full min-w-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

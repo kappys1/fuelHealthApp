@@ -39,26 +39,32 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-6">
+    <main className="flex min-h-dvh items-center justify-center bg-canvas px-5 py-10">
       <div className="w-full max-w-[360px]">
-        <div className="mb-8 text-center">
-          <h1
-            className="font-display text-4xl font-bold tracking-tight text-primary"
-            style={{ fontFamily: "var(--font-condensed)" }}
-          >
-            FUELBOARD
-          </h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Panel de combustible · Alex
-          </p>
+        <div className="mb-7 flex items-center justify-center gap-3">
+          <span className="grid size-12 place-items-center rounded-xl bg-foreground font-display text-2xl font-bold leading-none text-background">
+            F
+          </span>
+          <div className="text-left">
+            <h1 className="font-display text-xl font-semibold text-foreground">Fuelboard</h1>
+            <p className="text-[13px] text-muted-foreground">Tu salud, en contexto</p>
+          </div>
         </div>
 
         <form
           onSubmit={onSubmit}
-          className="rounded-xl border border-line bg-surface p-5"
+          className="wellness-card p-5"
         >
+          <div className="mb-5">
+            <h2 className="font-display text-lg font-semibold text-foreground">
+              Bienvenido, Alex
+            </h2>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              Accede a tu panel personal.
+            </p>
+          </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="card-title text-muted-foreground">
+            <Label htmlFor="password" className="text-[12px] text-muted-foreground">
               Contraseña
             </Label>
             <Input
@@ -66,11 +72,10 @@ export default function LoginPage() {
               name="password"
               type="password"
               autoComplete="current-password"
-              autoFocus
               inputMode="text"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 bg-secondary text-base dark:bg-secondary"
+              className="bg-surface text-base"
               aria-invalid={error ? true : undefined}
             />
           </div>
@@ -87,7 +92,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={loading || password.length === 0}
-            className="mt-5 h-11 w-full text-[15px]"
+            className="mt-5 w-full rounded-md text-[15px]"
           >
             {loading ? "Entrando…" : "Entrar"}
           </Button>

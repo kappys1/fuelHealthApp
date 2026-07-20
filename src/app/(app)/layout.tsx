@@ -21,29 +21,42 @@ export default async function AppLayout({
   if (!session.authenticated) redirect("/login");
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[560px] flex-col">
+    <div className="relative mx-auto flex min-h-dvh w-full max-w-[560px] flex-col bg-background sm:shadow-float">
       {/* pt con safe-area: en PWA standalone (status bar translúcida) el contenido
           fluye bajo el reloj/notch; sin esto el wordmark lo pisa.
           `sticky top-0`: se queda arriba al scrollear el documento (más seguro en
           iOS que `fixed`); bg para que el contenido no se transparente por detrás. */}
       <header
-        className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-background px-4 pb-3"
-        style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
+        data-app-header
+        className="sticky top-0 z-30 flex min-h-16 items-center justify-between bg-background/95 px-[18px] pb-2 backdrop-blur-xl"
+        style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)" }}
       >
         <Link
           href="/hoy"
-          className="text-lg font-bold tracking-tight text-primary"
-          style={{ fontFamily: "var(--font-condensed)" }}
+          className="flex min-h-11 min-w-0 items-center gap-2.5 text-foreground"
         >
-          FUELBOARD
+          <span
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-foreground font-display text-lg font-bold leading-none text-background"
+            aria-hidden
+          >
+            F
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block text-[11px] font-bold uppercase text-muted-foreground">
+              Fuelboard
+            </span>
+            <span className="block truncate font-display text-[15px] font-semibold">
+              Tu panel
+            </span>
+          </span>
         </Link>
         {/* Ajustes: icono en el header (no es pestaña) — 09-FLUJOS-UX §2 */}
         <Link
           href="/ajustes"
           aria-label="Ajustes"
-          className="inline-flex size-9 items-center justify-center rounded-md border border-line bg-surface text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="app-icon-button focus-visible:ring-3 focus-visible:ring-ring/35 focus-visible:outline-none"
         >
-          <Settings className="size-4" aria-hidden />
+          <Settings className="size-[18px]" strokeWidth={1.8} aria-hidden />
         </Link>
       </header>
 
@@ -51,7 +64,9 @@ export default async function AppLayout({
           el contenido y la nav queda `fixed` sobre el viewport. El hilo de Chat se
           resuelve aparte con un panel fijo propio (ver chat-client.tsx), sin forzar
           a toda la app a un scroller anidado (rompía la nav fija en iOS). */}
-      <main className="flex flex-1 flex-col px-4 pt-4 pb-24">{children}</main>
+      <main className="flex flex-1 flex-col px-[18px] pt-4 pb-[calc(var(--nav-h)+24px)]">
+        {children}
+      </main>
 
       <BottomNav />
       <Toaster />
