@@ -1,6 +1,5 @@
-import { Settings } from "lucide-react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { AppTopbar } from "@/components/app-topbar";
 import { BottomNav } from "@/components/bottom-nav";
 import { OfflineSync } from "@/components/offline-sync";
 import { Toaster } from "@/components/ui/sonner";
@@ -26,26 +25,7 @@ export default async function AppLayout({
           fluye bajo el reloj/notch; sin esto el wordmark lo pisa.
           `sticky top-0`: se queda arriba al scrollear el documento (más seguro en
           iOS que `fixed`); bg para que el contenido no se transparente por detrás. */}
-      <header
-        className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-background px-4 pb-3"
-        style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
-      >
-        <Link
-          href="/hoy"
-          className="text-lg font-bold tracking-tight text-primary"
-          style={{ fontFamily: "var(--font-condensed)" }}
-        >
-          FUELBOARD
-        </Link>
-        {/* Ajustes: icono en el header (no es pestaña) — 09-FLUJOS-UX §2 */}
-        <Link
-          href="/ajustes"
-          aria-label="Ajustes"
-          className="inline-flex size-9 items-center justify-center rounded-md border border-line bg-surface text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          <Settings className="size-4" aria-hidden />
-        </Link>
-      </header>
+      <AppTopbar />
 
       {/* Scroll de documento (modelo original, fiable en iOS): el wrapper crece con
           el contenido y la nav queda `fixed` sobre el viewport. El hilo de Chat se

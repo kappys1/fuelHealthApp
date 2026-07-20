@@ -185,6 +185,7 @@ export function HoyClient({
         targets={data.targets}
         entries={data.view.entries}
         phase={phase}
+        dateLabel={labelForKey(date).replace(/^\S+\s/, "")}
       />
 
       <CoachCard coach={data.coach} onOpen={() => setCoachOpen(true)} />
