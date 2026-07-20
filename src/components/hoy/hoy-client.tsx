@@ -14,6 +14,7 @@ import {
   BaselineSection,
   ContextoRelojSection,
   EntrenamientoLine,
+  HinchazonAguaSection,
 } from "@/components/hoy/hoy-extras";
 import { MealTimeline } from "@/components/hoy/meal-timeline";
 import { MiDiaCard } from "@/components/hoy/mi-dia-card";
@@ -204,6 +205,12 @@ export function HoyClient({
         onSaveTemplate={t.saveTemplate}
         onApplyTemplate={t.applyTemplate}
         onDeleteTemplate={t.deleteTemplate}
+      />
+
+      <HinchazonAguaSection
+        view={data.view}
+        onPatch={t.patchDay}
+        onRevisar={() => setMatinalOpen(true)}
       />
 
       <EntrenamientoLine view={data.view} defaultSession={data.defaultSession} />
