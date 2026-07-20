@@ -17,7 +17,7 @@ import {
   HinchazonAguaSection,
 } from "@/components/hoy/hoy-extras";
 import { MealTimeline } from "@/components/hoy/meal-timeline";
-import { MiDiaCard } from "@/components/hoy/mi-dia-card";
+import { MiDiaSheet } from "@/components/hoy/mi-dia-card";
 import { useToday } from "@/components/hoy/use-today";
 import { FuelGauge } from "@/components/fuel-gauge/fuel-gauge";
 import { dayKey, labelForKey, shiftDayKey } from "@/lib/dates";
@@ -61,6 +61,7 @@ export function HoyClient({
     searchParams.get("add") === "1" ? mealByHour() : "comida",
   );
   const [matinalOpen, setMatinalOpen] = useState(false);
+  const [miDiaOpen, setMiDiaOpen] = useState(false);
   const [cierreOpen, setCierreOpen] = useState(false);
   // Shortcut del manifest «Peso de hoy» → sheet exprés de peso (09 §5b: abre
   // directamente ESTE sheet). La línea de estado matinal abre el check-in de 3
@@ -211,6 +212,7 @@ export function HoyClient({
         view={data.view}
         onPatch={t.patchDay}
         onRevisar={() => setMatinalOpen(true)}
+        onOpenDayContext={() => setMiDiaOpen(true)}
       />
 
       <EntrenamientoBlock view={data.view} defaultSession={data.defaultSession} />
@@ -218,13 +220,6 @@ export function HoyClient({
       <BaselineBlock baseline={data.baseline} />
 
       <ContextoRelojBlock intakeKcal={totals.kcal} view={data.view} />
-
-      <MiDiaCard
-        view={data.view}
-        onPatch={t.patchDay}
-        trainingSessions={data.trainingSessions}
-        suggestedPhase={data.suggestedPhase}
-      />
 
       {/* Botón primario fijo «+ Añadir comida» (09 §3) */}
       <button
@@ -280,6 +275,14 @@ export function HoyClient({
         onOpenChange={setWeightOpen}
         data={data}
         onPatch={t.patchDay}
+      />
+      <MiDiaSheet
+        open={miDiaOpen}
+        onOpenChange={setMiDiaOpen}
+        view={data.view}
+        onPatch={t.patchDay}
+        trainingSessions={data.trainingSessions}
+        suggestedPhase={data.suggestedPhase}
       />
       <CoachSheet
         open={coachOpen}
