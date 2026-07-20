@@ -11,9 +11,9 @@ import { CoachSheet } from "@/components/hoy/coach-sheet";
 import { CompeticionRefuel } from "@/components/hoy/competicion-refuel";
 import { DayStatusLine } from "@/components/hoy/day-status-line";
 import {
-  BaselineSection,
-  ContextoRelojSection,
-  EntrenamientoLine,
+  BaselineBlock,
+  ContextoRelojBlock,
+  EntrenamientoBlock,
   HinchazonAguaSection,
 } from "@/components/hoy/hoy-extras";
 import { MealTimeline } from "@/components/hoy/meal-timeline";
@@ -213,11 +213,11 @@ export function HoyClient({
         onRevisar={() => setMatinalOpen(true)}
       />
 
-      <EntrenamientoLine view={data.view} defaultSession={data.defaultSession} />
+      <EntrenamientoBlock view={data.view} defaultSession={data.defaultSession} />
 
-      <BaselineSection baseline={data.baseline} />
+      <BaselineBlock baseline={data.baseline} />
 
-      <ContextoRelojSection intakeKcal={totals.kcal} view={data.view} />
+      <ContextoRelojBlock intakeKcal={totals.kcal} view={data.view} />
 
       <MiDiaCard
         view={data.view}
