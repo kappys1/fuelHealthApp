@@ -13,7 +13,7 @@ Every completed row must link automated evidence, browser evidence, or both.
 | SHELL-01 | App layout | Authenticated shell and current routes | Wellness tokens/fonts in both themes without changing route contracts | PENDING |
 | SHELL-02 | Bottom nav | `/hoy`, `/plan`, `/progreso`, `/chat` | Base nav, no grey gradient, correct active state, safe area retained | PENDING |
 | SHELL-03 | Quick add | Existing Today add flow | Floating `+` is visible only on Today and opens the complete add sheet | PENDING |
-| SHELL-04 | Theme | Theme provider and settings control | Light is primary; light/dark/system remain selectable and persistent | PENDING |
+| SHELL-04 | Theme | Theme provider and settings control | Light is primary; light/dark/system remain selectable and persistent | PASS |
 | SHELL-05 | Auxiliary routes | Login, offline and loading UI | All adopt V2 tokens without losing their functional states | PENDING |
 | TODAY-01 | Date header | `/hoy?date=`, previous/next navigation and streak | Tap date opens date picker, arrows work, future dates are blocked, flame follows `N días` | PENDING |
 | TODAY-02 | Coach entry | `CoachSheet`, `/api/ai/coach`, `/chat?thread=` | Cached greeting card is readable by tap; refresh icon is explicit; no AI call on page load | GAP |
@@ -51,9 +51,9 @@ Every completed row must link automated evidence, browser evidence, or both.
 | CHAT-01 | Thread list | Existing list/open/delete behavior | Relative date, count and topic summary render from real metadata | PASS |
 | CHAT-02 | Thread detail | Streaming, copy, offline and keyboard behavior | Open/send/receive/copy/delete survive; AI failure is visible and retryable | PASS |
 | CHAT-03 | Coach handoff | Coach can lead into Chat | The cached reading opens the corresponding context/thread without regenerating it | GAP |
-| SETTINGS-01 | Preferences | Profile, theme, web search, session map and logout | Every current field/action remains present in the redesigned settings page | PENDING |
-| SETTINGS-02 | Data tools | Health CSV import, backup and previews | Import/export/preview behavior and validation remain complete | PENDING |
-| SETTINGS-03 | Sync confidence | Existing sync timestamps/data | `Última sincronización hace X` renders with real `✓/⚠` states | GAP |
+| SETTINGS-01 | Preferences | Profile, theme, web search, session map and logout | Every current field/action remains present in the redesigned settings page | PASS |
+| SETTINGS-02 | Data tools | Health CSV import, backup and previews | Import/export/preview behavior and validation remain complete | PASS |
+| SETTINGS-03 | Sync confidence | Existing sync timestamps/data | `Última sincronización hace X` renders with real `✓/⚠` states | PASS |
 | PWA-01 | Install/offline | Manifest, service worker and offline route | Install/update/offline behavior remains operational in both themes | PENDING |
 | PWA-02 | Share target | Shared image/photo intake | OS share target still reaches the intended photo flow | PENDING |
 | PWA-03 | Replay | Offline mutation queue | Queued actions replay once, surface failures and never duplicate writes | PENDING |
@@ -100,6 +100,9 @@ Use one row per completed scenario. A browser row must include theme and viewpor
 | CHAT-METADATA | `relative-time.test.ts`; typed aggregate query | Light/dark thread list at 390x844 and 320x700 | Real relative date, non-empty preview and message count | Integrator + chat auditor | PASS |
 | CHAT-RECOVERY | Concurrent isolated-Neon turn claim: `claimed/pending`, then exact `complete` replay | Detail and load/send error states at 390x844 and 320x700 | Additive `turn_id`; one owner per turn; temporary test thread deleted | Integrator + chat auditor | PASS |
 | CHAT-MOBILE | Runtime DOM scan | Light/dark list/detail/errors; zero horizontal overflow | Textarea 16px; all visible buttons at least 44px | Integrator | PASS |
+| SETTINGS-FLOWS | `import-csv.spec.ts`; export and restore-preview requests | Profile disclosure, CSV preview and restore confirmation at 390x844 | No restore applied; isolated Neon branch only | Integrator + chat/settings auditor | PASS |
+| SETTINGS-THEME | Browser selection plus reload | Claro/Oscuro/Sistema segmented control at 390x844 and 320x700 | `dark` and `system` persist through `next-themes` | Integrator | PASS |
+| SETTINGS-MOBILE | Expanded profile and all controls scanned at 320x700 | Dark/light; zero horizontal overflow | Inputs/selects 16px and 44px; every visible button/link at least 44px | Integrator | PASS |
 
 ## Release blockers
 

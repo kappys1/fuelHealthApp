@@ -143,6 +143,7 @@ export interface HealthSyncView {
   source: "endpoint" | "csv";
   ago: string;
   stale: boolean;
+  imported: number;
 }
 
 /** Estado de sincronización listo para pintar (deriva «hace X» fuera del render). */
@@ -153,6 +154,7 @@ export async function getHealthSyncView(): Promise<HealthSyncView | null> {
     source: s.source,
     ago: formatDistanceToNow(new Date(s.at), { addSuffix: true, locale: es }),
     stale: Date.now() - Date.parse(s.at) > STALE_MS,
+    imported: s.imported,
   };
 }
 
