@@ -202,37 +202,31 @@ export function AddSheet({
   return (
     <Sheet open={open} onOpenChange={handleOpen}>
       <SheetContent side="bottom" className="max-h-[90dvh] gap-0 overflow-y-auto">
-        <SheetHeader className="pb-2">
-          <SheetTitle className="card-title text-muted-foreground">
+        <SheetHeader className="pb-1">
+          <SheetTitle>
             {layer !== "home" ? (
               <button
                 type="button"
                 onClick={back}
-                className="inline-flex items-center gap-1 text-foreground"
+                className="inline-flex items-center gap-1 text-[15px] font-semibold text-foreground"
               >
                 <ChevronLeft className="size-4" aria-hidden /> {headerLabel[layer]}
               </button>
             ) : (
-              "Añadir"
+              <div>
+                <span
+                  className="block text-[18px] font-bold text-foreground"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  Añadir a {MEAL_LABELS[meal]}
+                </span>
+                <span className="block text-[12px] font-normal text-muted-foreground">
+                  Seleccionado automáticamente por la hora
+                </span>
+              </div>
             )}
           </SheetTitle>
         </SheetHeader>
-
-        {/* Selector de comida (preseleccionada) */}
-        <div className="px-4">
-          <Select value={meal} onValueChange={(v) => setMeal(v as MealKey)}>
-            <SelectTrigger className="h-10 w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {MEAL_ORDER.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {MEAL_LABELS[m]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
 
         {justAdded ? (
           <div className="mx-4 mt-3 flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2">
@@ -253,6 +247,7 @@ export function AddSheet({
         {layer === "home" ? (
           <HomeLayer
             meal={meal}
+            setMeal={setMeal}
             search={search}
             setSearch={setSearch}
             results={results}
@@ -329,6 +324,7 @@ type ResultRow = {
 
 function HomeLayer({
   meal,
+  setMeal,
   search,
   setSearch,
   results,
@@ -341,6 +337,7 @@ function HomeLayer({
   onAddScaled,
 }: {
   meal: MealKey;
+  setMeal: (m: MealKey) => void;
   search: string;
   setSearch: (v: string) => void;
   results: ResultRow[];
@@ -352,10 +349,35 @@ function HomeLayer({
   onAddResult: (r: ResultRow) => void;
   onAddScaled: (e: EntryInput[]) => void;
 }) {
-  // Chips = productos fijados (agnósticos de comida), los más recientes primero.
+  // Fijados = productos con pin (agnósticos de comida). Se listan como filas.
   const pinned = products.filter((p) => p.pinned).slice(0, 6);
   return (
     <div className="space-y-4 px-4 py-3">
+      {/* Destino: pills de comida (mockup «Añadir en») */}
+      <div>
+        <span className="mb-1.5 block text-[12px] font-medium text-muted-foreground">
+          Añadir en
+        </span>
+        <div className="flex flex-wrap gap-1.5">
+          {MEAL_ORDER.map((m) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={m === meal}
+              onClick={() => setMeal(m)}
+              className={cn(
+                "rounded-full border px-3.5 py-2 text-[13px] font-medium transition-colors",
+                m === meal
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-line bg-surface-2 text-muted-foreground",
+              )}
+            >
+              {MEAL_LABELS[m]}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Búsqueda universal */}
       <div className="relative">
         <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -364,7 +386,7 @@ function HomeLayer({
           autoFocus
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar en productos, plan y recientes…"
+          placeholder="Buscar en productos y plan…"
           className="h-11 w-full rounded-lg border border-input bg-surface-2 pl-8 pr-2.5 text-base outline-none focus-visible:border-ring"
           aria-label="Buscar comida"
         />
@@ -396,68 +418,79 @@ function HomeLayer({
         </div>
       ) : null}
 
-      {/* Mis productos: chips de los fijados (agnósticos de comida). Tocar → stepper
-          (si escala) o añadir directo (si es fijo). Pulsación larga → catálogo. */}
-      {pinned.length > 0 ? (
+      {/* Fijados: lista de productos (nombre + base). Tocar → stepper (si escala) o
+          añadir directo (si es fijo). «Mis productos» → catálogo completo. */}
+      {!search.trim() ? (
         <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <h3 className="text-[12px] text-muted-foreground">Mis productos</h3>
+          <div className="mb-1.5 flex items-center justify-between px-0.5">
+            <h3 className="card-title text-muted-foreground">Fijados</h3>
+            <button type="button" onClick={onOpenCatalog} className="text-[12px] font-medium text-primary">
+              Mis productos
+            </button>
+          </div>
+          {pinned.length > 0 ? (
+            <div className="divide-y divide-line overflow-hidden rounded-[14px] border border-line">
+              {pinned.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => onAddProduct(p)}
+                  className="flex w-full items-center gap-2 bg-surface px-3.5 py-2.5 text-left transition-colors hover:bg-surface-2"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-semibold text-foreground">
+                      {p.name}
+                    </span>
+                    <span className="num block text-[12px] text-muted-foreground">
+                      {productBaseLabel(p)} · {displayMacro(p.baseProt)}P/
+                      {displayMacro(p.baseCarb)}C/{displayMacro(p.baseFat)}F
+                    </span>
+                  </span>
+                  <ProductSourceIcon source={p.source} />
+                  <Plus className="size-4 shrink-0 text-primary" aria-hidden />
+                </button>
+              ))}
+            </div>
+          ) : (
             <button
               type="button"
               onClick={onOpenCatalog}
-              className="text-[12px] text-primary"
+              className="w-full rounded-[14px] border border-dashed border-line py-3 text-[13px] text-muted-foreground"
             >
-              Ver todos →
+              Aún no tienes productos fijados · Ver catálogo →
             </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {pinned.map((p) => (
-              <ProductChip
-                key={p.id}
-                product={p}
-                onTap={() => onAddProduct(p)}
-                onLongPress={onOpenCatalog}
-              />
-            ))}
+          )}
+        </div>
+      ) : null}
+
+      {/* Otra forma: Foto · Del plan · Describir · Manual */}
+      {!search.trim() ? (
+        <div>
+          <h3 className="card-title mb-1.5 px-0.5 text-muted-foreground">Otra forma</h3>
+          <div className="grid grid-cols-4 gap-2">
+            <BigAccess
+              icon={<Camera className="size-5" aria-hidden />}
+              label="Foto"
+              onClick={() => onGoLayer("photo")}
+            />
+            <BigAccess
+              icon={<ClipboardList className="size-5" aria-hidden />}
+              label="Del plan"
+              onClick={() => onGoLayer("plan")}
+            />
+            <BigAccess
+              icon={<PenLine className="size-5" aria-hidden />}
+              label="Describir"
+              onClick={() => onGoLayer("describe")}
+            />
+            <BigAccess
+              icon={<Plus className="size-5" aria-hidden />}
+              label="Manual"
+              onClick={onNewProduct}
+            />
           </div>
         </div>
-      ) : (
-        <button
-          type="button"
-          onClick={onOpenCatalog}
-          className="w-full rounded-lg border border-dashed border-line py-3 text-[13px] text-muted-foreground"
-        >
-          Aún no tienes productos fijados · Ver catálogo →
-        </button>
-      )}
-
-      {/* Tres accesos grandes: Foto · Del plan · Describir (IA) */}
-      <div className="grid grid-cols-3 gap-2">
-        <BigAccess
-          icon={<Camera className="size-5" aria-hidden />}
-          label="Foto"
-          onClick={() => onGoLayer("photo")}
-        />
-        <BigAccess
-          icon={<ClipboardList className="size-5" aria-hidden />}
-          label="Del plan"
-          onClick={() => onGoLayer("plan")}
-        />
-        <BigAccess
-          icon={<PenLine className="size-5" aria-hidden />}
-          label="Describir"
-          onClick={() => onGoLayer("describe")}
-        />
-      </div>
-
-      {/* Nuevo producto (a mano en Fase 1; foto de etiqueta en Fase 2) */}
-      <button
-        type="button"
-        onClick={onNewProduct}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-3 text-[13px] font-medium text-primary"
-      >
-        <Plus className="size-4" aria-hidden /> Nuevo producto
-      </button>
+      ) : null}
     </div>
   );
 }
@@ -476,53 +509,6 @@ function ProductSourceIcon({ source }: { source: ProductDTO["source"] }) {
   if (source === "manual")
     return <PenLine className="size-3.5 text-muted-foreground" aria-label="Manual" />;
   return null;
-}
-
-/** Chip de producto (2 columnas). Pulsación larga (~500 ms) → catálogo (AC7). */
-function ProductChip({
-  product,
-  onTap,
-  onLongPress,
-}: {
-  product: ProductDTO;
-  onTap: () => void;
-  onLongPress: () => void;
-}) {
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longFired = useRef(false);
-
-  const start = () => {
-    longFired.current = false;
-    timer.current = setTimeout(() => {
-      longFired.current = true;
-      onLongPress();
-    }, 500);
-  };
-  const cancel = () => {
-    if (timer.current) clearTimeout(timer.current);
-  };
-
-  return (
-    <button
-      type="button"
-      onPointerDown={start}
-      onPointerUp={cancel}
-      onPointerLeave={cancel}
-      onClick={() => {
-        if (longFired.current) return; // fue pulsación larga: no añadir
-        onTap();
-      }}
-      className="relative flex flex-col gap-0.5 rounded-xl border border-line bg-surface-2 px-3 py-2.5 text-left"
-    >
-      <span className="absolute top-2 right-2.5">
-        <ProductSourceIcon source={product.source} />
-      </span>
-      <span className="truncate pr-5 text-[13.5px] font-semibold">{product.name}</span>
-      <span className="num text-[11px] text-muted-foreground">
-        {productBaseLabel(product)}
-      </span>
-    </button>
-  );
 }
 
 /** Fallback de la búsqueda universal sin match local → F-IA-2 (09 §4). */

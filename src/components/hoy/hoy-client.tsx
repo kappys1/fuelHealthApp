@@ -185,14 +185,19 @@ export function HoyClient({
 
       <ContextoRelojBlock intakeKcal={totals.kcal} view={data.view} />
 
-      {/* Botón primario fijo «+ Añadir comida» (09 §3) */}
+      {/* FAB «+ Añadir comida» (flotante abajo-derecha, sobre la nav). Alineado al
+          borde de la columna (max-w 560) en escritorio; a 1rem en móvil. */}
       <button
         type="button"
         onClick={() => openAdd(mealByHour())}
-        className="fixed inset-x-0 z-10 mx-auto flex w-[calc(100%-2rem)] max-w-[528px] items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground shadow-lg"
-        style={{ bottom: "calc(env(safe-area-inset-bottom) + 68px)" }}
+        aria-label="Añadir comida"
+        className="fixed z-10 flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_8px_22px_color-mix(in_srgb,var(--primary)_35%,transparent)]"
+        style={{
+          bottom: "calc(env(safe-area-inset-bottom) + 76px)",
+          right: "max(1rem, calc(50vw - 280px + 1rem))",
+        }}
       >
-        <Plus className="size-5" aria-hidden /> Añadir comida
+        <Plus className="size-6" aria-hidden />
       </button>
 
       {/* Sheets */}
