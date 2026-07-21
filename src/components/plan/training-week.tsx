@@ -353,7 +353,7 @@ function SessionCard({
   }
 
   return (
-    <article className="py-4 first:pt-0 last:pb-0">
+    <article className={compact ? "py-5" : "py-0"}>
       <div className="flex items-start gap-3">
         <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-protein/10 text-protein">
           <Dumbbell className="size-[18px]" aria-hidden />
@@ -377,16 +377,6 @@ function SessionCard({
               {session.contenido}
             </p>
           ) : null}
-          {compact && session.contenido ? (
-            <button
-              type="button"
-              className="mt-1.5 min-h-11 rounded-xl pr-3 text-[12px] font-semibold text-primary"
-              aria-expanded={expanded}
-              onClick={() => setExpanded((value) => !value)}
-            >
-              {expanded ? "Ocultar detalle" : "Ver detalle"}
-            </button>
-          ) : null}
         </div>
         {!readOnly ? (
           <button
@@ -400,29 +390,51 @@ function SessionCard({
         ) : null}
       </div>
 
-      {!readOnly ? (
-        <label className="mt-4 flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
-            <Clock3 className="size-4" aria-hidden /> Día
-          </span>
-          <Select
-            value={session.assignedDate ?? NONE}
-            onValueChange={(value) => reassign(value === NONE ? null : value)}
-            disabled={busy}
-          >
-            <SelectTrigger className="min-h-11 flex-1 text-base">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE}>Sin asignar</SelectItem>
-              {days.map((date) => (
-                <SelectItem key={date} value={date}>
-                  {labelForKey(date)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
+      {(compact && session.contenido) || !readOnly ? (
+        <div
+          className={`mt-3 flex min-w-0 items-center gap-2 ${compact ? "pl-12" : ""}`}
+        >
+          {compact && session.contenido ? (
+            <button
+              type="button"
+              className="-ml-2 inline-flex min-h-11 shrink-0 items-center rounded-xl px-2 text-[12px] font-semibold text-primary transition-colors hover:bg-primary-soft"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {expanded ? "Ocultar detalle" : "Ver detalle"}
+            </button>
+          ) : null}
+
+          {!readOnly ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="inline-flex shrink-0 items-center gap-1.5 text-[12px] font-medium text-muted-foreground">
+                <Clock3 className="size-4" aria-hidden /> Día
+              </span>
+              <Select
+                value={session.assignedDate ?? NONE}
+                onValueChange={(value) =>
+                  reassign(value === NONE ? null : value)
+                }
+                disabled={busy}
+              >
+                <SelectTrigger
+                  aria-label={`Día asignado a ${session.nombre}`}
+                  className="min-h-11 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-[14px] font-medium shadow-none"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Sin asignar</SelectItem>
+                  {days.map((date) => (
+                    <SelectItem key={date} value={date}>
+                      {labelForKey(date)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </article>
   );
