@@ -105,6 +105,17 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   Calculadora doble (% sobre última **y** récord), buscador en vivo en Plan·Entrenos, familia
   opcional (migración **0005 aditiva, pendiente de aplicar a la BD**) y Historial con marcas
   recientes + «ver todas →». AC de flujo (🖐 1, 2, 4) pendientes de validación con el pulgar.
+- ✅ **Editar marca (nombre + familia) + selector de familia visible** (uso real Alex, 21-jul) —
+  **IMPLEMENTADA (F11)**, spec [`docs/specs/features/11-marcas-editar-y-familia.md`](./specs/features/11-marcas-editar-y-familia.md).
+  Lápiz junto al título del detalle → edición inline de nombre + familia (optimista con revert);
+  chip de familia bajo el título (solo si hay); `FamilyPicker` de **chips tocables** sustituye al
+  `<datalist>` (invisible en Safari iOS) en crear y editar; `canonicalizeFamily` mata el split
+  «Snatch/snatch» al guardar. **NO** edita tipo/unidad (invalidaría entradas — decisión firme).
+  **Sin migración** (la columna `family` ya viajaba); export/restore y contexto IA sin cambios.
+  **Validada por Alex 🖐 (AC 1/3/5, 21-jul)**: editar nombre persiste, editar/vaciar familia +
+  chip, chips tocables en crear y editar. **Nota UX pendiente**: la ubicación del editor inline
+  (bajo el título, tras el lápiz) es funcional pero no convence del todo a Alex → posible
+  refinamiento de dónde/cómo aparece (a pensar con el product-partner, sin urgencia).
 - ✅ **Chat inteligente + comer fuera** (idea Alex, 15-jul; reencuadrada 16-jul) — **Fases 0 y 1
   IMPLEMENTADAS**, spec [`docs/specs/features/05-busqueda-web-y-foto-chat.md`](./specs/features/05-busqueda-web-y-foto-chat.md).
   **Fase 0** (reconstrucción del prompt congelado F-IA-8, sin infra): reescritura desde principios
