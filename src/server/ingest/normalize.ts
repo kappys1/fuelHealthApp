@@ -143,7 +143,7 @@ export function canonicalize(
  * SUMAN (pasos, energía, agua = totales del día). Las instantáneas restantes se
  * PROMEDIAN (HRV, FC reposo, VO2, % grasa). El sueño es aparte: Apple lo trocea
  * por fases (sumarlas daría >24 h), así que se toma el MÁXIMO (mejor
- * aproximación al total de la noche). Ver MAX_FIELDS y FIRST_FIELDS.
+ * aproximación al total de la noche). Ver MAX_FIELDS y MIN_FIELDS.
  */
 export const CUMULATIVE_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>([
   "steps",
@@ -156,12 +156,16 @@ export const CUMULATIVE_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(
 export const MAX_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(["sleepH"]);
 
 /**
- * Métricas donde se toma la PRIMERA muestra del día (la de hora más temprana),
- * no la media: el peso es «mañana, ayunas» (principio 5). Si te pesas más veces
- * a lo largo del día (más pesado tras comer/beber), promediar inflaría el valor
- * y no cuadraría con la báscula. La pesada de la mañana es la que manda.
+ * Métricas donde se toma el MÍNIMO de las muestras del día: el peso «real» es la
+ * pesada en ayunas y sin ropa (principio 5), y todo lo demás (ropa, comida, agua)
+ * solo SUMA peso. Por eso el mínimo del día es la mejor aproximación al peso
+ * verdadero. NO se promedia (una pesada vestido inflaría el valor) ni se toma la
+ * primera (fallaría si te pesas vestido antes que desnudo). Ver DECISIONS.
+ *
+ * OJO: esto solo ayuda si HAE exporta las muestras individuales; si HAE ya
+ * pre-agrega a la media diaria, aquí solo llega un número y no hay nada que elegir.
  */
-export const FIRST_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(["weight"]);
+export const MIN_FIELDS: ReadonlySet<HealthField> = new Set<HealthField>(["weight"]);
 
 /**
  * Máximo de sueño fisiológicamente plausible por día (h). Por encima es un

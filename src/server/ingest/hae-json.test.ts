@@ -161,10 +161,11 @@ describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
     expect(d?.hrvMs).toBe(70); // media de 60 y 80
   });
 
-  it("peso con varias pesadas/día → la PRIMERA (mañana, ayunas), no la media", () => {
-    // Pesada de la mañana en ayunas (93,6) + otra más tarde tras beber/comer (94,2).
-    // La media (93,9) inflaría el valor y no cuadraría con la báscula. Manda la de
-    // la mañana. Las muestras llegan desordenadas a propósito.
+  it("peso con varias pesadas/día → el MÍNIMO (ayunas/sin ropa), no la media ni la primera", () => {
+    // Caso real: te pesas vestido primero (92,4) y luego sin ropa (91,7); más tarde
+    // tras beber/comer pesas más (94,0). La media (92,7) inflaría el valor y «la
+    // primera» cogería la de con ropa (92,4). Manda el mínimo: la pesada real.
+    // Las muestras llegan desordenadas a propósito.
     const r = parseHaeJson({
       data: {
         metrics: [
@@ -172,16 +173,16 @@ describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
             name: "weight_body_mass",
             units: "kg",
             data: [
-              { date: "2026-07-13 19:40:00 +0200", qty: 94.2 },
-              { date: "2026-07-13 08:12:00 +0200", qty: 93.6 },
-              { date: "2026-07-13 13:05:00 +0200", qty: 94.0 },
+              { date: "2026-07-13 19:40:00 +0200", qty: 94.0 },
+              { date: "2026-07-13 08:12:00 +0200", qty: 92.4 }, // primera, pero vestido
+              { date: "2026-07-13 08:13:00 +0200", qty: 91.7 }, // la real, sin ropa
             ],
           },
         ],
       },
     });
     const d = r.days.find((x) => x.date === "2026-07-13");
-    expect(d?.weight).toBeCloseTo(93.6, 6); // primera del día, no la media (93,9)
+    expect(d?.weight).toBeCloseTo(91.7, 6); // el mínimo, no la primera (92,4) ni la media
   });
 
   it("sueño troceado por fases → máximo (no suma), evita >24 h", () => {
@@ -220,6 +221,32 @@ describe("parseHaeJson — formato Automations de HAE (03 §4.1)", () => {
       },
     });
     expect(r.days[0]?.sleepH).toBeCloseTo(7.2, 6); // el outlier NO gana el máximo
+  });
+
+  it("sueño desglosado (HAE moderno): usa totalSleep aunque asleep sea 0", () => {
+    const r = parseHaeJson({
+      data: {
+        metrics: [
+          {
+            name: "sleep_analysis",
+            units: "hr",
+            data: [
+              {
+                date: "2026-07-21",
+                inBed: 0,
+                asleep: 0, // HAE moderno lo manda a 0 siempre
+                awake: 0.15,
+                core: 4.15,
+                deep: 0.98,
+                rem: 1.31,
+                totalSleep: 6.44, // el total real vive aquí
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(r.days[0]?.sleepH).toBeCloseTo(6.44, 6); // no 0
   });
 
   it("sueño: si solo llega basura, queda 0 (sobrescribe un valor malo guardado)", () => {
