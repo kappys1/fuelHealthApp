@@ -9,7 +9,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import { MarkChart } from "@/components/charts/mark-chart";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -22,6 +22,7 @@ import {
 import { labelForKey } from "@/lib/dates";
 import {
   bestEntry,
+  canonicalizeFamily,
   type DoubleReference,
   doubleReference,
   formatMarkValue,
@@ -35,6 +36,7 @@ import {
   sortEntriesAsc,
 } from "@/lib/marks";
 import type { MarkDTO, MarkEntryDTO } from "@/server/db/queries/marks";
+import { FamilyPicker } from "./family-picker";
 import { MarkValueInput } from "./mark-value-input";
 
 /*
@@ -46,8 +48,10 @@ import { MarkValueInput } from "./mark-value-input";
 export function MarkDetailSheet({
   mark,
   today,
+  families,
   onAddEntry,
   onUpdateEntry,
+  onUpdateMark,
   onDeleteEntry,
   onRestoreEntry,
   onDeleteMark,
@@ -55,6 +59,7 @@ export function MarkDetailSheet({
 }: {
   mark: MarkDTO;
   today: string;
+  families: string[];
   onAddEntry: (
     markId: number,
     entry: { value: number; recordedOn: string; note: string | null },
@@ -64,6 +69,10 @@ export function MarkDetailSheet({
     entryId: number,
     patch: { value: number; recordedOn: string; note: string | null },
   ) => Promise<void>;
+  onUpdateMark: (
+    markId: number,
+    patch: { name: string; family: string | null },
+  ) => Promise<void>;
   onDeleteEntry: (markId: number, entry: MarkEntryDTO) => void;
   onRestoreEntry: (markId: number, entry: MarkEntryDTO) => void;
   onDeleteMark: (markId: number) => Promise<void>;
@@ -71,6 +80,7 @@ export function MarkDetailSheet({
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingMark, setEditingMark] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingMark, setDeletingMark] = useState(false);
   // Undo INLINE (dentro del sheet): un toast de Sonner se renderiza fuera del sheet
@@ -118,18 +128,55 @@ export function MarkDetailSheet({
         <SheetHeader className="pb-1">
           <SheetTitle className="flex items-center justify-between gap-2 pr-6">
             <span className="min-w-0 truncate">{mark.name}</span>
-            <button
-              type="button"
-              onClick={() => setDeleteOpen(true)}
-              aria-label="Borrar marca"
-              className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
-            >
-              <Trash2 className="size-4" aria-hidden />
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingMark((v) => !v);
+                  setAdding(false);
+                  setEditingId(null);
+                }}
+                aria-label="Editar marca"
+                aria-pressed={editingMark}
+                className={`app-icon-button shrink-0 border-0 bg-transparent hover:text-foreground ${
+                  editingMark ? "text-primary" : ""
+                }`}
+              >
+                <Pencil className="size-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
+                aria-label="Borrar marca"
+                className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
+              >
+                <Trash2 className="size-4" aria-hidden />
+              </button>
+            </div>
           </SheetTitle>
         </SheetHeader>
 
         <div className="space-y-4 px-4 pb-8">
+          {/* Editor inline de la marca (F11): nombre + familia. NO toca tipo/unidad. */}
+          {editingMark ? (
+            <MarkEditForm
+              mark={mark}
+              families={families}
+              onSave={async (patch) => {
+                await onUpdateMark(mark.id, patch);
+                setEditingMark(false);
+              }}
+              onCancel={() => setEditingMark(false)}
+            />
+          ) : mark.family ? (
+            // Chip de familia bajo el título — solo si hay familia (F11 · AC 4).
+            <div>
+              <span className="inline-flex items-center rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
+                {mark.family}
+              </span>
+            </div>
+          ) : null}
+
           {/* Titular: última + indicador de cambio vs la vez anterior */}
           <div className="flex items-baseline justify-between gap-2">
             <div>
@@ -384,6 +431,85 @@ function PercentCalculator({
           ? "La última es tu marca vigente; el récord es solo referencia. La responsabilidad del % es tuya."
           : "Sobre tu marca vigente (última). La responsabilidad del % es tuya."}
       </p>
+    </div>
+  );
+}
+
+// Editor inline de la marca (F11): nombre + familia. El tipo/unidad NO se editan
+// (cambiarlos invalidaría las entradas — decisión firme). Nombre vacío → no guarda
+// (AC 2). La familia se canoniza contra las existentes al guardar (AC 6).
+function MarkEditForm({
+  mark,
+  families,
+  onSave,
+  onCancel,
+}: {
+  mark: MarkDTO;
+  families: string[];
+  onSave: (patch: { name: string; family: string | null }) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const nameId = useId();
+  const [name, setName] = useState(mark.name);
+  const [family, setFamily] = useState(mark.family ?? "");
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (!name.trim()) {
+      toast.error("El nombre no puede estar vacío.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSave({
+        name: name.trim(),
+        family: canonicalizeFamily(family, families),
+      });
+      toast.success("Marca actualizada.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border border-line bg-surface-2/60 p-3">
+      <label className="block" htmlFor={nameId}>
+        <span className="mb-1 block text-[12px] text-muted-foreground">Nombre</span>
+        <input
+          id={nameId}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Sentadilla 1RM, Fran, 5k…"
+          className="h-11 w-full rounded-lg border border-input bg-surface px-3 text-base outline-none focus-visible:border-ring"
+          aria-label="Nombre de la marca"
+          autoFocus
+        />
+      </label>
+      <div className="block">
+        <span className="mb-1 block text-[12px] text-muted-foreground">
+          Familia (opcional)
+        </span>
+        <FamilyPicker value={family} onChange={setFamily} families={families} />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-11 rounded-xl px-4 text-sm font-semibold text-muted-foreground"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy}
+          className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {busy ? "Guardando…" : "Guardar"}
+        </button>
+      </div>
     </div>
   );
 }
