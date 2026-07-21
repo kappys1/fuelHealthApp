@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bestEntry,
+  canonicalizeFamily,
   doubleReference,
   formatMarkValue,
   formatSeconds,
@@ -13,6 +14,7 @@ import {
   parseMarkValue,
   parseTimeToSeconds,
   percentOf,
+  uniqueFamilies,
 } from "./marks";
 
 // Helper: entrada mínima (id incremental por defecto = orden de inserción).
@@ -283,5 +285,42 @@ describe("formatMarkValue", () => {
     expect(formatMarkValue("weight", 93.5, "kg")).toBe("93,5 kg");
     expect(formatMarkValue("reps", 20, "reps")).toBe("20 reps");
     expect(formatMarkValue("distance", 5, "km")).toBe("5 km");
+  });
+});
+
+describe("uniqueFamilies", () => {
+  it("únicas, sin vacías/espacios, ordenadas (es)", () => {
+    expect(
+      uniqueFamilies([
+        { family: "Squat" },
+        { family: "snatch" },
+        { family: "Squat" },
+        { family: "  " },
+        { family: null },
+        { family: " Carrera " },
+      ]),
+    ).toEqual(["Carrera", "snatch", "Squat"]);
+  });
+  it("sin familias → []", () => {
+    expect(uniqueFamilies([{ family: null }, { family: "" }])).toEqual([]);
+  });
+});
+
+describe("canonicalizeFamily", () => {
+  const existing = ["Snatch", "Squat", "Carrera"];
+  it("coincidencia case-insensitive adopta la grafía existente (mata el split)", () => {
+    expect(canonicalizeFamily("snatch", existing)).toBe("Snatch");
+    expect(canonicalizeFamily("SNATCH", existing)).toBe("Snatch");
+    expect(canonicalizeFamily("  squat ", existing)).toBe("Squat");
+  });
+  it("familia nueva → texto tal cual (trim)", () => {
+    expect(canonicalizeFamily("  Press ", existing)).toBe("Press");
+  });
+  it("vacío o solo espacios → null (sin familia)", () => {
+    expect(canonicalizeFamily("", existing)).toBeNull();
+    expect(canonicalizeFamily("   ", existing)).toBeNull();
+  });
+  it("sin familias existentes → texto tal cual", () => {
+    expect(canonicalizeFamily("Snatch", [])).toBe("Snatch");
   });
 });
