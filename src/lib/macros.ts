@@ -334,6 +334,22 @@ export const MEAL_LABELS: Record<MealKey, string> = {
   extra: "Extra",
 };
 
+// Unidad de visualización de un producto (F10 · Alcance C). SOLO etiqueta: la
+// cantidad escala 1:1 (scaleMacros no la usa). `SUFFIX` = rótulo corto (stepper,
+// "100 g"); `NOUN` = nombre largo del campo ("Base en gramos").
+export const PRODUCT_UNITS = ["g", "ml", "ud"] as const;
+export type ProductUnit = (typeof PRODUCT_UNITS)[number];
+export const PRODUCT_UNIT_SUFFIX: Record<ProductUnit, string> = {
+  g: "g",
+  ml: "ml",
+  ud: "ud",
+};
+export const PRODUCT_UNIT_NOUN: Record<ProductUnit, string> = {
+  g: "gramos",
+  ml: "mililitros",
+  ud: "unidades",
+};
+
 export const GRP_ORDER = [
   "Verdura",
   "Hidratos",

@@ -23,6 +23,7 @@ describe("favoritesToProducts — migración legacy (AC3)", () => {
     expect(sandia.baseProt).toBe(0.6);
     expect(sandia.baseCarb).toBe(7);
     expect(sandia.baseFat).toBe(0.2);
+    expect(sandia.unit).toBe("g"); // F10: unidad por defecto para legacy
   });
 
   it("dedupea colisión de nombre (mismo nombre en 2 comidas) conservando el id mayor", () => {
@@ -131,5 +132,38 @@ describe("productImportRow — round-trip export→restore (AC4)", () => {
     expect(row.baseG).toBeNull();
     expect(row.grupo).toBeNull();
     expect(row.source).toBe("legacy");
+  });
+
+  it("F10 · source 'estimado' y unit ≠ 'g' sobreviven el round-trip (AC7)", () => {
+    const row = productImportRow({
+      name: "Café + leche 300 ml",
+      baseG: 300,
+      baseKcal: 18,
+      baseProt: 1,
+      baseCarb: 1,
+      baseFat: 1,
+      grupo: null,
+      source: "estimado",
+      unit: "ml",
+      pinned: false,
+    });
+    expect(row.source).toBe("estimado");
+    expect(row.unit).toBe("ml");
+    expect(row.baseG).toBe(300);
+  });
+
+  it("F10 · un export anterior a F10 (sin unit) cae a 'g' por defecto (AC7)", () => {
+    const row = productImportRow({
+      name: "Tortitas",
+      baseG: 100,
+      baseKcal: 350,
+      baseProt: 12,
+      baseCarb: 60,
+      baseFat: 6.5,
+      grupo: "Hidratos",
+      source: "etiqueta",
+      pinned: true,
+    });
+    expect(row.unit).toBe("g");
   });
 });

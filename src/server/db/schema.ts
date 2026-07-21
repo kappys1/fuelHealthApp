@@ -80,6 +80,11 @@ export const productSourceEnum = pgEnum("product_source", [
   "legacy",
 ]);
 
+// Unidad de VISUALIZACIÓN del producto (F10 · Alcance C). Solo etiqueta: la cantidad
+// escala 1:1 (densidad ≈ 1), scaleMacros/entryBaseFields (F06) NO cambian. 'ud' con
+// baseG vacío = fijo por unidad. Default 'g' (backfill implícito de los existentes).
+export const productUnitEnum = pgEnum("product_unit", ["g", "ml", "ud"]);
+
 export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
 
 // Tipo de sesión de entrenamiento (doc 10 B1) — GENÉRICO (cualquier deporte);
@@ -296,6 +301,9 @@ export const products = pgTable("products", {
   baseFat: real("base_fat").notNull(),
   grupo: grpEnum(),
   source: productSourceEnum().notNull(),
+  // Unidad de visualización (F10 · Alcance C): rótulo del baseG y del stepper. Solo
+  // etiqueta (escala 1:1). Default 'g' → backfill implícito de productos previos.
+  unit: productUnitEnum().notNull().default("g"),
   pinned: boolean().notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

@@ -155,6 +155,7 @@ export async function copyEntriesFrom(fromDate: string, toDate: string) {
 
 // ── products (F07 · CRUD del catálogo) ──
 type ProductSourceEnum = (typeof schema.productSourceEnum.enumValues)[number];
+type ProductUnitEnum = (typeof schema.productUnitEnum.enumValues)[number];
 
 export interface ProductInput {
   name: string;
@@ -165,6 +166,7 @@ export interface ProductInput {
   baseFat: number;
   grupo: GrpEnum | null;
   source: ProductSourceEnum;
+  unit: ProductUnitEnum;
   pinned: boolean;
 }
 
