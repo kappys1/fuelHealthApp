@@ -1,0 +1,3012 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="description" content="Concepto interactivo Azul Performance de Fuelboard con datos reales, temas claro y oscuro, pantallas Hoy y Progreso y auditoría de tokens." />
+  <meta name="theme-color" content="#f2f6fa" />
+  <title>Fuelboard Performance - Concepto completo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Onest:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f2f6fa;
+      --surface: #ffffff;
+      --surface-2: #e4ecf4;
+      --ink: #102235;
+      --muted: #52677b;
+      --line: #72869a;
+      --primary: #155db8;
+      --protein: #087a55;
+      --carb: #986300;
+      --fat: #bf481f;
+      --phase: #6747c7;
+      --on-primary: #ffffff;
+      --gauge-bg: #102f4e;
+      --gauge-surface: #193f61;
+      --gauge-ink: #f4f8fc;
+      --gauge-muted: #b9cbd9;
+      --positive-soft: #dcefe8;
+      --primary-soft: #dceafa;
+      --carb-soft: #f4e8c9;
+      --fat-soft: #f5dfd7;
+      --phase-soft: #e9e1fb;
+      --line-soft: #ccd7e1;
+      --shadow: 0 22px 70px rgb(31 61 88 / 20%);
+      --font-body: "Onest", system-ui, sans-serif;
+      --font-data: "Barlow Condensed", "Arial Narrow", sans-serif;
+    }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --bg: #071c21;
+      --surface: #102c31;
+      --surface-2: #193a3f;
+      --ink: #edf5f4;
+      --muted: #a8bcba;
+      --line: #6d8587;
+      --primary: #76a9ff;
+      --protein: #4ad29a;
+      --carb: #f0c45a;
+      --fat: #ff9566;
+      --phase: #c2a7ff;
+      --on-primary: #071c21;
+      --gauge-bg: #0a3338;
+      --gauge-surface: #124149;
+      --gauge-ink: #edf5f4;
+      --gauge-muted: #aac8c5;
+      --positive-soft: #16483b;
+      --primary-soft: #183c50;
+      --carb-soft: #4d4021;
+      --fat-soft: #4d3028;
+      --phase-soft: #3b3157;
+      --line-soft: #365156;
+      --shadow: 0 24px 80px rgb(0 8 10 / 46%);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-width: 320px;
+      min-height: 100%;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--bg);
+    }
+
+    body {
+      margin: 0;
+      overflow-x: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: rgb(21 93 184 / 12%);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    a:focus-visible,
+    [tabindex="0"]:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--primary) 62%, transparent);
+      outline-offset: 3px;
+    }
+
+    svg {
+      display: block;
+    }
+
+    .data,
+    .metric-value,
+    .chart-value,
+    td[data-ratio] {
+      font-family: var(--font-data);
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+    }
+
+    .skip-link {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      z-index: 200;
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: var(--ink);
+      color: var(--bg);
+      transform: translateY(-150%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .preview-toolbar {
+      position: fixed;
+      top: 22px;
+      right: 22px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--surface) 88%, transparent);
+      box-shadow: 0 12px 34px rgb(18 48 70 / 14%);
+      backdrop-filter: blur(16px);
+    }
+
+    .preview-label {
+      padding: 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .icon-button {
+      width: 44px;
+      height: 44px;
+      display: inline-grid;
+      flex: 0 0 auto;
+      place-items: center;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--ink);
+      transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, opacity 180ms ease;
+    }
+
+    .icon-button:hover {
+      border-color: var(--line);
+      background: var(--surface-2);
+    }
+
+    .icon-button svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 1.8;
+    }
+
+    .preview-stage {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+    }
+
+    .device {
+      position: relative;
+      width: min(432px, 100%);
+      height: min(900px, calc(100dvh - 56px));
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--line) 44%, var(--surface));
+      border-radius: 34px;
+      background: var(--bg);
+      box-shadow: var(--shadow);
+      isolation: isolate;
+    }
+
+    .status-bar {
+      height: 28px;
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      padding: 0 21px 3px;
+      background: var(--bg);
+      color: var(--ink);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-icons span {
+      display: block;
+      height: 7px;
+      border-radius: 2px;
+      background: currentColor;
+    }
+
+    .status-icons .signal {
+      width: 14px;
+      clip-path: polygon(0 100%, 0 72%, 20% 72%, 20% 48%, 45% 48%, 45% 24%, 70% 24%, 70% 0, 100% 0, 100% 100%);
+    }
+
+    .status-icons .battery {
+      width: 20px;
+      border: 1px solid currentColor;
+      background: linear-gradient(90deg, currentColor 0 76%, transparent 76%);
+    }
+
+    .app-shell {
+      position: relative;
+      height: calc(100% - 28px);
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .page-view {
+      position: absolute;
+      inset: 0;
+      display: none;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior-y: auto;
+      padding: 0 16px 112px;
+      scrollbar-width: none;
+    }
+
+    .page-view::-webkit-scrollbar {
+      display: none;
+    }
+
+    .page-view.is-active {
+      display: block;
+      animation: view-enter 220ms cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    @keyframes view-enter {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .app-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-inline: -16px;
+      padding: 8px 16px;
+      border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 68%, transparent);
+      background: color-mix(in srgb, var(--bg) 92%, transparent);
+      backdrop-filter: blur(16px);
+    }
+
+    .wordmark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .wordmark-badge {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--primary);
+      color: var(--on-primary);
+      font-family: var(--font-data);
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .wordmark-copy {
+      min-width: 0;
+    }
+
+    .wordmark-copy strong,
+    .wordmark-copy span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .wordmark-copy strong,
+    .eyebrow {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .11em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .wordmark-copy span {
+      margin-top: 2px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.2;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .top-actions .icon-button {
+      width: 38px;
+      height: 38px;
+      background: transparent;
+    }
+
+    .avatar {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .date-control {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) 44px;
+      gap: 8px;
+      align-items: center;
+      padding: 14px 0 10px;
+    }
+
+    .date-control .icon-button {
+      background: transparent;
+    }
+
+    .date-copy {
+      min-width: 0;
+      text-align: center;
+    }
+
+    .date-copy strong,
+    .date-copy span {
+      display: block;
+    }
+
+    .date-copy strong {
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .date-copy span {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .page-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 1px 16px;
+    }
+
+    .page-heading h1 {
+      max-width: 300px;
+      margin: 4px 0 0;
+      font-size: 28px;
+      letter-spacing: 0;
+      line-height: 1.08;
+      text-wrap: balance;
+    }
+
+    .streak-chip {
+      min-height: 30px;
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      border: 1px solid var(--line-soft);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .streak-chip svg {
+      width: 14px;
+      height: 14px;
+      color: var(--fat);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 22px 0 10px;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+      line-height: 1.2;
+    }
+
+    .section-head p {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .text-action {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 4px;
+      border: 0;
+      background: transparent;
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .text-action svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .segmented {
+      display: inline-grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+
+    .segmented button {
+      min-width: 44px;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      transition: background-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .segmented button[aria-pressed="true"],
+    .segmented button[aria-selected="true"] {
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 2px 8px rgb(21 53 79 / 12%);
+    }
+
+    .gauge-card {
+      overflow: hidden;
+      border-radius: 8px;
+      background: var(--gauge-bg);
+      color: var(--gauge-ink);
+      box-shadow: 0 16px 34px rgb(7 31 48 / 22%);
+    }
+
+    .gauge-toolbar {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 16px 8px;
+    }
+
+    .gauge-toolbar .eyebrow {
+      color: var(--gauge-muted);
+    }
+
+    .gauge-toolbar h2 {
+      margin: 4px 0 0;
+      font-size: 20px;
+      line-height: 1.15;
+    }
+
+    .gauge-state {
+      min-height: 29px;
+      display: inline-flex;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 6px;
+      padding: 0 9px;
+      border: 1px solid color-mix(in srgb, var(--protein) 72%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--protein) 15%, transparent);
+      color: color-mix(in srgb, var(--protein) 45%, var(--gauge-ink));
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .gauge-state::before {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
+    }
+
+    .gauge-variant {
+      display: none;
+    }
+
+    .gauge-variant.is-active {
+      display: block;
+      animation: gauge-enter 240ms cubic-bezier(.2, .8, .2, 1) both;
+    }
+
+    @keyframes gauge-enter {
+      from { opacity: 0; transform: translateX(7px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .gauge-a-main {
+      display: grid;
+      grid-template-columns: 145px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      padding: 7px 16px 15px;
+    }
+
+    .fuel-ring {
+      position: relative;
+      width: 140px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: conic-gradient(from -90deg, #56b7ff 0 99.7%, color-mix(in srgb, var(--gauge-ink) 13%, transparent) 99.7% 100%);
+    }
+
+    .fuel-ring::before {
+      position: absolute;
+      inset: 12px;
+      border-radius: inherit;
+      background: var(--gauge-bg);
+      content: "";
+    }
+
+    .fuel-ring::after {
+      position: absolute;
+      top: 3px;
+      left: 50%;
+      width: 2px;
+      height: 14px;
+      background: var(--gauge-ink);
+      content: "";
+      transform: translateX(-50%);
+    }
+
+    .fuel-ring-copy {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+    }
+
+    .fuel-ring-copy strong,
+    .fuel-ring-copy span,
+    .fuel-ring-copy small {
+      display: block;
+    }
+
+    .fuel-ring-copy strong {
+      font-family: var(--font-data);
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: 0;
+      line-height: .88;
+    }
+
+    .fuel-ring-copy span {
+      margin-top: 8px;
+      color: var(--gauge-muted);
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .fuel-ring-copy small {
+      margin-top: 2px;
+      color: #7bc9ff;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .macro-stack {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .macro-meter-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--gauge-muted);
+      font-size: 11px;
+    }
+
+    .macro-meter-head strong {
+      color: var(--gauge-ink);
+      font-family: var(--font-data);
+      font-size: 19px;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .macro-track {
+      position: relative;
+      height: 7px;
+      overflow: visible;
+      margin-top: 5px;
+      border-radius: 99px;
+      background: color-mix(in srgb, var(--gauge-ink) 14%, transparent);
+    }
+
+    .macro-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      border-radius: inherit;
+      background: var(--macro-color);
+    }
+
+    .macro-over {
+      position: absolute;
+      top: -3px;
+      right: 0;
+      width: 3px;
+      height: 13px;
+      border-radius: 2px;
+      background: var(--macro-color);
+      box-shadow: 0 0 0 2px var(--gauge-bg);
+    }
+
+    .meal-fuel {
+      padding: 13px 16px 15px;
+      border-top: 1px solid color-mix(in srgb, var(--gauge-ink) 17%, transparent);
+      background: var(--gauge-surface);
+    }
+
+    .meal-fuel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--gauge-muted);
+      font-size: 10px;
+      font-weight: 650;
+    }
+
+    .meal-fuel-head strong {
+      color: var(--gauge-ink);
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .meal-segments {
+      display: flex;
+      gap: 3px;
+      height: 16px;
+      margin-top: 9px;
+      overflow: hidden;
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--gauge-ink) 12%, transparent);
+    }
+
+    .meal-segment {
+      min-width: 4px;
+      height: 100%;
+      background: #56b7ff;
+    }
+
+    .meal-segment:nth-child(2) { background: #3f9ce0; }
+    .meal-segment:nth-child(3) { background: #78c7ff; }
+    .meal-segment:nth-child(4) { background: #277bbd; }
+
+    .meal-legend {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 9px;
+    }
+
+    .meal-legend span {
+      min-width: 0;
+      color: var(--gauge-muted);
+      font-size: 9px;
+      line-height: 1.3;
+    }
+
+    .meal-legend strong {
+      display: block;
+      overflow: hidden;
+      color: var(--gauge-ink);
+      font-family: var(--font-data);
+      font-size: 14px;
+      line-height: 1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .gauge-b-main {
+      padding: 7px 16px 16px;
+    }
+
+    .vector-top {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .vector-total strong,
+    .vector-total span,
+    .vector-delta strong,
+    .vector-delta span {
+      display: block;
+    }
+
+    .vector-total strong {
+      font-family: var(--font-data);
+      font-size: 58px;
+      line-height: .82;
+    }
+
+    .vector-total span {
+      margin-top: 8px;
+      color: var(--gauge-muted);
+      font-size: 11px;
+    }
+
+    .vector-delta {
+      text-align: right;
+    }
+
+    .vector-delta strong {
+      color: #7bc9ff;
+      font-family: var(--font-data);
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .vector-delta span {
+      margin-top: 4px;
+      color: var(--gauge-muted);
+      font-size: 10px;
+    }
+
+    .fuel-vector {
+      position: relative;
+      display: grid;
+      grid-template-columns: 18fr 756fr 469fr 552fr;
+      gap: 3px;
+      height: 54px;
+      margin-top: 17px;
+      padding-top: 17px;
+    }
+
+    .fuel-vector::before {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 1px;
+      background: color-mix(in srgb, var(--gauge-ink) 30%, transparent);
+      content: "";
+    }
+
+    .fuel-vector::after {
+      position: absolute;
+      top: -5px;
+      right: 0;
+      width: 2px;
+      height: 12px;
+      background: var(--gauge-ink);
+      content: "";
+    }
+
+    .vector-cell {
+      position: relative;
+      min-width: 4px;
+      overflow: hidden;
+      border-radius: 4px;
+      background: #56b7ff;
+    }
+
+    .vector-cell:nth-child(2) { background: #378fcf; }
+    .vector-cell:nth-child(3) { background: #77c5fa; }
+    .vector-cell:nth-child(4) { background: #256fa8; }
+
+    .vector-cell span {
+      position: absolute;
+      right: 7px;
+      bottom: 6px;
+      left: 7px;
+      overflow: hidden;
+      color: #071c21;
+      font-family: var(--font-data);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .vector-cell:first-child span {
+      display: none;
+    }
+
+    .vector-macros {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .vector-macro {
+      min-width: 0;
+      padding-top: 9px;
+      border-top: 3px solid var(--macro-color);
+    }
+
+    .vector-macro span,
+    .vector-macro strong,
+    .vector-macro small {
+      display: block;
+    }
+
+    .vector-macro span {
+      color: var(--gauge-muted);
+      font-size: 10px;
+    }
+
+    .vector-macro strong {
+      margin-top: 4px;
+      color: var(--gauge-ink);
+      font-family: var(--font-data);
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .vector-macro small {
+      margin-top: 3px;
+      color: color-mix(in srgb, var(--macro-color) 52%, var(--gauge-ink));
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .gauge-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 16px 13px;
+      border-top: 1px solid color-mix(in srgb, var(--gauge-ink) 17%, transparent);
+      background: var(--gauge-surface);
+      color: var(--gauge-muted);
+      font-size: 10px;
+    }
+
+    .gauge-foot strong {
+      color: var(--gauge-ink);
+    }
+
+    .gauge-foot .icon-button {
+      width: 36px;
+      height: 36px;
+      border-color: color-mix(in srgb, var(--gauge-ink) 22%, transparent);
+      background: transparent;
+      color: var(--gauge-ink);
+    }
+
+    .baseline-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .baseline-chip {
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .baseline-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .baseline-top svg {
+      width: 16px;
+      height: 16px;
+      color: var(--primary);
+    }
+
+    .baseline-value {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      margin-top: 8px;
+    }
+
+    .baseline-value strong {
+      font-family: var(--font-data);
+      font-size: 29px;
+      line-height: 1;
+    }
+
+    .baseline-value span {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 7px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .delta svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .delta.is-good { color: var(--protein); }
+    .delta.is-low { color: var(--fat); }
+    .delta.is-warning { color: var(--carb); }
+    .delta.is-neutral { color: var(--primary); }
+
+    .baseline-note {
+      display: flex;
+      align-items: start;
+      gap: 7px;
+      margin: 9px 1px 0;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .baseline-note svg {
+      width: 14px;
+      height: 14px;
+      flex: 0 0 auto;
+      margin-top: 1px;
+      color: var(--carb);
+    }
+
+    .session-card {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 13px;
+      border: 1px solid var(--line-soft);
+      border-left: 4px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      background: var(--surface);
+    }
+
+    .session-icon {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .session-icon svg {
+      width: 21px;
+      height: 21px;
+    }
+
+    .session-copy {
+      min-width: 0;
+    }
+
+    .session-copy strong,
+    .session-copy span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .session-copy strong {
+      font-size: 13px;
+    }
+
+    .session-copy span {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .session-kcal {
+      text-align: right;
+    }
+
+    .session-kcal strong,
+    .session-kcal span {
+      display: block;
+    }
+
+    .session-kcal strong {
+      color: var(--primary);
+      font-family: var(--font-data);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .session-kcal span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .meal-list {
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .meal-item {
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .meal-button {
+      width: 100%;
+      min-height: 68px;
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr) auto 18px;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 2px;
+      border: 0;
+      background: transparent;
+      text-align: left;
+    }
+
+    .meal-status {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--positive-soft);
+      color: var(--protein);
+    }
+
+    .meal-status svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    .meal-copy {
+      min-width: 0;
+    }
+
+    .meal-copy strong,
+    .meal-copy span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .meal-copy strong {
+      font-size: 13px;
+    }
+
+    .meal-copy span {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .meal-total {
+      color: var(--ink);
+      font-family: var(--font-data);
+      font-size: 20px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .meal-button > svg {
+      width: 17px;
+      height: 17px;
+      color: var(--muted);
+      transition: transform 180ms ease;
+    }
+
+    .meal-item.is-open .meal-button > svg {
+      transform: rotate(180deg);
+    }
+
+    .meal-details {
+      display: none;
+      padding: 0 4px 13px 40px;
+    }
+
+    .meal-item.is-open .meal-details {
+      display: block;
+    }
+
+    .food-line {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 7px 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .food-line span:first-child {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .food-line .data {
+      flex: 0 0 auto;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .meal-macros {
+      margin-top: 6px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .orientation-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 13px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      background: color-mix(in srgb, var(--surface-2) 58%, transparent);
+    }
+
+    .orientation-card strong,
+    .orientation-card span,
+    .orientation-card small {
+      display: block;
+    }
+
+    .orientation-card strong {
+      font-size: 12px;
+    }
+
+    .orientation-card span {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .orientation-card .data {
+      display: inline;
+      margin-top: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    .orientation-card small {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .orientation-value {
+      text-align: right;
+    }
+
+    .orientation-value strong {
+      color: var(--primary);
+      font-family: var(--font-data);
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .orientation-value span {
+      white-space: nowrap;
+    }
+
+    .progress-tabs {
+      position: sticky;
+      top: 64px;
+      z-index: 24;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-inline: -16px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line-soft);
+      background: color-mix(in srgb, var(--bg) 94%, transparent);
+      backdrop-filter: blur(14px);
+    }
+
+    .progress-tab {
+      position: relative;
+      min-height: 48px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .progress-tab::after {
+      position: absolute;
+      right: 14px;
+      bottom: -1px;
+      left: 14px;
+      height: 3px;
+      border-radius: 3px 3px 0 0;
+      background: transparent;
+      content: "";
+    }
+
+    .progress-tab[aria-selected="true"] {
+      color: var(--ink);
+    }
+
+    .progress-tab[aria-selected="true"]::after {
+      background: var(--primary);
+    }
+
+    .progress-panel {
+      display: none;
+    }
+
+    .progress-panel.is-active {
+      display: block;
+      animation: view-enter 220ms ease-out both;
+    }
+
+    .range-row {
+      display: flex;
+      justify-content: flex-end;
+      padding: 14px 0 10px;
+    }
+
+    .deficit-card {
+      overflow: hidden;
+      border-radius: 8px;
+      background: var(--ink);
+      color: var(--bg);
+      box-shadow: 0 16px 32px rgb(7 27 37 / 20%);
+    }
+
+    .deficit-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 16px 12px;
+    }
+
+    .deficit-head .eyebrow {
+      color: color-mix(in srgb, var(--bg) 68%, transparent);
+    }
+
+    .deficit-head h2 {
+      max-width: 290px;
+      margin: 4px 0 0;
+      font-size: 19px;
+      line-height: 1.2;
+      text-wrap: balance;
+    }
+
+    .deficit-head .icon-button {
+      width: 38px;
+      height: 38px;
+      border-color: color-mix(in srgb, var(--bg) 28%, transparent);
+      background: transparent;
+      color: var(--bg);
+    }
+
+    .calibration {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 13px;
+      align-items: end;
+      padding: 0 16px 14px;
+    }
+
+    .calibration strong,
+    .calibration span {
+      display: block;
+    }
+
+    .calibration strong {
+      font-size: 13px;
+    }
+
+    .calibration span {
+      margin-top: 3px;
+      color: color-mix(in srgb, var(--bg) 72%, transparent);
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .weighin-count {
+      color: var(--bg);
+      font-family: var(--font-data);
+      font-size: 31px;
+      font-weight: 700;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .weighin-rail {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      margin-top: 10px;
+    }
+
+    .weighin-rail i {
+      height: 7px;
+      border-radius: 2px;
+      background: color-mix(in srgb, var(--bg) 22%, transparent);
+    }
+
+    .weighin-rail i.is-filled {
+      background: var(--primary);
+    }
+
+    .deficit-kpis {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid color-mix(in srgb, var(--bg) 24%, transparent);
+    }
+
+    .deficit-kpi {
+      min-width: 0;
+      padding: 12px 11px 14px;
+      border-right: 1px solid color-mix(in srgb, var(--bg) 24%, transparent);
+    }
+
+    .deficit-kpi:last-child {
+      border-right: 0;
+    }
+
+    .deficit-kpi span,
+    .deficit-kpi strong,
+    .deficit-kpi small {
+      display: block;
+    }
+
+    .deficit-kpi span {
+      overflow: hidden;
+      color: color-mix(in srgb, var(--bg) 72%, transparent);
+      font-size: 9px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .deficit-kpi strong {
+      margin-top: 5px;
+      color: var(--bg);
+      font-family: var(--font-data);
+      font-size: 25px;
+      line-height: 1;
+    }
+
+    .deficit-kpi small {
+      margin-top: 3px;
+      color: color-mix(in srgb, var(--bg) 58%, transparent);
+      font-size: 8px;
+    }
+
+    .deficit-note {
+      padding: 9px 16px 11px;
+      background: color-mix(in srgb, var(--bg) 9%, transparent);
+      color: color-mix(in srgb, var(--bg) 72%, transparent);
+      font-size: 9px;
+      line-height: 1.4;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .kpi-card {
+      min-width: 0;
+      padding: 13px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .kpi-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .kpi-top svg {
+      width: 16px;
+      height: 16px;
+      color: var(--primary);
+    }
+
+    .kpi-value {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      margin-top: 10px;
+    }
+
+    .kpi-value strong {
+      font-family: var(--font-data);
+      font-size: 36px;
+      line-height: .9;
+    }
+
+    .kpi-value span {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .kpi-detail {
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .mini-progress {
+      display: flex;
+      gap: 3px;
+      margin-top: 9px;
+    }
+
+    .mini-progress i {
+      height: 6px;
+      flex: 1;
+      border-radius: 2px;
+      background: var(--surface-2);
+    }
+
+    .mini-progress i.is-on {
+      background: var(--primary);
+    }
+
+    .weekly-card {
+      overflow: hidden;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .weekly-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 14px 11px;
+    }
+
+    .weekly-head h3,
+    .weekly-head p {
+      margin: 0;
+    }
+
+    .weekly-head h3 {
+      font-size: 14px;
+    }
+
+    .weekly-head p {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .weekly-badge {
+      min-height: 27px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .weekly-primary {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      border-top: 1px solid var(--line-soft);
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .weekly-main {
+      padding: 13px 14px;
+      border-right: 1px solid var(--line-soft);
+    }
+
+    .weekly-main span,
+    .weekly-main strong,
+    .weekly-main small {
+      display: block;
+    }
+
+    .weekly-main span {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .weekly-main strong {
+      margin-top: 4px;
+      font-family: var(--font-data);
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .weekly-main small {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .weekly-bars {
+      display: flex;
+      gap: 5px;
+      align-items: end;
+      padding: 12px 14px;
+    }
+
+    .weekly-bars i {
+      min-width: 7px;
+      flex: 1;
+      border-radius: 3px 3px 1px 1px;
+      background: var(--primary);
+    }
+
+    .weekly-bars i.is-special {
+      background: var(--phase);
+    }
+
+    .weekly-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .weekly-stat {
+      min-width: 0;
+      padding: 11px 10px;
+      border-right: 1px solid var(--line-soft);
+    }
+
+    .weekly-stat:last-child {
+      border-right: 0;
+    }
+
+    .weekly-stat span,
+    .weekly-stat strong {
+      display: block;
+    }
+
+    .weekly-stat span {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 9px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .weekly-stat strong {
+      margin-top: 3px;
+      font-family: var(--font-data);
+      font-size: 19px;
+      line-height: 1;
+    }
+
+    .chart-card {
+      overflow: hidden;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .chart-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px 5px;
+    }
+
+    .chart-head h3,
+    .chart-head p {
+      margin: 0;
+    }
+
+    .chart-head h3 {
+      font-size: 14px;
+    }
+
+    .chart-head p {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .chart-value {
+      flex: 0 0 auto;
+      color: var(--primary);
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1;
+      text-align: right;
+    }
+
+    .chart-value small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-family: var(--font-body);
+      font-size: 8px;
+      font-weight: 600;
+    }
+
+    .chart-wrap {
+      position: relative;
+      padding: 0 5px 4px;
+    }
+
+    .chart-wrap svg {
+      width: 100%;
+      height: auto;
+      overflow: visible;
+    }
+
+    .chart-grid-line {
+      stroke: var(--line-soft);
+      stroke-width: 1;
+    }
+
+    .chart-axis-text {
+      fill: var(--muted);
+      font-family: var(--font-body);
+      font-size: 9px;
+    }
+
+    .chart-raw {
+      fill: none;
+      stroke: var(--muted);
+      stroke-width: 1.8;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .chart-ma {
+      fill: none;
+      stroke: var(--primary);
+      stroke-width: 4;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .chart-point {
+      fill: var(--surface);
+      stroke: var(--muted);
+      stroke-width: 2;
+    }
+
+    .chart-point.is-special {
+      fill: var(--phase);
+      stroke: var(--surface);
+      stroke-width: 2;
+    }
+
+    .chart-point.is-latest {
+      fill: var(--primary);
+      stroke: var(--surface);
+      stroke-width: 3;
+    }
+
+    .phase-zone {
+      fill: var(--phase-soft);
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 0 14px 11px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-line {
+      width: 18px;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--primary);
+    }
+
+    .legend-line.is-raw {
+      height: 2px;
+      background: var(--muted);
+    }
+
+    .legend-block {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      background: var(--phase);
+    }
+
+    .chart-data-toggle {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border: 0;
+      border-top: 1px solid var(--line-soft);
+      background: transparent;
+      color: var(--primary);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .chart-data-toggle svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .chart-data {
+      display: none;
+      overflow-x: auto;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .chart-data.is-open {
+      display: block;
+    }
+
+    .chart-data table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }
+
+    .chart-data th,
+    .chart-data td {
+      padding: 7px 9px;
+      border-bottom: 1px solid var(--line-soft);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .chart-data th {
+      color: var(--muted);
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+
+    .intake-chart {
+      position: relative;
+      height: 154px;
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 5px;
+      align-items: end;
+      margin: 9px 13px 0;
+      padding: 21px 0 20px;
+    }
+
+    .intake-target {
+      position: absolute;
+      right: 0;
+      bottom: 68px;
+      left: 0;
+      border-top: 2px dashed var(--primary);
+    }
+
+    .intake-target span {
+      position: absolute;
+      top: -17px;
+      right: 0;
+      color: var(--primary);
+      font-size: 8px;
+      font-weight: 700;
+    }
+
+    .intake-bar {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      border-radius: 3px 3px 1px 1px;
+      background: var(--primary);
+    }
+
+    .intake-bar.is-special {
+      background: repeating-linear-gradient(135deg, var(--phase) 0 4px, var(--phase-soft) 4px 8px);
+      outline: 1px solid var(--phase);
+      outline-offset: -1px;
+    }
+
+    .intake-label {
+      position: absolute;
+      right: -4px;
+      bottom: -18px;
+      left: -4px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 7px;
+      text-align: center;
+      text-overflow: clip;
+      white-space: nowrap;
+    }
+
+    .med-card {
+      overflow: hidden;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .med-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+    }
+
+    .med-head h2,
+    .med-head h3,
+    .med-head p {
+      margin: 0;
+    }
+
+    .med-head h2,
+    .med-head h3 {
+      font-size: 14px;
+    }
+
+    .med-head p {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .source-badge {
+      min-height: 27px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: var(--phase-soft);
+      color: var(--phase);
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .source-badge svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .med-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .med-stat {
+      min-width: 0;
+      padding: 12px 10px;
+      border-right: 1px solid var(--line-soft);
+    }
+
+    .med-stat:last-child {
+      border-right: 0;
+    }
+
+    .med-stat span,
+    .med-stat strong,
+    .med-stat small {
+      display: block;
+    }
+
+    .med-stat span {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 9px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .med-stat strong {
+      margin-top: 5px;
+      font-family: var(--font-data);
+      font-size: 23px;
+      line-height: 1;
+    }
+
+    .med-stat small {
+      margin-top: 4px;
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .med-stat small.is-good { color: var(--protein); }
+    .med-stat small.is-bad { color: var(--fat); }
+    .med-stat small.is-neutral { color: var(--primary); }
+
+    .med-note {
+      padding: 9px 14px 11px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--muted);
+      font-size: 9px;
+      line-height: 1.4;
+    }
+
+    .marks-list {
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .mark-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      min-height: 69px;
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .mark-row:last-child {
+      border-bottom: 0;
+    }
+
+    .mark-copy {
+      min-width: 0;
+    }
+
+    .mark-copy strong,
+    .mark-copy span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mark-copy strong {
+      font-size: 12px;
+    }
+
+    .mark-copy span {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .mark-progress {
+      position: relative;
+      height: 5px;
+      margin-top: 8px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: var(--surface-2);
+    }
+
+    .mark-progress i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--primary);
+    }
+
+    .mark-value {
+      text-align: right;
+    }
+
+    .mark-value strong,
+    .mark-value span {
+      display: block;
+    }
+
+    .mark-value strong {
+      font-family: var(--font-data);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .mark-value span {
+      margin-top: 4px;
+      color: var(--protein);
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .mark-value span.is-below {
+      color: var(--fat);
+    }
+
+    .history-list {
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .history-row {
+      display: grid;
+      grid-template-columns: 72px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 61px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .history-date {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+    }
+
+    .history-copy {
+      min-width: 0;
+    }
+
+    .history-copy strong,
+    .history-copy span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .history-copy strong {
+      font-size: 11px;
+    }
+
+    .history-copy span {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .history-value {
+      font-family: var(--font-data);
+      font-size: 17px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .bottom-nav {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 50;
+      height: calc(70px + env(safe-area-inset-bottom));
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      align-items: start;
+      padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+      border-top: 1px solid var(--line-soft);
+      background: color-mix(in srgb, var(--surface) 94%, transparent);
+      backdrop-filter: blur(18px);
+    }
+
+    .nav-button {
+      min-width: 0;
+      min-height: 52px;
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      gap: 4px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .nav-button:hover {
+      background: var(--surface-2);
+    }
+
+    .nav-button svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 1.8;
+    }
+
+    .nav-button.is-active {
+      color: var(--primary);
+    }
+
+    .floating-add {
+      position: absolute;
+      right: 18px;
+      bottom: calc(82px + env(safe-area-inset-bottom));
+      z-index: 55;
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border: 5px solid var(--bg);
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 10px 26px rgb(20 69 124 / 30%);
+      color: var(--on-primary);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .floating-add:hover {
+      transform: translateY(-2px);
+    }
+
+    .floating-add.is-hidden {
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    .floating-add svg {
+      width: 23px;
+      height: 23px;
+      stroke-width: 2;
+    }
+
+    .sheet-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 90;
+      display: grid;
+      align-items: end;
+      pointer-events: none;
+      background: rgb(4 18 23 / 0%);
+      transition: background-color 200ms ease;
+    }
+
+    .sheet-layer.is-open {
+      pointer-events: auto;
+      background: rgb(4 18 23 / 54%);
+    }
+
+    .add-sheet {
+      max-height: 78%;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+      border-radius: 14px 14px 0 0;
+      background: var(--surface);
+      box-shadow: 0 -18px 55px rgb(5 22 28 / 30%);
+      transform: translateY(105%);
+      transition: transform 240ms cubic-bezier(.2, .8, .2, 1);
+    }
+
+    .sheet-layer.is-open .add-sheet {
+      transform: translateY(0);
+    }
+
+    .sheet-grabber {
+      width: 38px;
+      height: 4px;
+      margin: 0 auto 10px;
+      border-radius: 99px;
+      background: var(--line);
+    }
+
+    .sheet-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sheet-head h2,
+    .sheet-head p {
+      margin: 0;
+    }
+
+    .sheet-head h2 {
+      font-size: 20px;
+    }
+
+    .sheet-head p {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .search-field {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-top: 14px;
+      padding: 0 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface-2);
+      color: var(--muted);
+    }
+
+    .search-field svg {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+    }
+
+    .search-field input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font-size: 16px;
+    }
+
+    .search-field input::placeholder {
+      color: var(--muted);
+    }
+
+    .add-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .add-option {
+      min-height: 68px;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 9px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+      text-align: left;
+    }
+
+    .add-option:hover {
+      border-color: var(--line);
+      background: var(--surface-2);
+    }
+
+    .add-option svg {
+      width: 21px;
+      height: 21px;
+      color: var(--primary);
+    }
+
+    .add-option strong,
+    .add-option span {
+      display: block;
+    }
+
+    .add-option strong {
+      font-size: 11px;
+    }
+
+    .add-option span {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 9px;
+    }
+
+    .toast {
+      position: absolute;
+      right: 16px;
+      bottom: calc(82px + env(safe-area-inset-bottom));
+      left: 16px;
+      z-index: 120;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--ink);
+      color: var(--bg);
+      box-shadow: 0 12px 34px rgb(3 18 24 / 28%);
+      font-size: 11px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast svg {
+      width: 17px;
+      height: 17px;
+      flex: 0 0 auto;
+    }
+
+    .tokens-section {
+      width: min(1100px, calc(100% - 40px));
+      margin: 0 auto 64px;
+      padding-top: 36px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .tokens-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    .tokens-header h2,
+    .tokens-header p {
+      margin: 0;
+    }
+
+    .tokens-header h2 {
+      font-size: 28px;
+      line-height: 1.12;
+      text-wrap: balance;
+    }
+
+    .tokens-header p {
+      max-width: 680px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .audit-summary {
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 0 12px;
+      border: 1px solid var(--protein);
+      border-radius: 999px;
+      background: var(--positive-soft);
+      color: var(--ink);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .audit-summary svg {
+      width: 16px;
+      height: 16px;
+      color: var(--protein);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+
+    .token-table,
+    .contrast-table {
+      width: 100%;
+      min-width: 720px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .token-table caption,
+    .contrast-table caption {
+      padding: 14px 16px 10px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 700;
+      text-align: left;
+    }
+
+    .token-table th,
+    .token-table td,
+    .contrast-table th,
+    .contrast-table td {
+      padding: 10px 14px;
+      border-top: 1px solid var(--line-soft);
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .token-table th,
+    .contrast-table th {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .token-name {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .swatch-value {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+    }
+
+    .swatch {
+      width: 22px;
+      height: 22px;
+      flex: 0 0 auto;
+      border: 1px solid #72869a;
+      border-radius: 5px;
+      background: var(--swatch);
+    }
+
+    .token-use {
+      color: var(--muted);
+    }
+
+    .contrast-block {
+      margin-top: 18px;
+    }
+
+    .ratio-pill {
+      min-width: 68px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: var(--positive-soft);
+      color: var(--ink);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .ratio-pill.is-fail {
+      background: var(--fat-soft);
+      color: var(--ink);
+    }
+
+    .ratio-pill svg {
+      width: 13px;
+      height: 13px;
+      color: var(--protein);
+    }
+
+    .ratio-pill.is-fail svg {
+      color: var(--fat);
+    }
+
+    .token-footnote {
+      margin: 13px 2px 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 640px) {
+      .preview-toolbar {
+        display: none;
+      }
+
+      .preview-stage {
+        display: block;
+        min-height: 0;
+        padding: 0;
+      }
+
+      .device {
+        width: 100%;
+        height: 100dvh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      .status-bar {
+        height: calc(28px + env(safe-area-inset-top));
+        padding-top: env(safe-area-inset-top);
+      }
+
+      .app-shell {
+        height: calc(100% - 28px - env(safe-area-inset-top));
+      }
+
+      .tokens-section {
+        width: calc(100% - 28px);
+        margin-top: 42px;
+      }
+
+      .tokens-header {
+        grid-template-columns: 1fr;
+      }
+
+      .tokens-header h2 {
+        font-size: 24px;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .gauge-a-main {
+        grid-template-columns: 128px minmax(0, 1fr);
+        gap: 10px;
+      }
+
+      .fuel-ring {
+        width: 124px;
+      }
+
+      .fuel-ring-copy strong {
+        font-size: 43px;
+      }
+
+      .macro-meter-head strong {
+        font-size: 17px;
+      }
+
+      .meal-legend {
+        gap: 4px;
+      }
+
+      .meal-legend span {
+        font-size: 8px;
+      }
+
+      .deficit-kpi {
+        padding-inline: 8px;
+      }
+
+      .deficit-kpi strong {
+        font-size: 22px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#prototype">Saltar al prototipo</a>
+
+  <div class="preview-toolbar" aria-label="Controles del mockup">
+    <span class="preview-label">Performance · datos reales 17 jul</span>
+    <a class="icon-button" href="#tokens" aria-label="Ir a la tabla de tokens" title="Ver tokens"><i data-lucide="table-properties" aria-hidden="true"></i></a>
+    <button class="icon-button theme-toggle" type="button" aria-label="Cambiar a tema oscuro" title="Cambiar tema"><i data-lucide="moon" aria-hidden="true"></i></button>
+  </div>
+
+  <main id="prototype">
+    <section class="preview-stage" aria-label="Prototipo interactivo de Fuelboard">
+      <div class="device">
+        <div class="status-bar" aria-hidden="true"><span>9:41</span><span class="status-icons"><span class="signal"></span><span class="battery"></span></span></div>
+
+        <div class="app-shell">
+          <section class="page-view is-active" data-view="home" aria-label="Hoy">
+            <header class="app-topbar">
+              <div class="wordmark"><span class="wordmark-badge" aria-hidden="true">F</span><span class="wordmark-copy"><strong>Fuelboard</strong><span>Combustible & rendimiento</span></span></div>
+              <div class="top-actions"><button class="icon-button theme-toggle" type="button" aria-label="Cambiar a tema oscuro" title="Cambiar tema"><i data-lucide="moon" aria-hidden="true"></i></button><button class="avatar" type="button" aria-label="Abrir ajustes de Alex">A</button></div>
+            </header>
+
+            <div class="date-control">
+              <button class="icon-button prototype-limit" type="button" aria-label="Día anterior" title="Día anterior"><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+              <div class="date-copy"><strong>Viernes, 17 de julio</strong><span>Cierre completo · fase Normal</span></div>
+              <button class="icon-button prototype-limit" type="button" aria-label="Día siguiente" title="Día siguiente"><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+            </div>
+
+            <div class="page-heading"><div><span class="eyebrow">Tu día real</span><h1>Combustible sin ruido</h1></div><span class="streak-chip"><i data-lucide="flame" aria-hidden="true"></i><span class="data">10 días</span></span></div>
+
+            <div class="section-head" style="margin-top:0"><div><h2>FuelGauge</h2><p>2 variantes, mismos datos</p></div><div class="segmented" role="group" aria-label="Variante de FuelGauge"><button type="button" data-gauge="a" aria-pressed="true">A</button><button type="button" data-gauge="b" aria-pressed="false">B</button></div></div>
+
+            <section class="gauge-card" aria-label="Presupuesto real del 17 de julio">
+              <div class="gauge-toolbar"><div><span class="eyebrow">Presupuesto del día</span><h2>Objetivo calórico cerrado</h2></div><span class="gauge-state">−5 kcal</span></div>
+
+              <div class="gauge-variant is-active" data-gauge-panel="a">
+                <div class="gauge-a-main">
+                  <div class="fuel-ring" role="img" aria-label="1795 de 1800 kilocalorías, 99,7 por ciento"><div class="fuel-ring-copy"><strong>1.795</strong><span>de 1.800 kcal</span><small>99,7%</small></div></div>
+                  <div class="macro-stack">
+                    <div class="macro-meter" style="--macro-color:var(--protein)"><div class="macro-meter-head"><span>Proteína</span><strong>149,6/110</strong></div><div class="macro-track"><span class="macro-fill" style="width:100%"></span><i class="macro-over" title="39,6 g sobre objetivo"></i></div></div>
+                    <div class="macro-meter" style="--macro-color:var(--carb)"><div class="macro-meter-head"><span>Hidratos</span><strong>173,2/180</strong></div><div class="macro-track"><span class="macro-fill" style="width:96.2%"></span></div></div>
+                    <div class="macro-meter" style="--macro-color:var(--fat)"><div class="macro-meter-head"><span>Grasa</span><strong>50,2/62</strong></div><div class="macro-track"><span class="macro-fill" style="width:81%"></span></div></div>
+                  </div>
+                </div>
+                <div class="meal-fuel"><div class="meal-fuel-head"><strong>Barra de combustión</strong><span>segmentada por comida</span></div><div class="meal-segments" role="img" aria-label="Almuerzo 18, comida 756, merienda 469 y cena 552 kilocalorías"><span class="meal-segment" style="width:1%"></span><span class="meal-segment" style="width:42.1%"></span><span class="meal-segment" style="width:26.1%"></span><span class="meal-segment" style="width:30.8%"></span></div><div class="meal-legend"><span><strong>18</strong>Almuerzo</span><span><strong>756</strong>Comida</span><span><strong>469</strong>Merienda</span><span><strong>552</strong>Cena</span></div></div>
+              </div>
+
+              <div class="gauge-variant" data-gauge-panel="b">
+                <div class="gauge-b-main"><div class="vector-top"><div class="vector-total"><strong>1.795</strong><span>kcal registradas</span></div><div class="vector-delta"><strong>−5</strong><span>hasta la pauta</span></div></div><div class="fuel-vector" role="img" aria-label="Vector de combustible dividido por comida"><span class="vector-cell"><span>18</span></span><span class="vector-cell"><span>Comida · 756</span></span><span class="vector-cell"><span>Mer. · 469</span></span><span class="vector-cell"><span>Cena · 552</span></span></div><div class="vector-macros"><div class="vector-macro" style="--macro-color:var(--protein)"><span>Proteína</span><strong>136%</strong><small>+39,6 g</small></div><div class="vector-macro" style="--macro-color:var(--carb)"><span>Hidratos</span><strong>96%</strong><small>−6,8 g</small></div><div class="vector-macro" style="--macro-color:var(--fat)"><span>Grasa</span><strong>81%</strong><small>−11,8 g</small></div></div></div>
+              </div>
+
+              <div class="gauge-foot"><span><strong>Dato real:</strong> suma de 15 entradas del día</span></div>
+            </section>
+
+            <div class="section-head"><div><h2>Baseline personal</h2><p>Métrica cruda · Δ vs media 30d</p></div><button class="text-action info-toast" type="button"><i data-lucide="info" aria-hidden="true"></i>Fuente</button></div>
+            <div class="baseline-grid">
+              <section class="baseline-chip" aria-label="HRV 56 milisegundos, 11 menos que la media"><div class="baseline-top"><span>HRV</span><i data-lucide="activity" aria-hidden="true"></i></div><div class="baseline-value"><strong>56</strong><span>ms</span></div><span class="delta is-low"><i data-lucide="arrow-down" aria-hidden="true"></i>−11 ms vs 66,6</span></section>
+              <section class="baseline-chip" aria-label="Frecuencia cardiaca en reposo 40, 6 menos que la media"><div class="baseline-top"><span>FC reposo</span><i data-lucide="heart-pulse" aria-hidden="true"></i></div><div class="baseline-value"><strong>40</strong><span>lpm</span></div><span class="delta is-good"><i data-lucide="arrow-down" aria-hidden="true"></i>−6 lpm vs 46,3</span></section>
+              <section class="baseline-chip" aria-label="Sueño importado 0 horas, 3,8 menos que la media bruta"><div class="baseline-top"><span>Sueño*</span><i data-lucide="moon" aria-hidden="true"></i></div><div class="baseline-value"><strong>0,0</strong><span>h</span></div><span class="delta is-warning"><i data-lucide="triangle-alert" aria-hidden="true"></i>−3,8 h vs media bruta</span></section>
+              <section class="baseline-chip" aria-label="5978 pasos, 5243 menos que la media"><div class="baseline-top"><span>Pasos</span><i data-lucide="footprints" aria-hidden="true"></i></div><div class="baseline-value"><strong>5.978</strong><span>pasos</span></div><span class="delta is-neutral"><i data-lucide="arrow-down" aria-hidden="true"></i>−5.243 vs 11.221</span></section>
+            </div>
+            <p class="baseline-note"><i data-lucide="triangle-alert" aria-hidden="true"></i><span>* Apple Health registró <span class="data">0,0 h</span> el 17 jul. La media bruta usa 10 registros disponibles; ninguno cae en el rango plausible 2–14 h. Se muestra el dato, no se fabrica una lectura.</span></p>
+
+            <div class="section-head"><div><h2>Entrenamiento</h2><p>Sesión y gasto del reloj</p></div></div>
+            <section class="session-card" aria-label="Bodybuilding y BikeErg, 720 kilocalorías activas"><span class="session-icon"><i data-lucide="dumbbell" aria-hidden="true"></i></span><div class="session-copy"><strong>Bodybuilding + BikeErg</strong><span>Sesión registrada · 17 jul</span></div><div class="session-kcal"><strong>720</strong><span>kcal activas</span></div></section>
+
+            <div class="section-head"><div><h2>Comidas</h2><p>15 entradas · 4 momentos</p></div><button class="text-action" type="button" id="expandMeals">Expandir</button></div>
+            <div class="meal-list">
+              <article class="meal-item"><button class="meal-button" type="button" aria-expanded="false"><span class="meal-status"><i data-lucide="check" aria-hidden="true"></i></span><span class="meal-copy"><strong>Almuerzo</strong><span>1 entrada</span></span><span class="meal-total">18 kcal</span><i data-lucide="chevron-down" aria-hidden="true"></i></button><div class="meal-details"><div class="food-line"><span>Café + leche almendras zero · 300 ml</span><span class="data">18</span></div><div class="meal-macros">0,6 P · 1 C · 1 F</div></div></article>
+              <article class="meal-item"><button class="meal-button" type="button" aria-expanded="false"><span class="meal-status"><i data-lucide="check" aria-hidden="true"></i></span><span class="meal-copy"><strong>Comida</strong><span>5 entradas</span></span><span class="meal-total">756 kcal</span><i data-lucide="chevron-down" aria-hidden="true"></i></button><div class="meal-details"><div class="food-line"><span>Tortillas de harina integral Lidl</span><span class="data">238</span></div><div class="food-line"><span>Ternera magra</span><span class="data">275</span></div><div class="food-line"><span>Gazpacho + verdura</span><span class="data">113</span></div><div class="food-line"><span>Arroz hervido</span><span class="data">130</span></div><div class="meal-macros">58,5 P · 73,1 C · 23 F</div></div></article>
+              <article class="meal-item"><button class="meal-button" type="button" aria-expanded="false"><span class="meal-status"><i data-lucide="check" aria-hidden="true"></i></span><span class="meal-copy"><strong>Merienda</strong><span>5 entradas</span></span><span class="meal-total">469 kcal</span><i data-lucide="chevron-down" aria-hidden="true"></i></button><div class="meal-details"><div class="food-line"><span>Sandía + café con leche de almendras</span><span class="data">108</span></div><div class="food-line"><span>Pan integral + mermelada 0%</span><span class="data">163</span></div><div class="food-line"><span>Batido de proteínas de chocolate</span><span class="data">198</span></div><div class="meal-macros">33,9 P · 64,1 C · 7,8 F</div></div></article>
+              <article class="meal-item"><button class="meal-button" type="button" aria-expanded="false"><span class="meal-status"><i data-lucide="check" aria-hidden="true"></i></span><span class="meal-copy"><strong>Cena</strong><span>4 entradas</span></span><span class="meal-total">552 kcal</span><i data-lucide="chevron-down" aria-hidden="true"></i></button><div class="meal-details"><div class="food-line"><span>Pechuga de pollo troceada</span><span class="data">230</span></div><div class="food-line"><span>Champiñones y pimiento verde</span><span class="data">38</span></div><div class="food-line"><span>AOVE + tortillas integrales</span><span class="data">284</span></div><div class="meal-macros">56,6 P · 35 C · 18,4 F</div></div></article>
+            </div>
+
+            <div class="section-head"><div><h2>Contexto del reloj</h2><p>Subordinado a la tendencia del peso</p></div></div>
+            <section class="orientation-card"><div><strong>Balance del día · orientativo ±25%</strong><span><span class="data">1.795</span> ingesta − (<span class="data">1.933</span> basal + <span class="data">720</span> activas)</span><small>Apple Watch · no sustituye al déficit real</small></div><div class="orientation-value"><strong>−858</strong><span>kcal</span></div></section>
+          </section>
+
+          <section class="page-view" data-view="progress" aria-label="Progreso">
+            <header class="app-topbar">
+              <div class="wordmark"><span class="wordmark-badge" aria-hidden="true">F</span><span class="wordmark-copy"><strong>Fuelboard</strong><span>Tendencias y rendimiento</span></span></div>
+              <div class="top-actions"><button class="icon-button theme-toggle" type="button" aria-label="Cambiar a tema oscuro" title="Cambiar tema"><i data-lucide="moon" aria-hidden="true"></i></button><button class="avatar" type="button" aria-label="Abrir ajustes de Alex">A</button></div>
+            </header>
+
+            <div class="progress-tabs" role="tablist" aria-label="Secciones de Progreso"><button class="progress-tab" type="button" role="tab" aria-selected="true" data-progress-tab="trend">Tendencia</button><button class="progress-tab" type="button" role="tab" aria-selected="false" data-progress-tab="med">MED</button><button class="progress-tab" type="button" role="tab" aria-selected="false" data-progress-tab="history">Historial</button></div>
+
+            <section class="progress-panel is-active" data-progress-panel="trend">
+              <div class="range-row"><div class="segmented" role="group" aria-label="Rango temporal"><button type="button" data-range="14" aria-pressed="false">14 d</button><button type="button" data-range="30" aria-pressed="false">30 d</button><button type="button" data-range="90" aria-pressed="true">90 d</button><button type="button" data-range="all" aria-pressed="false">Todo</button></div></div>
+
+              <section class="deficit-card" aria-label="Déficit real aún no calculable"><div class="deficit-head"><div><span class="eyebrow">La cifra que manda</span><h2>Tu gasto y déficit reales · desde el peso</h2></div><button class="icon-button deficit-info" type="button" aria-label="Cómo se calcula el déficit real" title="Cómo se calcula"><i data-lucide="info" aria-hidden="true"></i></button></div><div class="calibration"><div><strong>Calibrando con tus pesajes</strong><span>Necesita ≥8 pesajes elegibles repartidos en al menos 7 días.</span><div class="weighin-rail" role="img" aria-label="5 de 8 pesajes válidos"><i class="is-filled"></i><i class="is-filled"></i><i class="is-filled"></i><i class="is-filled"></i><i class="is-filled"></i><i></i><i></i><i></i></div></div><span class="weighin-count">5/8</span></div><div class="deficit-kpis"><div class="deficit-kpi"><span>Déficit real</span><strong>—</strong><small>kcal/día</small></div><div class="deficit-kpi"><span>Pendiente</span><strong>—</strong><small>kg/semana</small></div><div class="deficit-kpi"><span>TDEE real</span><strong>—</strong><small>kcal/día</small></div></div><div class="deficit-note">No se extrapola ningún valor. Los días de Carga, Competición, Recuperación y los 2 posteriores a competir quedan fuera.</div></section>
+
+              <div class="kpi-grid">
+                <section class="kpi-card" aria-label="Adherencia 14 días 83 por ciento"><div class="kpi-top"><span>Adherencia · 14d</span><i data-lucide="target" aria-hidden="true"></i></div><div class="kpi-value"><strong>83</strong><span>%</span></div><div class="mini-progress" aria-hidden="true"><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i></i></div><p class="kpi-detail"><span class="data">5/6</span> días Normal en rango · <span class="data">6/6</span> proteína</p></section>
+                <section class="kpi-card" aria-label="Racha de registro 10 días"><div class="kpi-top"><span>Racha</span><i data-lucide="flame" aria-hidden="true" style="color:var(--fat)"></i></div><div class="kpi-value"><strong>10</strong><span>días</span></div><div class="mini-progress" aria-hidden="true"><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i></div><p class="kpi-detail">Del 8 al 17 jul, sin huecos de registro.</p></section>
+              </div>
+
+              <div class="section-head"><div><h2>Resumen semanal</h2><p>11–17 jul · datos reales</p></div></div>
+              <section class="weekly-card"><div class="weekly-head"><div><h3>7 de 7 días registrados</h3><p>2 fases especiales · 5 días Normal</p></div><span class="weekly-badge">Semana completa</span></div><div class="weekly-primary"><div class="weekly-main"><span>Días Normal en rango</span><strong>4/5</strong><small>±10% de 1.800 kcal</small></div><div class="weekly-bars" role="img" aria-label="Ingesta de los siete días, con competición y recuperación marcadas"><i class="is-special" style="height:51px"></i><i class="is-special" style="height:45px"></i><i style="height:30px"></i><i style="height:35px"></i><i style="height:31px"></i><i style="height:33px"></i><i style="height:31px"></i></div></div><div class="weekly-grid"><div class="weekly-stat"><span>Ingesta Normal</span><strong>1.847</strong></div><div class="weekly-stat"><span>Proteína media</span><strong style="color:var(--protein)">125 g</strong></div><div class="weekly-stat"><span>Pasos medios</span><strong>9.019</strong></div></div></section>
+
+              <div class="section-head"><div><h2>Peso y media móvil</h2><p>Valores crudos + ma7 elegible</p></div></div>
+              <section class="chart-card"><div class="chart-head"><div><h3>Último peso: 92,6 kg</h3><p>La fase especial se mantiene visible, pero no calibra.</p></div><div class="chart-value">92,28<small>ma7 elegible</small></div></div><div class="chart-wrap"><svg viewBox="0 0 350 176" role="img" aria-labelledby="weightChartTitle weightChartDesc"><title id="weightChartTitle">Peso del 8 al 17 de julio</title><desc id="weightChartDesc">El peso crudo oscila entre 91,4 y 93,6 kilos. La media móvil elegible termina en 92,28 kilos. Los días del 9 al 13 se marcan como fase especial o exclusión posterior.</desc><rect class="phase-zone" x="54" y="18" width="151" height="126" rx="4"></rect><line class="chart-grid-line" x1="28" y1="25" x2="337" y2="25"></line><line class="chart-grid-line" x1="28" y1="82" x2="337" y2="82"></line><line class="chart-grid-line" x1="28" y1="140" x2="337" y2="140"></line><text class="chart-axis-text" x="2" y="29">93,6</text><text class="chart-axis-text" x="4" y="86">92,5</text><text class="chart-axis-text" x="4" y="144">91,4</text><text class="chart-axis-text" x="88" y="31">Fase especial + 2 d</text><path class="chart-raw" d="M30 124 L63 92 L96 70 L129 103 L162 140 L195 25 L228 51 L261 135 L294 114 L327 76"></path><path class="chart-ma" d="M30 124 L228 87 L261 92 L294 99 L327 93"></path><circle class="chart-point" cx="30" cy="124" r="4"></circle><circle class="chart-point is-special" cx="63" cy="92" r="5"></circle><circle class="chart-point is-special" cx="96" cy="70" r="5"></circle><circle class="chart-point is-special" cx="129" cy="103" r="5"></circle><circle class="chart-point is-special" cx="162" cy="140" r="5"></circle><circle class="chart-point is-special" cx="195" cy="25" r="5"></circle><circle class="chart-point" cx="228" cy="51" r="4"></circle><circle class="chart-point" cx="261" cy="135" r="4"></circle><circle class="chart-point" cx="294" cy="114" r="4"></circle><circle class="chart-point is-latest" cx="327" cy="76" r="6"></circle><text class="chart-axis-text" x="25" y="163">8</text><text class="chart-axis-text" x="124" y="163">11</text><text class="chart-axis-text" x="223" y="163">14</text><text class="chart-axis-text" x="321" y="163">17</text></svg></div><div class="chart-legend"><span class="legend-item"><i class="legend-line"></i>Media móvil elegible</span><span class="legend-item"><i class="legend-line is-raw"></i>Peso crudo</span><span class="legend-item"><i class="legend-block"></i>Fase/exclusión</span></div><button class="chart-data-toggle" type="button" data-table-toggle="weightData" aria-expanded="false"><i data-lucide="table-2" aria-hidden="true"></i>Ver valores</button><div class="chart-data" id="weightData"><table><thead><tr><th>Fecha</th><th>Peso</th><th>ma7</th><th>Estado</th></tr></thead><tbody><tr><td>8 jul</td><td class="data">91,7</td><td class="data">91,70</td><td>Elegible</td></tr><tr><td>9–13 jul</td><td class="data">91,4–93,6</td><td>—</td><td>Fase/exclusión</td></tr><tr><td>14 jul</td><td class="data">93,1</td><td class="data">92,40</td><td>Elegible</td></tr><tr><td>15 jul</td><td class="data">91,5</td><td class="data">92,30</td><td>Elegible</td></tr><tr><td>16 jul</td><td class="data">91,9</td><td class="data">92,17</td><td>Elegible</td></tr><tr><td>17 jul</td><td class="data">92,6</td><td class="data">92,28</td><td>Elegible</td></tr></tbody></table></div></section>
+
+              <div class="section-head"><div><h2>Ingesta diaria</h2><p>Objetivo 1.800 kcal · fases tramadas</p></div></div>
+              <section class="chart-card"><div class="chart-head"><div><h3>10 días con registro</h3><p>Los picos de fase especial no cuentan como desviación.</p></div><div class="chart-value">1.847<small>media Normal · semana</small></div></div><div class="intake-chart" role="img" aria-label="Ingesta diaria del 8 al 17 de julio"><div class="intake-target"><span>objetivo 1.800</span></div><div class="intake-bar" style="height:53.5%"><span class="intake-label">8</span></div><div class="intake-bar is-special" style="height:95.7%"><span class="intake-label">9</span></div><div class="intake-bar is-special" style="height:65.8%"><span class="intake-label">10</span></div><div class="intake-bar is-special" style="height:84.1%"><span class="intake-label">11</span></div><div class="intake-bar is-special" style="height:75.8%"><span class="intake-label">12</span></div><div class="intake-bar" style="height:51.2%"><span class="intake-label">13</span></div><div class="intake-bar" style="height:58.4%"><span class="intake-label">14</span></div><div class="intake-bar" style="height:53.4%"><span class="intake-label">15</span></div><div class="intake-bar" style="height:55.8%"><span class="intake-label">16</span></div><div class="intake-bar" style="height:52.8%"><span class="intake-label">17</span></div></div><div class="chart-legend"><span class="legend-item"><i class="legend-block" style="background:var(--primary)"></i>Normal</span><span class="legend-item"><i class="legend-block"></i>Fase especial</span><span class="legend-item"><i class="legend-line" style="height:2px"></i>Objetivo</span></div><button class="chart-data-toggle" type="button" data-table-toggle="intakeData" aria-expanded="false"><i data-lucide="table-2" aria-hidden="true"></i>Ver valores</button><div class="chart-data" id="intakeData"><table><thead><tr><th>Fecha</th><th>kcal</th><th>Fase</th></tr></thead><tbody><tr><td>8 jul</td><td class="data">1.818</td><td>Normal</td></tr><tr><td>9 jul</td><td class="data">3.253</td><td>Carga</td></tr><tr><td>10 jul</td><td class="data">2.236</td><td>Carga</td></tr><tr><td>11 jul</td><td class="data">2.858</td><td>Competición</td></tr><tr><td>12 jul</td><td class="data">2.578</td><td>Recuperación</td></tr><tr><td>13 jul</td><td class="data">1.741</td><td>Normal</td></tr><tr><td>14 jul</td><td class="data">1.987</td><td>Normal</td></tr><tr><td>15 jul</td><td class="data">1.814</td><td>Normal</td></tr><tr><td>16 jul</td><td class="data">1.897</td><td>Normal</td></tr><tr><td>17 jul</td><td class="data">1.795</td><td>Normal</td></tr></tbody></table></div></section>
+
+              <div class="section-head"><div><h2>Balance del 17 jul</h2><p>Contexto, no veredicto</p></div></div>
+              <section class="orientation-card"><div><strong>Orientativo ±25%</strong><span>Reloj: <span class="data">2.653 kcal</span> de gasto frente a <span class="data">1.795 kcal</span> de ingesta.</span><small>No se usa para calibrar tu gasto real.</small></div><div class="orientation-value"><strong>−858</strong><span>kcal</span></div></section>
+
+              <div class="section-head"><div><h2>Última MED</h2><p>8 jul 2026 · vs MED anterior</p></div><button class="text-action" type="button" data-open-progress="med">Ver MED <i data-lucide="arrow-right" aria-hidden="true"></i></button></div>
+              <section class="med-card"><div class="med-head"><div><h3>Composición por pliegues</h3><p>Fuente nutricionista · nunca se cruza con báscula.</p></div><span class="source-badge"><i data-lucide="ruler" aria-hidden="true"></i>MED</span></div><div class="med-grid"><div class="med-stat"><span>Peso</span><strong>91,70</strong><small class="is-neutral">↓ 2,70 kg</small></div><div class="med-stat"><span>Grasa</span><strong>8,98</strong><small class="is-good">↓ 0,84 kg</small></div><div class="med-stat"><span>Músculo</span><strong>51,78</strong><small class="is-bad">↓ 1,23 kg</small></div></div><div class="med-note">Deltas = MED actual − MED anterior. Grasa ↓ favorable; músculo ↓ requiere contexto de hidratación y glucógeno.</div></section>
+
+              <div class="section-head"><div><h2>Marcas recientes</h2><p>Última marca · % del récord</p></div><button class="text-action" type="button" data-open-progress="history">Historial <i data-lucide="arrow-right" aria-hidden="true"></i></button></div>
+              <div class="marks-list"><article class="mark-row"><div class="mark-copy"><strong>Power snatch</strong><span>14 jul 2026 · récord 103 kg</span><div class="mark-progress"><i style="width:97.1%"></i></div></div><div class="mark-value"><strong>100 kg</strong><span class="is-below">97% · −3 kg</span></div></article><article class="mark-row"><div class="mark-copy"><strong>Squat clean</strong><span>15 jun 2026 · récord vigente</span><div class="mark-progress"><i style="width:100%"></i></div></div><div class="mark-value"><strong>135 kg</strong><span>100% récord</span></div></article><article class="mark-row"><div class="mark-copy"><strong>Power clean</strong><span>15 jul 2025 · única entrada</span><div class="mark-progress"><i style="width:100%"></i></div></div><div class="mark-value"><strong>128 kg</strong><span>100% récord</span></div></article></div>
+            </section>
+
+            <section class="progress-panel" data-progress-panel="med">
+              <div class="page-heading"><div><span class="eyebrow">Mediciones del nutricionista</span><h1>MED con su propia historia</h1></div></div>
+              <section class="med-card"><div class="med-head"><div><h2>Última MED · 8 jul 2026</h2><p>Comparada solo con la medición del 8 jun.</p></div><span class="source-badge"><i data-lucide="ruler" aria-hidden="true"></i>MED</span></div><div class="med-grid"><div class="med-stat"><span>Peso</span><strong>91,70</strong><small class="is-neutral">↓ 2,70 kg</small></div><div class="med-stat"><span>Grasa</span><strong>8,98</strong><small class="is-good">↓ 0,84 kg</small></div><div class="med-stat"><span>Músculo</span><strong>51,78</strong><small class="is-bad">↓ 1,23 kg</small></div></div><div class="med-note">No se compara este valor absoluto con la bioimpedancia de casa.</div></section>
+              <div class="section-head"><div><h2>Evolución MED</h2><p>Enero–julio 2026</p></div></div>
+              <section class="chart-card"><div class="chart-head"><div><h3>Cambio desde enero</h3><p>6 mediciones · misma escala porcentual</p></div><div class="chart-value">−16,3%<small>grasa desde la 1.ª MED</small></div></div><div class="chart-wrap"><svg viewBox="0 0 350 176" role="img" aria-labelledby="medChartTitle medChartDesc"><title id="medChartTitle">Cambio porcentual de grasa y músculo desde enero</title><desc id="medChartDesc">Ambas series parten de cero por ciento el 7 de enero. El 8 de julio, la grasa está 16,3 por ciento por debajo y el músculo 1,3 por ciento por encima de esa primera MED.</desc><line class="chart-grid-line" x1="40" y1="28" x2="336" y2="28"></line><line class="chart-grid-line" x1="40" y1="53" x2="336" y2="53"></line><line class="chart-grid-line" x1="40" y1="136" x2="336" y2="136"></line><text class="chart-axis-text" x="7" y="31">+5%</text><text class="chart-axis-text" x="16" y="56">0%</text><text class="chart-axis-text" x="2" y="139">−17%</text><path d="M44 53 L101 49 L158 58 L215 37 L272 94 L332 133" fill="none" stroke="var(--fat)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M44 53 L101 40 L158 40 L215 33 L272 35 L332 46" fill="none" stroke="var(--primary)" stroke-width="3.5" stroke-dasharray="7 5" stroke-linecap="round" stroke-linejoin="round"></path><g fill="var(--surface)" stroke="var(--fat)" stroke-width="2"><circle cx="44" cy="53" r="4"></circle><circle cx="101" cy="49" r="4"></circle><circle cx="158" cy="58" r="4"></circle><circle cx="215" cy="37" r="4"></circle><circle cx="272" cy="94" r="4"></circle><circle cx="332" cy="133" r="5"></circle></g><g fill="var(--surface)" stroke="var(--primary)" stroke-width="2"><circle cx="44" cy="53" r="4"></circle><circle cx="101" cy="40" r="4"></circle><circle cx="158" cy="40" r="4"></circle><circle cx="215" cy="33" r="4"></circle><circle cx="272" cy="35" r="4"></circle><circle cx="332" cy="46" r="5"></circle></g><text class="chart-axis-text" x="38" y="163">ene</text><text class="chart-axis-text" x="151" y="163">mar</text><text class="chart-axis-text" x="265" y="163">jun</text><text class="chart-axis-text" x="323" y="163">jul</text></svg></div><div class="chart-legend"><span class="legend-item"><i class="legend-line" style="background:var(--fat)"></i>Grasa · % desde enero</span><span class="legend-item"><i class="legend-line" style="background:var(--primary)"></i>Músculo · % desde enero</span></div></section>
+              <div class="section-head"><div><h2>Mediciones</h2><p>Actual − anterior</p></div></div>
+              <div class="history-list"><div class="history-row"><span class="history-date">8 jul</span><span class="history-copy"><strong>91,70 kg · 8,98 grasa · 51,78 músculo</strong><span>Δ −2,70 · −0,84 · −1,23</span></span><span class="history-value">2026</span></div><div class="history-row"><span class="history-date">8 jun</span><span class="history-copy"><strong>94,40 kg · 9,82 grasa · 53,01 músculo</strong><span>Δ −1,80 · −1,25 · −0,12</span></span><span class="history-value">2026</span></div><div class="history-row"><span class="history-date">14 abr</span><span class="history-copy"><strong>96,20 kg · 11,06 grasa · 53,13 músculo</strong><span>Δ +1,50 · +0,46 · +0,68</span></span><span class="history-value">2026</span></div><div class="history-row"><span class="history-date">8 mar</span><span class="history-copy"><strong>94,70 kg · 10,61 grasa · 52,45 músculo</strong><span>Δ −0,20 · −0,21 · +0,06</span></span><span class="history-value">2026</span></div><div class="history-row"><span class="history-date">4 feb</span><span class="history-copy"><strong>94,90 kg · 10,82 grasa · 52,39 músculo</strong><span>Δ +0,40 · +0,09 · +1,26</span></span><span class="history-value">2026</span></div><div class="history-row"><span class="history-date">7 ene</span><span class="history-copy"><strong>94,50 kg · 10,73 grasa · 51,13 músculo</strong><span>Primera medición</span></span><span class="history-value">2026</span></div></div>
+            </section>
+
+            <section class="progress-panel" data-progress-panel="history">
+              <div class="page-heading"><div><span class="eyebrow">Rendimiento y días</span><h1>Cómo has llegado hasta aquí</h1></div></div>
+              <div class="section-head" style="margin-top:0"><div><h2>Marcas recientes</h2><p>Última entrada frente al récord</p></div></div>
+              <div class="marks-list"><article class="mark-row"><div class="mark-copy"><strong>Power snatch</strong><span>100 kg · 14 jul 2026</span><div class="mark-progress"><i style="width:97.1%"></i></div></div><div class="mark-value"><strong>97%</strong><span class="is-below">récord 103</span></div></article><article class="mark-row"><div class="mark-copy"><strong>Squat clean</strong><span>135 kg · 15 jun 2026</span><div class="mark-progress"><i style="width:100%"></i></div></div><div class="mark-value"><strong>100%</strong><span>récord</span></div></article><article class="mark-row"><div class="mark-copy"><strong>Power clean</strong><span>128 kg · 15 jul 2025</span><div class="mark-progress"><i style="width:100%"></i></div></div><div class="mark-value"><strong>100%</strong><span>récord</span></div></article></div>
+              <div class="section-head"><div><h2>Últimos días</h2><p>Peso · ingesta · contexto real</p></div></div>
+              <div class="history-list"><div class="history-row"><span class="history-date">17 jul</span><span class="history-copy"><strong>Bodybuilding + BikeErg</strong><span>5.978 pasos · HRV 56 · 720 activas</span></span><span class="history-value">92,6 · 1.795</span></div><div class="history-row"><span class="history-date">16 jul</span><span class="history-copy"><strong>Bike Erg de Resistencia</strong><span>8.475 pasos · HRV 81 · 737 activas</span></span><span class="history-value">91,9 · 1.897</span></div><div class="history-row"><span class="history-date">15 jul</span><span class="history-copy"><strong>Sin sesión registrada</strong><span>5.712 pasos · HRV 72 · 517 activas</span></span><span class="history-value">91,5 · 1.814</span></div><div class="history-row"><span class="history-date">14 jul</span><span class="history-copy"><strong>Engine + Fuerza</strong><span>14.256 pasos · HRV 85 · 1.022 activas</span></span><span class="history-value">93,1 · 1.987</span></div><div class="history-row"><span class="history-date">13 jul</span><span class="history-copy"><strong>Halterofilia, Fuerza y WOD</strong><span>10.723 pasos · HRV 67 · 439 activas</span></span><span class="history-value">93,6 · 1.741</span></div></div>
+            </section>
+          </section>
+
+          <nav class="bottom-nav" aria-label="Navegación principal"><button class="nav-button is-active" type="button" data-nav="home" aria-current="page"><i data-lucide="house" aria-hidden="true"></i><span>HOY</span></button><button class="nav-button prototype-limit" type="button"><i data-lucide="calendar-days" aria-hidden="true"></i><span>PLAN</span></button><button class="nav-button" type="button" data-nav="progress"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>PROGRESO</span></button><button class="nav-button prototype-limit" type="button"><i data-lucide="messages-square" aria-hidden="true"></i><span>CHAT</span></button></nav>
+          <button class="floating-add" type="button" id="openAdd" aria-label="Añadir comida" title="Añadir comida"><i data-lucide="plus" aria-hidden="true"></i></button>
+
+          <div class="sheet-layer" id="sheetLayer" aria-hidden="true"><section class="add-sheet" role="dialog" aria-modal="true" aria-labelledby="addTitle"><div class="sheet-grabber" aria-hidden="true"></div><div class="sheet-head"><div><h2 id="addTitle">Añadir a Comida</h2><p>Viernes, 17 de julio</p></div><button class="icon-button" id="closeAdd" type="button" aria-label="Cerrar"><i data-lucide="x" aria-hidden="true"></i></button></div><label class="search-field"><i data-lucide="search" aria-hidden="true"></i><input type="search" name="food-search" autocomplete="off" placeholder="Buscar producto o alimento…" aria-label="Buscar producto o alimento" /></label><div class="add-options"><button class="add-option prototype-limit" type="button"><i data-lucide="notebook-tabs" aria-hidden="true"></i><span><strong>Del plan</strong><span>Opciones pautadas</span></span></button><button class="add-option prototype-limit" type="button"><i data-lucide="package-open" aria-hidden="true"></i><span><strong>Mis productos</strong><span>Guardados y fijados</span></span></button><button class="add-option prototype-limit" type="button"><i data-lucide="history" aria-hidden="true"></i><span><strong>Recientes</strong><span>Últimas entradas</span></span></button><button class="add-option prototype-limit" type="button"><i data-lucide="keyboard" aria-hidden="true"></i><span><strong>Entrada manual</strong><span>Kcal y macros</span></span></button></div></section></div>
+
+          <div class="toast" id="toast" role="status" aria-live="polite"><i data-lucide="info" aria-hidden="true"></i><span id="toastText">Estado del prototipo</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tokens-section" id="tokens" aria-labelledby="tokensTitle">
+      <div class="tokens-header"><div><span class="eyebrow">Contrato visual</span><h2 id="tokensTitle">Tokens semánticos y contraste</h2><p>Mapeo directo a las variables actuales de Fuelboard. Los ratios se calculan en este HTML al cargar: texto normal exige <span class="data">4,5:1</span>; rellenos, trazos y límites funcionales exigen <span class="data">3:1</span>.</p></div><span class="audit-summary" id="auditSummary"><i data-lucide="shield-check" aria-hidden="true"></i><span>Calculando contraste…</span></span></div>
+
+      <div class="table-wrap"><table class="token-table"><caption>Mapa de tokens · claro y oscuro</caption><thead><tr><th>Variable</th><th>Tema claro</th><th>Tema oscuro</th><th>Uso semántico</th></tr></thead><tbody id="tokenRows"></tbody></table></div>
+
+      <div class="table-wrap contrast-block"><table class="contrast-table"><caption>Verificación AA par a par</caption><thead><tr><th>Par</th><th>Tipo</th><th>Mínimo</th><th>Claro</th><th>Oscuro</th></tr></thead><tbody id="contrastRows"></tbody></table></div>
+      <p class="token-footnote">Los colores de proteína, hidratos, grasa y fase se auditan como rellenos y trazos. Las etiquetas de texto permanecen en <span class="token-name">--ink</span> o <span class="token-name">--muted</span>; el color nunca es el único indicador.</p>
+    </section>
+  </main>
+
+  <script>
+    const TOKEN_SETS = {
+      light: {
+        bg: '#F2F6FA', surface: '#FFFFFF', 'surface-2': '#E4ECF4', ink: '#102235', muted: '#52677B', line: '#72869A', primary: '#155DB8', protein: '#087A55', carb: '#986300', fat: '#BF481F', phase: '#6747C7', 'on-primary': '#FFFFFF',
+      },
+      dark: {
+        bg: '#071C21', surface: '#102C31', 'surface-2': '#193A3F', ink: '#EDF5F4', muted: '#A8BCBA', line: '#6D8587', primary: '#76A9FF', protein: '#4AD29A', carb: '#F0C45A', fat: '#FF9566', phase: '#C2A7FF', 'on-primary': '#071C21',
+      },
+    };
+
+    const TOKEN_USES = {
+      bg: 'Fondo de aplicación', surface: 'Tarjetas y hojas', 'surface-2': 'Fondos secundarios y pistas', ink: 'Texto principal', muted: 'Texto secundario', line: 'Límites y trazos funcionales', primary: 'Acción, kcal y tendencia', protein: 'Relleno de proteína', carb: 'Relleno de hidratos', fat: 'Relleno de grasa', phase: 'Fases especiales',
+    };
+
+    const CONTRAST_PAIRS = [
+      { fg: 'ink', bg: 'bg', label: 'ink / bg', type: 'Texto', min: 4.5 },
+      { fg: 'ink', bg: 'surface', label: 'ink / surface', type: 'Texto', min: 4.5 },
+      { fg: 'ink', bg: 'surface-2', label: 'ink / surface-2', type: 'Texto', min: 4.5 },
+      { fg: 'muted', bg: 'bg', label: 'muted / bg', type: 'Texto', min: 4.5 },
+      { fg: 'muted', bg: 'surface', label: 'muted / surface', type: 'Texto', min: 4.5 },
+      { fg: 'muted', bg: 'surface-2', label: 'muted / surface-2', type: 'Texto', min: 4.5 },
+      { fg: 'primary', bg: 'bg', label: 'primary / bg', type: 'Texto', min: 4.5 },
+      { fg: 'primary', bg: 'surface', label: 'primary / surface', type: 'Texto', min: 4.5 },
+      { fg: 'primary', bg: 'surface-2', label: 'primary / surface-2', type: 'Texto', min: 4.5 },
+      { fg: 'on-primary', bg: 'primary', label: 'texto / primary', type: 'Texto', min: 4.5 },
+      { fg: 'line', bg: 'bg', label: 'line / bg', type: 'UI', min: 3 },
+      { fg: 'line', bg: 'surface', label: 'line / surface', type: 'UI', min: 3 },
+      { fg: 'line', bg: 'surface-2', label: 'line / surface-2', type: 'UI', min: 3 },
+      { fg: 'protein', bg: 'surface', label: 'protein / surface', type: 'Relleno', min: 3 },
+      { fg: 'protein', bg: 'bg', label: 'protein / bg', type: 'Relleno', min: 3 },
+      { fg: 'carb', bg: 'surface', label: 'carb / surface', type: 'Relleno', min: 3 },
+      { fg: 'carb', bg: 'bg', label: 'carb / bg', type: 'Relleno', min: 3 },
+      { fg: 'fat', bg: 'surface', label: 'fat / surface', type: 'Relleno', min: 3 },
+      { fg: 'fat', bg: 'bg', label: 'fat / bg', type: 'Relleno', min: 3 },
+      { fg: 'phase', bg: 'surface', label: 'phase / surface', type: 'Relleno', min: 3 },
+      { fg: 'phase', bg: 'bg', label: 'phase / bg', type: 'Relleno', min: 3 },
+    ];
+
+    const root = document.documentElement;
+    const sheetLayer = document.getElementById('sheetLayer');
+    const openAdd = document.getElementById('openAdd');
+    const closeAdd = document.getElementById('closeAdd');
+    const toast = document.getElementById('toast');
+    const toastText = document.getElementById('toastText');
+    let toastTimer;
+
+    function renderIcons() {
+      if (window.lucide) window.lucide.createIcons({ attrs: { 'aria-hidden': 'true' } });
+    }
+
+    function setTheme(theme) {
+      root.dataset.theme = theme;
+      localStorage.setItem('fuelboard-performance-theme', theme);
+      document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#071c21' : '#f2f6fa';
+      document.querySelectorAll('.theme-toggle').forEach((button) => {
+        const dark = theme === 'dark';
+        button.setAttribute('aria-label', dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro');
+        button.setAttribute('title', dark ? 'Tema claro' : 'Tema oscuro');
+        button.innerHTML = `<i data-lucide="${dark ? 'sun' : 'moon'}" aria-hidden="true"></i>`;
+      });
+      renderIcons();
+    }
+
+    function showToast(message) {
+      toastText.textContent = message;
+      toast.classList.add('is-visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2600);
+    }
+
+    function setView(view) {
+      document.querySelectorAll('.page-view').forEach((page) => page.classList.toggle('is-active', page.dataset.view === view));
+      document.querySelectorAll('[data-nav]').forEach((button) => {
+        const active = button.dataset.nav === view;
+        button.classList.toggle('is-active', active);
+        if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
+      });
+      document.querySelector(`[data-view="${view}"]`)?.scrollTo({ top: 0, behavior: 'smooth' });
+      openAdd.classList.toggle('is-hidden', view !== 'home');
+    }
+
+    function setProgressPanel(panel) {
+      setView('progress');
+      document.querySelectorAll('[data-progress-tab]').forEach((button) => button.setAttribute('aria-selected', String(button.dataset.progressTab === panel)));
+      document.querySelectorAll('[data-progress-panel]').forEach((section) => section.classList.toggle('is-active', section.dataset.progressPanel === panel));
+      document.querySelector('[data-view="progress"]')?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function openSheet() {
+      sheetLayer.classList.add('is-open');
+      sheetLayer.setAttribute('aria-hidden', 'false');
+      closeAdd.focus();
+    }
+
+    function closeSheet() {
+      sheetLayer.classList.remove('is-open');
+      sheetLayer.setAttribute('aria-hidden', 'true');
+      openAdd.focus();
+    }
+
+    function channel(value) {
+      const normalized = value / 255;
+      return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    }
+
+    function luminance(hex) {
+      const value = hex.replace('#', '');
+      return 0.2126 * channel(parseInt(value.slice(0, 2), 16)) + 0.7152 * channel(parseInt(value.slice(2, 4), 16)) + 0.0722 * channel(parseInt(value.slice(4, 6), 16));
+    }
+
+    function contrast(a, b) {
+      const la = luminance(a);
+      const lb = luminance(b);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    }
+
+    function ratioPill(value, min) {
+      const ok = value >= min;
+      return `<span class="ratio-pill${ok ? '' : ' is-fail'}"><i data-lucide="${ok ? 'check' : 'x'}" aria-hidden="true"></i>${value.toFixed(2)}:1</span>`;
+    }
+
+    function renderTokenAudit() {
+      const visibleTokens = ['bg', 'surface', 'surface-2', 'ink', 'muted', 'line', 'primary', 'protein', 'carb', 'fat', 'phase'];
+      document.getElementById('tokenRows').innerHTML = visibleTokens.map((token) => `<tr><td><span class="token-name">--${token}</span></td><td><span class="swatch-value"><i class="swatch" style="--swatch:${TOKEN_SETS.light[token]}"></i>${TOKEN_SETS.light[token]}</span></td><td><span class="swatch-value"><i class="swatch" style="--swatch:${TOKEN_SETS.dark[token]}"></i>${TOKEN_SETS.dark[token]}</span></td><td class="token-use">${TOKEN_USES[token]}</td></tr>`).join('');
+
+      let failures = 0;
+      document.getElementById('contrastRows').innerHTML = CONTRAST_PAIRS.map((pair) => {
+        const light = contrast(TOKEN_SETS.light[pair.fg], TOKEN_SETS.light[pair.bg]);
+        const dark = contrast(TOKEN_SETS.dark[pair.fg], TOKEN_SETS.dark[pair.bg]);
+        if (light < pair.min || dark < pair.min) failures += 1;
+        return `<tr><td><span class="token-name">${pair.label}</span></td><td>${pair.type}</td><td class="data">${pair.min.toFixed(1)}:1</td><td data-ratio="${light.toFixed(2)}">${ratioPill(light, pair.min)}</td><td data-ratio="${dark.toFixed(2)}">${ratioPill(dark, pair.min)}</td></tr>`;
+      }).join('');
+
+      const summary = document.getElementById('auditSummary');
+      summary.classList.toggle('is-fail', failures > 0);
+      summary.innerHTML = `<i data-lucide="${failures === 0 ? 'shield-check' : 'shield-alert'}" aria-hidden="true"></i><span>${failures === 0 ? `${CONTRAST_PAIRS.length * 2} pares superan AA` : `${failures} pares no cumplen`}</span>`;
+      renderIcons();
+    }
+
+    document.querySelectorAll('.theme-toggle').forEach((button) => button.addEventListener('click', () => setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark')));
+    document.querySelectorAll('[data-nav]').forEach((button) => button.addEventListener('click', () => setView(button.dataset.nav)));
+    document.querySelectorAll('[data-gauge]').forEach((button) => button.addEventListener('click', () => {
+      const gauge = button.dataset.gauge;
+      document.querySelectorAll('[data-gauge]').forEach((candidate) => candidate.setAttribute('aria-pressed', String(candidate === button)));
+      document.querySelectorAll('[data-gauge-panel]').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.gaugePanel === gauge));
+    }));
+    document.querySelectorAll('[data-progress-tab]').forEach((button) => button.addEventListener('click', () => setProgressPanel(button.dataset.progressTab)));
+    document.querySelectorAll('[data-open-progress]').forEach((button) => button.addEventListener('click', () => setProgressPanel(button.dataset.openProgress)));
+    document.querySelectorAll('[data-range]').forEach((button) => button.addEventListener('click', () => {
+      document.querySelectorAll('[data-range]').forEach((candidate) => candidate.setAttribute('aria-pressed', String(candidate === button)));
+      const labels = { '14': '14 días · 10 registros disponibles', '30': '30 días · datos desde 24 jun', '90': '90 días · datos desde 24 jun', all: 'Todo el historial disponible' };
+      showToast(labels[button.dataset.range]);
+    }));
+    document.querySelectorAll('.meal-button').forEach((button) => button.addEventListener('click', () => {
+      const item = button.closest('.meal-item');
+      const open = !item.classList.contains('is-open');
+      item.classList.toggle('is-open', open);
+      button.setAttribute('aria-expanded', String(open));
+    }));
+    document.getElementById('expandMeals').addEventListener('click', (event) => {
+      const items = [...document.querySelectorAll('.meal-item')];
+      const shouldOpen = items.some((item) => !item.classList.contains('is-open'));
+      items.forEach((item) => {
+        item.classList.toggle('is-open', shouldOpen);
+        item.querySelector('.meal-button').setAttribute('aria-expanded', String(shouldOpen));
+      });
+      event.currentTarget.textContent = shouldOpen ? 'Contraer' : 'Expandir';
+    });
+    document.querySelectorAll('[data-table-toggle]').forEach((button) => button.addEventListener('click', () => {
+      const target = document.getElementById(button.dataset.tableToggle);
+      const open = !target.classList.contains('is-open');
+      target.classList.toggle('is-open', open);
+      button.setAttribute('aria-expanded', String(open));
+      button.innerHTML = `<i data-lucide="table-2" aria-hidden="true"></i>${open ? 'Ocultar valores' : 'Ver valores'}`;
+      renderIcons();
+    }));
+    document.querySelectorAll('.prototype-limit').forEach((button) => button.addEventListener('click', () => showToast('El concepto conserva este flujo; esta entrega desarrolla Hoy y Progreso.')));
+    document.querySelectorAll('.info-toast').forEach((button) => button.addEventListener('click', () => showToast('Baseline = media de datos disponibles entre 24 jun y 16 jul, excluyendo el día comparado.')));
+    document.querySelector('.deficit-info').addEventListener('click', () => showToast('Déficit = −(kg/semana × 7.700 ÷ 7). TDEE = ingesta Normal media + déficit.'));
+    openAdd.addEventListener('click', openSheet);
+    closeAdd.addEventListener('click', closeSheet);
+    sheetLayer.addEventListener('click', (event) => { if (event.target === sheetLayer) closeSheet(); });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && sheetLayer.classList.contains('is-open')) closeSheet(); });
+
+    const storedTheme = localStorage.getItem('fuelboard-performance-theme');
+    setTheme(storedTheme === 'dark' ? 'dark' : 'light');
+    renderTokenAudit();
+    window.addEventListener('load', renderIcons);
+  </script>
+</body>
+</html>
