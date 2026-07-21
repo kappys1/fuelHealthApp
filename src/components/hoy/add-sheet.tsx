@@ -104,6 +104,9 @@ export function AddSheet({
   // `editorFrom` solo se lee en el handler `back()`, nunca en el render → useRef
   // (react-doctor/rerender-state-only-in-handlers).
   const editorFromRef = useRef<Layer>("products");
+  // Origen del stepper de producto (capa "product"): a dónde vuelve `back()` y el
+  // «Añadir» — home (chips) o products (catálogo, F10). Solo se lee en handlers.
+  const productFromRef = useRef<Layer>("home");
 
   // Share target: al abrir con una imagen compartida, saltar a la capa de foto.
   // Diferido para no encadenar renders síncronos dentro del efecto.
@@ -167,6 +170,8 @@ export function AddSheet({
   // Añadir un producto al día: con baseG → capa stepper; fijo → 1 toque directo.
   const addProduct = (p: ProductDTO) => {
     if (p.baseG != null && p.baseG !== 0) {
+      // Volver a donde estábamos (chips de home o catálogo de products).
+      productFromRef.current = layer === "products" ? "products" : "home";
       setSelectedProduct(p);
       setLayer("product");
       return;
@@ -184,6 +189,11 @@ export function AddSheet({
   const back = () => {
     if (layer === "editor") {
       setLayer(editorFromRef.current);
+      return;
+    }
+    if (layer === "product") {
+      setLayer(productFromRef.current);
+      setSelectedProduct(null);
       return;
     }
     setLayer("home");
@@ -290,7 +300,7 @@ export function AddSheet({
             meal={meal}
             onAdd={(e) => {
               commit(e);
-              setLayer("home");
+              setLayer(productFromRef.current);
               setSelectedProduct(null);
             }}
           />
