@@ -144,6 +144,40 @@ export function percentOf(value: number, pct: number): number {
   return (value * pct) / 100;
 }
 
+// ── Familias (F11): agrupación libre de marcas; grafía canónica única ──
+
+/**
+ * Familias únicas, no vacías, ordenadas (es) — alimentan los chips del FamilyPicker
+ * al crear y al editar una marca. Pura; acepta cualquier forma con `family`.
+ */
+export function uniqueFamilies(
+  marks: readonly { family: string | null }[],
+): string[] {
+  const set = new Set<string>();
+  for (const m of marks) {
+    const f = m.family?.trim();
+    if (f) set.add(f);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "es"));
+}
+
+/**
+ * Canoniza una familia tecleada contra las existentes (F11): si lo escrito coincide
+ * case-insensitive (tras trim) con una familia ya usada, adopta SU grafía exacta —
+ * así "snatch"/"SNATCH" no fragmentan el grupo "Snatch". Si no hay coincidencia,
+ * devuelve el texto tal cual (trim). Vacío → null (sin familia). Pura, client-safe.
+ */
+export function canonicalizeFamily(
+  input: string,
+  existing: readonly string[],
+): string | null {
+  const trimmed = input.trim();
+  if (trimmed === "") return null;
+  const key = trimmed.toLowerCase();
+  const match = existing.find((f) => f.trim().toLowerCase() === key);
+  return match ?? trimmed;
+}
+
 export interface DoubleReference {
   /** Valor de la ÚLTIMA entrada (vigente): cifra primaria/destacada. */
   last: number;
