@@ -69,12 +69,14 @@ export const mealSourceEnum = pgEnum("meal_source", [
 export const healthSourceEnum = pgEnum("health_source", ["endpoint", "csv"]);
 
 // Origen del dato de un producto (F07). 'etiqueta' = leído de la tabla nutricional
-// del envase (F-IA-11, la fuente autorizada); 'manual' = tecleado a mano; 'legacy'
-// = migrado de los antiguos favorites (foto congelada de una estimación, badge
-// «antiguo» → se asciende re-fotografiando).
+// del envase (F-IA-11, la fuente autorizada); 'manual' = tecleado a mano; 'estimado'
+// = adivinado por la IA (F-IA-3, ✨ inline o método Describir — ojímetro, no etiqueta;
+// F10); 'legacy' = migrado de los antiguos favorites (foto congelada de una
+// estimación, badge «antiguo» → se asciende re-fotografiando).
 export const productSourceEnum = pgEnum("product_source", [
   "etiqueta",
   "manual",
+  "estimado",
   "legacy",
 ]);
 
