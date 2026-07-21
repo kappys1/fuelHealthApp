@@ -241,14 +241,12 @@ export function HoyClient({
       <MealTimeline
         entries={data.view.entries}
         templates={data.templates}
-        bloatEvents={data.bloatEvents}
         onSaveEntry={(id, patch) => todayState.updateEntry(id, patch)}
         onDeleteEntry={todayState.deleteEntry}
         onCopyYesterday={todayState.copyYesterday}
         onSaveTemplate={todayState.saveTemplate}
         onApplyTemplate={todayState.applyTemplate}
         onDeleteTemplate={todayState.deleteTemplate}
-        onEditBloat={(event) => setBloatEditor({ event, severity: event.severity })}
       />
 
       <DailyChecks

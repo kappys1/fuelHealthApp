@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, ChevronDown, Waves } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
+import { useState } from "react";
 import { MealRow } from "@/components/hoy/meal-row";
 import { QuickAddMenu } from "@/components/hoy/quick-add-menu";
 import {
@@ -14,33 +14,21 @@ import { cn } from "@/lib/utils";
 import { subtotalsByMeal } from "@/server/analytics/dayTotals";
 import type { EntryDTO } from "@/server/db/queries/day";
 import type { TemplateDTO } from "@/server/db/queries/lookups";
-import type { BloatEventDTO } from "@/server/db/queries/bloat";
 
 const SECTIONS: MealKey[] = ["almuerzo", "comida", "merienda", "cena"];
-
-function markerAnchor(time: string): MealKey {
-  const hour = Number(time.slice(0, 2));
-  if (hour < 13) return "almuerzo";
-  if (hour < 17) return "comida";
-  if (hour < 21) return "merienda";
-  return "cena";
-}
 
 export function MealTimeline({
   entries,
   templates,
-  bloatEvents,
   onSaveEntry,
   onDeleteEntry,
   onCopyYesterday,
   onSaveTemplate,
   onApplyTemplate,
   onDeleteTemplate,
-  onEditBloat,
 }: {
   entries: EntryDTO[];
   templates: TemplateDTO[];
-  bloatEvents: BloatEventDTO[];
   onSaveEntry: (
     id: number,
     patch: {
@@ -57,7 +45,6 @@ export function MealTimeline({
   onSaveTemplate: (name: string) => void;
   onApplyTemplate: (id: number) => void;
   onDeleteTemplate: (id: number) => void;
-  onEditBloat: (event: BloatEventDTO) => void;
 }) {
   const subtotals = subtotalsByMeal(entries);
   const extras = entries.filter((entry) => entry.meal === "extra");
@@ -66,15 +53,6 @@ export function MealTimeline({
     const first = sections.find((meal) => entries.some((entry) => entry.meal === meal));
     return new Set(first ? [first] : []);
   });
-
-  const markers = useMemo(() => {
-    const grouped = new Map<MealKey, BloatEventDTO[]>();
-    for (const event of bloatEvents) {
-      const anchor = markerAnchor(event.occurredAt);
-      grouped.set(anchor, [...(grouped.get(anchor) ?? []), event]);
-    }
-    return grouped;
-  }, [bloatEvents]);
 
   const moments = new Set(entries.map((entry) => entry.meal)).size;
   const allExpanded = sections.every((meal) => expanded.has(meal));
@@ -113,7 +91,6 @@ export function MealTimeline({
         {sections.map((meal) => {
           const rows = entries.filter((entry) => entry.meal === meal);
           const open = expanded.has(meal);
-          const mealMarkers = markers.get(meal) ?? [];
           return (
             <div key={meal} className="border-b border-line last:border-b-0">
               <button
@@ -179,29 +156,6 @@ export function MealTimeline({
                   </p>
                 </div>
               ) : null}
-
-              {mealMarkers.map((event) => (
-                <button
-                  key={event.id}
-                  type="button"
-                  onClick={() => onEditBloat(event)}
-                  className="flex min-h-[58px] w-full items-center gap-3 border-t border-dashed border-primary/25 bg-primary-soft px-[18px] py-2.5 text-left"
-                >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface text-special">
-                    <Waves className="size-4" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <strong className="block text-[13px] font-semibold text-foreground">
-                      {event.severity === "ninguna"
-                        ? "Sin hinchazón"
-                        : `Hinchazón ${event.severity}`}
-                    </strong>
-                  </span>
-                  <time className="font-display text-[12px] tabular-nums text-muted-foreground">
-                    {event.occurredAt.slice(0, 5)}
-                  </time>
-                </button>
-              ))}
             </div>
           );
         })}
