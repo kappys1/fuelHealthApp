@@ -250,6 +250,32 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   **Fase 2** (editar variantes a mano en el editor del plan, sin reimportar) aplazada.
   DECISIONS #66. Pendiente: `pnpm db:migrate` (0008) + deploy a Vercel.
 
+### v1.11 · Mis productos II — crear como en el día + añadir desde el catálogo (F10)
+- **Misma ergonomía que el día en el editor de producto** (caso real Alex 21-jul, sobre
+  `feat/wellness-premium-v2`): el editor gana un selector **Foto · Describir · Manual**
+  (cae «Del plan»). **Describir** (nuevo) manda texto + `baseG` a **F-IA-3**
+  (`estimatePlanOption`) y prerrellena el formulario; **Manual** gana un **✨ inline** que
+  estima macros desde el nombre (mismo handler; patrón de `VariantsEditor`, F09). **Foto**
+  (F-IA-11) sigue lector puro, re-presentada como método. Los tres desembocan en el mismo
+  formulario editable; el aviso «se fijan y no se vuelven a estimar» se mantiene. **Prompts
+  intocados** (solo interpolan nombre + gramos) → sin sync a 04-IA ni café ×3.
+- **Origen `estimado`** (4º valor del enum `product_source`, migración **0014** aditiva): el
+  ✨/Describir marcan el producto como `estimado`; una foto posterior lo pisa a `etiqueta`;
+  el manual puro sigue `manual`. Badge/icono `estimado` (✨) en catálogo y chips — honestidad
+  ojímetro vs etiqueta (principio 2).
+- **Unidad de visualización** `g|ml|ud` (columna `products.unit`, migración **0015** aditiva
+  `NOT NULL DEFAULT 'g'`): rótulo del `baseG`, del stepper y de la fila. **Solo etiqueta** —
+  `scaleMacros`/`entryBaseFields` (F06) intactos, escala 1:1 (densidad ≈ 1); `ud` + base
+  vacía = fijo por unidad. NO reabre el escalado por nº de unidades (parked, F06 #57).
+- **Añadir desde el catálogo** (Alcance D, sin migración): tocar el cuerpo de la fila en «Mis
+  productos» reusa `addProduct` (stepper si tiene base, 1-toque si es fijo) a la comida
+  seleccionada; `✏️🗑★` siguen aparte. El stepper vuelve a su origen (catálogo/chips).
+- `unit` y `source='estimado'` viajan en export/restore (`productImportRow`), `migrate:poc`
+  y `seed` (default `g` si falta). Tests de round-trip. `typecheck+test+build` verde (246).
+  **AC1/AC2/AC5/AC6 validados por Alex 🖐 (21–22-jul)**. NO-alcance: router «una cosa» a
+  producto/plan/dieta, variantes en productos, describir-empareja-tus-productos (backlog).
+  Pendiente: `pnpm db:migrate` (0014+0015) + deploy a Vercel.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
