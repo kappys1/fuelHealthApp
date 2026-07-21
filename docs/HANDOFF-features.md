@@ -196,8 +196,24 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   `gemini-3.5-flash` porque el *thinking* agotaba `maxOutputTokens` (500/800 heredados de
   flash-lite) → subidos a 2048; y `client.ts` no capturaba `NoOutputGeneratedError` → 500 mudo
   en vez de 502 visible. Sin migración; nada nuevo en export/restore.
+- ✅ **Mis productos II — crear como en el día + añadir desde el catálogo** (idea Alex, 21-jul,
+  sobre `feat/wellness-premium-v2`) — **IMPLEMENTADA (F10)**, **AC1/AC2/AC5/AC6 validados por
+  Alex 🖐 (21–22-jul)**: [`docs/specs/features/10-mis-productos-ii.md`](./specs/features/10-mis-productos-ii.md).
+  Editor de producto con selector **Foto · Describir · Manual** (Describir + ✨ inline reusan
+  **F-IA-3** sin tocar prompt); origen **`estimado`** (✨) como 4º valor del enum (migración
+  **0014**); **unidad `g|ml|ud`** solo-etiqueta (columna `products.unit`, migración **0015**,
+  escala 1:1, F06 intacto); **tap en la fila del catálogo añade** el producto (Alcance D).
+  export/restore/migrate:poc/seed transportan `unit`+`estimado`. DECISIONS #72.
+  - **Requisito de deploy**: `pnpm db:migrate` (aplica **0014**+**0015**) antes/junto al deploy.
+  - **Aparcadas (Etapa 0, sin construir)**: (a) método **Describir en las opciones del plan**
+    (hoy el plan estima variantes con ✨ F09, pero no tiene el textarea «describe la opción y
+    estima» — extensión pequeña, reusa F-IA-3); (b) **variantes en productos** como en el plan
+    (choca con «producto = una cosa por base» — medir necesidad antes). Alex: «lo dejo así y ya
+    veremos» (22-jul).
 - 💡 **Unidades / ml / l como cantidad de primera clase** (observación Alex, 17-jul — caso: fajitas)
-  — **PARKED, no construir ahora (medir antes).** El «gramos base» y el ✨ son gram-céntricos, pero
+  — **PARCIALMENTE cubierto: F10 añadió la UNIDAD como rótulo** (`g|ml|ud`, la etiqueta ya no
+  miente). Lo que sigue **PARKED** es el **escalado real por nº de unidades** (2 fajitas = 2 ×
+  equivalencia en gramos; NO-alcance F06 #57). Medir antes de reabrir. El «gramos base» y el ✨ son gram-céntricos, pero
   el caso está cubierto sin código: por unidades = nombra «2 fajitas» + gramos base vacío (fijo, el
   ✨ estima igual); por gramos = «Fajitas» + baseG≈120 (escala con stepper). Los líquidos de la pauta
   tienen densidad ≈1 (200 g = 200 ml); solo la **etiqueta** `g` es imprecisa (cosmético). Meter unidad

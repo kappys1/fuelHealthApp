@@ -1,5 +1,5 @@
 # F10 · Mis productos II — crear como en el día (Manual · Foto · Describir) + añadir desde el catálogo
-**Estado**: aprobada · **Tamaño**: feature
+**Estado**: implementada · **Tamaño**: feature
 **Fecha**: 2026-07-21 · **Origen**: idea Alex 21-jul (durante uso real de F07, sobre
 `restyle-v2`). Dos cosas: (1) «poder describir el producto y que la IA me dé los macros y
 los pueda modificar por si acaso — es una utilidad que me he dado cuenta»; (2) «si le doy a
