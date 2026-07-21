@@ -14,6 +14,7 @@ import {
   latestChange,
   latestEntry,
   MEASURE_TYPE_LABELS,
+  uniqueFamilies,
 } from "@/lib/marks";
 import type { MarkDTO } from "@/server/db/queries/marks";
 import { MarkDetailSheet } from "./mark-detail-sheet";
@@ -36,6 +37,7 @@ export function MarksBlock({
   const {
     marks,
     createMark,
+    updateMark,
     addEntry,
     updateEntry,
     deleteEntry,
@@ -47,6 +49,7 @@ export function MarksBlock({
   const [query, setQuery] = useState("");
 
   const detailMark = marks.find((m) => m.id === detailId) ?? null;
+  const families = useMemo(() => uniqueFamilies(marks), [marks]);
 
   // Filtro en vivo por nombre sobre las marcas ya cargadas (cliente, <50 ms):
   // escala a cualquier volumen sin ir al servidor (F04).
@@ -138,8 +141,10 @@ export function MarksBlock({
         <MarkDetailSheet
           mark={detailMark}
           today={today}
+          families={families}
           onAddEntry={addEntry}
           onUpdateEntry={updateEntry}
+          onUpdateMark={updateMark}
           onDeleteEntry={deleteEntry}
           onRestoreEntry={restoreEntry}
           onDeleteMark={deleteMark}

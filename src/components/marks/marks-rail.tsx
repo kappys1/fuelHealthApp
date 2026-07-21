@@ -2,13 +2,14 @@
 
 import { ArrowRight, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   formatMarkValue,
   latestRecordPercentage,
   latestEntry,
   marksByRecency,
   MEASURE_TYPE_LABELS,
+  uniqueFamilies,
 } from "@/lib/marks";
 import type { MarkDTO } from "@/server/db/queries/marks";
 import { MarkDetailSheet } from "./mark-detail-sheet";
@@ -32,10 +33,18 @@ export function MarksRail({
   today: string;
 }) {
   const router = useRouter();
-  const { marks, addEntry, updateEntry, deleteEntry, restoreEntry, deleteMark } =
-    useMarks(initialMarks);
+  const {
+    marks,
+    updateMark,
+    addEntry,
+    updateEntry,
+    deleteEntry,
+    restoreEntry,
+    deleteMark,
+  } = useMarks(initialMarks);
   const [detailId, setDetailId] = useState<number | null>(null);
   const detailMark = marks.find((m) => m.id === detailId) ?? null;
+  const families = useMemo(() => uniqueFamilies(marks), [marks]);
 
   const recent = marksByRecency(marks).slice(0, RECENT_LIMIT);
 
@@ -111,8 +120,10 @@ export function MarksRail({
         <MarkDetailSheet
           mark={detailMark}
           today={today}
+          families={families}
           onAddEntry={addEntry}
           onUpdateEntry={updateEntry}
+          onUpdateMark={updateMark}
           onDeleteEntry={deleteEntry}
           onRestoreEntry={restoreEntry}
           onDeleteMark={deleteMark}
