@@ -59,7 +59,7 @@ export const newEntryZ = z.object({
 
 // Productos (F07 · catálogo). grupo nullable (la etiqueta puede no clasificar);
 // baseG null = producto fijo (por unidad, sin escalado).
-export const productSourceZ = z.enum(["etiqueta", "manual", "legacy"]);
+export const productSourceZ = z.enum(["etiqueta", "manual", "estimado", "legacy"]);
 export const productCreateZ = z.object({
   name: z.string().min(1).max(200),
   baseG: z.number().int().min(0).max(5000).nullable(),

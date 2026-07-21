@@ -74,7 +74,7 @@ export interface ProductInput {
   baseCarb: number;
   baseFat: number;
   grupo: GrpKey | null;
-  source: "etiqueta" | "manual" | "legacy";
+  source: "etiqueta" | "manual" | "estimado" | "legacy";
   pinned: boolean;
 }
 

@@ -485,6 +485,8 @@ function productBaseLabel(p: ProductDTO): string {
 function ProductSourceIcon({ source }: { source: ProductDTO["source"] }) {
   if (source === "etiqueta")
     return <Camera className="size-3.5 text-protein" aria-label="De etiqueta" />;
+  if (source === "estimado")
+    return <Sparkles className="size-3.5 text-primary" aria-label="Estimado por IA" />;
   if (source === "manual")
     return <PenLine className="size-3.5 text-muted-foreground" aria-label="Manual" />;
   return null;
@@ -1507,6 +1509,7 @@ function ProductsLayer({
 
 const SOURCE_BADGE: Record<ProductDTO["source"], { label: string; cls: string }> = {
   etiqueta: { label: "etiqueta", cls: "text-protein border-protein/40" },
+  estimado: { label: "estimado", cls: "text-primary border-primary/40" },
   manual: { label: "manual", cls: "text-muted-foreground border-line" },
   legacy: { label: "antiguo", cls: "text-carb border-carb/40" },
 };
@@ -1602,13 +1605,22 @@ function ProductEditorLayer({
   const [fat, setFat] = useState(product ? String(product.baseFat) : "");
   const [grupo, setGrupo] = useState<string>(product?.grupo ?? GRUPO_NONE);
   const [pinned, setPinned] = useState(product?.pinned ?? true);
-  // Origen: al leer la etiqueta pasa a 'etiqueta'; si no, conserva el del producto
-  // (o 'manual' para uno nuevo). F-IA-11 (Fase 2). Solo se lee en `save()`, nunca en
-  // el render (el aviso lo dispara `aiFilled`) → useRef (rerender-state-only-in-handlers).
+  // Método de creación (F10): Foto (F-IA-11 lee etiqueta) · Describir (F-IA-3 estima)
+  // · Manual (formulario + ✨ inline). «Del plan» no aplica a crear un producto.
+  // Los tres desembocan en el MISMO formulario, prerrelleno y editable.
+  const [method, setMethod] = useState<"photo" | "describe" | "manual">("manual");
+  const [describeText, setDescribeText] = useState("");
+  // Origen: al leer la etiqueta pasa a 'etiqueta'; con ✨/Describir a 'estimado'; si no,
+  // conserva el del producto (o 'manual' para uno nuevo). Solo se lee en `save()`, nunca
+  // en el render (el aviso lo dispara `aiFilled`) → useRef (rerender-state-only-in-handlers).
   const sourceRef = useRef<ProductInput["source"]>(product?.source ?? "manual");
-  const [aiFilled, setAiFilled] = useState(false);
+  // Aviso de procedencia IA a confirmar: 'etiqueta' (leída) o 'estimado' (adivinada).
+  const [aiFilled, setAiFilled] = useState<null | "etiqueta" | "estimado">(null);
   const [reading, setReading] = useState(false);
+  const [estimating, setEstimating] = useState(false);
   const online = useOnline();
+
+  const num = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
 
   // Foto de la etiqueta → F-IA-11 rellena el formulario (LECTURA, no estimación).
   // Alex confirma/edita antes de guardar (el aviso «se fijan» sigue vigente).
@@ -1629,8 +1641,9 @@ function ProductEditorLayer({
       setGrupo(
         (PRODUCT_GROUPS as string[]).includes(r.grupo) ? r.grupo : GRUPO_NONE,
       );
+      // Una foto posterior PISA a 'etiqueta' (fuente autorizada) aunque venía de ✨.
       sourceRef.current = "etiqueta";
-      setAiFilled(true);
+      setAiFilled("etiqueta");
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "No se pudo leer la etiqueta.",
@@ -1640,7 +1653,35 @@ function ProductEditorLayer({
     }
   };
 
-  const num = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
+  // ✨/Describir → F-IA-3 (estimatePlanOption) estima kcal/P/C/F desde el texto + baseG.
+  // MISMO handler para el ✨ inline (Manual, texto=nombre) y el método Describir
+  // (texto=descripción; prerrellena el nombre si está vacío). Reusa el prompt TAL CUAL
+  // (solo interpola nombre + gramos): sin prompt nuevo. Origen → 'estimado'.
+  const estimateFrom = async (text: string, alsoSetName: boolean) => {
+    const t = text.trim();
+    if (!t) {
+      toast.error("Escribe primero el nombre o la descripción.");
+      return;
+    }
+    setEstimating(true);
+    try {
+      const g = baseG.trim() === "" ? null : Math.round(num(baseG));
+      const r = await api.estimatePlanOption(t, g);
+      if (alsoSetName && name.trim() === "") setName(t);
+      setKcal(String(Math.round(r.kcal)));
+      setProt(String(displayMacro(r.proteina_g)));
+      setCarb(String(displayMacro(r.carbohidratos_g)));
+      setFat(String(displayMacro(r.grasa_g)));
+      sourceRef.current = "estimado";
+      setAiFilled("estimado");
+      toast("Estimado con IA. Revisa y guarda.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo estimar.");
+    } finally {
+      setEstimating(false);
+    }
+  };
+
   const canSave = name.trim() !== "" && kcal.trim() !== "";
 
   const save = () => {
@@ -1654,7 +1695,8 @@ function ProductEditorLayer({
       baseCarb: num(carb),
       baseFat: num(fat),
       grupo: grupo === GRUPO_NONE ? null : (grupo as GrpKey),
-      // 'etiqueta' si se leyó la foto; si no, el origen del producto (o 'manual').
+      // 'etiqueta' si se leyó la foto, 'estimado' si lo rellenó el ✨/Describir; si no,
+      // el origen del producto (o 'manual' para uno nuevo tecleado a mano).
       source: sourceRef.current,
       pinned,
     };
@@ -1665,54 +1707,137 @@ function ProductEditorLayer({
 
   return (
     <div className="space-y-3 px-4 py-3">
-      {/* Foto de la etiqueta (F-IA-11): la IA LEE la tabla nutricional y rellena el
-          formulario; Alex confirma/edita. SIN `capture` (selector nativo cámara/galería). */}
-      <label
-        className={cn(
-          "relative flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-5 text-[13px]",
-          online && !reading
-            ? "cursor-pointer text-primary"
-            : "text-muted-foreground opacity-60",
-        )}
-      >
-        {reading ? (
-          <Loader2 className="size-5 animate-spin" aria-hidden />
-        ) : (
-          <Camera className="size-5" aria-hidden />
-        )}
-        {reading ? "Leyendo etiqueta…" : "Foto de la etiqueta"}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          disabled={!online || reading}
-          onChange={(e) => pickLabel(e.target.files?.[0])}
+      {/* Selector de método (F10, mismo patrón que el día): Foto · Describir · Manual.
+          Los tres desembocan en el mismo formulario, prerrelleno y editable. */}
+      <div className="grid grid-cols-3 gap-2">
+        <BigAccess
+          icon={<Camera className="size-5" aria-hidden />}
+          label="Foto"
+          active={method === "photo"}
+          onClick={() => setMethod("photo")}
         />
-      </label>
-      {!online ? (
-        <p className="text-center text-[11px] text-muted-foreground">
-          Sin conexión: leer la etiqueta con IA no está disponible.
-        </p>
+        <BigAccess
+          icon={<PenLine className="size-5" aria-hidden />}
+          label="Describir"
+          active={method === "describe"}
+          onClick={() => setMethod("describe")}
+        />
+        <BigAccess
+          icon={<Plus className="size-5" aria-hidden />}
+          label="Manual"
+          active={method === "manual"}
+          onClick={() => setMethod("manual")}
+        />
+      </div>
+
+      {method === "photo" ? (
+        <>
+          {/* Foto de la etiqueta (F-IA-11): la IA LEE la tabla nutricional y rellena
+              el formulario; Alex confirma/edita. SIN `capture` (selector nativo). */}
+          <label
+            className={cn(
+              "relative flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-5 text-[13px]",
+              online && !reading
+                ? "cursor-pointer text-primary"
+                : "text-muted-foreground opacity-60",
+            )}
+          >
+            {reading ? (
+              <Loader2 className="size-5 animate-spin" aria-hidden />
+            ) : (
+              <Camera className="size-5" aria-hidden />
+            )}
+            {reading ? "Leyendo etiqueta…" : "Foto de la etiqueta"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={!online || reading}
+              onChange={(e) => pickLabel(e.target.files?.[0])}
+            />
+          </label>
+          {!online ? (
+            <p className="text-center text-[11px] text-muted-foreground">
+              Sin conexión: leer la etiqueta con IA no está disponible.
+            </p>
+          ) : null}
+        </>
+      ) : method === "describe" ? (
+        <>
+          {/* Describir (F10): texto libre + baseG → F-IA-3 estima y prerrellena. */}
+          <label className="block">
+            <span className="mb-1 block text-[12px] text-muted-foreground">
+              Describe el producto
+            </span>
+            <textarea
+              value={describeText}
+              onChange={(e) => setDescribeText(e.target.value)}
+              rows={2}
+              placeholder="p. ej. «tortitas de avena y clara sin azúcar»"
+              className="w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+              aria-label="Descripción del producto"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => estimateFrom(describeText, true)}
+            disabled={estimating || !describeText.trim() || !online}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground disabled:opacity-60"
+          >
+            {estimating ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Sparkles className="size-4" aria-hidden />
+            )}
+            {estimating ? "Estimando…" : "Estimar con IA"}
+          </button>
+          {!online ? (
+            <p className="text-center text-[11px] text-muted-foreground">
+              Sin conexión: la estimación por IA no está disponible.
+            </p>
+          ) : null}
+        </>
       ) : null}
-      {aiFilled ? (
+
+      {aiFilled === "etiqueta" ? (
         <div className="flex items-center justify-center gap-1.5 text-[12px] text-protein">
           <Sparkles className="size-3.5" aria-hidden /> La IA leyó la etiqueta ·
           confírmalo
         </div>
+      ) : aiFilled === "estimado" ? (
+        <div className="flex items-center justify-center gap-1.5 text-[12px] text-primary">
+          <Sparkles className="size-3.5" aria-hidden /> La IA estimó · confírmalo
+        </div>
       ) : null}
-      <div className="text-center text-[11px] uppercase tracking-wide text-muted-foreground">
-        — o rellénalo a mano —
-      </div>
 
       <label className="block">
         <span className="mb-1 block text-[12px] text-muted-foreground">Nombre</span>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="p. ej. Tortitas integrales Hacendado"
-          className="w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
-          aria-label="Nombre"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="p. ej. Tortitas integrales Hacendado"
+            className="min-w-0 flex-1 rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+            aria-label="Nombre"
+          />
+          {/* ✨ inline (F10, mismo patrón que VariantsEditor): estima macros desde el
+              nombre en cualquier momento. Solo en Manual (Describir tiene su botón). */}
+          {method === "manual" ? (
+            <button
+              type="button"
+              onClick={() => estimateFrom(name, false)}
+              disabled={estimating || !name.trim() || !online}
+              aria-label="Estimar macros con IA desde el nombre"
+              className="shrink-0 text-primary disabled:opacity-40"
+            >
+              {estimating ? (
+                <Loader2 className="size-5 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="size-5" aria-hidden />
+              )}
+            </button>
+          ) : null}
+        </div>
       </label>
 
       <label className="block">
@@ -1811,16 +1936,25 @@ function BigAccess({
   icon,
   label,
   onClick,
+  active = false,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  /** Resaltado cuando es el método activo (selector del editor, F10). */
+  active?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="relative flex h-20 flex-col items-center justify-center gap-1 rounded-xl border border-line bg-surface-2 text-[13px]"
+      aria-pressed={active}
+      className={cn(
+        "relative flex h-20 flex-col items-center justify-center gap-1 rounded-xl border text-[13px] transition-colors",
+        active
+          ? "border-primary bg-primary/10 font-medium text-primary"
+          : "border-line bg-surface-2",
+      )}
     >
       <span className="text-primary">{icon}</span>
       <span>{label}</span>
