@@ -42,6 +42,10 @@ import {
   MEAL_LABELS,
   MEAL_ORDER,
   GRP_ORDER,
+  PRODUCT_UNITS,
+  PRODUCT_UNIT_NOUN,
+  PRODUCT_UNIT_SUFFIX,
+  type ProductUnit,
   productToEntryFields,
   roundKcal,
   roundMacroStore,
@@ -474,10 +478,11 @@ function HomeLayer({
   );
 }
 
-/** Etiqueta corta de la base de un producto: "100 g · 310 kcal" o "310 kcal" (fijo). */
+/** Etiqueta corta de la base de un producto: "100 ml · 310 kcal" o "310 kcal" (fijo).
+ *  La unidad (F10) es solo rótulo; no cambia kcal ni el escalado. */
 function productBaseLabel(p: ProductDTO): string {
   return p.baseG != null && p.baseG !== 0
-    ? `${p.baseG} g · ${p.baseKcal} kcal`
+    ? `${p.baseG} ${PRODUCT_UNIT_SUFFIX[p.unit]} · ${p.baseKcal} kcal`
     : `${p.baseKcal} kcal`;
 }
 
@@ -1349,12 +1354,14 @@ function ProductStepperLayer({
   const [g, setG] = useState(String(product.baseG ?? 0));
   const grams = g === "" ? 0 : Number(g.replace(",", "."));
   const f = productToEntryFields(product, grams);
+  // Unidad = solo rótulo (F10); el escalado sigue 1:1 vía productToEntryFields.
+  const unit = PRODUCT_UNIT_SUFFIX[product.unit];
 
   return (
     <div className="space-y-4 px-4 py-3">
       <div className="rounded-xl border border-line bg-surface p-4">
         <div className="text-[12px] text-muted-foreground">
-          Etiqueta · {product.baseG} g =
+          Etiqueta · {product.baseG} {unit} =
         </div>
         <div className="num mt-0.5 text-[20px] font-bold">{product.baseKcal} kcal</div>
         <div className="num text-[13px] text-muted-foreground">
@@ -1370,8 +1377,8 @@ function ProductStepperLayer({
             value={g}
             onChange={setG}
             step={10}
-            suffix="g"
-            ariaLabel="Cantidad en gramos"
+            suffix={unit}
+            ariaLabel={`Cantidad en ${PRODUCT_UNIT_NOUN[product.unit]}`}
           />
         </div>
 
@@ -1433,6 +1440,7 @@ function ProductsLayer({
       baseFat: justDeleted.baseFat,
       grupo: justDeleted.grupo,
       source: justDeleted.source,
+      unit: justDeleted.unit,
       pinned: justDeleted.pinned,
     };
     actions.create(input);
@@ -1604,6 +1612,7 @@ function ProductEditorLayer({
   const [carb, setCarb] = useState(product ? String(product.baseCarb) : "");
   const [fat, setFat] = useState(product ? String(product.baseFat) : "");
   const [grupo, setGrupo] = useState<string>(product?.grupo ?? GRUPO_NONE);
+  const [unit, setUnit] = useState<ProductUnit>(product?.unit ?? "g");
   const [pinned, setPinned] = useState(product?.pinned ?? true);
   // Método de creación (F10): Foto (F-IA-11 lee etiqueta) · Describir (F-IA-3 estima)
   // · Manual (formulario + ✨ inline). «Del plan» no aplica a crear un producto.
@@ -1698,6 +1707,7 @@ function ProductEditorLayer({
       // 'etiqueta' si se leyó la foto, 'estimado' si lo rellenó el ✨/Describir; si no,
       // el origen del producto (o 'manual' para uno nuevo tecleado a mano).
       source: sourceRef.current,
+      unit,
       pinned,
     };
     if (product) actions.update(product.id, input);
@@ -1840,9 +1850,32 @@ function ProductEditorLayer({
         </div>
       </label>
 
+      {/* Unidad de visualización (F10 · Alcance C): solo rótulo, escala 1:1. */}
+      <div>
+        <span className="mb-1 block text-[12px] text-muted-foreground">Unidad</span>
+        <div className="flex gap-1.5" role="group" aria-label="Unidad de medida">
+          {PRODUCT_UNITS.map((u) => (
+            <button
+              key={u}
+              type="button"
+              aria-pressed={u === unit}
+              onClick={() => setUnit(u)}
+              className={cn(
+                "flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium capitalize transition-colors",
+                u === unit
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-line bg-surface-2 text-muted-foreground",
+              )}
+            >
+              {PRODUCT_UNIT_NOUN[u]}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <label className="block">
         <span className="mb-1 block text-[12px] text-muted-foreground">
-          Base en gramos (vacío = fijo por unidad)
+          Base en {PRODUCT_UNIT_NOUN[unit]} (vacío = fijo por unidad)
         </span>
         <input
           value={baseG}
@@ -1850,13 +1883,16 @@ function ProductEditorLayer({
           inputMode="numeric"
           placeholder="100"
           className="num w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
-          aria-label="Base en gramos"
+          aria-label={`Base en ${PRODUCT_UNIT_NOUN[unit]}`}
         />
       </label>
 
       <div>
         <span className="mb-1 block text-[12px] text-muted-foreground">
-          kcal · P · C · G {baseG.trim() ? `(por ${baseG} g)` : "(por unidad)"}
+          kcal · P · C · G{" "}
+          {baseG.trim()
+            ? `(por ${baseG} ${PRODUCT_UNIT_SUFFIX[unit]})`
+            : "(por unidad)"}
         </span>
         <div className="grid grid-cols-4 gap-2">
           <MiniField label="kcal" value={kcal} onChange={setKcal} />

@@ -79,6 +79,7 @@ export function favoritesToProducts(favs: FavRow[]): FavoritesToProducts {
     baseFat: roundMacroStore(fav.fat),
     grupo: null,
     source: "legacy",
+    unit: "g", // los favoritos legacy son fijos por unidad, rótulo por defecto
     pinned: true,
   }));
 
@@ -108,6 +109,8 @@ export function productImportRow(
     grupo: (r.grupo ?? null) as (typeof schema.grpEnum.enumValues)[number] | null,
     source: (r.source ??
       "legacy") as (typeof schema.productSourceEnum.enumValues)[number],
+    // unit (F10): default 'g' si el export es anterior a F10 (round-trip AC7).
+    unit: (r.unit ?? "g") as (typeof schema.productUnitEnum.enumValues)[number],
     pinned: Boolean(r.pinned ?? false),
     createdAt: dt(r.createdAt),
     updatedAt: dt(r.updatedAt),

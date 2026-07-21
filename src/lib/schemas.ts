@@ -60,6 +60,9 @@ export const newEntryZ = z.object({
 // Productos (F07 · catálogo). grupo nullable (la etiqueta puede no clasificar);
 // baseG null = producto fijo (por unidad, sin escalado).
 export const productSourceZ = z.enum(["etiqueta", "manual", "estimado", "legacy"]);
+// Unidad de visualización (F10). Default 'g' → un cliente/import previo sin `unit`
+// no rompe (restore de export antiguo).
+export const productUnitZ = z.enum(["g", "ml", "ud"]);
 export const productCreateZ = z.object({
   name: z.string().min(1).max(200),
   baseG: z.number().int().min(0).max(5000).nullable(),
@@ -69,6 +72,7 @@ export const productCreateZ = z.object({
   baseFat: z.number().min(0).max(2000),
   grupo: grpZ.nullable(),
   source: productSourceZ,
+  unit: productUnitZ.default("g"),
   pinned: z.boolean(),
 });
 export const productPatchZ = productCreateZ.partial();

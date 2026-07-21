@@ -75,6 +75,7 @@ export interface ProductInput {
   baseFat: number;
   grupo: GrpKey | null;
   source: "etiqueta" | "manual" | "estimado" | "legacy";
+  unit: "g" | "ml" | "ud";
   pinned: boolean;
 }
 
