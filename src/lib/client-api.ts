@@ -318,6 +318,12 @@ export const api = {
       body: JSON.stringify(mark),
     }),
 
+  updateMark: (id: number, patch: { name?: string; family?: string | null }) =>
+    req<{ ok: true }>(`/api/marks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+
   deleteMark: (id: number) =>
     req<{ ok: true }>(`/api/marks/${id}`, { method: "DELETE" }),
 
