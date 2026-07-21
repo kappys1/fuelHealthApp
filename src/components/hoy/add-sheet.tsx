@@ -298,6 +298,7 @@ export function AddSheet({
           <ProductsLayer
             products={corpus.products}
             actions={products}
+            onAdd={addProduct}
             onEdit={(p) => openEditor(p, "products")}
             onNew={() => openEditor(null, "products")}
           />
@@ -1385,11 +1386,13 @@ function ProductStepperLayer({
 function ProductsLayer({
   products,
   actions,
+  onAdd,
   onEdit,
   onNew,
 }: {
   products: ProductDTO[];
   actions: ProductActions;
+  onAdd: (p: ProductDTO) => void;
   onEdit: (p: ProductDTO) => void;
   onNew: () => void;
 }) {
@@ -1480,6 +1483,7 @@ function ProductsLayer({
             <ProductRow
               key={p.id}
               product={p}
+              onAdd={() => onAdd(p)}
               onTogglePin={() => actions.togglePin(p.id)}
               onEdit={() => onEdit(p)}
               onDelete={() => handleDelete(p)}
@@ -1499,11 +1503,13 @@ const SOURCE_BADGE: Record<ProductDTO["source"], { label: string; cls: string }>
 
 function ProductRow({
   product,
+  onAdd,
   onTogglePin,
   onEdit,
   onDelete,
 }: {
   product: ProductDTO;
+  onAdd: () => void;
   onTogglePin: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -1523,18 +1529,28 @@ function ProductRow({
           aria-hidden
         />
       </button>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[14px] text-foreground">{product.name}</div>
-        <div className="num mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-muted-foreground">
-          <span>
-            {productBaseLabel(product)} · {displayMacro(product.baseProt)}P/
-            {displayMacro(product.baseCarb)}C/{displayMacro(product.baseFat)}F
+      {/* F10 · tocar el cuerpo AÑADE (stepper si escala, 1-toque si fijo). ✏️🗑★
+          gestionan (botones aparte, sin colisión de gesto). */}
+      <button
+        type="button"
+        onClick={onAdd}
+        aria-label={`Añadir ${product.name} a la comida`}
+        className="flex min-w-0 flex-1 items-start gap-1.5 rounded-lg text-left transition-colors hover:bg-surface-2"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] text-foreground">{product.name}</span>
+          <span className="num mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-muted-foreground">
+            <span>
+              {productBaseLabel(product)} · {displayMacro(product.baseProt)}P/
+              {displayMacro(product.baseCarb)}C/{displayMacro(product.baseFat)}F
+            </span>
+            <span className={cn("rounded border px-1.5 py-px text-[10px]", badge.cls)}>
+              {badge.label}
+            </span>
           </span>
-          <span className={cn("rounded border px-1.5 py-px text-[10px]", badge.cls)}>
-            {badge.label}
-          </span>
-        </div>
-      </div>
+        </span>
+        <Plus className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+      </button>
       <button
         type="button"
         onClick={onEdit}
