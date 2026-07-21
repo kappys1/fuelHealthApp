@@ -49,6 +49,25 @@ export function useMarks(initialMarks: MarkDTO[]) {
     router.refresh();
   };
 
+  // Editar la marca (F11): nombre y/o familia. Optimista con revert, calcado de
+  // updateEntry. Un cambio de nombre reordena la lista (byName) → re-sort tras mutar.
+  const updateMark = async (
+    markId: number,
+    patch: { name?: string; family?: string | null },
+  ) => {
+    const snapshot = marks;
+    setMarks((prev) =>
+      prev.map((m) => (m.id === markId ? { ...m, ...patch } : m)).sort(byName),
+    );
+    try {
+      await api.updateMark(markId, patch);
+      router.refresh();
+    } catch (err) {
+      setMarks(snapshot); // revert
+      throw err;
+    }
+  };
+
   const addEntry = async (markId: number, entry: Entry) => {
     const { entry: created } = await api.addMarkEntry(markId, entry);
     setMarks((prev) =>
@@ -162,6 +181,7 @@ export function useMarks(initialMarks: MarkDTO[]) {
   return {
     marks,
     createMark,
+    updateMark,
     addEntry,
     updateEntry,
     deleteEntry,

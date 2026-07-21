@@ -164,3 +164,9 @@ export const markEntryPatchZ = z.object({
   recordedOn: dateZ.optional(),
   note: z.string().max(600).nullable().optional(),
 });
+// Editar la marca (F11): nombre y/o familia. No toca measureType/unit (cambiar el
+// tipo invalidaría las entradas). `family: null` la vacía.
+export const markPatchZ = z.object({
+  name: z.string().min(1).max(120).optional(),
+  family: z.string().max(60).nullable().optional(),
+});
