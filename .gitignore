@@ -68,3 +68,7 @@ src/server/ingest/__fixtures__/hae-real.csv
 /e2e/.auth/
 /blob-report/
 /playwright/.cache/
+
+# Python bytecode from skill scripts
+__pycache__/
+*.pyc
