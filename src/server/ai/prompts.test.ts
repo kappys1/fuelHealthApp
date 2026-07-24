@@ -15,15 +15,18 @@ import {
   marksContext,
   pendingPlanOptions,
   planSummary,
+  productsContext,
   recentMealsDetail,
   trendJudgeLine,
   trendSummary,
 } from "./context";
+import type { ProductDTO } from "@/server/db/queries/lookups";
 import {
   athleteContext,
   athleteContextCompact,
   chatSummaryPrompt,
   chatSystemPrompt,
+  chatTitlePrompt,
   coachPrompt,
   photoPrompt,
   prepareVisitPrompt,
@@ -552,13 +555,17 @@ describe("F05 Fase 0 · guardarraíles compartidos coach↔chat (DECISIONS #62)"
     planPendiente: "",
   };
 
-  it("sharedGuardrails cubre no-diagnóstico, pseudociencia, anti-PR y entreno-fantasma", () => {
+  it("sharedGuardrails cubre no-diagnóstico, pseudociencia, anti-PR, entreno-fantasma y outlier del reloj (F12)", () => {
     const g = sharedGuardrails();
     expect(g).toContain("NO diagnostiques causas clínicas");
     expect(g).toContain("Prohibida la pseudociencia");
     expect(g).toContain("grasa localizada");
     expect(g).toContain("NO afirmes causalidad entre la nutrición y una marca");
     expect(g).toContain("NO asumas que va a entrenar ni des timing pre/post-entreno");
+    // F12 (caso HRV 194 del 22-jul): dato del reloj muy fuera de base = artefacto,
+    // no fisiología; nunca «recuperación extrema» sobre un valor aislado anómalo.
+    expect(g).toContain("probable artefacto de medición");
+    expect(g).toContain("recuperación extrema");
   });
 
   it("coach y chat heredan la MISMA fuente (no vuelven a divergir · causa raíz F05)", () => {
@@ -716,6 +723,165 @@ describe("F05 Fase 1 · párrafo web condicionado al flag (AC5/5b)", () => {
     expect(p).toContain("criterio REALISTA");
     expect(p).toContain("las opciones de cada comida son ALTERNATIVAS, no las apiles");
     expect(p).toContain("Sugieres, no prescribes.");
+  });
+});
+
+// ── F12 · Chat afinado con 11 días de uso real (batería canónica) ──
+// Los AC1/2/3/5 los valida Alex en vivo (🖐); estos tests son la red de regresión
+// determinista del builder. Cada caso real del export entra con su OPUESTO canónico
+// (lección: "todo arreglo IA termina en caso canónico"; AC10).
+describe("F12 · producto de marca → Mis productos primero (AC1, caso Lidl 16-jul)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+  // Etiqueta real del brik: 37 kcal · 0,6P/3C/2F por 100 ml.
+  const gazpacho: ProductDTO = {
+    id: 1,
+    name: "Gazpacho Lidl",
+    baseG: 100,
+    baseKcal: 37,
+    baseProt: 0.6,
+    baseCarb: 3,
+    baseFat: 2,
+    grupo: null,
+    source: "etiqueta",
+    unit: "ml",
+    pinned: false,
+  };
+
+  it("productsContext formatea nombre, base/unidad, macros con 1 decimal y origen", () => {
+    const c = productsContext([gazpacho]);
+    expect(c).toContain("Gazpacho Lidl: 100 ml = 37 kcal · 0,6P/3C/2F (etiqueta)");
+  });
+
+  it("productsContext vacío no añade la sección al prompt (la línea de jerarquía sí queda)", () => {
+    expect(productsContext([])).toBe("");
+    const p = chatSystemPrompt({ ...chatArgs, products: "" });
+    // Sin catálogo no hay SECCIÓN de datos…
+    expect(p).not.toContain("MIS PRODUCTOS (catálogo de Alex");
+    // …pero la instrucción de consultar Mis productos primero sigue presente.
+    expect(p).toContain("consulta PRIMERO MIS PRODUCTOS");
+  });
+
+  it("el prompt fija la jerarquía de fuentes: Mis productos → web citada → estimación + etiqueta", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("consulta PRIMERO MIS PRODUCTOS");
+    // No pasar otra variante/memoria como la etiqueta exacta (el fallo del 16-jul).
+    expect(p).toContain("no des los macros de otra variante");
+    expect(p).toContain("como si fueran su etiqueta exacta");
+    // Cuando no está: estimación declarada + pedir la etiqueta.
+    expect(p).toContain("pídele la etiqueta");
+    expect(p).toContain("Lidl, Hacendado, Mercadona");
+  });
+
+  it("opuesto canónico: si el producto SÍ está en el catálogo, su etiqueta viaja como dato exacto", () => {
+    const p = chatSystemPrompt({ ...chatArgs, products: productsContext([gazpacho]) });
+    expect(p).toContain("MIS PRODUCTOS (catálogo de Alex");
+    expect(p).toContain("Gazpacho Lidl: 100 ml = 37 kcal · 0,6P/3C/2F");
+    expect(p).toContain("úsalos como su etiqueta guardada");
+  });
+});
+
+describe("F12 · integridad del registro (AC2, caso cena 16-jul) y outlier del reloj (AC3, HRV 22-jul)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+  const coachArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    targetDate: TODAY,
+    mode: "hoy" as const,
+    kcal: 1800,
+    prot: 110,
+    carb: 200,
+    fat: 60,
+    dayContext: "Comidas: ninguna registrada aún.",
+    planPendiente: "",
+  };
+
+  it("AC2: «olvida la cena» → modo hipotético, nunca reclama una mutación («borro tu cena»)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    // El chat es read-only: ignora en el cálculo, la comida sigue guardada.
+    expect(p).toContain("la ignoro para el cálculo");
+    expect(p).toContain("sigue guardada en tu registro");
+    expect(p).toContain('nunca digas que «borras», «guardas» ni «registras»');
+  });
+
+  it("AC3: el chat hereda el guardarraíl de outlier del reloj (194 vs base 50-80 = artefacto)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("probable artefacto de medición");
+    expect(p).toContain("recuperación extrema");
+  });
+
+  it("AC3 (Impacto §Coach): el coach hereda el MISMO guardarraíl del reloj", () => {
+    const p = coachPrompt(coachArgs);
+    expect(p).toContain("probable artefacto de medición");
+    // Sigue heredando la fuente única completa (no divergió al añadir el 5º).
+    expect(p).toContain(sharedGuardrails());
+  });
+});
+
+describe("F12 · guardado de producto: oferta y confirmación en el prompt (AC4/AC5)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+
+  it("el prompt define el formato de la línea-ficha y la pregunta literal, y prohíbe auto-guardarse", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("Producto: NOMBRE · BASE UNIDAD · KCAL kcal · PROTP · CARBC · GRASAF");
+    expect(p).toContain("¿Te lo guardo en Mis productos?");
+    expect(p).toContain("NO afirmes que lo has guardado");
+    expect(p).toContain("SOLO si Alex lo confirma en el SIGUIENTE mensaje");
+    // Solo con etiqueta real, nunca con una estimación.
+    expect(p).toContain("nunca con una estimación");
+  });
+
+  it("read-only del REGISTRO con la ÚNICA excepción de Mis productos (no contradice AC2)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).toContain("La ÚNICA excepción es guardar un producto en Mis productos");
+    // AC2 intacto: sigue sin reclamar mutaciones del registro.
+    expect(p).toContain('nunca digas que «borras», «guardas» ni «registras» una comida');
+  });
+
+  it("sin guardado en este turno, el prompt NO afirma un guardado (savedLine ausente)", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).not.toContain("YA GUARDADO POR EL SISTEMA");
+  });
+
+  it("cuando el servidor ya guardó, el modelo solo narra el hecho (no vuelve a ofrecer)", () => {
+    const p = chatSystemPrompt({
+      ...chatArgs,
+      justSavedProduct: "Gazpacho Lidl (100 ml · 37 kcal · 0,6P/3C/2F), creado",
+    });
+    expect(p).toContain("YA GUARDADO POR EL SISTEMA");
+    expect(p).toContain("Gazpacho Lidl (100 ml · 37 kcal · 0,6P/3C/2F), creado");
+    expect(p).toContain("no lo ofrezcas de nuevo");
+  });
+});
+
+describe("F12 · prompt de título (AC7)", () => {
+  it("pide 4-6 palabras, sin comillas ni preámbulos, e incluye el intercambio", () => {
+    const p = chatTitlePrompt("¿cuánto arroz me falta?", "Te faltan ~40 g de arroz.");
+    expect(p).toContain("4 a 6 palabras");
+    expect(p).toContain("Sin comillas");
+    expect(p).toContain("Devuelve SOLO el título");
+    expect(p).toContain("¿cuánto arroz me falta?");
+    expect(p).toContain("Te faltan ~40 g de arroz.");
   });
 });
 
