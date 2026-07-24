@@ -1,12 +1,15 @@
-import { streamText } from "ai";
-import { z } from "zod";
-import { ensureAuth, parseBody, serverError } from "@/lib/api";
+import { type ModelMessage, streamText } from "ai";
+import { badRequest, ensureAuth, parseBody, serverError } from "@/lib/api";
+import { persistedChatUserText } from "@/lib/chat-turn";
 import { dayKey, shiftDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
-import { CHAT_MAX_CHARS } from "@/lib/schemas";
 import { computeAdherence } from "@/server/analytics/adherence";
 import { computeDeficit } from "@/server/analytics/deficit";
 import { getAthleteContexts } from "@/server/ai/athlete";
+import {
+  buildChatModelMessages,
+  chatRequestSchema,
+} from "@/server/ai/chat-turn";
 import { runText } from "@/server/ai/client";
 import {
   dayLines,
@@ -17,6 +20,7 @@ import {
   trendAndAdherence,
 } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
+import { normalizeImage } from "@/server/ai/image";
 import {
   persistedTextStreamResponse,
   verifiedTextDeltas,
@@ -52,24 +56,27 @@ import { getTrendData } from "@/server/db/queries/trend";
   + últimos 30 días + resumen cacheado del historial largo. Guardarraíles del
   principio 8 viven en el system prompt (chatSystemPrompt): observa, no prescribe.
 */
-const bodyZ = z.object({
-  threadId: z.number().int().positive().nullable().optional(),
-  // CHAT_MAX_CHARS: cabe un menú de comedor entero pegado en el mensaje (el caso
-  // real de "¿qué cojo hoy?"). Antes 2000 → rechazaba menús con 400 silencioso.
-  message: z.string().min(1).max(CHAT_MAX_CHARS),
-  turnId: z.uuid().optional(),
-  // Compatibilidad con clientes anteriores. La deduplicación real usa turnId.
-  retry: z.boolean().optional().default(false),
-});
-
 export async function POST(request: Request) {
   const unauth = await ensureAuth();
   if (unauth) return unauth;
 
-  const parsed = await parseBody(request, bodyZ);
+  const parsed = await parseBody(request, chatRequestSchema);
   if ("error" in parsed) return parsed.error;
   const { message } = parsed.data;
   const turnId = parsed.data.turnId ?? crypto.randomUUID();
+  const persistedMessage = persistedChatUserText(message, parsed.data.image != null);
+
+  // F05 Fase 2: MIME/base64/8 MB ya quedaron validados por Zod. La normalización
+  // (incluido HEIC→JPEG) también ocurre ANTES de crear hilo o persistir mensaje:
+  // un archivo inválido nunca deja un turno huérfano.
+  let image: Awaited<ReturnType<typeof normalizeImage>> | undefined;
+  try {
+    image = parsed.data.image
+      ? await normalizeImage(parsed.data.image)
+      : undefined;
+  } catch (err) {
+    return badRequest(err instanceof Error ? err.message : "Imagen inválida.");
+  }
 
   const today = dayKey();
 
@@ -83,9 +90,11 @@ export async function POST(request: Request) {
     const requestedThreadId =
       existing?.threadId ??
       parsed.data.threadId ??
-      (createdThreadId = await retry(() => createThread(threadTitleFrom(message))));
+      (createdThreadId = await retry(() =>
+        createThread(threadTitleFrom(message.trim() || persistedMessage)),
+      ));
     const turn = await retry(() =>
-      ensureChatUserMessage(requestedThreadId, turnId, message),
+      ensureChatUserMessage(requestedThreadId, turnId, persistedMessage),
     );
     threadId = turn.threadId;
 
@@ -128,7 +137,7 @@ export async function POST(request: Request) {
 
   // 2) Contexto de datos (fresco) + historial del hilo.
   let system: string;
-  let modelMessages: { role: "user" | "assistant"; content: string }[];
+  let modelMessages: ModelMessage[];
   // F05 Fase 1: la tool `googleSearch` se cablea solo si `chatWebSearch` está ON
   // (mismo flag que el párrafo web del prompt). OFF → undefined → sin tool =
   // comportamiento idéntico a la Fase 0.
@@ -205,10 +214,12 @@ export async function POST(request: Request) {
 
     tools = webSearch ? webSearchTools() : undefined;
 
-    modelMessages = [...unsummarized, ...windowMsgs].map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
+    modelMessages = buildChatModelMessages(
+      [...unsummarized, ...windowMsgs],
+      turnId,
+      image,
+      message,
+    );
   } catch (err) {
     await releaseAssistantTurn(assistantMessageId).catch(() => undefined);
     const response = serverError(err);
@@ -250,7 +261,16 @@ export async function POST(request: Request) {
         });
       },
       onError: async (error) => {
-        console.error("[chat] stream incompleto:", error);
+        // Una APICallError puede retener el request del proveedor. Con foto no
+        // logueamos el objeto ni su mensaje para que el base64 nunca llegue a logs.
+        console.error(
+          "[chat] stream incompleto:",
+          image
+            ? error instanceof Error
+              ? error.name
+              : "Error de IA"
+            : error,
+        );
         await releaseAssistantTurn(assistantMessageId);
       },
       headers: {

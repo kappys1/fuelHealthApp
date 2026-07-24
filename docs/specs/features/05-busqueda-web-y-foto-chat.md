@@ -1,5 +1,5 @@
 # F05 · Chat inteligente: criterio realista + comer fuera (web/foto)
-**Estado**: aprobada (2026-07-16; Fase 0 desplegada · Fase 1 IMPLEMENTADA, pendiente de validación 🖐 en producción) · **Tamaño**: feature (3 fases — Fase 0 reconstruye el prompt congelado F-IA-8; Fase 1 añade `googleSearch` en la route + toggle global en Ajustes; Fase 2 añade foto-en-chat con UI)
+**Estado**: implementada (2026-07-25; Fase 0 desplegada · Fase 1 IMPLEMENTADA, pendiente de validación 🖐 en producción · Fase 2 IMPLEMENTADA y VALIDADA 🖐 en móvil) · **Tamaño**: feature (3 fases — Fase 0 reconstruye el prompt congelado F-IA-8; Fase 1 añade `googleSearch` en la route + toggle global en Ajustes; Fase 2 añade foto-en-chat con UI)
 **Fecha**: 2026-07-15 (F1/F2) · **Reencuadrada**: 2026-07-16 (se antepone la Fase 0)
 **Origen**: HANDOFF §B3 (2026-07-15) — «hoy en La Tagliatella el Chat no pudo ayudarme con la carta» + sesión product-partner (2026-07-16) — «no es inteligente dándome soluciones y lo tengo que estar guiando yo».
 
@@ -104,8 +104,21 @@ comportamiento — cada punto es verificable en la batería de casos canónicos:
   (key/value jsonb existente): **sin migración**, ya cubierto por export/restore.
 
 ### Fase 2 · Foto en el chat (la F05 original)
-- Adjuntar imagen (etiqueta de producto / plato / carta) al composer del hilo; el chat la
-  evalúa contra la dieta/objetivos del día. Foto **efímera, no se almacena**.
+- Experiencia tipo ChatGPT en el composer: botón para elegir desde cámara/fototeca/archivos,
+  **una imagen como máximo por mensaje**, vista previa y acciones de quitar/cambiar.
+- Admite **foto + pregunta** (manda la pregunta de Alex) o **solo foto** (el servidor añade una
+  instrucción neutra para que el chat detecte el caso y haga el análisis apropiado).
+- Casos principales, todos evaluados contra la pauta, objetivos y consumo del día:
+  - **carta de restaurante** → leer opciones y recomendar las que mejor encajan;
+  - **plato servido** → identificar componentes y estimar kcal/macros como **rango**, nunca
+    fingir precisión sobre cantidades que la foto no permite medir;
+  - **etiqueta de producto** → leer valores/ingredientes/ración y valorar cómo encaja.
+- Si algo no se ve o no puede inferirse con fiabilidad, declara la incertidumbre y pide el dato
+  o una foto mejor. Los guardarraíles C1-C9 siguen mandando.
+- La foto es **efímera**: se procesa para el turno, no se sube a Blob ni se almacena. En el
+  historial solo persisten «📷 Foto adjunta», la pregunta (si la hubo) y la respuesta.
+- Tras una recarga, el chat puede continuar desde el análisis textual ya persistido, pero no
+  volver a inspeccionar la imagen: si hace falta mirarla otra vez, pide re-adjuntarla.
 
 ## NO-alcance
 - **NO puente al registro** (decisión firme, protege P2): el chat es **asesor**. Las cifras de
@@ -133,10 +146,12 @@ composer (Fase 2).
 Sin schema nuevo, sin migración, sin impacto en export/restore/migrate:poc en ninguna fase.
 **Fase 1 añade el setting `chatWebSearch`** (bool, default `true`) en la tabla `settings`
 (key/value jsonb existente, misma vía que `sessionByWeekday`/tema): sin migración; export/restore
-ya lo cubre (vuelca la tabla entera). La
-respuesta (incluida la cita de fuente) se persiste como texto del mensaje, igual que hoy. La
-imagen de Fase 2 se envía en el cuerpo y se pasa a Gemini; **no se almacena** (foto efímera de
-consulta, no un registro — a diferencia de F-IA-1).
+ya lo cubre (vuelca la tabla entera). La respuesta (incluida la cita de fuente) se persiste
+como texto del mensaje, igual que hoy. En Fase 2 el mensaje de usuario persiste como texto con
+el marcador «📷 Foto adjunta»; la imagen viaja solo en el cuerpo del turno, se normaliza en
+memoria y se pasa a Gemini. **No se almacena ni se sube a Blob** (foto efímera de consulta, no
+un registro — a diferencia de F-IA-1). El reintento puede conservar temporalmente la imagen
+procesada en memoria del cliente; una recarga la descarta.
 
 ## Flujo (09)
 - **Fase 0**: sin UI. Reescritura de `chatSystemPrompt` + (recomendado) extracción de un bloque
@@ -144,9 +159,20 @@ consulta, no un registro — a diferencia de F-IA-1).
 - **Fase 1**: `googleSearch` en `streamText` de `POST /api/ai/chat`, **condicionado al setting
   `chatWebSearch`** (default ON); **un toggle en Ajustes** (09 §2, junto a tema/import/export)
   para encenderlo/apagarlo. El párrafo web del prompt y la tool se atan al mismo flag.
-- **Fase 2**: botón de **adjuntar imagen** en el composer; cuerpo del chat acepta imagen
-  opcional (base64); `streamText` recibe mensaje multimodal (bloque `file` + texto, patrón de
-  `server/ai/client.ts:buildMessages`).
+- **Fase 2**:
+  1. Botón de **adjuntar imagen** en el composer, selector nativo sin forzar `capture`, una
+     imagen, preview y quitar/cambiar; el envío solo-foto está permitido.
+  2. Reusar `processImage` en cliente y `normalizeImage` en servidor (límite 8 MB); validar el
+     objeto opcional `{ base64, mediaType }` con Zod antes de persistir el mensaje, para que una
+     imagen inválida no deje un turno huérfano.
+  3. Persistir únicamente el texto/marker del turno. Tras cargar los mensajes del hilo,
+     convertir **solo el mensaje actual** a `ModelMessage` multimodal de AI SDK 7
+     (`{type:"file", mediaType, data}` + `{type:"text", text}`); el historial sigue siendo
+     texto.
+  4. Mantener `turnId` e idempotencia actuales. Si falla el stream, conservar la imagen
+     procesada solo en el estado de error del cliente para reintentar el mismo turno; tras
+     recarga, pedir que se adjunte otra vez en vez de reintentar silenciosamente sin foto.
+  5. No añadir schema, migración, Blob, export/restore ni puente al registro.
 
 ## IA
 Modelo: `AI_MODEL_CHAT`. `temperature 0.3` y `thinkingLevel` sin cambios. Streaming de texto
@@ -213,9 +239,12 @@ batería**; no congelar la redacción exacta hasta que la batería pase):
   > temporal de `sources` confirmó que `googleSearch` dispara (`sources≥1`); el residuo de error es
   > de la fuente (Google surfa Open Food Facts, floja) → nudge de honestidad. Log retirado. AC2
   > mecánico OK (busca+cita); la precisión la limita la web (P2: para cuadrar el día es ruido)._
-- **Delta Fase 2 (foto)** — se añade cuando el cliente permita adjuntar imagen: «…de un
-  producto, **y PUEDES analizar una foto que Alex adjunte (etiqueta, plato o carta)**.» y, en el
-  fallo, «…o pide lo que falte **o que te adjunte una foto**.».
+- **Fase 2 (foto, decisión #74):** no cambia el `chatSystemPrompt` congelado. La instrucción de
+  analizar la foto efímera viaja en el bloque de texto del **turno multimodal actual**, junto a
+  la pregunta de Alex o al texto por defecto si envía solo la imagen. Así los guardarraíles y
+  el contexto existentes aplican sin abrir otra iteración global del prompt F-IA-8. Si en la
+  validación real el modelo no distingue bien carta/plato/etiqueta, se documentará la evidencia
+  antes de considerar un cambio de prompt.
 
 **Manejo de error**: errores del proveedor siempre visibles (`aiErrorResponse`). Si
 `googleSearch` no devuelve resultados, el párrafo del prompt gobierna el fallo elegante.
@@ -269,9 +298,29 @@ batería**; no congelar la redacción exacta hasta que la batería pase):
 7. `pnpm typecheck && pnpm test && pnpm build` verde; deploy verificado. 🖐
 
 **Fase 2 (foto) — gate de regresión:**
-8. Adjuntar foto de **etiqueta de producto** → el chat la evalúa contra la dieta/objetivos. 🖐
-9. Foto de **carta** o **plato** + pregunta → sugiere/valora con los mismos guardarraíles. 🖐
-10. Enviar sin foto sigue igual (regresión); el cuerpo valida la imagen (tipo/tamaño) con Zod.
+8. El composer permite adjuntar **una** imagen desde cámara/fototeca/archivos, muestra preview
+   y permite quitarla o cambiarla; nunca admite una segunda simultánea.
+   **✅ Validado por Alex en móvil (2026-07-25).**
+9. **Solo foto**: carta → recomienda opciones; plato → estima kcal/macros como rango y explicita
+   incertidumbre; etiqueta → lee datos/ración y valora el encaje. Todo usa pauta, objetivos y
+   consumo del día. **✅ Validado por Alex en móvil (2026-07-25).**
+10. **Foto + pregunta**: responde prioritariamente a lo preguntado manteniendo C1-C9; si la
+    imagen es ilegible o insuficiente, lo dice y pide el dato/foto necesarios.
+    **✅ Validado por Alex en móvil (2026-07-25).**
+11. El chat sigue siendo **solo asesor**: ninguna respuesta crea, edita o borra registros ni
+    ofrece un CTA de registro. **✅ Validado por Alex en móvil (2026-07-25).**
+12. Privacidad comprobada: la imagen no aparece en BD, Blob, export/restore ni logs. Tras
+    recargar solo quedan «📷 Foto adjunta», la pregunta y la respuesta; para reanalizar hay que
+    adjuntarla otra vez. **✅ Validado en móvil por Alex + revisión automatizada
+    (2026-07-25).**
+13. Tipo/tamaño se validan antes de persistir el turno. Un fallo de stream permite reintentar
+    con la misma imagen y `turnId` sin duplicar mensajes; tras recargar no hay reintento
+    silencioso sin imagen. **✅ Validado en móvil por Alex + tests (2026-07-25).**
+14. Enviar sin foto sigue byte-funcionalmente igual; web ON/OFF, streaming, historial, resumen,
+    copiar y offline no regresan. **✅ Tests + validación móvil (2026-07-25).**
+15. Tests de route/validación/estado de composer + `pnpm lint && pnpm typecheck && pnpm test &&
+    pnpm build` verdes; validación manual móvil de AC 8-13 antes de cerrar.
+    **✅ 265 tests, build y pulgar móvil de Alex (2026-07-25).**
 
 ## Casos canónicos (batería de validación de la Fase 0)
 Conversaciones reales que el prompt reconstruido debe pasar (se comparan a mano, 🖐):
@@ -303,6 +352,12 @@ Conversaciones reales que el prompt reconstruido debe pasar (se comparan a mano,
 4. **Guardarraíles compartidos coach↔chat.** Recomendado extraer a una fuente única para no
    volver a divergir (fue la causa raíz de los problemas 1 y 8). Si se hace, el coach debe
    quedar equivalente (sus AC verdes).
+5. **Una foto no mide una ración.** Riesgo de falsa precisión en un plato servido.
+   **Mitigación:** rangos, supuestos visibles y pregunta aclaratoria cuando cambie materialmente
+   la estimación; sigue siendo orientación y nunca logging.
+6. **La foto no sobrevive a una recarga.** Es el coste deliberado de no almacenarla. El
+   análisis textual sí permite continuar la conversación; para re-inspeccionar se adjunta de
+   nuevo. El retry exacto solo se garantiza mientras el cliente conserva la imagen en memoria.
 
 ## Fases
 - **Fase 0 · Reconstrucción del prompt** (esta sesión, prioritaria): reescribe
@@ -312,6 +367,20 @@ Conversaciones reales que el prompt reconstruido debe pasar (se comparan a mano,
   route + párrafo de comer-fuera + cita de fuente, ambos atados al interruptor global
   `chatWebSearch` (Ajustes, default ON). Sobre el prompt de la Fase 0. Pendiente de
   validación 🖐 en producción (AC 1, 2, 3, 5b, 7).
-- **Fase 2 · Foto en el chat**: cuerpo multimodal + botón de adjuntar. Tras validar F1 en uso.
+- **Fase 2 · Foto en el chat** (IMPLEMENTADA 2026-07-24 y VALIDADA 2026-07-25,
+  DECISIONS #74): una foto por turno,
+  pregunta opcional, carta/plato/etiqueta, asesoramiento sin registro y foto efímera. Contrato,
+  validación, builder multimodal y estado de retry cubiertos por tests; AC 8–13 validados
+  manualmente por Alex en móvil.
 
-## Prompt estándar de arranque (para Alex, copiar/pegar) — ver el bloque que te paso aparte.
+## Prompt estándar de arranque (implementación)
+
+> Implementa **F05 · Fase 2** según `docs/specs/features/05-busqueda-web-y-foto-chat.md`.
+> Trabaja solo esta fase y usa `fuelboard-implementer`. Antes de tocar código, inspecciona el
+> flujo actual completo del chat y lee las guías relevantes de Next 16 en
+> `node_modules/next/dist/docs/`. Conserva la imagen efímera (sin BD/Blob/logs), una por turno,
+> foto sola o con pregunta, y la idempotencia/retry actuales. Reusa `processImage` y
+> `normalizeImage`; para AI SDK 7 usa un `ModelMessage` de usuario con partes `file` + `text`
+> solo en el turno actual. No cambies el prompt congelado F-IA-8, no añadas registro de comidas
+> y no hagas migraciones. Implementa los AC 8-15 en orden, ejecuta la suite completa indicada
+> en AC15 y para antes de desplegar/commitear salvo autorización explícita.

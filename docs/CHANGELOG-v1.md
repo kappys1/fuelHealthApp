@@ -299,6 +299,17 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   validados por Alex 🖐 (21-jul)**. Queda solo un posible refinamiento de ubicación
   del editor inline, sin urgencia.
 
+### v1.13 · Foto efímera dentro del Chat (F05 Fase 2)
+- El composer admite una foto, sola o con pregunta, con selector nativo, preview y
+  quitar/cambiar; reutiliza `processImage` y no fuerza `capture`.
+- El turno actual viaja a AI SDK 7 como `file + text`; el historial y la persistencia
+  conservan solo «📷 Foto adjunta», pregunta y respuesta, nunca los bytes.
+- MIME/base64/8 MB se validan antes de BD; retry conserva foto + `turnId` solo en memoria.
+- Compatibilidad móvil: `turnId` usa `randomUUID` cuando está disponible y un UUID v4
+  generado con `getRandomValues` cuando Safari o un contexto HTTP no lo expone.
+- Sin schema, Blob, migración ni registro de comidas. Suite automatizada verde; **AC 8–13
+  validados por Alex en móvil (25-jul)**.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
