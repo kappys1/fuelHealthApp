@@ -10,7 +10,8 @@ import * as schema from "../schema";
 const n = (v: unknown): number | null =>
   v == null || v === "" ? null : Number(v);
 const s = (v: unknown): string | null => (v == null ? null : String(v));
-const dt = (v: unknown): Date => (v ? new Date(String(v)) : new Date());
+const dt = (v: unknown): Date =>
+  v instanceof Date ? new Date(v.getTime()) : v ? new Date(String(v)) : new Date();
 
 /**
  * Mapea una fila de meal_entries del archivo de export a la fila de inserción,
@@ -78,6 +79,18 @@ export function mealEntryImportRow(r: Record<string, unknown>) {
     baseProt: n(r.baseProt),
     baseCarb: n(r.baseCarb),
     baseFat: n(r.baseFat),
+    clientMutationId: s(r.clientMutationId),
+    clientMutationIndex: n(r.clientMutationIndex),
+    createdAt: dt(r.createdAt),
+  };
+}
+
+/** Mapea el marcador temporal sin inventar hora para exports antiguos. */
+export function bloatEventImportRow(r: Record<string, unknown>) {
+  return {
+    date: String(r.date),
+    severity: r.severity as (typeof schema.bloatEnum.enumValues)[number],
+    occurredAt: String(r.occurredAt),
     createdAt: dt(r.createdAt),
   };
 }

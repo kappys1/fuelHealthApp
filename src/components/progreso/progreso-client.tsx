@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { DailyRecord, DayTarget } from "@/server/analytics/types";
 import type { HistorialEntry } from "@/server/db/queries/history";
@@ -28,6 +28,13 @@ export function ProgresoClient({
   med,
   historial,
   marks,
+  initialSegment = "tendencia",
+  initialRange = "90",
+  initialSummary = 7,
+  initialHistoryRange = "all",
+  initialHistoryType = "all",
+  initialHistoryFrom = "",
+  initialHistoryTo = "",
 }: {
   records: DailyRecord[];
   currentTarget: DayTarget;
@@ -35,45 +42,86 @@ export function ProgresoClient({
   med: MedWithDelta[];
   historial: HistorialEntry[];
   marks: MarkDTO[];
+  initialSegment?: Segment;
+  initialRange?: "14" | "30" | "90" | "todo";
+  initialSummary?: 7 | 30;
+  initialHistoryRange?: "3m" | "6m" | "year" | "all" | "custom";
+  initialHistoryType?: "objetivo" | "dieta" | "entreno" | "med" | "all";
+  initialHistoryFrom?: string;
+  initialHistoryTo?: string;
 }) {
-  const [segment, setSegment] = useState<Segment>("tendencia");
+  const segment = initialSegment;
+
+  const hrefFor = (next: Segment) => {
+    const params = new URLSearchParams();
+    if (next !== "tendencia") params.set("tab", next);
+    if (initialRange !== "90") params.set("range", initialRange);
+    if (initialSummary !== 7) params.set("summary", String(initialSummary));
+    if (initialHistoryRange !== "all") params.set("historyRange", initialHistoryRange);
+    if (initialHistoryType !== "all") params.set("historyType", initialHistoryType);
+    if (initialHistoryFrom) params.set("from", initialHistoryFrom);
+    if (initialHistoryTo) params.set("to", initialHistoryTo);
+    const query = params.toString();
+    return query ? `/progreso?${query}` : "/progreso";
+  };
 
   return (
-    <section className="space-y-4">
-      {/* Control de segmento estilo marcador */}
-      <div className="flex border-b border-line" role="tablist" aria-label="Progreso">
+    <section className="space-y-6 pb-8">
+      <div>
+        <p className="ui-label">Evolución</p>
+        <h1 className="app-page-title mt-1">Progreso</h1>
+      </div>
+
+      <div
+        className="grid min-h-12 grid-cols-3 rounded-xl bg-surface-2 p-1"
+        role="tablist"
+        aria-label="Progreso"
+      >
         {SEGMENTS.map((s) => {
           const active = segment === s.key;
           return (
-            <button
+            <Link
               key={s.key}
-              type="button"
+              href={hrefFor(s.key)}
+              scroll={false}
               role="tab"
               aria-selected={active}
-              onClick={() => setSegment(s.key)}
-              className={`relative flex-1 pb-2.5 pt-1 text-center text-[14px] font-semibold transition-colors ${
-                active ? "text-foreground" : "text-muted-foreground"
+              className={`flex min-h-11 items-center justify-center rounded-lg px-2 text-center text-[13px] font-semibold transition-colors ${
+                active
+                  ? "bg-surface text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
               style={{ fontFamily: "var(--font-display)" }}
             >
               {s.label}
-              <span
-                className={`absolute inset-x-0 -bottom-px mx-auto h-[3px] w-16 rounded-full ${
-                  active ? "bg-primary" : "bg-transparent"
-                }`}
-                aria-hidden
-              />
-            </button>
+            </Link>
           );
         })}
       </div>
 
       {segment === "tendencia" ? (
-        <Tendencia records={records} currentTarget={currentTarget} today={today} />
+        <Tendencia
+          records={records}
+          currentTarget={currentTarget}
+          today={today}
+          range={initialRange}
+          summaryDays={initialSummary}
+        />
       ) : segment === "med" ? (
         <Med initialMed={med} />
       ) : (
-        <Historial entries={historial} today={today} marks={marks} />
+        <Historial
+          entries={historial}
+          records={records}
+          today={today}
+          marks={marks}
+          range={initialHistoryRange}
+          type={initialHistoryType}
+          from={initialHistoryFrom}
+          to={initialHistoryTo}
+          progressRange={initialRange}
+          summaryDays={initialSummary}
+        />
       )}
     </section>
   );

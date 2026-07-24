@@ -1,5 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { mealEntryImportRow, planOptionImportRow } from "./backup-map";
+import {
+  bloatEventImportRow,
+  mealEntryImportRow,
+  planOptionImportRow,
+} from "./backup-map";
+
+async function importParser() {
+  process.env.DATABASE_URL ??= "postgresql://test:test@localhost/test";
+  return (await import("./backup")).parseImport;
+}
+
+function emptyV2Data() {
+  return {
+    dietVersions: [],
+    planOptions: [],
+    days: [],
+    bloatEvents: [],
+    mealEntries: [],
+    healthMetrics: [],
+    workouts: [],
+    medMeasurements: [],
+    favorites: [],
+    products: [],
+    dayTemplates: [],
+    settings: [],
+    chatThreads: [],
+    chatMessages: [],
+    trainingPlans: [],
+    trainingSessions: [],
+    performanceMarks: [],
+    markEntries: [],
+  };
+}
 
 /*
   Round-trip export → restore de una entrada con base+cantidad (F06, AC6).
@@ -27,6 +59,8 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
       baseProt: 5,
       baseCarb: 40,
       baseFat: 1,
+      clientMutationId: "90d0a527-c90f-4b5d-88ea-cf49d8f2279b",
+      clientMutationIndex: 2,
       createdAt: "2026-07-14T12:00:00.000Z",
     };
     const row = mealEntryImportRow(exported);
@@ -37,9 +71,29 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
     expect(row.baseProt).toBe(5);
     expect(row.baseCarb).toBe(40);
     expect(row.baseFat).toBe(1);
+    expect(row.clientMutationId).toBe(exported.clientMutationId);
+    expect(row.clientMutationIndex).toBe(2);
     // macros actuales intactas
     expect(row.kcal).toBe(312);
     expect(row.prot).toBe(8);
+  });
+
+  it("conserva los milisegundos cuando Drizzle entrega createdAt como Date", () => {
+    const createdAt = new Date("2026-07-20T16:25:44.970Z");
+    const row = mealEntryImportRow({
+      date: "2026-07-20",
+      meal: "merienda",
+      name: "Pan integral",
+      kcal: 142,
+      prot: 7,
+      carb: 22,
+      fat: 2,
+      source: "manual",
+      createdAt,
+    });
+
+    expect(row.createdAt).not.toBe(createdAt);
+    expect(row.createdAt.toISOString()).toBe("2026-07-20T16:25:44.970Z");
   });
 
   it("un export previo a F06 (sin campos base) degrada a entrada fija (null)", () => {
@@ -59,6 +113,8 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
     expect(row.grams).toBeNull();
     expect(row.baseG).toBeNull();
     expect(row.baseKcal).toBeNull();
+    expect(row.clientMutationId).toBeNull();
+    expect(row.clientMutationIndex).toBeNull();
     expect(row.kcal).toBe(70); // macros preservadas
   });
 });
@@ -122,5 +178,84 @@ describe("planOptionImportRow — round-trip de variantes (F08, AC5)", () => {
     expect(row.variants).toEqual([]);
     expect(row.baseG).toBeNull();
     expect(row.kcal).toBe(60);
+  });
+});
+
+describe("bloatEventImportRow — round-trip temporal", () => {
+  it("conserva fecha, hora local y severidad", () => {
+    const row = bloatEventImportRow({
+      id: 3,
+      date: "2026-07-20",
+      severity: "moderada",
+      occurredAt: "20:10:00",
+      createdAt: "2026-07-20T18:10:00.000Z",
+    });
+    expect(row.date).toBe("2026-07-20");
+    expect(row.severity).toBe("moderada");
+    expect(row.occurredAt).toBe("20:10:00");
+    expect(row.createdAt.toISOString()).toBe("2026-07-20T18:10:00.000Z");
+  });
+});
+
+describe("parseImport — preflight destructivo", () => {
+  it("exige identidad y versión de Fuelboard", async () => {
+    const parseImport = await importParser();
+    expect(() => parseImport({ data: {} })).toThrow(/export de Fuelboard válido/);
+    expect(() => parseImport({ app: "otra-app", version: 2, data: {} })).toThrow(
+      /export de Fuelboard válido/,
+    );
+  });
+
+  it("rechaza un export v2 truncado aunque conserve identidad y versión", async () => {
+    const parseImport = await importParser();
+    expect(() =>
+      parseImport({ app: "fuelboard", version: 2, data: {} }),
+    ).toThrow(/export de Fuelboard válido/);
+  });
+
+  it("acepta v1 completo y añade solo la tabla temporal que aún no existía", async () => {
+    const parseImport = await importParser();
+    const { bloatEvents, ...v1Data } = emptyV2Data();
+    void bloatEvents;
+    expect(parseImport({ app: "fuelboard", version: 1, data: v1Data }).bloatEvents).toEqual(
+      [],
+    );
+  });
+
+  it("rechaza fechas inválidas antes de mostrar la vista previa", async () => {
+    const parseImport = await importParser();
+    expect(() =>
+      parseImport({
+        app: "fuelboard",
+        version: 2,
+        data: { ...emptyV2Data(), days: [{ date: "not-a-date" }] },
+      }),
+    ).toThrow(/days\[0\]\.date/);
+  });
+
+  it("rechaza relaciones huérfanas antes de tocar la base", async () => {
+    const parseImport = await importParser();
+    expect(() =>
+      parseImport({
+        app: "fuelboard",
+        version: 2,
+        data: {
+          ...emptyV2Data(),
+          mealEntries: [
+            {
+              id: 1,
+              date: "2026-07-20",
+              meal: "comida",
+              name: "Arroz",
+              kcal: 200,
+              prot: 4,
+              carb: 42,
+              fat: 1,
+              source: "manual",
+            },
+          ],
+        },
+      }),
+    ).toThrow(/mealEntries\[0\]\.date/);
   });
 });

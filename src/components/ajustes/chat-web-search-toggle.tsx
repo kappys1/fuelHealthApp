@@ -36,18 +36,23 @@ export function ChatWebSearchToggle({ initial }: { initial: boolean }) {
   };
 
   return (
-    <div className="flex items-center justify-between gap-3">
-      <label htmlFor="chat-web-search" className="text-sm text-foreground">
-        El chat puede buscar en internet cartas de restaurante y productos de
-        marca (para comer fuera). Cita la fuente en su respuesta.
+    <div className="flex items-center justify-between gap-4">
+      <label
+        htmlFor="chat-web-search"
+        className="min-w-0 flex-1 text-[12px] leading-relaxed text-muted-foreground"
+      >
+        Permite consultar cartas de restaurante y productos de marca. Las respuestas
+        incluyen la fuente.
       </label>
-      <Switch
-        id="chat-web-search"
-        checked={enabled}
-        onCheckedChange={onChange}
-        disabled={saving}
-        aria-label="Búsqueda web del chat"
-      />
+      <span className="flex min-h-11 shrink-0 items-center">
+        <Switch
+          id="chat-web-search"
+          checked={enabled}
+          onCheckedChange={onChange}
+          disabled={saving}
+          aria-label="Búsqueda web del chat"
+        />
+      </span>
     </div>
   );
 }

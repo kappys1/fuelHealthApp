@@ -42,6 +42,10 @@ import {
   MEAL_LABELS,
   MEAL_ORDER,
   GRP_ORDER,
+  PRODUCT_UNITS,
+  PRODUCT_UNIT_NOUN,
+  PRODUCT_UNIT_SUFFIX,
+  type ProductUnit,
   productToEntryFields,
   roundKcal,
   roundMacroStore,
@@ -104,6 +108,9 @@ export function AddSheet({
   // `editorFrom` solo se lee en el handler `back()`, nunca en el render → useRef
   // (react-doctor/rerender-state-only-in-handlers).
   const editorFromRef = useRef<Layer>("products");
+  // Origen del stepper de producto (capa "product"): a dónde vuelve `back()` y el
+  // «Añadir» — home (chips) o products (catálogo, F10). Solo se lee en handlers.
+  const productFromRef = useRef<Layer>("home");
 
   // Share target: al abrir con una imagen compartida, saltar a la capa de foto.
   // Diferido para no encadenar renders síncronos dentro del efecto.
@@ -167,6 +174,8 @@ export function AddSheet({
   // Añadir un producto al día: con baseG → capa stepper; fijo → 1 toque directo.
   const addProduct = (p: ProductDTO) => {
     if (p.baseG != null && p.baseG !== 0) {
+      // Volver a donde estábamos (chips de home o catálogo de products).
+      productFromRef.current = layer === "products" ? "products" : "home";
       setSelectedProduct(p);
       setLayer("product");
       return;
@@ -184,6 +193,11 @@ export function AddSheet({
   const back = () => {
     if (layer === "editor") {
       setLayer(editorFromRef.current);
+      return;
+    }
+    if (layer === "product") {
+      setLayer(productFromRef.current);
+      setSelectedProduct(null);
       return;
     }
     setLayer("home");
@@ -208,7 +222,7 @@ export function AddSheet({
               <button
                 type="button"
                 onClick={back}
-                className="inline-flex items-center gap-1 text-foreground"
+                className="inline-flex min-h-11 items-center gap-1 pr-3 text-foreground"
               >
                 <ChevronLeft className="size-4" aria-hidden /> {headerLabel[layer]}
               </button>
@@ -221,7 +235,7 @@ export function AddSheet({
         {/* Selector de comida (preseleccionada) */}
         <div className="px-4">
           <Select value={meal} onValueChange={(v) => setMeal(v as MealKey)}>
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="h-11 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -237,7 +251,8 @@ export function AddSheet({
         {justAdded ? (
           <div className="mx-4 mt-3 flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2">
             <span className="num text-[14px] text-foreground">
-              {justAdded.total.toLocaleString("es-ES")} / {targetKcal.toLocaleString("es-ES")} ·{" "}
+              {justAdded.total.toLocaleString("es-ES")}
+              {targetKcal > 0 ? ` / ${targetKcal.toLocaleString("es-ES")}` : ""} kcal ·{" "}
               <span className="text-protein">+{justAdded.delta}</span>
             </span>
             <button
@@ -289,7 +304,7 @@ export function AddSheet({
             meal={meal}
             onAdd={(e) => {
               commit(e);
-              setLayer("home");
+              setLayer(productFromRef.current);
               setSelectedProduct(null);
             }}
           />
@@ -297,6 +312,7 @@ export function AddSheet({
           <ProductsLayer
             products={corpus.products}
             actions={products}
+            onAdd={addProduct}
             onEdit={(p) => openEditor(p, "products")}
             onNew={() => openEditor(null, "products")}
           />
@@ -462,10 +478,11 @@ function HomeLayer({
   );
 }
 
-/** Etiqueta corta de la base de un producto: "100 g · 310 kcal" o "310 kcal" (fijo). */
+/** Etiqueta corta de la base de un producto: "100 ml · 310 kcal" o "310 kcal" (fijo).
+ *  La unidad (F10) es solo rótulo; no cambia kcal ni el escalado. */
 function productBaseLabel(p: ProductDTO): string {
   return p.baseG != null && p.baseG !== 0
-    ? `${p.baseG} g · ${p.baseKcal} kcal`
+    ? `${p.baseG} ${PRODUCT_UNIT_SUFFIX[p.unit]} · ${p.baseKcal} kcal`
     : `${p.baseKcal} kcal`;
 }
 
@@ -473,6 +490,8 @@ function productBaseLabel(p: ProductDTO): string {
 function ProductSourceIcon({ source }: { source: ProductDTO["source"] }) {
   if (source === "etiqueta")
     return <Camera className="size-3.5 text-protein" aria-label="De etiqueta" />;
+  if (source === "estimado")
+    return <Sparkles className="size-3.5 text-primary" aria-label="Estimado por IA" />;
   if (source === "manual")
     return <PenLine className="size-3.5 text-muted-foreground" aria-label="Manual" />;
   return null;
@@ -1029,7 +1048,11 @@ function PhotoLayer({
           <div
             className={cn(
               "rounded-lg px-3 py-2",
-              result.encaja_plan ? "bg-protein/10" : "bg-fat/10",
+              result.encaja_plan == null
+                ? "bg-surface-2"
+                : result.encaja_plan
+                  ? "bg-protein/10"
+                  : "bg-fat/10",
             )}
           >
             <div className="num text-[14px] font-semibold text-foreground">
@@ -1037,8 +1060,20 @@ function PhotoLayer({
               {displayMacro(total.carb)}C/{displayMacro(total.fat)}F
             </div>
             <div className="mt-0.5 text-[13px]">
-              <span className={result.encaja_plan ? "text-protein" : "text-fat"}>
-                {result.encaja_plan ? "✓ encaja" : "✗ fuera de plan"}
+              <span
+                className={
+                  result.encaja_plan == null
+                    ? "text-muted-foreground"
+                    : result.encaja_plan
+                      ? "text-protein"
+                      : "text-fat"
+                }
+              >
+                {result.encaja_plan == null
+                  ? "Sin pauta para comparar"
+                  : result.encaja_plan
+                    ? "✓ encaja"
+                    : "✗ fuera de plan"}
               </span>{" "}
               <span className="text-muted-foreground">— {result.comentario}</span>
             </div>
@@ -1319,12 +1354,14 @@ function ProductStepperLayer({
   const [g, setG] = useState(String(product.baseG ?? 0));
   const grams = g === "" ? 0 : Number(g.replace(",", "."));
   const f = productToEntryFields(product, grams);
+  // Unidad = solo rótulo (F10); el escalado sigue 1:1 vía productToEntryFields.
+  const unit = PRODUCT_UNIT_SUFFIX[product.unit];
 
   return (
     <div className="space-y-4 px-4 py-3">
       <div className="rounded-xl border border-line bg-surface p-4">
         <div className="text-[12px] text-muted-foreground">
-          Etiqueta · {product.baseG} g =
+          Etiqueta · {product.baseG} {unit} =
         </div>
         <div className="num mt-0.5 text-[20px] font-bold">{product.baseKcal} kcal</div>
         <div className="num text-[13px] text-muted-foreground">
@@ -1340,8 +1377,8 @@ function ProductStepperLayer({
             value={g}
             onChange={setG}
             step={10}
-            suffix="g"
-            ariaLabel="Cantidad en gramos"
+            suffix={unit}
+            ariaLabel={`Cantidad en ${PRODUCT_UNIT_NOUN[product.unit]}`}
           />
         </div>
 
@@ -1368,11 +1405,13 @@ function ProductStepperLayer({
 function ProductsLayer({
   products,
   actions,
+  onAdd,
   onEdit,
   onNew,
 }: {
   products: ProductDTO[];
   actions: ProductActions;
+  onAdd: (p: ProductDTO) => void;
   onEdit: (p: ProductDTO) => void;
   onNew: () => void;
 }) {
@@ -1392,7 +1431,18 @@ function ProductsLayer({
   };
   const handleUndo = () => {
     if (!justDeleted) return;
-    const { id: _id, ...input } = justDeleted;
+    const input: ProductInput = {
+      name: justDeleted.name,
+      baseG: justDeleted.baseG,
+      baseKcal: justDeleted.baseKcal,
+      baseProt: justDeleted.baseProt,
+      baseCarb: justDeleted.baseCarb,
+      baseFat: justDeleted.baseFat,
+      grupo: justDeleted.grupo,
+      source: justDeleted.source,
+      unit: justDeleted.unit,
+      pinned: justDeleted.pinned,
+    };
     actions.create(input);
     setJustDeleted(null);
   };
@@ -1453,6 +1503,7 @@ function ProductsLayer({
             <ProductRow
               key={p.id}
               product={p}
+              onAdd={() => onAdd(p)}
               onTogglePin={() => actions.togglePin(p.id)}
               onEdit={() => onEdit(p)}
               onDelete={() => handleDelete(p)}
@@ -1466,17 +1517,20 @@ function ProductsLayer({
 
 const SOURCE_BADGE: Record<ProductDTO["source"], { label: string; cls: string }> = {
   etiqueta: { label: "etiqueta", cls: "text-protein border-protein/40" },
+  estimado: { label: "estimado", cls: "text-primary border-primary/40" },
   manual: { label: "manual", cls: "text-muted-foreground border-line" },
   legacy: { label: "antiguo", cls: "text-carb border-carb/40" },
 };
 
 function ProductRow({
   product,
+  onAdd,
   onTogglePin,
   onEdit,
   onDelete,
 }: {
   product: ProductDTO;
+  onAdd: () => void;
   onTogglePin: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -1496,18 +1550,28 @@ function ProductRow({
           aria-hidden
         />
       </button>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[14px] text-foreground">{product.name}</div>
-        <div className="num mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-muted-foreground">
-          <span>
-            {productBaseLabel(product)} · {displayMacro(product.baseProt)}P/
-            {displayMacro(product.baseCarb)}C/{displayMacro(product.baseFat)}F
+      {/* F10 · tocar el cuerpo AÑADE (stepper si escala, 1-toque si fijo). ✏️🗑★
+          gestionan (botones aparte, sin colisión de gesto). */}
+      <button
+        type="button"
+        onClick={onAdd}
+        aria-label={`Añadir ${product.name} a la comida`}
+        className="flex min-w-0 flex-1 items-start gap-1.5 rounded-lg text-left transition-colors hover:bg-surface-2"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] text-foreground">{product.name}</span>
+          <span className="num mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-muted-foreground">
+            <span>
+              {productBaseLabel(product)} · {displayMacro(product.baseProt)}P/
+              {displayMacro(product.baseCarb)}C/{displayMacro(product.baseFat)}F
+            </span>
+            <span className={cn("rounded border px-1.5 py-px text-[10px]", badge.cls)}>
+              {badge.label}
+            </span>
           </span>
-          <span className={cn("rounded border px-1.5 py-px text-[10px]", badge.cls)}>
-            {badge.label}
-          </span>
-        </div>
-      </div>
+        </span>
+        <Plus className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+      </button>
       <button
         type="button"
         onClick={onEdit}
@@ -1548,14 +1612,24 @@ function ProductEditorLayer({
   const [carb, setCarb] = useState(product ? String(product.baseCarb) : "");
   const [fat, setFat] = useState(product ? String(product.baseFat) : "");
   const [grupo, setGrupo] = useState<string>(product?.grupo ?? GRUPO_NONE);
+  const [unit, setUnit] = useState<ProductUnit>(product?.unit ?? "g");
   const [pinned, setPinned] = useState(product?.pinned ?? true);
-  // Origen: al leer la etiqueta pasa a 'etiqueta'; si no, conserva el del producto
-  // (o 'manual' para uno nuevo). F-IA-11 (Fase 2). Solo se lee en `save()`, nunca en
-  // el render (el aviso lo dispara `aiFilled`) → useRef (rerender-state-only-in-handlers).
+  // Método de creación (F10): Foto (F-IA-11 lee etiqueta) · Describir (F-IA-3 estima)
+  // · Manual (formulario + ✨ inline). «Del plan» no aplica a crear un producto.
+  // Los tres desembocan en el MISMO formulario, prerrelleno y editable.
+  const [method, setMethod] = useState<"photo" | "describe" | "manual">("manual");
+  const [describeText, setDescribeText] = useState("");
+  // Origen: al leer la etiqueta pasa a 'etiqueta'; con ✨/Describir a 'estimado'; si no,
+  // conserva el del producto (o 'manual' para uno nuevo). Solo se lee en `save()`, nunca
+  // en el render (el aviso lo dispara `aiFilled`) → useRef (rerender-state-only-in-handlers).
   const sourceRef = useRef<ProductInput["source"]>(product?.source ?? "manual");
-  const [aiFilled, setAiFilled] = useState(false);
+  // Aviso de procedencia IA a confirmar: 'etiqueta' (leída) o 'estimado' (adivinada).
+  const [aiFilled, setAiFilled] = useState<null | "etiqueta" | "estimado">(null);
   const [reading, setReading] = useState(false);
+  const [estimating, setEstimating] = useState(false);
   const online = useOnline();
+
+  const num = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
 
   // Foto de la etiqueta → F-IA-11 rellena el formulario (LECTURA, no estimación).
   // Alex confirma/edita antes de guardar (el aviso «se fijan» sigue vigente).
@@ -1576,8 +1650,9 @@ function ProductEditorLayer({
       setGrupo(
         (PRODUCT_GROUPS as string[]).includes(r.grupo) ? r.grupo : GRUPO_NONE,
       );
+      // Una foto posterior PISA a 'etiqueta' (fuente autorizada) aunque venía de ✨.
       sourceRef.current = "etiqueta";
-      setAiFilled(true);
+      setAiFilled("etiqueta");
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "No se pudo leer la etiqueta.",
@@ -1587,7 +1662,35 @@ function ProductEditorLayer({
     }
   };
 
-  const num = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
+  // ✨/Describir → F-IA-3 (estimatePlanOption) estima kcal/P/C/F desde el texto + baseG.
+  // MISMO handler para el ✨ inline (Manual, texto=nombre) y el método Describir
+  // (texto=descripción; prerrellena el nombre si está vacío). Reusa el prompt TAL CUAL
+  // (solo interpola nombre + gramos): sin prompt nuevo. Origen → 'estimado'.
+  const estimateFrom = async (text: string, alsoSetName: boolean) => {
+    const t = text.trim();
+    if (!t) {
+      toast.error("Escribe primero el nombre o la descripción.");
+      return;
+    }
+    setEstimating(true);
+    try {
+      const g = baseG.trim() === "" ? null : Math.round(num(baseG));
+      const r = await api.estimatePlanOption(t, g);
+      if (alsoSetName && name.trim() === "") setName(t);
+      setKcal(String(Math.round(r.kcal)));
+      setProt(String(displayMacro(r.proteina_g)));
+      setCarb(String(displayMacro(r.carbohidratos_g)));
+      setFat(String(displayMacro(r.grasa_g)));
+      sourceRef.current = "estimado";
+      setAiFilled("estimado");
+      toast("Estimado con IA. Revisa y guarda.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo estimar.");
+    } finally {
+      setEstimating(false);
+    }
+  };
+
   const canSave = name.trim() !== "" && kcal.trim() !== "";
 
   const save = () => {
@@ -1601,8 +1704,10 @@ function ProductEditorLayer({
       baseCarb: num(carb),
       baseFat: num(fat),
       grupo: grupo === GRUPO_NONE ? null : (grupo as GrpKey),
-      // 'etiqueta' si se leyó la foto; si no, el origen del producto (o 'manual').
+      // 'etiqueta' si se leyó la foto, 'estimado' si lo rellenó el ✨/Describir; si no,
+      // el origen del producto (o 'manual' para uno nuevo tecleado a mano).
       source: sourceRef.current,
+      unit,
       pinned,
     };
     if (product) actions.update(product.id, input);
@@ -1612,59 +1717,165 @@ function ProductEditorLayer({
 
   return (
     <div className="space-y-3 px-4 py-3">
-      {/* Foto de la etiqueta (F-IA-11): la IA LEE la tabla nutricional y rellena el
-          formulario; Alex confirma/edita. SIN `capture` (selector nativo cámara/galería). */}
-      <label
-        className={cn(
-          "relative flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-5 text-[13px]",
-          online && !reading
-            ? "cursor-pointer text-primary"
-            : "text-muted-foreground opacity-60",
-        )}
-      >
-        {reading ? (
-          <Loader2 className="size-5 animate-spin" aria-hidden />
-        ) : (
-          <Camera className="size-5" aria-hidden />
-        )}
-        {reading ? "Leyendo etiqueta…" : "Foto de la etiqueta"}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          disabled={!online || reading}
-          onChange={(e) => pickLabel(e.target.files?.[0])}
+      {/* Selector de método (F10, mismo patrón que el día): Foto · Describir · Manual.
+          Los tres desembocan en el mismo formulario, prerrelleno y editable. */}
+      <div className="grid grid-cols-3 gap-2">
+        <BigAccess
+          icon={<Camera className="size-5" aria-hidden />}
+          label="Foto"
+          active={method === "photo"}
+          onClick={() => setMethod("photo")}
         />
-      </label>
-      {!online ? (
-        <p className="text-center text-[11px] text-muted-foreground">
-          Sin conexión: leer la etiqueta con IA no está disponible.
-        </p>
+        <BigAccess
+          icon={<PenLine className="size-5" aria-hidden />}
+          label="Describir"
+          active={method === "describe"}
+          onClick={() => setMethod("describe")}
+        />
+        <BigAccess
+          icon={<Plus className="size-5" aria-hidden />}
+          label="Manual"
+          active={method === "manual"}
+          onClick={() => setMethod("manual")}
+        />
+      </div>
+
+      {method === "photo" ? (
+        <>
+          {/* Foto de la etiqueta (F-IA-11): la IA LEE la tabla nutricional y rellena
+              el formulario; Alex confirma/edita. SIN `capture` (selector nativo). */}
+          <label
+            className={cn(
+              "relative flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line py-5 text-[13px]",
+              online && !reading
+                ? "cursor-pointer text-primary"
+                : "text-muted-foreground opacity-60",
+            )}
+          >
+            {reading ? (
+              <Loader2 className="size-5 animate-spin" aria-hidden />
+            ) : (
+              <Camera className="size-5" aria-hidden />
+            )}
+            {reading ? "Leyendo etiqueta…" : "Foto de la etiqueta"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={!online || reading}
+              onChange={(e) => pickLabel(e.target.files?.[0])}
+            />
+          </label>
+          {!online ? (
+            <p className="text-center text-[11px] text-muted-foreground">
+              Sin conexión: leer la etiqueta con IA no está disponible.
+            </p>
+          ) : null}
+        </>
+      ) : method === "describe" ? (
+        <>
+          {/* Describir (F10): texto libre + baseG → F-IA-3 estima y prerrellena. */}
+          <label className="block">
+            <span className="mb-1 block text-[12px] text-muted-foreground">
+              Describe el producto
+            </span>
+            <textarea
+              value={describeText}
+              onChange={(e) => setDescribeText(e.target.value)}
+              rows={2}
+              placeholder="p. ej. «tortitas de avena y clara sin azúcar»"
+              className="w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+              aria-label="Descripción del producto"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => estimateFrom(describeText, true)}
+            disabled={estimating || !describeText.trim() || !online}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground disabled:opacity-60"
+          >
+            {estimating ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Sparkles className="size-4" aria-hidden />
+            )}
+            {estimating ? "Estimando…" : "Estimar con IA"}
+          </button>
+          {!online ? (
+            <p className="text-center text-[11px] text-muted-foreground">
+              Sin conexión: la estimación por IA no está disponible.
+            </p>
+          ) : null}
+        </>
       ) : null}
-      {aiFilled ? (
+
+      {aiFilled === "etiqueta" ? (
         <div className="flex items-center justify-center gap-1.5 text-[12px] text-protein">
           <Sparkles className="size-3.5" aria-hidden /> La IA leyó la etiqueta ·
           confírmalo
         </div>
+      ) : aiFilled === "estimado" ? (
+        <div className="flex items-center justify-center gap-1.5 text-[12px] text-primary">
+          <Sparkles className="size-3.5" aria-hidden /> La IA estimó · confírmalo
+        </div>
       ) : null}
-      <div className="text-center text-[11px] uppercase tracking-wide text-muted-foreground">
-        — o rellénalo a mano —
-      </div>
 
       <label className="block">
         <span className="mb-1 block text-[12px] text-muted-foreground">Nombre</span>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="p. ej. Tortitas integrales Hacendado"
-          className="w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
-          aria-label="Nombre"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="p. ej. Tortitas integrales Hacendado"
+            className="min-w-0 flex-1 rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
+            aria-label="Nombre"
+          />
+          {/* ✨ inline (F10, mismo patrón que VariantsEditor): estima macros desde el
+              nombre en cualquier momento. Solo en Manual (Describir tiene su botón). */}
+          {method === "manual" ? (
+            <button
+              type="button"
+              onClick={() => estimateFrom(name, false)}
+              disabled={estimating || !name.trim() || !online}
+              aria-label="Estimar macros con IA desde el nombre"
+              className="shrink-0 text-primary disabled:opacity-40"
+            >
+              {estimating ? (
+                <Loader2 className="size-5 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="size-5" aria-hidden />
+              )}
+            </button>
+          ) : null}
+        </div>
       </label>
+
+      {/* Unidad de visualización (F10 · Alcance C): solo rótulo, escala 1:1. */}
+      <div>
+        <span className="mb-1 block text-[12px] text-muted-foreground">Unidad</span>
+        <div className="flex gap-1.5" role="group" aria-label="Unidad de medida">
+          {PRODUCT_UNITS.map((u) => (
+            <button
+              key={u}
+              type="button"
+              aria-pressed={u === unit}
+              onClick={() => setUnit(u)}
+              className={cn(
+                "flex-1 rounded-lg border px-3 py-2 text-[13px] font-medium capitalize transition-colors",
+                u === unit
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-line bg-surface-2 text-muted-foreground",
+              )}
+            >
+              {PRODUCT_UNIT_NOUN[u]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <label className="block">
         <span className="mb-1 block text-[12px] text-muted-foreground">
-          Base en gramos (vacío = fijo por unidad)
+          Base en {PRODUCT_UNIT_NOUN[unit]} (vacío = fijo por unidad)
         </span>
         <input
           value={baseG}
@@ -1672,13 +1883,16 @@ function ProductEditorLayer({
           inputMode="numeric"
           placeholder="100"
           className="num w-full rounded-lg border border-input bg-surface-2 px-2.5 py-2 text-base outline-none focus-visible:border-ring"
-          aria-label="Base en gramos"
+          aria-label={`Base en ${PRODUCT_UNIT_NOUN[unit]}`}
         />
       </label>
 
       <div>
         <span className="mb-1 block text-[12px] text-muted-foreground">
-          kcal · P · C · G {baseG.trim() ? `(por ${baseG} g)` : "(por unidad)"}
+          kcal · P · C · G{" "}
+          {baseG.trim()
+            ? `(por ${baseG} ${PRODUCT_UNIT_SUFFIX[unit]})`
+            : "(por unidad)"}
         </span>
         <div className="grid grid-cols-4 gap-2">
           <MiniField label="kcal" value={kcal} onChange={setKcal} />
@@ -1758,16 +1972,25 @@ function BigAccess({
   icon,
   label,
   onClick,
+  active = false,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  /** Resaltado cuando es el método activo (selector del editor, F10). */
+  active?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="relative flex h-20 flex-col items-center justify-center gap-1 rounded-xl border border-line bg-surface-2 text-[13px]"
+      aria-pressed={active}
+      className={cn(
+        "relative flex h-20 flex-col items-center justify-center gap-1 rounded-xl border text-[13px] transition-colors",
+        active
+          ? "border-primary bg-primary/10 font-medium text-primary"
+          : "border-line bg-surface-2",
+      )}
     >
       <span className="text-primary">{icon}</span>
       <span>{label}</span>

@@ -1,5 +1,4 @@
 import { ensureAuth, parseBody, serverError } from "@/lib/api";
-import { retry } from "@/lib/retry";
 import { dietVersionCreateZ } from "@/lib/schemas";
 import { createDietVersionFull } from "@/server/db/queries/mutations";
 
@@ -17,16 +16,14 @@ export async function POST(request: Request) {
   const d = parsed.data;
 
   try {
-    const version = await retry(() =>
-      createDietVersionFull({
-        effectiveFrom: d.effectiveFrom,
-        kcal: d.kcal,
-        prot: d.prot,
-        carb: d.carb,
-        fat: d.fat,
-        options: d.options,
-      }),
-    );
+    const version = await createDietVersionFull({
+      effectiveFrom: d.effectiveFrom,
+      kcal: d.kcal,
+      prot: d.prot,
+      carb: d.carb,
+      fat: d.fat,
+      options: d.options,
+    });
     return Response.json({ version });
   } catch (err) {
     return serverError(err);

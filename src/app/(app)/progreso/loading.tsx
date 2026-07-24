@@ -1,35 +1,31 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Skeleton con la forma real de Progreso · Tendencia (07 §6): control de segmento,
-// TrendCard invertida, adherencia, DOS gráficos y la tabla "Últimos días" — así no
-// hay layout shift al entrar el contenido real.
 export default function ProgresoLoading() {
   return (
-    <div className="space-y-4">
-      {/* Segmento Tendencia | MED + selector de rango */}
-      <Skeleton className="h-9 w-full rounded-lg" />
-      <Skeleton className="h-8 w-56 rounded-lg" />
-
-      {/* TrendCard invertida (jerarquía máxima, 05 §5) */}
-      <Skeleton className="h-40 w-full rounded-xl" />
-
-      {/* Adherencia */}
-      <Skeleton className="h-24 w-full rounded-xl" />
-
-      {/* Gráfico de peso + ma7 */}
-      <div className="rounded-xl border border-line bg-surface p-4">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="mt-3 h-56 w-full rounded-lg" />
+    <section className="space-y-6 pb-8" aria-label="Cargando progreso">
+      <div>
+        <Skeleton className="h-3 w-16" />
+        <Skeleton className="mt-3 h-8 w-32" />
       </div>
-
-      {/* Gráfico de ingesta */}
-      <div className="rounded-xl border border-line bg-surface p-4">
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="mt-3 h-56 w-full rounded-lg" />
+      <Skeleton className="h-13 w-full rounded-xl" />
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-44" />
+        <Skeleton className="h-13 w-full rounded-xl" />
       </div>
-
-      {/* Tabla "Últimos días" */}
-      <Skeleton className="h-48 w-full rounded-xl" />
-    </div>
+      <Skeleton className="h-58 w-full rounded-[22px]" />
+      <Skeleton className="h-72 w-full rounded-[22px]" />
+      <div className="grid grid-cols-2 gap-3">
+        <Skeleton className="h-36 rounded-[22px]" />
+        <Skeleton className="h-36 rounded-[22px]" />
+      </div>
+      <div className="wellness-card p-5">
+        <Skeleton className="h-6 w-44" />
+        <Skeleton className="mt-4 h-56 w-full rounded-xl" />
+      </div>
+      <div className="wellness-card p-5">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="mt-4 h-56 w-full rounded-xl" />
+      </div>
+    </section>
   );
 }

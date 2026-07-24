@@ -33,22 +33,25 @@ export function SessionMapEditor({ initial }: { initial: Record<string, string> 
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {DAYS.map((d) => (
-        <div key={d} className="flex items-center gap-3">
-          <span className="w-24 shrink-0 text-[13px] text-foreground">
+        <div
+          key={d}
+          className="grid min-w-0 grid-cols-[5.25rem_minmax(0,1fr)] items-center gap-3"
+        >
+          <span className="text-[13px] font-medium text-foreground">
             {WEEKDAY_LABELS[d]}
           </span>
           <Select
             value={map[d] ?? "Descanso"}
             onValueChange={(v) => setMap((m) => ({ ...m, [d]: v }))}
           >
-            <SelectTrigger className="h-9 flex-1">
+            <SelectTrigger className="h-11 w-full min-w-0 text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {SESSIONS.map((s) => (
-                <SelectItem key={s} value={s}>
+                <SelectItem key={s} value={s} className="min-h-11 text-base">
                   {s}
                 </SelectItem>
               ))}
@@ -60,7 +63,7 @@ export function SessionMapEditor({ initial }: { initial: Record<string, string> 
         type="button"
         onClick={save}
         disabled={saving}
-        className="mt-2 w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+        className="mt-3 min-h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
       >
         {saving ? "Guardando…" : "Guardar mapeo"}
       </button>

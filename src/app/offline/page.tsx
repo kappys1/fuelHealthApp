@@ -10,21 +10,25 @@ export const dynamic = "force-static";
 
 export default function OfflinePage() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-3 px-6 text-center">
-      <span className="inline-flex size-12 items-center justify-center rounded-full bg-surface-2 text-muted-foreground">
-        <WifiOff className="size-6" aria-hidden />
-      </span>
-      <h1 className="text-lg font-semibold text-foreground">Sin conexión</h1>
-      <p className="text-[14px] text-muted-foreground">
-        No hay red ahora mismo. Lo que ya has visto sigue disponible, y lo que
-        registres se guardará y se sincronizará en cuanto vuelvas a tener conexión.
-      </p>
-      <Link
-        href="/hoy"
-        className="mt-2 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground"
-      >
-        Volver a Hoy
-      </Link>
+    <main className="flex min-h-dvh items-center justify-center bg-canvas px-5 py-10">
+      <section className="wellness-card w-full max-w-sm p-5 text-center">
+        <span className="mx-auto inline-flex size-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+          <WifiOff className="size-6" aria-hidden />
+        </span>
+        <h1 className="mt-4 font-display text-lg font-semibold text-foreground">
+          Sin conexión
+        </h1>
+        <p className="mt-2 text-[14px] text-muted-foreground">
+          Lo que ya has consultado sigue disponible. Los registros pendientes se
+          sincronizarán automáticamente cuando vuelva la conexión.
+        </p>
+        <Link
+          href="/hoy"
+          className="mt-5 inline-flex min-h-11 items-center justify-center rounded-md bg-primary px-5 text-[14px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong"
+        >
+          Volver a Hoy
+        </Link>
+      </section>
     </main>
   );
 }

@@ -94,7 +94,7 @@ export function VariantsEditor({
   };
 
   return (
-    <div className="space-y-2 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2">
+    <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 p-3">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-medium text-primary">
           {variants.length} variantes · eliges la fuente al registrar
@@ -102,19 +102,19 @@ export function VariantsEditor({
         <button
           type="button"
           onClick={onFlatten}
-          className="text-[11px] text-muted-foreground underline underline-offset-2"
+          className="min-h-11 rounded-lg px-2 text-[11px] font-semibold text-muted-foreground underline underline-offset-2"
         >
           Sin variantes
         </button>
       </div>
       {variants.map((v) => (
-        <div key={v.vid} className="space-y-1.5 rounded-md bg-surface/60 p-1.5">
+        <div key={v.vid} className="space-y-2 rounded-xl bg-surface/70 p-2.5">
           <div className="flex items-center gap-2">
             <input
               value={v.nombre}
               onChange={(e) => updateVar(v.vid, { nombre: e.target.value })}
               placeholder="Variante (p. ej. Pollo)"
-              className="min-w-0 flex-1 rounded-lg border border-input bg-surface px-2.5 py-1.5 text-[13px] outline-none focus-visible:border-ring"
+              className="min-h-11 min-w-0 flex-1 rounded-lg border border-input bg-surface px-2.5 text-base outline-none focus-visible:border-ring"
               aria-label="Nombre de la variante"
             />
             <button
@@ -122,7 +122,7 @@ export function VariantsEditor({
               onClick={() => estimateVar(v)}
               disabled={estimating.has(v.vid)}
               aria-label="Estimar macros de la variante con IA"
-              className="shrink-0 text-primary disabled:opacity-60"
+              className="app-icon-button shrink-0 border-0 bg-surface-2 text-primary disabled:opacity-60"
             >
               {estimating.has(v.vid) ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -134,12 +134,12 @@ export function VariantsEditor({
               type="button"
               onClick={() => removeVar(v.vid)}
               aria-label="Quitar variante"
-              className="shrink-0 text-muted-foreground hover:text-destructive"
+              className="app-icon-button shrink-0 border-0 bg-surface-2 text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="size-4" aria-hidden />
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2 min-[380px]:grid-cols-4">
             <MiniInput label="kcal" value={v.kcal} onChange={(x) => updateVar(v.vid, { kcal: x })} />
             <MiniInput label="P" value={v.prot} onChange={(x) => updateVar(v.vid, { prot: x })} />
             <MiniInput label="C" value={v.carb} onChange={(x) => updateVar(v.vid, { carb: x })} />
@@ -150,7 +150,7 @@ export function VariantsEditor({
       <button
         type="button"
         onClick={addVar}
-        className="inline-flex items-center gap-1 text-[12px] font-medium text-primary"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-[12px] font-semibold text-primary"
       >
         <Plus className="size-3.5" aria-hidden /> Añadir variante
       </button>
@@ -168,7 +168,7 @@ export function MiniInput({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="flex items-center gap-1 rounded-lg border border-input bg-surface px-2">
+    <label className="flex min-h-11 items-center gap-1 rounded-lg border border-input bg-surface px-2">
       <span className="text-[11px] text-muted-foreground">{label}</span>
       <input
         value={value}
@@ -178,7 +178,7 @@ export function MiniInput({
           if (raw === "" || /^[0-9]*[.,]?[0-9]*$/.test(raw)) onChange(raw);
         }}
         onFocus={(e) => e.currentTarget.select()}
-        className="num h-9 w-full min-w-0 bg-transparent text-center text-base outline-none"
+        className="num h-11 w-full min-w-0 bg-transparent text-center text-base outline-none"
         aria-label={label}
       />
     </label>

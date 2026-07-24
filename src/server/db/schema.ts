@@ -1,12 +1,14 @@
 import {
   boolean,
   date,
+  index,
   integer,
   jsonb,
   pgEnum,
   pgTable,
   real,
   text,
+  time,
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
@@ -67,14 +69,21 @@ export const mealSourceEnum = pgEnum("meal_source", [
 export const healthSourceEnum = pgEnum("health_source", ["endpoint", "csv"]);
 
 // Origen del dato de un producto (F07). 'etiqueta' = leído de la tabla nutricional
-// del envase (F-IA-11, la fuente autorizada); 'manual' = tecleado a mano; 'legacy'
-// = migrado de los antiguos favorites (foto congelada de una estimación, badge
-// «antiguo» → se asciende re-fotografiando).
+// del envase (F-IA-11, la fuente autorizada); 'manual' = tecleado a mano; 'estimado'
+// = adivinado por la IA (F-IA-3, ✨ inline o método Describir — ojímetro, no etiqueta;
+// F10); 'legacy' = migrado de los antiguos favorites (foto congelada de una
+// estimación, badge «antiguo» → se asciende re-fotografiando).
 export const productSourceEnum = pgEnum("product_source", [
   "etiqueta",
   "manual",
+  "estimado",
   "legacy",
 ]);
+
+// Unidad de VISUALIZACIÓN del producto (F10 · Alcance C). Solo etiqueta: la cantidad
+// escala 1:1 (densidad ≈ 1), scaleMacros/entryBaseFields (F06) NO cambian. 'ud' con
+// baseG vacío = fijo por unidad. Default 'g' (backfill implícito de los existentes).
+export const productUnitEnum = pgEnum("product_unit", ["g", "ml", "ud"]);
 
 export const chatRoleEnum = pgEnum("chat_role", ["user", "assistant"]);
 
@@ -158,34 +167,64 @@ export const days = pgTable("days", {
   notes: text(),
 });
 
+// ── bloat_events (marcadores temporales del día) ──
+// `days.bloat` se mantiene como resumen legacy. Esta tabla añade la hora real y
+// permite varios marcadores sin inventar timestamps para registros antiguos.
+export const bloatEvents = pgTable(
+  "bloat_events",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    date: date({ mode: "string" })
+      .notNull()
+      .references(() => days.date, { onDelete: "cascade" }),
+    severity: bloatEnum().notNull(),
+    occurredAt: time("occurred_at", { precision: 0 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [unique("bloat_events_date_time_unique").on(t.date, t.occurredAt)],
+);
+
 // ── meal_entries ──
-export const mealEntries = pgTable("meal_entries", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
-  date: date({ mode: "string" })
-    .notNull()
-    .references(() => days.date, { onDelete: "cascade" }),
-  meal: mealEnum().notNull(),
-  name: text().notNull(),
-  kcal: integer().notNull(),
-  prot: real().notNull(),
-  carb: real().notNull(),
-  fat: real().notNull(),
-  source: mealSourceEnum().notNull(),
-  photoUrl: text("photo_url"),
-  // Gramos como dato de primera clase (F06): cantidad actual + base inmutable de
-  // referencia para reescalar macros/kcal (factor = grams / baseG). Todas nullable
-  // (aditivas): baseG null = entrada fija sin escalado ("4 huevos", café, backfill
-  // no parseable). El escalado SIEMPRE parte de base*, nunca de valores ya escalados.
-  grams: integer(),
-  baseG: integer("base_g"),
-  baseKcal: integer("base_kcal"),
-  baseProt: real("base_prot"),
-  baseCarb: real("base_carb"),
-  baseFat: real("base_fat"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const mealEntries = pgTable(
+  "meal_entries",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    date: date({ mode: "string" })
+      .notNull()
+      .references(() => days.date, { onDelete: "cascade" }),
+    meal: mealEnum().notNull(),
+    name: text().notNull(),
+    kcal: integer().notNull(),
+    prot: real().notNull(),
+    carb: real().notNull(),
+    fat: real().notNull(),
+    source: mealSourceEnum().notNull(),
+    photoUrl: text("photo_url"),
+    // Gramos como dato de primera clase (F06): cantidad actual + base inmutable de
+    // referencia para reescalar macros/kcal (factor = grams / baseG).
+    grams: integer(),
+    baseG: integer("base_g"),
+    baseKcal: integer("base_kcal"),
+    baseProt: real("base_prot"),
+    baseCarb: real("base_carb"),
+    baseFat: real("base_fat"),
+    // Un lote offline comparte id y usa el índice estable de cada entrada. La pareja
+    // hace idempotente un replay tras perder la respuesta del servidor.
+    clientMutationId: text("client_mutation_id"),
+    clientMutationIndex: integer("client_mutation_index"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("meal_entries_client_mutation_item_unique").on(
+      t.clientMutationId,
+      t.clientMutationIndex,
+    ),
+  ],
+);
 
 // ── health_metrics (importado de Apple Health) ──
 export const healthMetrics = pgTable("health_metrics", {
@@ -262,6 +301,9 @@ export const products = pgTable("products", {
   baseFat: real("base_fat").notNull(),
   grupo: grpEnum(),
   source: productSourceEnum().notNull(),
+  // Unidad de visualización (F10 · Alcance C): rótulo del baseG y del stepper. Solo
+  // etiqueta (escala 1:1). Default 'g' → backfill implícito de productos previos.
+  unit: productUnitEnum().notNull().default("g"),
   pinned: boolean().notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -309,11 +351,17 @@ export const chatMessages = pgTable("chat_messages", {
     .notNull()
     .references(() => chatThreads.id, { onDelete: "cascade" }),
   role: chatRoleEnum().notNull(),
+  // Identificador estable del turno enviado por el cliente. Permite recuperar una
+  // respuesta tras perder el stream sin duplicar preguntas ni respuestas.
+  turnId: text("turn_id"),
   content: text().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+}, (t) => [
+  unique("chat_messages_turn_role_unique").on(t.turnId, t.role),
+  index("chat_messages_thread_created_idx").on(t.threadId, t.createdAt),
+]);
 
 // ── settings (key/value jsonb: lastExport, prefs de tema, etc.) ──
 export const settings = pgTable("settings", {
@@ -335,6 +383,8 @@ export const trainingPlans = pgTable("training_plans", {
   validFrom: date("valid_from", { mode: "string" }).notNull(),
   validTo: date("valid_to", { mode: "string" }),
   source: trainingSourceEnum().notNull(),
+  importRequestId: text("import_request_id").unique(),
+  importFingerprint: text("import_fingerprint"),
 });
 
 export const trainingSessions = pgTable("training_sessions", {

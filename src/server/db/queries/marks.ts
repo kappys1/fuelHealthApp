@@ -123,6 +123,18 @@ export async function updateMarkEntry(
   await db.update(schema.markEntries).set(patch).where(eq(schema.markEntries.id, id));
 }
 
+/**
+ * Edita la marca en sí (F11): nombre y/o familia. NO toca measureType/unit (cambiar
+ * el tipo invalidaría las entradas — decisión firme de la spec). `family: null`
+ * la vacía. Molde de updateMarkEntry.
+ */
+export async function updateMark(
+  id: number,
+  patch: { name?: string; family?: string | null },
+): Promise<void> {
+  await db.update(schema.performanceMarks).set(patch).where(eq(schema.performanceMarks.id, id));
+}
+
 export async function deleteMarkEntry(id: number): Promise<void> {
   await db.delete(schema.markEntries).where(eq(schema.markEntries.id, id));
 }

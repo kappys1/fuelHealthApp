@@ -1,20 +1,30 @@
 "use client";
 
 import {
+  AlertCircle,
   ArrowLeft,
+  ChartNoAxesCombined,
   Check,
+  ChevronRight,
   Copy,
+  Gauge,
   Loader2,
+  MessageCircle,
   MessageSquarePlus,
+  ScanSearch,
   Send,
+  Sparkles,
   Trash2,
+  Waves,
   WifiOff,
 } from "lucide-react";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Markdown } from "@/components/ui/markdown";
 import { api } from "@/lib/client-api";
 import { CHAT_MAX_CHARS } from "@/lib/schemas";
+import { relativeDate } from "@/lib/relative-time";
 import { useKeyboardOpen } from "@/lib/use-keyboard-open";
 import { useOnline } from "@/lib/use-online";
 import { cn } from "@/lib/utils";
@@ -31,14 +41,37 @@ import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
   presentacionales y viven como subcomponentes; los refs que los effects necesitan
   se pasan hacia abajo, así el comportamiento no cambia al trocear el JSX.
 */
-const SUGGESTED = [
-  "¿Cómo va mi semana?",
-  "¿Qué me hincha?",
-  "Compara mis dos últimas cargas",
-];
+const QUICK_PROMPTS = [
+  {
+    text: "¿Cómo cierro bien el día?",
+    Icon: Gauge,
+    color: "var(--carb)",
+  },
+  {
+    text: "¿Cómo va mi semana?",
+    Icon: ChartNoAxesCombined,
+    color: "var(--cobalt)",
+  },
+  {
+    text: "Compara mis dos cargas",
+    Icon: Waves,
+    color: "var(--special)",
+  },
+  {
+    text: "¿Qué coincide con mi hinchazón?",
+    Icon: ScanSearch,
+    color: "var(--protein)",
+  },
+] as const;
 
 interface UIMessage extends Omit<MessageDTO, "id" | "createdAt"> {
   id: string;
+}
+
+interface SendErrorState {
+  message: string;
+  retryText: string;
+  turnId: string;
 }
 
 let tmp = 0;
@@ -47,9 +80,11 @@ const tmpId = () => `t${tmp++}`;
 export function ChatClient({
   initialThreads,
   initialThreadId = null,
+  nowIso,
 }: {
   initialThreads: ThreadDTO[];
   initialThreadId?: number | null;
+  nowIso: string;
 }) {
   const online = useOnline();
   const kbOpen = useKeyboardOpen();
@@ -63,6 +98,14 @@ export function ChatClient({
   const [streaming, setStreaming] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [loadingThread, setLoadingThread] = useState(false);
+  const [threadLoadError, setThreadLoadError] = useState<string | null>(null);
+  const [activeTitle, setActiveTitle] = useState<string | null>(
+    () =>
+      initialThreads.find((thread) => thread.id === initialThreadId)?.title ?? null,
+  );
+  const [sendError, setSendError] = useState<SendErrorState | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<ThreadDTO | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -75,7 +118,7 @@ export function ChatClient({
     const el = scrollRef.current;
     if (el) atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
   };
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     // Doble rAF: el markdown reajusta su alto tras montar, así que medimos
     // scrollHeight un frame después del layout; si no, al abrir un hilo se
     // quedaba a media altura.
@@ -85,8 +128,8 @@ export function ChatClient({
         if (el) el.scrollTop = el.scrollHeight;
       });
     });
-  };
-  useEffect(scrollToBottom, [messages, streaming]);
+  }, []);
+  useEffect(scrollToBottom, [messages, streaming, scrollToBottom]);
 
   // Teclado iOS (abrir/cerrar) y rotación cambian el ALTO del contenedor durante
   // ~300ms de animación. `focusout`/eventos de teclado llegan antes de que termine,
@@ -145,6 +188,39 @@ export function ChatClient({
     return () => ids.forEach(clearTimeout);
   }, [kbOpen, view]);
 
+  const openThread = useCallback(
+    async (id: number) => {
+      setActiveId(id);
+      setActiveTitle(threads.find((thread) => thread.id === id)?.title ?? null);
+      setView("thread");
+      setMessages([]);
+      setStreaming(null);
+      setSendError(null);
+      setThreadLoadError(null);
+      setLoadingThread(true);
+      try {
+        const thread = await api.getThread(id);
+        setActiveTitle(thread.title);
+        setMessages(
+          thread.messages.map((message) => ({
+            id: String(message.id),
+            role: message.role,
+            content: message.content,
+            turnId: message.turnId,
+          })),
+        );
+        scrollToBottom();
+      } catch (err) {
+        setThreadLoadError(
+          err instanceof Error ? err.message : "No se pudo abrir la conversación.",
+        );
+      } finally {
+        setLoadingThread(false);
+      }
+    },
+    [scrollToBottom, threads],
+  );
+
   // Puente Coach → Chat (F01 Fase 2): al entrar con ?thread=<id>, abre ese hilo
   // (sembrado con la pregunta + la respuesta del coach) y enfoca el input.
   const openedRef = useRef(false);
@@ -152,26 +228,7 @@ export function ChatClient({
     if (initialThreadId == null || openedRef.current) return;
     openedRef.current = true;
     openThread(initialThreadId).then(() => inputRef.current?.focus());
-  }, [initialThreadId]);
-
-  const openThread = async (id: number) => {
-    setActiveId(id);
-    setView("thread");
-    setMessages([]);
-    setStreaming(null);
-    setLoadingThread(true);
-    try {
-      const t = await api.getThread(id);
-      setMessages(
-        t.messages.map((m) => ({ id: String(m.id), role: m.role, content: m.content })),
-      );
-      scrollToBottom();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "No se pudo abrir el hilo.");
-    } finally {
-      setLoadingThread(false);
-    }
-  };
+  }, [initialThreadId, openThread]);
 
   const newThread = () => {
     setActiveId(null);
@@ -179,26 +236,37 @@ export function ChatClient({
     setMessages([]);
     setStreaming(null);
     setInput("");
+    setActiveTitle(null);
+    setSendError(null);
+    setThreadLoadError(null);
   };
 
   const backToList = () => {
     setView("list");
     setActiveId(null);
+    setActiveTitle(null);
+    setSendError(null);
+    setThreadLoadError(null);
   };
 
-  const removeThread = async (id: number) => {
-    if (!window.confirm("¿Borrar este hilo de conversación?")) return;
+  const removeThread = async (thread: ThreadDTO) => {
+    const id = thread.id;
+    setDeleting(true);
     const prev = threads;
     setThreads((ts) => ts.filter((t) => t.id !== id));
     try {
       await api.deleteThread(id);
+      setPendingDelete(null);
+      toast.success("Conversación borrada.");
     } catch (err) {
       setThreads(prev);
       toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const send = async (text: string) => {
+  const send = async (text: string, retryTurnId?: string) => {
     const message = text.trim();
     if (!message || sending) return;
     if (message.length > CHAT_MAX_CHARS) {
@@ -206,7 +274,14 @@ export function ChatClient({
       return;
     }
     setInput("");
-    setMessages((m) => [...m, { id: tmpId(), role: "user", content: message }]);
+    setSendError(null);
+    const turnId = retryTurnId ?? crypto.randomUUID();
+    if (!retryTurnId) {
+      setMessages((current) => [
+        ...current,
+        { id: tmpId(), role: "user", content: message, turnId },
+      ]);
+    }
     setStreaming("");
     setSending(true);
 
@@ -214,8 +289,18 @@ export function ChatClient({
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId: activeId, message }),
+        body: JSON.stringify({ threadId: activeId, message, turnId }),
       });
+      const headerId = res.headers.get("X-Thread-Id");
+      const newId = headerId ? Number(headerId) : null;
+      if (newId != null && Number.isFinite(newId) && activeId == null) {
+        setActiveId(newId);
+        setActiveTitle(message.split(/\s+/).slice(0, 6).join(" "));
+        api
+          .listThreads()
+          .then((result) => setThreads(result.threads))
+          .catch(() => undefined);
+      }
       if (!res.ok || !res.body) {
         let msg = `Error ${res.status}`;
         try {
@@ -227,9 +312,6 @@ export function ChatClient({
         throw new Error(msg);
       }
 
-      const headerId = res.headers.get("X-Thread-Id");
-      const newId = headerId ? Number(headerId) : null;
-
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let acc = "";
@@ -240,34 +322,94 @@ export function ChatClient({
         setStreaming(acc);
       }
       acc += decoder.decode();
+      if (!acc.trim()) throw new Error("La IA no devolvió una respuesta. Reinténtalo.");
 
-      setMessages((m) => [...m, { id: tmpId(), role: "assistant", content: acc }]);
+      setMessages((m) => [
+        ...m,
+        { id: tmpId(), role: "assistant", content: acc, turnId },
+      ]);
       setStreaming(null);
 
-      if (newId != null && activeId == null) {
-        setActiveId(newId);
-        // Refresca la lista de hilos (título recién creado, orden por uso).
-        api
-          .listThreads()
-          .then((r) => setThreads(r.threads))
-          .catch(() => {});
-      }
+      api
+        .listThreads()
+        .then((result) => setThreads(result.threads))
+        .catch(() => undefined);
     } catch (err) {
       setStreaming(null);
-      toast.error(err instanceof Error ? err.message : "No se pudo enviar.");
+      const messageText = err instanceof Error ? err.message : "No se pudo enviar.";
+      setSendError({ message: messageText, retryText: message, turnId });
+      toast.error(messageText);
     } finally {
       setSending(false);
     }
   };
 
+  const retryLastSend = async () => {
+    if (!sendError || sending) return;
+    if (activeId != null) {
+      try {
+        const thread = await api.getThread(activeId);
+        const completed = thread.messages.find(
+          (message) =>
+            message.role === "assistant" && message.turnId === sendError.turnId,
+        );
+        // El servidor puede haber terminado después de que el navegador perdiera
+        // el stream. Se recupera exactamente este turno, no cualquier respuesta.
+        if (completed) {
+          setMessages(
+            thread.messages.map((message) => ({
+              id: String(message.id),
+              role: message.role,
+              content: message.content,
+              turnId: message.turnId,
+            })),
+          );
+          setSendError(null);
+          return;
+        }
+      } catch {
+        // Si no se puede recuperar, el reintento normal conserva el error visible.
+      }
+    }
+    await send(sendError.retryText, sendError.turnId);
+  };
+
+  const activeThread =
+    activeId == null ? null : threads.find((thread) => thread.id === activeId) ?? null;
+
+  const startWithPrompt = (prompt: string) => {
+    newThread();
+    void send(prompt);
+  };
+
   if (view === "list") {
     return (
-      <ThreadList
-        threads={threads}
-        onNew={newThread}
-        onOpen={openThread}
-        onRemove={removeThread}
-      />
+      <>
+        <ThreadList
+          threads={threads}
+          nowIso={nowIso}
+          onNew={newThread}
+          onOpen={openThread}
+          onRemove={setPendingDelete}
+          onPrompt={startWithPrompt}
+          online={online}
+        />
+        <ConfirmDialog
+          open={pendingDelete != null}
+          onOpenChange={(open) => !open && !deleting && setPendingDelete(null)}
+          title="Borrar conversación"
+          description={
+            pendingDelete
+              ? `Se borrará «${pendingDelete.title}» y todos sus mensajes.`
+              : ""
+          }
+          confirmLabel="Borrar conversación"
+          busy={deleting}
+          onConfirm={() => {
+            if (pendingDelete) return removeThread(pendingDelete);
+          }}
+        />
+      </>
     );
   }
 
@@ -277,20 +419,28 @@ export function ChatClient({
     // scrollean dentro, sin depender del scroll del documento.
     <section
       ref={panelRef}
-      className="fixed inset-x-0 z-10 mx-auto flex w-full max-w-[560px] flex-col bg-background px-4 pt-2"
+      className="fixed inset-x-0 z-10 mx-auto flex w-full max-w-[560px] flex-col bg-background px-[18px] pt-2"
       style={{ top: panelTop, bottom: kbOpen ? 0 : "var(--nav-h)" }}
     >
-      <div className="flex items-center gap-2 pb-2">
+      <div className="flex min-h-13 items-center gap-2 border-b border-line pb-2">
         <button
           type="button"
           onClick={backToList}
           aria-label="Volver a la lista"
-          className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface text-muted-foreground"
+          className="app-icon-button shrink-0"
         >
           <ArrowLeft className="size-4" aria-hidden />
         </button>
-        <span className="text-[13px] font-semibold text-foreground">
-          {activeId == null ? "Nueva conversación" : "Conversación"}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[14px] font-semibold text-foreground">
+            {activeId == null ? "Nueva conversación" : activeTitle ?? "Conversación"}
+          </span>
+          {activeThread ? (
+            <span className="mt-0.5 block text-[11px] text-muted-foreground">
+              {relativeDate(activeThread.updatedAt, nowIso)} · {activeThread.messageCount}{" "}
+              {activeThread.messageCount === 1 ? "mensaje" : "mensajes"}
+            </span>
+          ) : null}
         </span>
       </div>
 
@@ -303,6 +453,13 @@ export function ChatClient({
         onSend={send}
         messages={messages}
         streaming={streaming}
+        error={sendError}
+        onRetry={retryLastSend}
+        loadError={threadLoadError}
+        onRetryLoad={() => {
+          if (activeId != null) void openThread(activeId);
+        }}
+        onBack={backToList}
       />
 
       <Composer
@@ -320,67 +477,177 @@ export function ChatClient({
 /** Vista de lista: hilos existentes o estado vacío, con "Nuevo". */
 function ThreadList({
   threads,
+  nowIso,
   onNew,
   onOpen,
   onRemove,
+  onPrompt,
+  online,
 }: {
   threads: ThreadDTO[];
+  nowIso: string;
   onNew: () => void;
   onOpen: (id: number) => void;
-  onRemove: (id: number) => void;
+  onRemove: (thread: ThreadDTO) => void;
+  onPrompt: (prompt: string) => void;
+  online: boolean;
 }) {
+  const [managing, setManaging] = useState(false);
+
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="card-title text-muted-foreground">Chat</h1>
+    <section className="space-y-7 pb-8">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="ui-label">Coach con tus datos</p>
+          <h1 className="app-page-title mt-1">Chat</h1>
+        </div>
         <button
           type="button"
           onClick={onNew}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[13px] font-semibold text-primary-foreground"
+          aria-label="Nueva conversación"
+          className="app-icon-button shrink-0 border-primary/20 bg-primary text-primary-foreground hover:bg-primary-strong hover:text-primary-foreground"
         >
-          <MessageSquarePlus className="size-4" aria-hidden /> Nuevo
+          <MessageSquarePlus className="size-[18px]" aria-hidden />
         </button>
       </div>
 
+      <section
+        className="rounded-[22px] bg-[var(--inverted)] p-5 text-[var(--on-inverted)] shadow-card"
+        aria-labelledby="chat-welcome-title"
+      >
+        <span className="flex size-11 items-center justify-center rounded-xl bg-primary/25 text-[var(--on-inverted)]">
+          <Sparkles className="size-5" strokeWidth={1.8} aria-hidden />
+        </span>
+        <h2
+          id="chat-welcome-title"
+          className="mt-5 max-w-[310px] font-display text-[24px] font-semibold leading-[1.18]"
+        >
+          ¿Qué quieres entender hoy?
+        </h2>
+        <p className="mt-2 max-w-[360px] text-[13px] leading-relaxed text-[var(--on-inverted-muted)]">
+          Pregunta por tu dieta, el reparto de comidas, una carga, tu evolución o lo
+          que muestran tus últimos días.
+        </p>
+        <p
+          className="mt-4 flex items-center gap-2 text-[12px] font-semibold"
+          style={{
+            color:
+              "color-mix(in srgb, var(--protein) 38%, var(--on-inverted))",
+          }}
+        >
+          <span className="size-1.5 shrink-0 rounded-full bg-current" aria-hidden />
+          Plan, salud y entrenamientos actualizados
+        </p>
+      </section>
+
+      <section aria-labelledby="quick-prompts-title">
+        <h2 id="quick-prompts-title" className="section-title">
+          Preguntas rápidas
+        </h2>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {QUICK_PROMPTS.map(({ text, Icon, color }) => (
+            <button
+              key={text}
+              type="button"
+              disabled={!online}
+              onClick={() => onPrompt(text)}
+              className="wellness-card flex min-h-[112px] flex-col items-start justify-between border border-line p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary-soft/30 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Icon className="size-5" style={{ color }} strokeWidth={1.8} aria-hidden />
+              <span className="mt-4 text-[13px] font-semibold leading-snug text-foreground">
+                {text}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="thread-list-title">
+        <div className="mb-3 flex min-h-11 items-center justify-between gap-3">
+          <h2 id="thread-list-title" className="section-title">
+            Conversaciones
+          </h2>
+          {threads.length > 0 ? (
+            <button
+              type="button"
+              aria-pressed={managing}
+              onClick={() => setManaging((value) => !value)}
+              className="min-h-11 rounded-xl px-2 text-[13px] font-semibold text-primary"
+            >
+              {managing ? "Listo" : "Gestionar"}
+            </button>
+          ) : null}
+        </div>
+
       {threads.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-surface-2 p-6 text-center">
-          <p className="text-[14px] text-foreground">
-            Pregúntale a tus datos: tu semana, qué te hincha, comparar cargas…
+        <div className="wellness-card p-6 text-center ring-1 ring-dashed ring-line">
+          <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <MessageSquarePlus className="size-5" aria-hidden />
+          </span>
+          <p className="mt-4 text-[14px] font-semibold text-foreground">
+            Todavía no hay conversaciones
           </p>
           <p className="mt-1 text-[12px] text-muted-foreground">
-            Observa y explica con tus cifras; no prescribe dieta (eso es la visita).
+            Abre un hilo para consultar tu semana, comidas o progreso.
           </p>
           <button
             type="button"
             onClick={onNew}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-[14px] font-semibold text-primary-foreground"
+            className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-primary px-4 text-[14px] font-semibold text-primary-foreground"
           >
             <MessageSquarePlus className="size-4" aria-hidden /> Nueva conversación
           </button>
         </div>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
-          {threads.map((t) => (
-            <li key={t.id} className="flex items-center gap-2 px-4 py-3">
+        <ul className="wellness-card divide-y divide-line overflow-hidden">
+          {threads.map((thread) => (
+            <li key={thread.id} className="flex min-h-[82px] items-center">
               <button
                 type="button"
-                onClick={() => onOpen(t.id)}
-                className="min-w-0 flex-1 truncate text-left text-[14px] text-foreground"
+                onClick={() => onOpen(thread.id)}
+                className="flex min-h-[82px] min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2/60"
               >
-                {t.title}
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                  <MessageCircle className="size-[18px]" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[14px] font-semibold text-foreground">
+                    {thread.title}
+                  </span>
+                  {thread.preview ? (
+                    <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">
+                      {thread.preview}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span className="text-right text-[11px] text-muted-foreground">
+                    {relativeDate(thread.updatedAt, nowIso)}
+                  </span>
+                  {!managing ? (
+                    <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+                  ) : null}
+                </span>
               </button>
-              <button
-                type="button"
-                aria-label="Borrar hilo"
-                onClick={() => onRemove(t.id)}
-                className="shrink-0 text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="size-4" aria-hidden />
-              </button>
+              {managing ? (
+                <button
+                  type="button"
+                  aria-label={`Borrar conversación ${thread.title}`}
+                  onClick={() => onRemove(thread)}
+                  className="app-icon-button mr-2 shrink-0 border-0 bg-transparent text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
       )}
+        <p className="mt-3 flex items-start gap-2 px-1 text-[11px] leading-relaxed text-muted-foreground">
+          <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+          Los títulos resumen el tema del hilo; se generarán automáticamente con IA.
+        </p>
+      </section>
     </section>
   );
 }
@@ -395,6 +662,11 @@ function MessageArea({
   onSend,
   messages,
   streaming,
+  error,
+  onRetry,
+  loadError,
+  onRetryLoad,
+  onBack,
 }: {
   scrollRef: RefObject<HTMLDivElement | null>;
   onScroll: () => void;
@@ -404,17 +676,61 @@ function MessageArea({
   onSend: (text: string) => void;
   messages: UIMessage[];
   streaming: string | null;
+  error: SendErrorState | null;
+  onRetry: () => void;
+  loadError: string | null;
+  onRetryLoad: () => void;
+  onBack: () => void;
 }) {
-  const empty = messages.length === 0 && streaming == null && !loadingThread;
+  const empty =
+    messages.length === 0 &&
+    streaming == null &&
+    !loadingThread &&
+    loadError == null;
   return (
     <div
       ref={scrollRef}
       onScroll={onScroll}
-      className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-3"
+      className="min-h-0 flex-1 space-y-4 overflow-y-auto py-4"
     >
       {loadingThread ? (
         <div className="flex justify-center pt-8 text-muted-foreground">
           <Loader2 className="size-5 animate-spin" aria-label="Cargando conversación" />
+        </div>
+      ) : null}
+
+      {loadError ? (
+        <div
+          className="wellness-card mt-4 flex items-start gap-3 p-4 ring-1 ring-destructive/30"
+          role="alert"
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+            <AlertCircle className="size-[18px]" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-foreground">
+              No se pudo abrir la conversación
+            </p>
+            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+              {loadError}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onRetryLoad}
+                className="min-h-11 rounded-xl px-2 text-[12px] font-semibold text-primary"
+              >
+                Reintentar
+              </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="min-h-11 rounded-xl px-2 text-[12px] font-semibold text-muted-foreground"
+              >
+                Volver
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -424,13 +740,13 @@ function MessageArea({
             Empieza con una pregunta sobre tus datos:
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {SUGGESTED.map((q) => (
+            {QUICK_PROMPTS.slice(0, 3).map(({ text: q }) => (
               <button
                 key={q}
                 type="button"
                 disabled={!online || sending}
                 onClick={() => onSend(q)}
-                className="rounded-full border border-line bg-surface px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-surface-2 disabled:opacity-50"
+                className="min-h-11 rounded-full border border-line bg-surface px-3 text-[13px] text-foreground transition-colors hover:bg-surface-2 disabled:opacity-50"
               >
                 {q}
               </button>
@@ -444,6 +760,28 @@ function MessageArea({
       ))}
       {streaming != null ? (
         <Bubble role="assistant" content={streaming} streaming />
+      ) : null}
+      {error ? (
+        <div className="wellness-card flex items-start gap-3 p-4 ring-1 ring-destructive/30" role="alert">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+            <AlertCircle className="size-[18px]" aria-hidden />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-foreground">
+              No se pudo completar la respuesta
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+              {error.message}
+            </p>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-2 min-h-11 rounded-xl px-1 text-[12px] font-semibold text-primary"
+            >
+              Reintentar respuesta
+            </button>
+          </div>
+        </div>
       ) : null}
     </div>
   );
@@ -470,7 +808,7 @@ function Composer({
   const nearLimit = input.length > CHAT_MAX_CHARS * 0.9;
 
   return (
-    <div className="border-t border-line pt-2 pb-2">
+    <div className="border-t border-line pt-3 pb-2">
       <div className="flex items-end gap-2">
         <textarea
           ref={inputRef}
@@ -548,7 +886,7 @@ function Bubble({
           "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[14px] leading-relaxed",
           isUser
             ? "bg-primary whitespace-pre-wrap text-primary-foreground"
-            : "border border-line bg-surface text-foreground",
+            : "bg-surface text-foreground shadow-card ring-1 ring-line",
         )}
       >
         {isUser || streaming ? (
@@ -560,7 +898,7 @@ function Bubble({
           <button
             type="button"
             onClick={copy}
-            className="mt-2 flex items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground"
+            className="mt-1 flex min-h-11 items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground"
           >
             {copied ? (
               <Check className="size-3.5 text-protein" aria-hidden />

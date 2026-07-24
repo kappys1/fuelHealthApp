@@ -1,5 +1,6 @@
 # F06 · Gramos como dato de primera clase (editar cantidad → recalcula macros)
-**Estado**: aprobada · **Tamaño**: feature (migración + prompt) · 2 fases
+**Estado**: implementada (Fases 1 y 2; AC de flujo 🖐 pendientes en HANDOFF) ·
+**Tamaño**: feature (migración + prompt) · 2 fases
 **Fecha**: 2026-07-15 · **Origen**: HANDOFF §B3 (idea Alex, 15-jul) + caso real en conversación con el product-partner.
 
 ## Motivación (caso real)

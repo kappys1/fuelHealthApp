@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   bestEntry,
+  canonicalizeFamily,
   doubleReference,
   formatMarkValue,
   formatSeconds,
   higherIsBetter,
+  latestRecordPercentage,
   latestChange,
   latestEntry,
   marksByRecency,
@@ -12,6 +14,7 @@ import {
   parseMarkValue,
   parseTimeToSeconds,
   percentOf,
+  uniqueFamilies,
 } from "./marks";
 
 // Helper: entrada mínima (id incremental por defecto = orden de inserción).
@@ -169,6 +172,28 @@ describe("marksByRecency (carril «recientes» del Historial, F04)", () => {
   });
 });
 
+describe("latestRecordPercentage", () => {
+  it("usa última/récord cuando un valor mayor es mejor", () => {
+    const entries = [
+      e(1, 110, "2026-01-01"),
+      e(2, 100, "2026-02-01"),
+    ];
+    expect(latestRecordPercentage("weight", entries)).toBeCloseTo(90.91, 2);
+  });
+
+  it("invierte a récord/última cuando un tiempo menor es mejor", () => {
+    const entries = [
+      e(1, 300, "2026-01-01"),
+      e(2, 330, "2026-02-01"),
+    ];
+    expect(latestRecordPercentage("time", entries)).toBeCloseTo(90.91, 2);
+  });
+
+  it("devuelve 100 cuando la última entrada es el récord", () => {
+    expect(latestRecordPercentage("reps", [e(1, 12, "2026-01-01")])).toBe(100);
+  });
+});
+
 describe("doubleReference (calculadora doble última/récord, F04)", () => {
   it("récord por encima de la última → distintas (dos referencias)", () => {
     // récord 110 (feb) por encima de la última 103 (abr) → distinct.
@@ -260,5 +285,42 @@ describe("formatMarkValue", () => {
     expect(formatMarkValue("weight", 93.5, "kg")).toBe("93,5 kg");
     expect(formatMarkValue("reps", 20, "reps")).toBe("20 reps");
     expect(formatMarkValue("distance", 5, "km")).toBe("5 km");
+  });
+});
+
+describe("uniqueFamilies", () => {
+  it("únicas, sin vacías/espacios, ordenadas (es)", () => {
+    expect(
+      uniqueFamilies([
+        { family: "Squat" },
+        { family: "snatch" },
+        { family: "Squat" },
+        { family: "  " },
+        { family: null },
+        { family: " Carrera " },
+      ]),
+    ).toEqual(["Carrera", "snatch", "Squat"]);
+  });
+  it("sin familias → []", () => {
+    expect(uniqueFamilies([{ family: null }, { family: "" }])).toEqual([]);
+  });
+});
+
+describe("canonicalizeFamily", () => {
+  const existing = ["Snatch", "Squat", "Carrera"];
+  it("coincidencia case-insensitive adopta la grafía existente (mata el split)", () => {
+    expect(canonicalizeFamily("snatch", existing)).toBe("Snatch");
+    expect(canonicalizeFamily("SNATCH", existing)).toBe("Snatch");
+    expect(canonicalizeFamily("  squat ", existing)).toBe("Squat");
+  });
+  it("familia nueva → texto tal cual (trim)", () => {
+    expect(canonicalizeFamily("  Press ", existing)).toBe("Press");
+  });
+  it("vacío o solo espacios → null (sin familia)", () => {
+    expect(canonicalizeFamily("", existing)).toBeNull();
+    expect(canonicalizeFamily("   ", existing)).toBeNull();
+  });
+  it("sin familias existentes → texto tal cual", () => {
+    expect(canonicalizeFamily("Snatch", [])).toBe("Snatch");
   });
 });

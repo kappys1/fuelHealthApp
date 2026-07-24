@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -29,13 +29,16 @@ export function CheckinMatinal({
   onOpenChange,
   data,
   onPatch,
+  onBloat,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   data: TodayPayload;
   onPatch: (patch: DayPatch) => void;
+  onBloat: (severity: BloatKey) => Promise<void>;
 }) {
   const [step, setStep] = useState(0);
+  const [savingBloat, setSavingBloat] = useState(false);
   const [weight, setWeight] = useState(
     String(data.view.day?.weight ?? data.lastWeight ?? ""),
   );
@@ -93,9 +96,15 @@ export function CheckinMatinal({
                   <button
                     key={b}
                     type="button"
-                    onClick={() => {
-                      onPatch({ bloat: b });
-                      setStep(2);
+                    disabled={savingBloat}
+                    onClick={async () => {
+                      setSavingBloat(true);
+                      try {
+                        await onBloat(b);
+                        setStep(2);
+                      } finally {
+                        setSavingBloat(false);
+                      }
                     }}
                     className={cn(
                       "rounded-xl border py-4 text-[15px]",
@@ -227,8 +236,10 @@ export function CheckinCierre({
           {step === 2 ? (
             <div className="space-y-4 text-center">
               <p className="num text-[15px] text-foreground">
-                {roundKcal(totals.kcal).toLocaleString("es-ES")} /{" "}
-                {data.targets.kcal.toLocaleString("es-ES")} kcal ·{" "}
+                {roundKcal(totals.kcal).toLocaleString("es-ES")}
+                {data.targets.kcal > 0
+                  ? ` / ${data.targets.kcal.toLocaleString("es-ES")}`
+                  : ""} kcal ·{" "}
                 {displayMacro(totals.prot)} g prot
               </p>
               <p className="text-[15px]">
@@ -253,15 +264,20 @@ export function WeightExpressSheet({
   onOpenChange,
   data,
   onPatch,
+  onBloat,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   data: TodayPayload;
-  onPatch: (patch: DayPatch) => void;
+  onPatch: (patch: DayPatch) => Promise<boolean>;
+  onBloat: (severity: BloatKey) => Promise<void>;
 }) {
   const [weight, setWeight] = useState(
     String(data.view.day?.weight ?? data.lastWeight ?? ""),
   );
+  const [bloat, setBloat] = useState<BloatKey | null>(data.view.day?.bloat ?? null);
+  const bloatDirty = useRef(false);
+  const [saving, setSaving] = useState(false);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -289,10 +305,13 @@ export function WeightExpressSheet({
                 <button
                   key={b}
                   type="button"
-                  onClick={() => onPatch({ bloat: b })}
+                  onClick={() => {
+                    setBloat(b);
+                    bloatDirty.current = true;
+                  }}
                   className={cn(
-                    "rounded-lg border py-2 text-[12px]",
-                    data.view.day?.bloat === b
+                    "min-h-11 rounded-lg border px-1 text-[12px]",
+                    bloat === b
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-line bg-surface-2",
                   )}
@@ -303,12 +322,23 @@ export function WeightExpressSheet({
             </div>
           </div>
           <BigNext
-            label="Guardar"
-            onClick={() => {
-              onPatch({
-                weight: weight === "" ? null : Number(weight.replace(",", ".")),
-              });
-              onOpenChange(false);
+            label={saving ? "Guardando…" : "Guardar"}
+            disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              try {
+                const [saved] = await Promise.all([
+                  onPatch({
+                    weight: weight === "" ? null : Number(weight.replace(",", ".")),
+                  }),
+                  !bloatDirty.current || bloat == null
+                    ? Promise.resolve()
+                    : onBloat(bloat),
+                ]);
+                if (saved) onOpenChange(false);
+              } finally {
+                setSaving(false);
+              }
             }}
           />
         </div>
@@ -334,12 +364,21 @@ function sessionSuggestion(data: TodayPayload): string {
     : `(sugerida: ${data.defaultSession})`;
 }
 
-function BigNext({ label = "Siguiente", onClick }: { label?: string; onClick: () => void }) {
+function BigNext({
+  label = "Siguiente",
+  onClick,
+  disabled = false,
+}: {
+  label?: string;
+  onClick: () => void | Promise<void>;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-xl bg-primary py-3.5 text-[15px] font-semibold text-primary-foreground"
+      disabled={disabled}
+      className="min-h-11 w-full rounded-xl bg-primary px-4 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
     >
       {label}
     </button>
@@ -351,7 +390,7 @@ function SkipLink({ label = "Saltar", onClick }: { label?: string; onClick: () =
     <button
       type="button"
       onClick={onClick}
-      className="mx-auto block text-[13px] text-muted-foreground"
+      className="mx-auto block min-h-11 px-4 text-[13px] text-muted-foreground"
     >
       {label}
     </button>

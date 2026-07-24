@@ -46,7 +46,7 @@ export function QuickAddMenu({
         <button
           type="button"
           aria-label="Más acciones"
-          className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface text-muted-foreground"
+          className="inline-flex size-11 items-center justify-center rounded-xl border border-line bg-surface text-muted-foreground"
         >
           <MoreHorizontal className="size-4" aria-hidden />
         </button>
@@ -58,7 +58,7 @@ export function QuickAddMenu({
             onCopyYesterday();
             setOpen(false);
           }}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2"
+          className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2"
         >
           <CopyPlus className="size-4 text-muted-foreground" aria-hidden />
           Copiar ayer
@@ -70,7 +70,7 @@ export function QuickAddMenu({
             setName("");
             setNameOpen(true);
           }}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2"
+          className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2"
         >
           <Save className="size-4 text-muted-foreground" aria-hidden />
           Guardar día como plantilla
@@ -87,7 +87,7 @@ export function QuickAddMenu({
                     onApplyTemplate(t.id);
                     setOpen(false);
                   }}
-                  className="min-w-0 flex-1 truncate rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2"
+                  className="min-h-11 min-w-0 flex-1 truncate rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2"
                 >
                   {t.name}
                 </button>
@@ -98,7 +98,7 @@ export function QuickAddMenu({
                     if (window.confirm(`¿Borrar la plantilla «${t.name}»?`))
                       onDeleteTemplate(t.id);
                   }}
-                  className="shrink-0 rounded-md p-2 text-muted-foreground hover:text-destructive"
+                  className="grid size-11 shrink-0 place-items-center rounded-md text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="size-4" aria-hidden />
                 </button>

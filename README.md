@@ -52,5 +52,11 @@ pnpm hash-password 'tu-nuevo-password'
 
 ## Estado
 
-**Fase 0 (esqueleto) completa.** Siguientes fases en `docs/specs/06-PLAN-IMPLEMENTACION.md`.
-Trabajo fase a fase; no adelantar trabajo de fases futuras.
+La **v1 está completa y desplegada**. El desarrollo activo está en
+`feat/wellness-premium-v2`: rediseño Wellness v2 con paridad funcional documentada,
+F10 y F11 implementadas, Gate 4 automatizado verde y Gate 5 aprobado por Alex tras
+dos días de uso real. Las migraciones `0000–0015` ya están aplicadas; queda integrar
+la rama en `main` y observar el despliegue de producción.
+
+Estado operativo: `docs/REDESIGN-MIGRATION-WORKFLOW.md`. Backlog vigente:
+`docs/HANDOFF-features.md`.

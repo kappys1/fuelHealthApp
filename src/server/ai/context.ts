@@ -1,4 +1,5 @@
 import { dayKey, isoWeekday } from "@/lib/dates";
+import { effectiveHealthMetric } from "@/lib/effective-health";
 import {
   BLOAT_LABELS,
   type MealKey,
@@ -173,7 +174,18 @@ export function trendSummary(deficit: DeficitResult): string {
   }
   const kg = deficit.kgPerWeek;
   const kgStr = `${kg > 0 ? "+" : ""}${num(kg, 2)} kg/semana`;
-  return `${kgStr}, déficit real ~${num(deficit.deficitKcal ?? 0)} kcal/día, gasto real estimado ${num(deficit.tdee ?? 0)} kcal/día.`;
+  const parts = [kgStr];
+  if (deficit.deficitKcal != null) {
+    parts.push(
+      deficit.deficitKcal >= 0
+        ? `déficit real ~${num(deficit.deficitKcal)} kcal/día`
+        : `superávit estimado ~${num(Math.abs(deficit.deficitKcal))} kcal/día`,
+    );
+  }
+  if (deficit.tdee != null) {
+    parts.push(`gasto real estimado ${num(deficit.tdee)} kcal/día`);
+  }
+  return `${parts.join(", ")}.`;
 }
 
 /** Tendencia + adherencia para el chat (F-IA-8 §3): mismas cifras que la pantalla. */
@@ -350,7 +362,7 @@ export function dayContext(
   }
 
   const ctx: string[] = [];
-  const weight = day?.weight ?? health?.weight ?? null;
+  const weight = effectiveHealthMetric(day?.weight, health?.weight);
   if (weight != null) ctx.push(`peso ${num(weight, 1)} kg`);
   if (view.session) {
     // Sesión REAL del plan de entreno (doc 10 B3): nombre + tipo + gasto estimado.
@@ -369,7 +381,7 @@ export function dayContext(
     );
   }
   ctx.push(`fase ${phaseLabel(day?.phase ?? null)}`);
-  const waterL = day?.waterL ?? health?.waterL ?? null;
+  const waterL = effectiveHealthMetric(day?.waterL, health?.waterL);
   if (waterL != null) ctx.push(`agua ${num(waterL, 1)} L`);
   if (day?.bloat) ctx.push(`hinchazón ${BLOAT_LABELS[day.bloat].toLowerCase()}`);
   if (health?.steps != null) ctx.push(`${num(health.steps)} pasos`);

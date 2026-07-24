@@ -1,6 +1,7 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { CircleDashed, Flag, Info } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   displayMacro,
   type MealKey,
@@ -9,9 +10,12 @@ import {
   phaseLabel,
   roundKcal,
 } from "@/lib/macros";
-import { dayTotals, type EntryLike, subtotalsByMeal } from "@/server/analytics/dayTotals";
+import {
+  dayTotals,
+  type EntryLike,
+  subtotalsByMeal,
+} from "@/server/analytics/dayTotals";
 import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
-import { cn } from "@/lib/utils";
 
 interface Targets {
   kcal: number;
@@ -20,14 +24,12 @@ interface Targets {
   fat: number;
 }
 
-// Bloques del gauge = comidas del plan (05-DISENO §1). Cada uno se va llenando.
 const GAUGE_MEALS: MealKey[] = ["almuerzo", "comida", "merienda", "cena", "extra"];
-// Tono cobalto con opacidad decreciente por comida; "extra" en naranja.
-const MEAL_ALPHA: Record<MealKey, number> = {
+const MEAL_OPACITY: Record<MealKey, number> = {
   almuerzo: 1,
-  comida: 0.82,
-  merienda: 0.64,
-  cena: 0.46,
+  comida: 0.94,
+  merienda: 0.88,
+  cena: 0.82,
   extra: 1,
 };
 
@@ -35,184 +37,283 @@ export function FuelGauge({
   targets,
   entries,
   phase,
-  onCoach,
 }: {
   targets: Targets;
   entries: EntryLike[];
   phase: PhaseKey | null;
-  onCoach: () => void;
 }) {
   const totals = dayTotals(entries);
-  const subtotals = subtotalsByMeal(entries);
-  // Veredicto único (compartido con el coach): la UI y la IA juzgan el día con la
-  // MISMA lógica → no vuelven a contradecirse (bug de coherencia del 14-jul).
-  const v = gaugeVerdict(targets, totals, phase);
-  const special = v.phase !== "normal";
-  const competicion = v.phase === "competicion";
+  const meals = subtotalsByMeal(entries);
+  const verdict = gaugeVerdict(targets, totals, phase);
+  const hasTarget = targets.kcal > 0 || targets.prot > 0;
+  const special = verdict.phase !== "normal";
+  const competition = verdict.phase === "competicion";
 
-  const consumed = v.consumed;
-  const over = v.over;
-
-  const rem = {
-    kcal: v.kcalRemaining,
-    prot: v.prot.remaining,
-    carb: v.carb.remaining,
-    fat: v.fat.remaining,
-  };
-  const allCovered = v.covered;
+  const headline = !hasTarget
+    ? "Sin objetivo configurado"
+    : competition
+    ? "Repostaje de competición"
+    : special
+      ? `Fase ${phaseLabel(phase)}`
+      : Math.abs(verdict.consumed - targets.kcal) <= 25
+        ? "Objetivo cumplido"
+        : verdict.over
+          ? `${verdict.kcalOver.toLocaleString("es-ES")} kcal sobre objetivo`
+          : "Presupuesto del día";
 
   return (
     <section
       className={cn(
-        "rounded-xl border p-4",
-        special ? "border-primary/40" : "border-line",
+        "wellness-card overflow-hidden p-[18px]",
+        special && "border-primary/35 bg-primary-soft",
       )}
-      style={special ? { background: "var(--phase)" } : { background: "var(--surface)" }}
-      aria-label="Presupuesto del día"
+      aria-labelledby="fuel-gauge-title"
     >
-      {/* Cabecera: cifra crono + restante + coach */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex items-baseline gap-1.5">
-            <span
-              className="num text-[44px] leading-none font-bold text-foreground"
-              style={{ fontFamily: "var(--font-condensed)" }}
-            >
-              {consumed.toLocaleString("es-ES")}
-            </span>
-            <span className="num text-lg text-muted-foreground">
-              / {targets.kcal.toLocaleString("es-ES")}
-            </span>
-            <span className="text-[12px] text-muted-foreground">kcal</span>
-          </div>
-          <div className="mt-1">
-            {competicion ? (
-              <span className="text-[13px] font-medium text-primary">
-                Modo competición · repostaje libre
-              </span>
-            ) : over ? (
-              <span
-                className={cn(
-                  "num text-[15px] font-semibold",
-                  special ? "text-primary" : "text-destructive",
-                )}
-              >
-                +{v.kcalOver.toLocaleString("es-ES")} kcal
-              </span>
-            ) : (
-              <span className="num text-[15px] font-semibold text-foreground">
-                Faltan {rem.kcal.toLocaleString("es-ES")} kcal
-              </span>
-            )}
-          </div>
+          <p className="ui-label">Combustible del día</p>
+          <h1
+            id="fuel-gauge-title"
+            className="mt-1 font-display text-[18px] leading-tight font-semibold text-foreground"
+          >
+            {headline}
+          </h1>
         </div>
-
-        <button
-          type="button"
-          onClick={onCoach}
-          aria-label="Coach (analizar el día)"
-          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface text-primary transition-colors hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        <span
+          className={cn(
+            "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold",
+            special
+              ? "bg-primary/10 text-primary"
+              : "bg-surface-2 text-protein",
+          )}
         >
-          <Sparkles className="size-4" aria-hidden />
-        </button>
+          {special ? <Flag className="size-3.5" aria-hidden /> : null}
+          {special
+            ? phaseLabel(phase)
+            : !hasTarget
+              ? "Solo registro"
+              : entries.length > 0
+                ? "En curso"
+                : "Sin registros"}
+        </span>
       </div>
 
-      {/* Barra de kcal segmentada por comida */}
       <div
-        className="mt-3 flex h-3.5 w-full overflow-hidden rounded-full"
-        style={{ background: "var(--surface-2)" }}
-        aria-hidden
+        className="mt-4 grid min-w-0 grid-cols-[minmax(0,1.38fr)_minmax(0,.86fr)_minmax(0,.86fr)] items-center gap-2 sm:gap-3"
+        aria-label="Presupuesto nutricional del día"
       >
-        {GAUGE_MEALS.map((m) => {
-          const pct = (subtotals[m].kcal / targets.kcal) * 100;
-          if (pct <= 0) return null;
-          const isExtra = m === "extra";
-          return (
-            <div
-              key={m}
-              className="h-full shrink-0 transition-[width] duration-200"
-              style={{
-                width: `${Math.min(pct, 130)}%`,
-                background: isExtra ? "var(--fat)" : "var(--primary)",
-                opacity: MEAL_ALPHA[m],
-              }}
-              title={`${MEAL_LABELS[m]}: ${roundKcal(subtotals[m].kcal)} kcal`}
-            />
-          );
-        })}
-      </div>
-
-      {/* Proteína (barra propia) + mini-barras C/F */}
-      <div className="mt-3 space-y-2">
-        <MacroBar
-          label="Proteína"
+        <BudgetRing
+          label="kcal"
+          value={verdict.consumed}
+          target={targets.kcal}
+          color="var(--primary)"
+          main
+        />
+        <BudgetRing
+          label="proteína"
+          shortLabel="Prot"
+          unit="g"
           value={totals.prot}
           target={targets.prot}
           color="var(--protein)"
-          big
         />
-        <div className="grid grid-cols-2 gap-3">
-          <MacroBar label="Hidratos" value={totals.carb} target={targets.carb} color="var(--carb)" />
-          <MacroBar label="Grasa" value={totals.fat} target={targets.fat} color="var(--fat)" />
+        <BudgetRing
+          label="hidratos"
+          shortLabel="Hidr"
+          unit="g"
+          value={totals.carb}
+          target={targets.carb}
+          color="var(--carb)"
+        />
+      </div>
+
+      <div className="mt-4">
+        <div className="flex items-baseline justify-between gap-3 text-[12px]">
+          <span className="font-medium text-muted-foreground">Grasa</span>
+          <span className="font-display font-semibold tabular-nums text-foreground">
+            {displayMacro(totals.fat)}
+            <span className="font-normal text-muted-foreground">
+              {targets.fat > 0 ? ` / ${displayMacro(targets.fat)} g` : " g · sin objetivo"}
+            </span>
+          </span>
+        </div>
+        <ProgressRail value={totals.fat} target={targets.fat} color="var(--fat)" />
+      </div>
+
+      <div className="mt-3">
+        <div className="mb-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>Distribución por comidas</span>
+          <span className="font-display tabular-nums">{entries.length} entradas</span>
+        </div>
+        <div
+          className="flex h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
+          role="img"
+          aria-label={GAUGE_MEALS.filter((meal) => meals[meal].kcal > 0)
+            .map(
+              (meal) =>
+                `${MEAL_LABELS[meal]}: ${roundKcal(meals[meal].kcal)} kilocalorías`,
+            )
+            .join(", ") || "Sin calorías distribuidas por comidas"}
+        >
+          {GAUGE_MEALS.map((meal) => {
+            const width =
+              (targets.kcal > 0 ? meals[meal].kcal / targets.kcal : meals[meal].kcal / Math.max(1, totals.kcal)) * 100;
+            return width > 0 ? (
+              <span
+                key={meal}
+                className="h-full shrink-0"
+                aria-hidden
+                style={{
+                  width: `${Math.min(width, 100)}%`,
+                  background: meal === "extra" ? "var(--fat)" : "var(--primary)",
+                  opacity: MEAL_OPACITY[meal],
+                }}
+                title={`${MEAL_LABELS[meal]}: ${roundKcal(meals[meal].kcal)} kcal`}
+              />
+            ) : null;
+          })}
         </div>
       </div>
 
-      {/* Línea «Faltan…» / estado de fase */}
-      <div className="mt-3 rounded-lg bg-surface-2 px-3 py-2 text-[13px]">
-        {competicion ? (
-          <span className="text-muted-foreground">
-            El gauge no regaña hoy. Registra el repostaje entre WODs.
+      <div
+        className={cn(
+          "mt-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-[12px] leading-relaxed",
+          special ? "bg-primary-soft text-primary" : "bg-surface-2 text-muted-foreground",
+        )}
+      >
+        {!hasTarget ? (
+          <span>
+            Configura una dieta en Plan para comparar el registro con una pauta.
           </span>
         ) : special ? (
-          <span className="text-primary">
-            Fase {phaseLabel(phase)}: superar el objetivo es esperado; este día no
-            cuenta como desviación.
-          </span>
-        ) : allCovered ? (
-          <span className="font-medium text-protein">Objetivos cubiertos ✓</span>
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
         ) : (
-          <span className="text-muted-foreground">
-            <span className="text-foreground">Faltan:</span>{" "}
-            <span className="num">{rem.kcal.toLocaleString("es-ES")}</span> kcal ·{" "}
-            <span className="num">{displayMacro(rem.prot)}</span> g prot ·{" "}
-            <span className="num">{displayMacro(rem.carb)}</span> g hidr ·{" "}
-            <span className="num">{displayMacro(rem.fat)}</span> g grasa
-          </span>
+          <CircleDashed className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
         )}
+        {hasTarget ? (
+          special ? (
+            <span>
+              Superar el objetivo es esperado en esta fase; no cuenta como desviación.
+            </span>
+          ) : verdict.covered ? (
+            <span className="font-medium text-protein">Objetivos cubiertos.</span>
+          ) : (
+            <span>
+              <strong className="font-semibold text-foreground">Faltan</strong>{" "}
+              {verdict.kcalRemaining.toLocaleString("es-ES")} kcal
+              {targets.prot > 0 ? ` · ${displayMacro(verdict.prot.remaining)} g prot` : ""}
+              {targets.carb > 0 ? ` · ${displayMacro(verdict.carb.remaining)} g hidr` : ""}
+              {targets.fat > 0 ? ` · ${displayMacro(verdict.fat.remaining)} g grasa` : ""}
+            </span>
+          )
+        ) : null}
       </div>
     </section>
   );
 }
 
-function MacroBar({
+function BudgetRing({
   label,
+  shortLabel,
+  unit,
   value,
   target,
   color,
-  big,
+  main = false,
 }: {
   label: string;
+  shortLabel?: string;
+  unit?: string;
   value: number;
   target: number;
   color: string;
-  big?: boolean;
+  main?: boolean;
 }) {
-  const pct = target > 0 ? Math.min((value / target) * 100, 100) : 0;
+  const pct = target > 0 ? Math.min(100, Math.max(0, (value / target) * 100)) : 0;
+  const shown = main ? Math.round(value).toLocaleString("es-ES") : displayMacro(value);
+  const targetShown = main
+    ? Math.round(target).toLocaleString("es-ES")
+    : displayMacro(target);
+
   return (
-    <div>
-      <div className="flex items-baseline justify-between text-[12px]">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="num text-foreground">
-          {displayMacro(value)}
-          <span className="text-muted-foreground"> / {displayMacro(target)} g</span>
+    <div
+      className={cn(
+        "relative aspect-square min-w-0 place-self-center",
+        main ? "w-full max-w-[136px]" : "w-full max-w-[84px]",
+      )}
+      role="img"
+      aria-label={
+        target > 0
+          ? `${displayMacro(value)} de ${displayMacro(target)} ${unit ?? label}`
+          : `${displayMacro(value)} ${unit ?? label}, sin objetivo definido`
+      }
+    >
+      <svg viewBox="0 0 120 120" className="absolute inset-0 size-full" aria-hidden>
+        <circle
+          cx="60"
+          cy="60"
+          r="50"
+          fill="none"
+          stroke="var(--surface-2)"
+          strokeWidth="7"
+        />
+        <circle
+          cx="60"
+          cy="60"
+          r="50"
+          pathLength="100"
+          fill="none"
+          stroke={color}
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={`${pct} 100`}
+          transform="rotate(-90 60 60)"
+        />
+        {main ? (
+          <g stroke="var(--line)" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="60" y1="7" x2="60" y2="12" />
+            <line x1="113" y1="60" x2="108" y2="60" />
+            <line x1="60" y1="113" x2="60" y2="108" />
+            <line x1="7" y1="60" x2="12" y2="60" />
+          </g>
+        ) : null}
+      </svg>
+      <span className="absolute inset-[12%] flex min-w-0 flex-col items-center justify-center text-center">
+        <strong
+          className={cn(
+            "max-w-full truncate font-display leading-none font-semibold tabular-nums text-foreground",
+            main ? "text-[24px]" : "text-[16px]",
+          )}
+        >
+          {shown}
+        </strong>
+        <span className={cn("mt-1 text-muted-foreground", main ? "text-[11px]" : "text-[10px]") }>
+          {shortLabel ?? label}
         </span>
-      </div>
+        <small className="font-display text-[10px] tabular-nums text-muted-foreground">
+          {target > 0 ? `de ${targetShown}${unit ? ` ${unit}` : ""}` : "sin objetivo"}
+        </small>
+      </span>
+    </div>
+  );
+}
+
+function ProgressRail({
+  value,
+  target,
+  color,
+}: {
+  value: number;
+  target: number;
+  color: string;
+}) {
+  const pct = target > 0 ? Math.min(100, Math.max(0, (value / target) * 100)) : 0;
+  return (
+    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
       <div
-        className={cn("mt-1 w-full overflow-hidden rounded-full", big ? "h-2.5" : "h-1.5")}
-        style={{ background: "var(--surface-2)" }}
-      >
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </div>
+        className="h-full rounded-full transition-[width] duration-300"
+        style={{ width: `${pct}%`, background: color }}
+      />
     </div>
   );
 }

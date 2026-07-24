@@ -1,6 +1,15 @@
 "use client";
 
-import { Loader2, Pencil, Plus, Sparkles, Trash2, WifiOff } from "lucide-react";
+import {
+  ChevronRight,
+  Loader2,
+  Pencil,
+  Plus,
+  Ruler,
+  Sparkles,
+  Trash2,
+  WifiOff,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CompositionChart } from "@/components/charts/composition-chart";
@@ -11,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Markdown } from "@/components/ui/markdown";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/lib/client-api";
 import { dayKey, labelForKey } from "@/lib/dates";
@@ -55,6 +65,9 @@ export function Med({ initialMed }: { initialMed: MedWithDelta[] }) {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<MedMeasurement | null>(null);
   const [visitOpen, setVisitOpen] = useState(false);
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<MedMeasurement | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const withDeltas = useMemo(() => computeMedDeltas(rows), [rows]);
   const desc = useMemo(() => [...withDeltas].reverse(), [withDeltas]);
@@ -79,27 +92,39 @@ export function Med({ initialMed }: { initialMed: MedWithDelta[] }) {
   };
 
   const del = async (row: MedMeasurement) => {
-    if (!window.confirm(`¿Borrar la medición del ${labelForKey(row.date)}?`)) return;
+    setDeleting(true);
     const prev = rows;
     setRows((rs) => rs.filter((r) => r.id !== row.id));
     try {
       await api.deleteMed(row.id);
       toast.success("Medición borrada.");
+      setDetailId(null);
+      setPendingDelete(null);
     } catch (err) {
       setRows(prev);
       toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
+    } finally {
+      setDeleting(false);
     }
   };
+  const detail = desc.find((row) => row.id === detailId) ?? null;
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-7">
+      <div>
+        <h2 className="app-section-title">Mediciones MED</h2>
+        <p className="section-copy">Compara siempre mediciones del mismo método</p>
+      </div>
       {/* Preparar visita (F-IA-7) */}
       <PrepareVisitCard onOpen={() => setVisitOpen(true)} />
 
       {/* Gráfico de composición doble eje */}
-      <section className="rounded-xl border border-line bg-surface p-4">
-        <div className="mb-1 flex items-center gap-1.5">
-          <h2 className="card-title text-muted-foreground">Composición corporal</h2>
+      <section className="wellness-card p-5">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="app-section-title">Composición corporal</h2>
+            <p className="section-copy">Grasa, músculo y peso medidos por tu nutricionista</p>
+          </div>
           <HowCalculated
             title="Composición por pliegues (MED)"
             what="Grasa y músculo en kg medidos por tu nutricionista, más el peso que le reportas. Peso y músculo comparten el eje izquierdo; la grasa va en el derecho para que su variación se vea."
@@ -111,16 +136,19 @@ export function Med({ initialMed }: { initialMed: MedWithDelta[] }) {
       </section>
 
       {/* Historial con diferencias */}
-      <section className="rounded-xl border border-line bg-surface">
-        <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
-          <h2 className="card-title text-muted-foreground">Mediciones</h2>
+      <section className="wellness-card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-line px-5 py-4">
+          <div>
+            <h2 className="text-[14px] font-semibold text-foreground">Historial MED</h2>
+            <p className="text-[11px] text-muted-foreground">Toca una medición para verla</p>
+          </div>
           <button
             type="button"
             onClick={() => {
               setEditing(null);
               setFormOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-[13px] font-medium text-foreground"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-line bg-surface-2 px-3 text-[13px] font-semibold text-primary"
           >
             <Plus className="size-4 text-primary" aria-hidden />
             Añadir
@@ -135,38 +163,31 @@ export function Med({ initialMed }: { initialMed: MedWithDelta[] }) {
         ) : (
           <ul className="divide-y divide-line">
             {desc.map((r) => (
-              <li key={r.id} className="px-4 py-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[13px] font-medium text-foreground">
-                    {labelForKey(r.date)}
+              <li key={r.id}>
+                <button
+                  type="button"
+                  onClick={() => setDetailId(r.id)}
+                  className="flex min-h-20 w-full items-center gap-3 px-5 py-4 text-left"
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-special/10 text-special">
+                    <Ruler className="size-[18px]" aria-hidden />
                   </span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      aria-label="Editar medición"
-                      onClick={() => {
-                        setEditing(r);
-                        setFormOpen(true);
-                      }}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <Pencil className="size-4" aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label="Borrar medición"
-                      onClick={() => del(r)}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-1.5 grid grid-cols-3 gap-2">
-                  <Metric label="Grasa" value={r.fatKg} delta={r.delta.fatKg} favor="down" />
-                  <Metric label="Músculo" value={r.muscleKg} delta={r.delta.muscleKg} favor="up" />
-                  <Metric label="Peso" value={r.weightKg} delta={r.delta.weightKg} favor="neutral" />
-                </div>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold text-foreground">
+                      {labelForKey(r.date)}
+                    </span>
+                    <span className="num mt-1 block text-[11px] text-muted-foreground">
+                      {[
+                        r.fatKg != null ? `Grasa ${kg(r.fatKg, 2)} kg` : null,
+                        r.muscleKg != null ? `Músculo ${kg(r.muscleKg, 2)} kg` : null,
+                        r.weightKg != null ? `Peso ${kg(r.weightKg, 1)} kg` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                </button>
               </li>
             ))}
           </ul>
@@ -189,6 +210,35 @@ export function Med({ initialMed }: { initialMed: MedWithDelta[] }) {
       ) : null}
 
       <VisitSheet open={visitOpen} onOpenChange={setVisitOpen} />
+
+      {detail ? (
+        <MedDetailSheet
+          row={detail}
+          onClose={() => setDetailId(null)}
+          onEdit={() => {
+            setEditing(detail);
+            setDetailId(null);
+            setFormOpen(true);
+          }}
+          onDelete={() => setPendingDelete(detail)}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={pendingDelete != null}
+        onOpenChange={(open) => !open && !deleting && setPendingDelete(null)}
+        title="Borrar medición"
+        description={
+          pendingDelete
+            ? `Se borrará la medición del ${labelForKey(pendingDelete.date)}. Las diferencias posteriores se recalcularán.`
+            : ""
+        }
+        confirmLabel="Borrar medición"
+        busy={deleting}
+        onConfirm={() => {
+          if (pendingDelete) return del(pendingDelete);
+        }}
+      />
     </div>
   );
 }
@@ -206,9 +256,11 @@ function Metric({
   favor: "up" | "down" | "neutral";
 }) {
   return (
-    <div className="rounded-lg bg-surface-2 px-2 py-2">
+    <div className="rounded-xl bg-surface-2 px-3 py-2.5">
       <div className="text-[11px] text-muted-foreground">{label}</div>
-      <div className="num text-[16px] font-semibold text-foreground">{kg(value, 2)}</div>
+      <div className="num text-[16px] font-semibold text-foreground">
+        {kg(value, 2)}{value != null ? " kg" : ""}
+      </div>
       <div className={`num text-[12px] font-medium ${deltaClass(delta, favor)}`}>
         {delta == null
           ? "—"
@@ -228,22 +280,85 @@ function deltaClass(delta: number | null, favor: "up" | "down" | "neutral"): str
   return good ? "text-protein" : "text-destructive";
 }
 
+function MedDetailSheet({
+  row,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  row: MedWithDelta;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="bottom" className="max-h-[88dvh] gap-0 overflow-y-auto">
+        <SheetHeader className="pb-2">
+          <SheetTitle>Medición · {labelForKey(row.date)}</SheetTitle>
+        </SheetHeader>
+        <div className="space-y-5 px-4 pb-8">
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            Diferencias frente a la MED anterior. Grasa y músculo están expresados en
+            kg y no se mezclan con estimaciones de báscula.
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            <Metric label="Grasa" value={row.fatKg} delta={row.delta.fatKg} favor="down" />
+            <Metric
+              label="Músculo"
+              value={row.muscleKg}
+              delta={row.delta.muscleKg}
+              favor="up"
+            />
+            <Metric
+              label="Peso"
+              value={row.weightKg}
+              delta={row.delta.weightKg}
+              favor="neutral"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 border-t border-line pt-4">
+            <button
+              type="button"
+              onClick={onEdit}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface-2 px-4 text-[13px] font-semibold text-foreground"
+            >
+              <Pencil className="size-4" aria-hidden /> Editar
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 text-[13px] font-semibold text-destructive"
+            >
+              <Trash2 className="size-4" aria-hidden /> Borrar
+            </button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ── Preparar visita (F-IA-7) ──
 function PrepareVisitCard({ onOpen }: { onOpen: () => void }) {
   return (
-    <section className="rounded-xl border border-line bg-surface p-4">
-      <h2 className="text-[13px] font-semibold text-foreground">Preparar visita</h2>
-      <p className="mt-1 text-[12px] text-muted-foreground">
-        Análisis de tu evolución y preguntas concretas para tu nutricionista,
-        ancladas a tus datos. La app observa; tu nutricionista decide.
-      </p>
+    <section className="wellness-card flex items-center gap-4 p-5">
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+        <Sparkles className="size-5" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-[14px] font-semibold text-foreground">Preparar visita</h2>
+        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+          Resume 30 días y prepara preguntas para tu nutricionista.
+        </p>
+      </div>
       <button
         type="button"
         onClick={onOpen}
-        className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-2 text-[13px] font-medium text-foreground"
+        aria-label="Preparar mi visita"
+        className="app-icon-button shrink-0 text-primary"
       >
-        <Sparkles className="size-4 text-primary" aria-hidden />
-        Preparar mi visita
+        <ChevronRight className="size-[18px]" aria-hidden />
       </button>
     </section>
   );
@@ -294,14 +409,14 @@ function VisitSheet({
           {!text && !error ? (
             <>
               <p className="text-[13px] text-muted-foreground">
-                Genera un análisis de tus últimos 21 días con datos, tu historial de
+                Genera un análisis de tus últimos 30 días naturales, tu historial de
                 mediciones y tu tendencia, con preguntas para la consulta.
               </p>
               <button
                 type="button"
                 onClick={run}
                 disabled={loading || !online}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+                className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {loading ? (
                   <>
@@ -331,7 +446,7 @@ function VisitSheet({
               <button
                 type="button"
                 onClick={run}
-                className="mt-2 block text-[12px] font-medium underline"
+                className="mt-2 min-h-11 text-[12px] font-semibold underline"
               >
                 Reintentar
               </button>
@@ -399,11 +514,11 @@ function MedForm({
 
   return (
     <Sheet open onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="gap-0">
+      <SheetContent side="bottom" className="max-h-[92dvh] gap-0 overflow-y-auto">
         <SheetHeader className="pb-2">
           <SheetTitle>{row ? "Editar medición" : "Nueva medición"}</SheetTitle>
         </SheetHeader>
-        <div className="space-y-3 px-4 pb-6">
+        <div className="space-y-4 px-4 pb-8">
           <label className="block">
             <span className="mb-1 block text-[12px] text-muted-foreground">
               Fecha (libre — entrada retroactiva)
@@ -416,15 +531,36 @@ function MedForm({
               aria-label="Fecha de la medición"
             />
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-3">
             <Field label="Grasa (kg)">
-              <Stepper value={fat} onChange={setFat} step={0.1} suffix="kg" ariaLabel="Grasa kg" />
+              <Stepper
+                value={fat}
+                onChange={setFat}
+                step={0.1}
+                suffix="kg"
+                ariaLabel="Grasa kg"
+                className="w-full"
+              />
             </Field>
             <Field label="Músculo (kg)">
-              <Stepper value={muscle} onChange={setMuscle} step={0.1} suffix="kg" ariaLabel="Músculo kg" />
+              <Stepper
+                value={muscle}
+                onChange={setMuscle}
+                step={0.1}
+                suffix="kg"
+                ariaLabel="Músculo kg"
+                className="w-full"
+              />
             </Field>
             <Field label="Peso (kg)">
-              <Stepper value={weight} onChange={setWeight} step={0.1} suffix="kg" ariaLabel="Peso kg" />
+              <Stepper
+                value={weight}
+                onChange={setWeight}
+                step={0.1}
+                suffix="kg"
+                ariaLabel="Peso kg"
+                className="w-full"
+              />
             </Field>
           </div>
           <p className="text-[12px] text-muted-foreground">
@@ -435,7 +571,7 @@ function MedForm({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg px-3 py-2 text-sm text-muted-foreground"
+              className="min-h-11 rounded-xl px-4 text-sm font-medium text-muted-foreground"
             >
               Cancelar
             </button>
@@ -443,7 +579,7 @@ function MedForm({
               type="button"
               onClick={submit}
               disabled={busy}
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+              className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
               {row ? "Guardar" : "Añadir"}
             </button>

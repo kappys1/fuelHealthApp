@@ -16,7 +16,9 @@ export interface ProductDTO {
   baseCarb: number;
   baseFat: number;
   grupo: GrpKey | null;
-  source: "etiqueta" | "manual" | "legacy";
+  source: "etiqueta" | "manual" | "estimado" | "legacy";
+  // Unidad de visualización (F10): rótulo del baseG/stepper; no afecta al escalado.
+  unit: "g" | "ml" | "ud";
   pinned: boolean;
 }
 
