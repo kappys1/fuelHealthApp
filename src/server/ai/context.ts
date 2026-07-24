@@ -18,6 +18,7 @@ import {
   sortEntriesAsc,
 } from "@/lib/marks";
 import { TRAINING_TIPO_LABELS } from "@/lib/training";
+import type { ProductDTO } from "@/server/db/queries/lookups";
 import type { MarkDTO } from "@/server/db/queries/marks";
 import type { AdherenceResult } from "@/server/analytics/adherence";
 import type { DeficitResult } from "@/server/analytics/deficit";
@@ -151,6 +152,27 @@ export function marksContext(marks: readonly MarkDTO[]): string {
     lines.push(`- ${parts.join("; ")}.`);
   }
   return lines.join("\n");
+}
+
+/**
+ * Catálogo «Mis productos» (F07) como contexto de lectura del chat (F12): la
+ * etiqueta guardada de un producto de marca es su fuente EXACTA, preferente sobre
+ * la web o la memoria (AC1 · caso Lidl). Una línea por producto con su base, macros
+ * y origen. Vacío ("") si el catálogo no tiene productos → el prompt omite la
+ * sección. Es interpolación de datos (principio 9); la jerarquía de fuentes vive en
+ * el prompt. Macros con 1 decimal (respeta la precisión de la etiqueta, p. ej. 0,6 P).
+ */
+export function productsContext(products: readonly ProductDTO[]): string {
+  if (products.length === 0) return "";
+  return products
+    .map((p) => {
+      const base =
+        p.baseG != null ? `${p.baseG} ${p.unit}` : `por ${p.unit === "ud" ? "unidad" : p.unit}`;
+      const macros = `${num(p.baseProt, 1)}P/${num(p.baseCarb, 1)}C/${num(p.baseFat, 1)}F`;
+      const grupo = p.grupo ? ` · ${p.grupo}` : "";
+      return `- ${p.name}: ${base} = ${Math.round(p.baseKcal)} kcal · ${macros}${grupo} (${p.source})`;
+    })
+    .join("\n");
 }
 
 /** Historial MED completo (se compara solo consigo mismo, principio 5). */

@@ -240,6 +240,22 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   real + escalado por unidad reabriría el NO-alcance deliberado de F06 (#57: «la cantidad es un número,
   la unidad vive en el texto») para un caso puntual → anti-optimización-sin-medición (doc 11). Reabrir
   solo si en 2 semanas de uso real muerde a menudo.
+- ✅ **Chat afinado con 11 días de uso real** (export real de 39 hilos, 24-jul) —
+  **IMPLEMENTADA y VALIDADA (F12, v1.14)**, spec [`docs/specs/features/12-chat-11-dias-uso-real.md`](./specs/features/12-chat-11-dias-uso-real.md).
+  Cinco ajustes: (1) producto de marca → consulta «Mis productos» primero, si no está
+  marca estimación + pide etiqueta; (2) integridad del registro (modo hipotético, nunca
+  «borro tu cena»); (3) outlier del reloj = probable artefacto (en `sharedGuardrails()`,
+  heredado por el Coach); (4) título IA (Flash-Lite, 1/hilo, fallback determinista) +
+  5 intents reales + «Continuar última conversación»; (5) guardado de producto
+  confirmado (única escritura del chat, determinista en servidor) y dedup del doble
+  envío (AC9). Sin schema ni migración. DECISIONS #75.
+  - **Requisito de deploy**: nueva env `AI_MODEL_TITLE=gemini-3.5-flash-lite` (`.env.local`
+    y Vercel). Backfill opcional de títulos existentes: `pnpm backfill:chat-titles`
+    (dry por defecto; `--write` aplica). Sin `db:migrate`.
+  - **AC 🖐 validados por Alex en móvil (25-jul)**: AC1 (Lidl: consulta catálogo, no da
+    otra variante como exacta, pide etiqueta), AC3 (HRV 194 → artefacto, nunca
+    «recuperación extrema»), AC5 (confirmación → crea/actualiza el producto exacto como
+    `etiqueta` sin tocar nada más). Resto de AC cubiertos por la suite (297 tests) + build.
 - _(añadir aquí las que surjan)_
 
 ---

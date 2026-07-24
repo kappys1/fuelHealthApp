@@ -16,6 +16,7 @@ import {
   marksContext,
   medLines,
   planSummary,
+  productsContext,
   recentMealsDetail,
   trendAndAdherence,
 } from "@/server/ai/context";
@@ -25,7 +26,13 @@ import {
   persistedTextStreamResponse,
   verifiedTextDeltas,
 } from "@/server/ai/persisted-text-stream";
-import { chatSummaryPrompt, chatSystemPrompt } from "@/server/ai/prompts";
+import { planConfirmedProductSave } from "@/server/ai/product-save";
+import { saveConfirmedProduct } from "@/server/ai/product-write";
+import {
+  chatSummaryPrompt,
+  chatSystemPrompt,
+  chatTitlePrompt,
+} from "@/server/ai/prompts";
 import { resolveModel, webSearchTools } from "@/server/ai/provider";
 import { mealEntriesInRange } from "@/server/db/queries/day";
 import { listMarksWithEntries } from "@/server/db/queries/marks";
@@ -36,15 +43,18 @@ import {
   createThread,
   deleteEmptyThread,
   ensureChatUserMessage,
+  findPendingDuplicateTurn,
   getChatTurn,
   getThread,
   releaseAssistantTurn,
+  sanitizeThreadTitle,
   saveThreadSummary,
+  saveThreadTitle,
   SUMMARY_BATCH,
   threadTitleFrom,
   touchThread,
 } from "@/server/db/queries/chat";
-import { getChatWebSearch } from "@/server/db/queries/lookups";
+import { getChatWebSearch, listProducts } from "@/server/db/queries/lookups";
 import { listMed } from "@/server/db/queries/med";
 import { getPlanContext } from "@/server/db/queries/plan";
 import { getTrendData } from "@/server/db/queries/trend";
@@ -84,9 +94,38 @@ export async function POST(request: Request) {
   // única: reintentar recupera el mismo hilo aunque se perdieran las cabeceras.
   let threadId: number;
   let assistantMessageId: number;
+  // Elevado al scope de la función: el hook de título (onComplete) necesita saber si
+  // este turno creó el hilo (F12: título IA una sola vez, en el primer turno).
+  let createdThreadId: number | null = null;
   try {
     const existing = await retry(() => getChatTurn(turnId));
-    let createdThreadId: number | null = null;
+
+    // F12 Fase 4 · dedup del doble envío (AC9): un turnId NUEVO en un hilo conocido
+    // cuyo texto idéntico ya tiene un turno con la respuesta pendiente = doble envío.
+    // Se corta ANTES de crear una segunda fila de usuario o una segunda generación;
+    // se remite al turno en curso (X-Chat-Turn-Id). Repetir tras una respuesta
+    // COMPLETA sí procede (findPendingDuplicateTurn no lo marca).
+    if (!existing && parsed.data.threadId != null) {
+      const dup = await retry(() =>
+        findPendingDuplicateTurn(parsed.data.threadId!, persistedMessage),
+      );
+      if (dup) {
+        return Response.json(
+          {
+            error:
+              "Esa misma pregunta ya se está procesando en este hilo. Espera unos segundos y recupérala.",
+          },
+          {
+            status: 409,
+            headers: {
+              "X-Thread-Id": String(parsed.data.threadId),
+              "X-Chat-Turn-Id": dup.turnId,
+            },
+          },
+        );
+      }
+    }
+
     const requestedThreadId =
       existing?.threadId ??
       parsed.data.threadId ??
@@ -146,7 +185,7 @@ export async function POST(request: Request) {
     // Detalle por item de los últimos 7 días (F02): el chat ve QUÉ comió, no solo
     // los totales; días fuera del rango los pide (guardarraíl anti-invención).
     const detailFrom = shiftDayKey(today, -6);
-    const [plan, trend, meds, detail, recentEntries, marks, webSearch] =
+    const [plan, trend, meds, detail, recentEntries, marks, products, webSearch] =
       await Promise.all([
         retry(() => getPlanContext(today)),
         retry(() => getTrendData(today)),
@@ -154,6 +193,9 @@ export async function POST(request: Request) {
         retry(() => getThread(threadId)),
         retry(() => mealEntriesInRange(detailFrom, today)),
         retry(() => listMarksWithEntries()),
+        // F12: catálogo «Mis productos» como contexto de lectura (fuente exacta de
+        // un producto de marca; jerarquía de fuentes en el prompt).
+        retry(() => listProducts()),
         // F05 Fase 1: interruptor global (default ON). Gobierna a la vez el
         // párrafo web del prompt y la tool `googleSearch` de streamText.
         retry(() => getChatWebSearch()),
@@ -193,6 +235,30 @@ export async function POST(request: Request) {
       await saveThreadSummary(threadId, priorSummary, summaryCovers).catch(() => {});
     }
 
+    // F12 Fase 2: escritura CONFIRMADA de producto. Determinista en servidor: si el
+    // turno anterior del asistente ofreció guardar (línea-ficha) y ESTE mensaje de
+    // Alex lo confirma explícitamente, se guarda con los números del turno de oferta
+    // (el modelo de este turno no los toca). Cualquier otro turno = solo lectura.
+    const lastAssistant =
+      [...all].reverse().find((m) => m.role === "assistant")?.content ?? null;
+    const saveFicha = planConfirmedProductSave({ lastAssistant, currentUser: message });
+    let justSavedProduct: string | null = null;
+    if (saveFicha) {
+      try {
+        const saved = await saveConfirmedProduct(saveFicha);
+        const verbo = saved.action === "created" ? "creado" : "actualizado";
+        justSavedProduct = `${saved.name} (${saveFicha.baseG} ${saveFicha.unit} · ${saveFicha.kcal} kcal · ${saveFicha.prot}P/${saveFicha.carb}C/${saveFicha.fat}F), ${verbo}`;
+      } catch (persistError) {
+        // Fallo de BD al guardar: NO romper el chat ni afirmar un guardado que no
+        // ocurrió. Se loguea (error de BD, separado del de IA) y el turno responde
+        // sin la confirmación → Alex ve que no se guardó y puede reintentar.
+        console.error(
+          "[chat] no se pudo guardar el producto confirmado:",
+          persistError,
+        );
+      }
+    }
+
     system = chatSystemPrompt({
       atleta: atleta.full,
       today,
@@ -207,6 +273,8 @@ export async function POST(request: Request) {
       }),
       mealsDetail: recentMealsDetail(recentEntries),
       marks: marksContext(marks),
+      products: productsContext(products),
+      justSavedProduct,
       priorSummary: prior.length > 0 ? priorSummary : null,
       // El párrafo web y la tool `googleSearch` van atados a este mismo flag.
       webSearch,
@@ -259,6 +327,26 @@ export async function POST(request: Request) {
         await touchThread(threadId).catch((persistError) => {
           console.error("[chat] no se pudo actualizar el hilo:", persistError);
         });
+        // F12: título IA UNA sola vez, en el primer turno del hilo. Barato
+        // (Flash-Lite, ~32 tokens). Si falla o queda vacío, el hilo conserva el
+        // título determinista que puso createThread → nunca bloquea ni rompe.
+        if (createdThreadId != null && createdThreadId === threadId) {
+          try {
+            const raw = await runText({
+              kind: "title",
+              task: "estimate",
+              prompt: chatTitlePrompt(message, text.slice(0, 500)),
+              maxOutputTokens: 32,
+            });
+            const title = sanitizeThreadTitle(raw);
+            if (title) await saveThreadTitle(threadId, title);
+          } catch (titleError) {
+            console.error(
+              "[chat] título IA falló; se conserva el determinista:",
+              titleError instanceof Error ? titleError.name : titleError,
+            );
+          }
+        }
       },
       onError: async (error) => {
         // Una APICallError puede retener el request del proveedor. Con foto no

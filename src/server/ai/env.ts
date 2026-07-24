@@ -8,7 +8,7 @@
 export type AiProvider = "google" | "anthropic" | "openai";
 
 /** Qué modelo usar por feature (04-IA §"Modelos y coste por feature"). */
-export type ModelKind = "vision" | "text" | "coach" | "chat";
+export type ModelKind = "vision" | "text" | "coach" | "chat" | "title";
 
 function required(name: string): string {
   const v = process.env[name];
@@ -45,5 +45,10 @@ export function modelId(kind: ModelKind): string {
       // y sostiene el hilo): AI_MODEL_CHAT. Si no está definido, cae al del coach
       // → no rompe deploys existentes; subir el chat = definir AI_MODEL_CHAT.
       return process.env.AI_MODEL_CHAT ?? required("AI_MODEL_COACH");
+    case "title":
+      // Título del hilo (F12): modelo barato (Flash-Lite), 1 llamada por hilo. Si
+      // AI_MODEL_TITLE no está definido, cae al del chat → no rompe deploys; el
+      // título es cosmético y su fallback último es el recorte determinista.
+      return process.env.AI_MODEL_TITLE ?? modelId("chat");
   }
 }

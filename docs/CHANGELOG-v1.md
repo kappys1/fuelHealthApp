@@ -310,6 +310,25 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 - Sin schema, Blob, migración ni registro de comidas. Suite automatizada verde; **AC 8–13
   validados por Alex en móvil (25-jul)**.
 
+### v1.14 · Chat afinado con 11 días de uso real (F12)
+- **Producto de marca:** el chat consulta primero «Mis productos» (fuente exacta); si no
+  está, marca la cifra como estimación y pide la etiqueta, sin pasar otra variante como
+  exacta (caso Lidl). Nuevo contexto de catálogo (`productsContext`).
+- **Guardado de producto confirmado** — única escritura del chat: el servidor extrae la
+  ficha del turno de oferta y solo escribe si el turno siguiente confirma
+  (`source:'etiqueta'`, sin tocar otras tablas ni entradas pasadas). Determinista: el
+  modelo no se auto-concede el «sí» ni cambia los números.
+- **Outlier del reloj** (HRV 194 vs base 50-80 = probable artefacto) en
+  `sharedGuardrails()` → lo hereda el Coach. **Integridad del registro:** «olvida la
+  cena» responde en modo hipotético, nunca «borro tu cena».
+- **Títulos IA** (Flash-Lite, 1/hilo, 4-6 palabras, fallback determinista; backfill
+  `pnpm backfill:chat-titles` dry por defecto). **5 intents reales** + CTA «Continuar
+  última conversación».
+- **Dedup del doble envío** (AC9): un segundo envío idéntico con la primera respuesta
+  pendiente se corta en servidor; repetir tras respuesta completa sigue permitido.
+- Sin schema ni migración. Deploy: nueva env `AI_MODEL_TITLE`. Suite verde (typecheck +
+  297 tests + build); **AC1/AC3/AC5 validados por Alex en móvil (25-jul) 🖐**.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

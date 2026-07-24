@@ -3,20 +3,21 @@
 import {
   AlertCircle,
   ArrowLeft,
-  ChartNoAxesCombined,
   Check,
   ChevronRight,
+  CircleCheck,
   Copy,
   Gauge,
   Loader2,
   MessageCircle,
   MessageSquarePlus,
+  Package,
   Paperclip,
-  ScanSearch,
   Send,
   Sparkles,
+  Split,
   Trash2,
-  Waves,
+  UtensilsCrossed,
   WifiOff,
   X,
 } from "lucide-react";
@@ -53,26 +54,33 @@ import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
   presentacionales y viven como subcomponentes; los refs que los effects necesitan
   se pasan hacia abajo, así el comportamiento no cambia al trocear el JSX.
 */
+// Los 5 intents reales que dominan 11 días de uso (F12 · Alcance §5). Aparecen al
+// abrir la pestaña y en el hilo vacío (AC6). El texto ES el prompt que se envía.
 const QUICK_PROMPTS = [
   {
-    text: "¿Cómo cierro bien el día?",
+    text: "¿Cómo voy hoy?",
     Icon: Gauge,
     color: "var(--carb)",
   },
   {
-    text: "¿Cómo va mi semana?",
-    Icon: ChartNoAxesCombined,
+    text: "Cierra mi día",
+    Icon: CircleCheck,
+    color: "var(--protein)",
+  },
+  {
+    text: "Reparte lo que me falta",
+    Icon: Split,
     color: "var(--cobalt)",
   },
   {
-    text: "Compara mis dos cargas",
-    Icon: Waves,
+    text: "¿Qué meriendo o ceno para llegar?",
+    Icon: UtensilsCrossed,
     color: "var(--special)",
   },
   {
-    text: "¿Qué coincide con mi hinchazón?",
-    Icon: ScanSearch,
-    color: "var(--protein)",
+    text: "Macros de un producto",
+    Icon: Package,
+    color: "var(--fat)",
   },
 ] as const;
 
@@ -638,6 +646,28 @@ function ThreadList({
         </p>
       </section>
 
+      {/* CTA primario (F12 · AC8): retoma el hilo más reciente cuando hay historial. */}
+      {threads.length > 0 ? (
+        <button
+          type="button"
+          onClick={() => onOpen(threads[0]!.id)}
+          className="wellness-card flex w-full items-center gap-3 border border-primary/25 bg-primary-soft/40 p-4 text-left transition-colors hover:border-primary/50 hover:bg-primary-soft/60"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <MessageCircle className="size-[18px]" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-semibold text-foreground">
+              Continuar última conversación
+            </span>
+            <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">
+              {threads[0]!.title}
+            </span>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+      ) : null}
+
       <section aria-labelledby="quick-prompts-title">
         <h2 id="quick-prompts-title" className="section-title">
           Preguntas rápidas
@@ -743,7 +773,7 @@ function ThreadList({
       )}
         <p className="mt-3 flex items-start gap-2 px-1 text-[11px] leading-relaxed text-muted-foreground">
           <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
-          Los títulos resumen el tema del hilo; se generarán automáticamente con IA.
+          Los títulos resumen el tema del hilo automáticamente.
         </p>
       </section>
     </section>
@@ -838,7 +868,7 @@ function MessageArea({
             Empieza con una pregunta sobre tus datos:
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {QUICK_PROMPTS.slice(0, 3).map(({ text: q }) => (
+            {QUICK_PROMPTS.map(({ text: q }) => (
               <button
                 key={q}
                 type="button"

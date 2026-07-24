@@ -84,6 +84,48 @@ export interface ChatHistoryMessage {
   turnId: string | null;
 }
 
+// F12 Fase 4 · dedup semántica del doble envío. Ventana en la que un segundo envío
+// idéntico (turnId DISTINTO, mismo hilo) cuya primera respuesta sigue pendiente se
+// considera duplicado. Igual que el lock de turno (STALE_TURN_MS): pasada la ventana,
+// un turno pendiente se da por abandonado y repetir vuelve a estar permitido.
+export const CHAT_DEDUP_WINDOW_MS = 5 * 60 * 1000;
+
+export interface ChatTurnSnapshot {
+  turnId: string;
+  userContent: string;
+  /** null = aún sin fila de asistente; "" = placeholder pendiente; texto = completa. */
+  assistantContent: string | null;
+  createdAtMs: number;
+}
+
+/**
+ * Decide si un envío entrante (texto `content` en un hilo) es un DUPLICADO de un turno
+ * cuya respuesta sigue pendiente (AC9 · repro del 21-jul). Devuelve el turnId del
+ * duplicado pendiente, o null si no lo hay.
+ *
+ * Regla (mirando el turno más reciente con ese mismo texto, dentro de la ventana):
+ * - respuesta pendiente (sin asistente o placeholder "") → es el doble envío → dedup.
+ * - respuesta COMPLETA → repetir la pregunta está permitido → NO dedup.
+ * - fuera de la ventana → el turno pendiente se da por abandonado → NO dedup.
+ * Pura y testeable; la query (findPendingDuplicateTurn) solo le pasa los snapshots.
+ */
+export function findPendingDuplicate(
+  turns: readonly ChatTurnSnapshot[],
+  content: string,
+  nowMs: number,
+  staleMs: number = CHAT_DEDUP_WINDOW_MS,
+): string | null {
+  const sameText = turns
+    .filter((t) => t.userContent === content)
+    .sort((a, b) => b.createdAtMs - a.createdAtMs);
+  for (const t of sameText) {
+    if (nowMs - t.createdAtMs > staleMs) continue; // abandonado → permitir
+    if (t.assistantContent == null || t.assistantContent === "") return t.turnId;
+    return null; // el más reciente con ese texto ya tiene respuesta → repetir permitido
+  }
+  return null;
+}
+
 /**
  * Mantiene el historial como texto y sustituye exclusivamente el mensaje de
  * usuario del turno actual por las partes multimodales de AI SDK 7.

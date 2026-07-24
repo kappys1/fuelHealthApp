@@ -5,9 +5,12 @@ import {
   persistedChatUserText,
 } from "@/lib/chat-turn";
 import {
+  CHAT_DEDUP_WINDOW_MS,
   CHAT_IMAGE_MAX_BYTES,
+  type ChatTurnSnapshot,
   buildChatModelMessages,
   chatRequestSchema,
+  findPendingDuplicate,
 } from "./chat-turn";
 
 const image = {
@@ -136,5 +139,56 @@ describe("turno multimodal efímero", () => {
     expect(persistedChatUserText("  texto con espacios  ", false)).toBe(
       "  texto con espacios  ",
     );
+  });
+});
+
+// ── F12 Fase 4 · dedup del doble envío (AC9, repro del 21-jul) ──
+describe("findPendingDuplicate · un segundo envío idéntico con la primera pendiente", () => {
+  const now = 1_000_000_000_000;
+  const mk = (
+    turnId: string,
+    userContent: string,
+    assistantContent: string | null,
+    ageMs = 5_000,
+  ): ChatTurnSnapshot => ({
+    turnId,
+    userContent,
+    assistantContent,
+    createdAtMs: now - ageMs,
+  });
+
+  it("repro 21-jul: texto idéntico, mismo hilo, primera respuesta pendiente → dedup al turno en curso", () => {
+    const turns = [mk("A", "Como verías si cierro el día así?", "")]; // placeholder pendiente
+    expect(
+      findPendingDuplicate(turns, "Como verías si cierro el día así?", now),
+    ).toBe("A");
+  });
+
+  it("turno sin fila de asistente todavía (aún más pendiente) → dedup", () => {
+    const turns = [mk("A", "misma pregunta", null)];
+    expect(findPendingDuplicate(turns, "misma pregunta", now)).toBe("A");
+  });
+
+  it("opuesto canónico: si la primera respuesta ya está COMPLETA, repetir está permitido", () => {
+    const turns = [mk("A", "misma pregunta", "Respuesta completa.")];
+    expect(findPendingDuplicate(turns, "misma pregunta", now)).toBeNull();
+  });
+
+  it("texto distinto no se deduplica", () => {
+    const turns = [mk("A", "una pregunta", "")];
+    expect(findPendingDuplicate(turns, "otra pregunta", now)).toBeNull();
+  });
+
+  it("un turno pendiente antiguo (fuera de ventana) se da por abandonado → permite reenviar", () => {
+    const turns = [mk("A", "misma pregunta", "", CHAT_DEDUP_WINDOW_MS + 1)];
+    expect(findPendingDuplicate(turns, "misma pregunta", now)).toBeNull();
+  });
+
+  it("prioriza el turno más reciente: pendiente reciente tras uno completo antiguo → dedup", () => {
+    const turns = [
+      mk("A", "misma pregunta", "Respuesta antigua.", 120_000),
+      mk("B", "misma pregunta", "", 3_000),
+    ];
+    expect(findPendingDuplicate(turns, "misma pregunta", now)).toBe("B");
   });
 });

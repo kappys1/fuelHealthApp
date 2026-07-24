@@ -1,5 +1,15 @@
-import { and, asc, desc, eq, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, ne, sql } from "drizzle-orm";
+import {
+  CHAT_DEDUP_WINDOW_MS,
+  type ChatTurnSnapshot,
+  findPendingDuplicate,
+} from "@/server/ai/chat-turn";
+import { sanitizeThreadTitle, threadTitleFrom } from "@/lib/chat-title";
 import { db, schema } from "@/server/db";
+
+// Re-export de los helpers PUROS de título (viven en lib/chat-title para ser
+// testeables sin la BD). Se mantienen accesibles desde este módulo por compatibilidad.
+export { sanitizeThreadTitle, threadTitleFrom };
 
 /*
   Hilos de chat (F-IA-8). Persistencia de conversaciones «pregúntale a tus datos».
@@ -107,18 +117,15 @@ export async function getThread(id: number): Promise<ThreadDetail | null> {
   };
 }
 
-/**
- * Título del hilo: resumen determinista de la primera pregunta. Un título generado
- * por IA queda como mejora menor y nunca bloquea la lista ni añade coste al abrirla.
- */
-export function threadTitleFrom(message: string): string {
-  const clean = message
-    .trim()
-    .replace(/^[¿¡]+/, "")
-    .replace(/\s+/g, " ");
-  const sentence = clean.split(/[.!?\n]/, 1)[0]?.trim() ?? "";
-  const words = sentence.split(/\s+/).slice(0, 8).join(" ");
-  return words.length > 58 ? `${words.slice(0, 55).trimEnd()}…` : words || "Nuevo hilo";
+/** Actualiza el título del hilo (F12: título IA una vez, o backfill). */
+export async function saveThreadTitle(
+  threadId: number,
+  title: string,
+): Promise<void> {
+  await db
+    .update(schema.chatThreads)
+    .set({ title })
+    .where(eq(schema.chatThreads.id, threadId));
 }
 
 export async function createThread(title: string): Promise<number> {
@@ -189,6 +196,68 @@ export async function ensureChatUserMessage(
     throw new Error("El identificador del turno ya pertenece a otro mensaje.");
   }
   return turn;
+}
+
+/**
+ * F12 Fase 4 · dedup semántica del doble envío (AC9). Busca en el hilo un turno con
+ * el MISMO texto de usuario cuya respuesta siga pendiente, dentro de la ventana. La
+ * decisión vive en findPendingDuplicate (pura); aquí solo se traen los snapshots.
+ * Devuelve el turnId del duplicado pendiente (para que el request nuevo no cree un
+ * segundo turno ni una segunda generación), o null.
+ */
+export async function findPendingDuplicateTurn(
+  threadId: number,
+  userContent: string,
+): Promise<{ turnId: string } | null> {
+  const cutoff = new Date(Date.now() - CHAT_DEDUP_WINDOW_MS);
+  const users = await db
+    .select({
+      turnId: schema.chatMessages.turnId,
+      content: schema.chatMessages.content,
+      createdAt: schema.chatMessages.createdAt,
+    })
+    .from(schema.chatMessages)
+    .where(
+      and(
+        eq(schema.chatMessages.threadId, threadId),
+        eq(schema.chatMessages.role, "user"),
+        eq(schema.chatMessages.content, userContent),
+        gt(schema.chatMessages.createdAt, cutoff),
+      ),
+    );
+  const turnIds = users
+    .map((u) => u.turnId)
+    .filter((id): id is string => id != null);
+  if (turnIds.length === 0) return null;
+
+  const assistants = await db
+    .select({
+      turnId: schema.chatMessages.turnId,
+      content: schema.chatMessages.content,
+    })
+    .from(schema.chatMessages)
+    .where(
+      and(
+        eq(schema.chatMessages.role, "assistant"),
+        inArray(schema.chatMessages.turnId, turnIds),
+      ),
+    );
+  const assistantByTurn = new Map<string, string>();
+  for (const a of assistants) if (a.turnId) assistantByTurn.set(a.turnId, a.content);
+
+  const snapshots: ChatTurnSnapshot[] = users
+    .filter((u) => u.turnId != null)
+    .map((u) => ({
+      turnId: u.turnId!,
+      userContent: u.content,
+      assistantContent: assistantByTurn.has(u.turnId!)
+        ? assistantByTurn.get(u.turnId!)!
+        : null,
+      createdAtMs: u.createdAt.getTime(),
+    }));
+
+  const dupTurnId = findPendingDuplicate(snapshots, userContent, Date.now());
+  return dupTurnId ? { turnId: dupTurnId } : null;
 }
 
 export type AssistantTurnClaim =

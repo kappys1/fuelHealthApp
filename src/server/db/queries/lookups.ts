@@ -49,6 +49,21 @@ export async function listProducts(): Promise<ProductDTO[]> {
 }
 
 /**
+ * Producto por nombre EXACTO (F12): destino de la escritura confirmada del chat.
+ * `name` es unique en el schema → 0 o 1 fila. Si existe, la escritura actualiza; si
+ * no, crea. Devuelve solo el id (basta para updateProduct). null si no existe.
+ */
+export async function getProductByName(
+  name: string,
+): Promise<{ id: number } | null> {
+  const [row] = await db
+    .select({ id: schema.products.id })
+    .from(schema.products)
+    .where(eq(schema.products.name, name));
+  return row ?? null;
+}
+
+/**
  * Últimas N entradas DISTINTAS por (meal, name) — corpus de la búsqueda universal
  * (09 §4 / 07 §3). Se queda con la aparición más reciente de cada nombre.
  */
