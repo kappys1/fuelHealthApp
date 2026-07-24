@@ -56,13 +56,17 @@ export interface NewEntry {
   baseFat?: number | null;
 }
 
-export async function addEntries(date: string, entries: NewEntry[]) {
+export async function addEntries(
+  date: string,
+  entries: NewEntry[],
+  clientMutationId?: string,
+) {
   if (entries.length === 0) return [];
   await ensureDay(date);
   return db
     .insert(schema.mealEntries)
     .values(
-      entries.map((e) => ({
+      entries.map((e, index) => ({
         date,
         meal: e.meal,
         name: e.name,
@@ -78,8 +82,16 @@ export async function addEntries(date: string, entries: NewEntry[]) {
         baseProt: e.baseProt ?? null,
         baseCarb: e.baseCarb ?? null,
         baseFat: e.baseFat ?? null,
+        clientMutationId: clientMutationId ?? null,
+        clientMutationIndex: clientMutationId ? index : null,
       })),
     )
+    .onConflictDoNothing({
+      target: [
+        schema.mealEntries.clientMutationId,
+        schema.mealEntries.clientMutationIndex,
+      ],
+    })
     .returning();
 }
 
@@ -143,6 +155,7 @@ export async function copyEntriesFrom(fromDate: string, toDate: string) {
 
 // ── products (F07 · CRUD del catálogo) ──
 type ProductSourceEnum = (typeof schema.productSourceEnum.enumValues)[number];
+type ProductUnitEnum = (typeof schema.productUnitEnum.enumValues)[number];
 
 export interface ProductInput {
   name: string;
@@ -153,6 +166,7 @@ export interface ProductInput {
   baseFat: number;
   grupo: GrpEnum | null;
   source: ProductSourceEnum;
+  unit: ProductUnitEnum;
   pinned: boolean;
 }
 
@@ -338,22 +352,29 @@ export async function createDietVersionFull(v: ImportedVersion) {
     .returning();
   if (!version) throw new Error("No se pudo crear la versión de dieta.");
 
-  if (v.options.length > 0) {
-    await db.insert(schema.planOptions).values(
-      v.options.map((o, i) => ({
-        dietVersionId: version.id,
-        meal: o.meal,
-        grp: o.grp as GrpEnum,
-        name: o.name,
-        baseG: o.baseG,
-        kcal: o.kcal,
-        prot: o.prot,
-        carb: o.carb,
-        fat: o.fat,
-        variants: o.variants ?? [],
-        sort: i,
-      })),
-    );
+  try {
+    if (v.options.length > 0) {
+      await db.insert(schema.planOptions).values(
+        v.options.map((o, i) => ({
+          dietVersionId: version.id,
+          meal: o.meal,
+          grp: o.grp as GrpEnum,
+          name: o.name,
+          baseG: o.baseG,
+          kcal: o.kcal,
+          prot: o.prot,
+          carb: o.carb,
+          fat: o.fat,
+          variants: o.variants ?? [],
+          sort: i,
+        })),
+      );
+    }
+  } catch (error) {
+    await db
+      .delete(schema.dietVersions)
+      .where(eq(schema.dietVersions.id, version.id));
+    throw error;
   }
   return version;
 }

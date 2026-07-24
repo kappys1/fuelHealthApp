@@ -60,7 +60,7 @@ function macroVerdict(value: number, target: number): MacroVerdict {
     target,
     remaining,
     over,
-    met: remaining === 0,
+    met: target <= 0 || remaining === 0,
     notablyOver: target > 0 && over > target * MACRO_NOTABLE_OVER,
   };
 }
@@ -77,6 +77,8 @@ export function gaugeVerdict(
   const prot = macroVerdict(totals.prot, targets.prot);
   const carb = macroVerdict(totals.carb, targets.carb);
   const fat = macroVerdict(totals.fat, targets.fat);
+  const hasTarget =
+    targets.kcal > 0 || targets.prot > 0 || targets.carb > 0 || targets.fat > 0;
 
   const phaseVerdict: PhaseVerdict =
     phase === "competicion"
@@ -97,7 +99,12 @@ export function gaugeVerdict(
     kcalRemaining,
     kcalOver,
     over: consumed > targets.kcal,
-    covered: kcalRemaining === 0 && prot.met && carb.met && fat.met,
+    covered:
+      hasTarget &&
+      (targets.kcal <= 0 || kcalRemaining === 0) &&
+      prot.met &&
+      carb.met &&
+      fat.met,
     prot,
     carb,
     fat,

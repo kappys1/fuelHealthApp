@@ -1,5 +1,5 @@
 import { ensureAuth, serverError } from "@/lib/api";
-import { dayKey } from "@/lib/dates";
+import { dayKey, shiftDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
 import { computeDeficit } from "@/server/analytics/deficit";
 import { getAthleteContexts } from "@/server/ai/athlete";
@@ -12,7 +12,7 @@ import { listMed } from "@/server/db/queries/med";
 import { getTrendData } from "@/server/db/queries/trend";
 
 /*
-  F-IA-7 · Preparar visita al nutricionista. Contexto: últimos 21 días con datos +
+  F-IA-7 · Preparar visita al nutricionista. Contexto: últimos 30 días naturales +
   historial MED completo + tendencia calculada. Respuesta en texto plano (máx 200
   palabras). Límite ético (principio 8): observaciones y preguntas, nunca pautas.
 */
@@ -37,7 +37,11 @@ export async function POST() {
   const { records, currentTarget } = trend;
   const deficit = computeDeficit(records);
   const lastWeight =
-    [...records].reverse().find((r) => r.weight != null)?.weight ?? 92;
+    [...records].reverse().find((r) => r.weight != null)?.weight ?? null;
+  const visitFrom = shiftDayKey(today, -29);
+  const visitRecords = records.filter(
+    (record) => record.date >= visitFrom && record.date <= today,
+  );
 
   // ATHLETE_CONTEXT dinámico (doc 10 A2) + mapeo para el calendario del día en curso.
   let atleta: Awaited<ReturnType<typeof getAthleteContexts>>;
@@ -54,11 +58,11 @@ export async function POST() {
       prompt: prepareVisitPrompt({
         atleta: atleta.full,
         today,
-        kcal: currentTarget.kcal,
-        prot: currentTarget.prot,
+        kcal: currentTarget.kcal > 0 ? currentTarget.kcal : null,
+        prot: currentTarget.prot > 0 ? currentTarget.prot : null,
         meds: medLines(meds),
         tendencia: trendSummary(deficit),
-        filas: dayLines(records, 21, {
+        filas: dayLines(visitRecords, 30, {
           sessionByWeekday: atleta.sessionByWeekday,
           today,
         }),

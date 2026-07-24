@@ -17,6 +17,13 @@ import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
 import type { DayPatch, MedInput } from "@/server/db/queries/mutations";
 import type { TodayPayload } from "@/server/db/queries/today";
+import type { BloatEventDTO } from "@/server/db/queries/bloat";
+import type { PlanOptionDTO } from "@/server/db/queries/plan";
+import type {
+  CoachMode,
+  CoachReading,
+} from "@/server/ai/coach-reading";
+import { ApiError } from "@/lib/request-errors";
 
 /*
   Fetchers tipados del cliente. Los errores del servidor (mensaje + status) se
@@ -36,7 +43,7 @@ async function req<T>(url: string, init?: RequestInit): Promise<T> {
     } catch {
       /* respuesta no-JSON */
     }
-    throw new Error(msg);
+    throw new ApiError(msg, res.status);
   }
   return res.json() as Promise<T>;
 }
@@ -67,8 +74,21 @@ export interface ProductInput {
   baseCarb: number;
   baseFat: number;
   grupo: GrpKey | null;
-  source: "etiqueta" | "manual" | "legacy";
+  source: "etiqueta" | "manual" | "estimado" | "legacy";
+  unit: "g" | "ml" | "ud";
   pinned: boolean;
+}
+
+export interface PlanOptionInput {
+  meal: MealKey;
+  grp: GrpKey;
+  name: string;
+  baseG: number | null;
+  kcal: number;
+  prot: number;
+  carb: number;
+  fat: number;
+  variants: PlanVariant[];
 }
 
 export const api = {
@@ -81,10 +101,34 @@ export const api = {
       body: JSON.stringify({ date, patch }),
     }),
 
-  addEntries: (date: string, entries: EntryInput[]) =>
+  createBloatEvent: (input: {
+    date: string;
+    severity: "ninguna" | "leve" | "moderada" | "alta";
+    occurredAt: string;
+  }) =>
+    req<{ event: BloatEventDTO }>("/api/bloat-events", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  updateBloatEvent: (
+    id: number,
+    patch: Partial<Pick<BloatEventDTO, "severity" | "occurredAt">>,
+  ) =>
+    req<{ event: BloatEventDTO }>(`/api/bloat-events/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+
+  deleteBloatEvent: (id: number) =>
+    req<{ event: BloatEventDTO | null }>(`/api/bloat-events/${id}`, {
+      method: "DELETE",
+    }),
+
+  addEntries: (date: string, entries: EntryInput[], clientMutationId?: string) =>
     req<{ entries: { id: number }[] }>("/api/entries", {
       method: "POST",
-      body: JSON.stringify({ date, entries }),
+      body: JSON.stringify({ date, entries, clientMutationId }),
     }),
 
   updateEntry: (
@@ -190,9 +234,11 @@ export const api = {
     }),
 
   createTrainingPlan: (payload: {
+    requestId: string;
     programa: string;
     etiqueta: string;
     source: "pdf" | "foto" | "texto";
+    weekStart?: string;
     sessions: {
       key: string;
       nombre: string;
@@ -246,14 +292,14 @@ export const api = {
       body: JSON.stringify(t),
     }),
 
-  addOption: (opt: unknown) =>
-    req<{ option: unknown }>("/api/plan/options", {
+  addOption: (opt: PlanOptionInput) =>
+    req<{ option: PlanOptionDTO }>("/api/plan/options", {
       method: "POST",
       body: JSON.stringify(opt),
     }),
 
-  updateOption: (id: number, patch: unknown) =>
-    req<{ option: unknown }>(`/api/plan/options/${id}`, {
+  updateOption: (id: number, patch: Partial<PlanOptionInput>) =>
+    req<{ option: PlanOptionDTO }>(`/api/plan/options/${id}`, {
       method: "PATCH",
       body: JSON.stringify(patch),
     }),
@@ -271,6 +317,12 @@ export const api = {
     req<{ id: number }>("/api/marks", {
       method: "POST",
       body: JSON.stringify(mark),
+    }),
+
+  updateMark: (id: number, patch: { name?: string; family?: string | null }) =>
+    req<{ ok: true }>(`/api/marks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
     }),
 
   deleteMark: (id: number) =>
@@ -378,8 +430,8 @@ export const api = {
       body: "{}",
     }),
 
-  coach: (date: string, mode: "hoy" | "ayer") =>
-    req<{ text: string }>("/api/ai/coach", {
+  coach: (date: string, mode: CoachMode) =>
+    req<CoachReading>("/api/ai/coach", {
       method: "POST",
       body: JSON.stringify({ date, mode }),
     }),
@@ -388,14 +440,18 @@ export const api = {
   listThreads: () => req<{ threads: ThreadDTO[] }>("/api/chat/threads"),
 
   // Puente Coach → Chat (F01 Fase 2): siembra un hilo (user + assistant) sin IA.
-  seedChatThread: (userMessage: string, assistantMessage: string) =>
+  seedChatThread: (
+    userMessage: string,
+    assistantMessage: string,
+    handoffId: string,
+  ) =>
     req<{ threadId: number }>("/api/chat/threads", {
       method: "POST",
-      body: JSON.stringify({ userMessage, assistantMessage }),
+      body: JSON.stringify({ userMessage, assistantMessage, handoffId }),
     }),
 
   getThread: (id: number) =>
-    req<{ id: number; title: string; messages: MessageDTO[] }>(
+    req<{ id: number; title: string; updatedAt: string; messages: MessageDTO[] }>(
       `/api/chat/threads/${id}`,
     ),
 

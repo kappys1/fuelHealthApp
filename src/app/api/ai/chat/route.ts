@@ -17,15 +17,24 @@ import {
   trendAndAdherence,
 } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
+import {
+  persistedTextStreamResponse,
+  verifiedTextDeltas,
+} from "@/server/ai/persisted-text-stream";
 import { chatSummaryPrompt, chatSystemPrompt } from "@/server/ai/prompts";
 import { resolveModel, webSearchTools } from "@/server/ai/provider";
 import { mealEntriesInRange } from "@/server/db/queries/day";
 import { listMarksWithEntries } from "@/server/db/queries/marks";
 import {
-  addChatMessage,
   CHAT_WINDOW,
+  claimAssistantTurn,
+  completeAssistantTurn,
   createThread,
+  deleteEmptyThread,
+  ensureChatUserMessage,
+  getChatTurn,
   getThread,
+  releaseAssistantTurn,
   saveThreadSummary,
   SUMMARY_BATCH,
   threadTitleFrom,
@@ -48,6 +57,9 @@ const bodyZ = z.object({
   // CHAT_MAX_CHARS: cabe un menú de comedor entero pegado en el mensaje (el caso
   // real de "¿qué cojo hoy?"). Antes 2000 → rechazaba menús con 400 silencioso.
   message: z.string().min(1).max(CHAT_MAX_CHARS),
+  turnId: z.uuid().optional(),
+  // Compatibilidad con clientes anteriores. La deduplicación real usa turnId.
+  retry: z.boolean().optional().default(false),
 });
 
 export async function POST(request: Request) {
@@ -57,16 +69,59 @@ export async function POST(request: Request) {
   const parsed = await parseBody(request, bodyZ);
   if ("error" in parsed) return parsed.error;
   const { message } = parsed.data;
+  const turnId = parsed.data.turnId ?? crypto.randomUUID();
 
   const today = dayKey();
 
-  // 1) Hilo + persistir el mensaje del usuario ANTES de responder.
+  // 1) Hilo + turno persistente ANTES de responder. La pareja turnId/role es
+  // única: reintentar recupera el mismo hilo aunque se perdieran las cabeceras.
   let threadId: number;
+  let assistantMessageId: number;
   try {
-    threadId =
+    const existing = await retry(() => getChatTurn(turnId));
+    let createdThreadId: number | null = null;
+    const requestedThreadId =
+      existing?.threadId ??
       parsed.data.threadId ??
-      (await retry(() => createThread(threadTitleFrom(message))));
-    await retry(() => addChatMessage(threadId, "user", message));
+      (createdThreadId = await retry(() => createThread(threadTitleFrom(message))));
+    const turn = await retry(() =>
+      ensureChatUserMessage(requestedThreadId, turnId, message),
+    );
+    threadId = turn.threadId;
+
+    // Dos reintentos simultáneos de un hilo nuevo pueden crear una carcasa vacía;
+    // el constraint elige un único turno y esta limpieza retira la perdedora.
+    if (createdThreadId != null && createdThreadId !== threadId) {
+      await deleteEmptyThread(createdThreadId).catch(() => undefined);
+    }
+
+    const claim = await retry(() => claimAssistantTurn(threadId, turnId));
+    if (claim.status === "complete") {
+      return new Response(claim.content, {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "X-Thread-Id": String(threadId),
+          "X-Chat-Turn-Id": turnId,
+          "X-Chat-Replayed": "1",
+        },
+      });
+    }
+    if (claim.status === "pending") {
+      return Response.json(
+        {
+          error:
+            "La respuesta de este turno sigue procesándose. Espera unos segundos y recupérala.",
+        },
+        {
+          status: 409,
+          headers: {
+            "X-Thread-Id": String(threadId),
+            "X-Chat-Turn-Id": turnId,
+          },
+        },
+      );
+    }
+    assistantMessageId = claim.messageId;
   } catch (err) {
     return serverError(err);
   }
@@ -94,12 +149,12 @@ export async function POST(request: Request) {
         // párrafo web del prompt y la tool `googleSearch` de streamText.
         retry(() => getChatWebSearch()),
       ]);
-    if (!detail) return serverError(new Error("Hilo no encontrado."));
+    if (!detail) throw new Error("Hilo no encontrado.");
 
     const deficit = computeDeficit(trend.records);
     const adherence = computeAdherence(trend.records, today, 14);
     const lastWeight =
-      [...trend.records].reverse().find((r) => r.weight != null)?.weight ?? 92;
+      [...trend.records].reverse().find((r) => r.weight != null)?.weight ?? null;
 
     // ATHLETE_CONTEXT dinámico (doc 10 A2) + mapeo para el calendario del día en curso.
     const atleta = await retry(() => getAthleteContexts(today, lastWeight));
@@ -155,7 +210,11 @@ export async function POST(request: Request) {
       content: m.content,
     }));
   } catch (err) {
-    return serverError(err);
+    await releaseAssistantTurn(assistantMessageId).catch(() => undefined);
+    const response = serverError(err);
+    response.headers.set("X-Thread-Id", String(threadId));
+    response.headers.set("X-Chat-Turn-Id", turnId);
+    return response;
   }
 
   // 3) Streaming de la respuesta + persistencia al terminar.
@@ -180,26 +239,30 @@ export async function POST(request: Request) {
       // el prompt (persona + tope de palabras), no este número.
       providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } },
       maxOutputTokens: 4096,
-      // Error del stream VISIBLE en el log (no más "Load failed" mudo — principio
-      // "errores de IA siempre visibles"). El protocolo de texto plano no permite
-      // inyectarlo en la UI; surfacing en el chat = follow-up (DECISIONS #55).
-      onError: ({ error }) => {
-        console.error("[chat] stream error:", error);
-      },
-      onFinish: async ({ text }) => {
-        if (!text.trim()) return;
-        try {
-          await addChatMessage(threadId, "assistant", text);
-          await touchThread(threadId);
-        } catch {
-          /* persistencia best-effort: el usuario ya vio la respuesta */
-        }
-      },
+      abortSignal: request.signal,
     });
-    return result.toTextStreamResponse({
-      headers: { "X-Thread-Id": String(threadId) },
+    return persistedTextStreamResponse({
+      deltas: verifiedTextDeltas(result.fullStream),
+      onComplete: async (text) => {
+        await completeAssistantTurn(assistantMessageId, text);
+        await touchThread(threadId).catch((persistError) => {
+          console.error("[chat] no se pudo actualizar el hilo:", persistError);
+        });
+      },
+      onError: async (error) => {
+        console.error("[chat] stream incompleto:", error);
+        await releaseAssistantTurn(assistantMessageId);
+      },
+      headers: {
+        "X-Thread-Id": String(threadId),
+        "X-Chat-Turn-Id": turnId,
+      },
     });
   } catch (err) {
-    return aiErrorResponse(err);
+    await releaseAssistantTurn(assistantMessageId).catch(() => undefined);
+    const response = aiErrorResponse(err);
+    response.headers.set("X-Thread-Id", String(threadId));
+    response.headers.set("X-Chat-Turn-Id", turnId);
+    return response;
   }
 }

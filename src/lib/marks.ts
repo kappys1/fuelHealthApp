@@ -32,6 +32,22 @@ export function higherIsBetter(measureType: MeasureType): boolean {
   return measureType !== "time";
 }
 
+/** Porcentaje de la última entrada respecto al récord, sensible a la dirección. */
+export function latestRecordPercentage(
+  measureType: MeasureType,
+  entries: readonly MarkEntryLike[],
+): number | null {
+  const latest = latestEntry(entries);
+  const record = bestEntry(measureType, entries);
+  if (!latest || !record) return null;
+  if (latest.value === 0 && record.value === 0) return 100;
+  if (latest.value <= 0 || record.value <= 0) return null;
+  const ratio = higherIsBetter(measureType)
+    ? latest.value / record.value
+    : record.value / latest.value;
+  return Math.min(100, Math.max(0, ratio * 100));
+}
+
 /** Solo las marcas de peso tienen calculadora de % (determinista, cero IA). */
 export function hasPercentCalculator(measureType: MeasureType): boolean {
   return measureType === "weight";
@@ -126,6 +142,40 @@ export function latestChange(
 /** X % de un valor (calculadora de marcas de peso). 85 % de 110 = 93,5. */
 export function percentOf(value: number, pct: number): number {
   return (value * pct) / 100;
+}
+
+// ── Familias (F11): agrupación libre de marcas; grafía canónica única ──
+
+/**
+ * Familias únicas, no vacías, ordenadas (es) — alimentan los chips del FamilyPicker
+ * al crear y al editar una marca. Pura; acepta cualquier forma con `family`.
+ */
+export function uniqueFamilies(
+  marks: readonly { family: string | null }[],
+): string[] {
+  const set = new Set<string>();
+  for (const m of marks) {
+    const f = m.family?.trim();
+    if (f) set.add(f);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "es"));
+}
+
+/**
+ * Canoniza una familia tecleada contra las existentes (F11): si lo escrito coincide
+ * case-insensitive (tras trim) con una familia ya usada, adopta SU grafía exacta —
+ * así "snatch"/"SNATCH" no fragmentan el grupo "Snatch". Si no hay coincidencia,
+ * devuelve el texto tal cual (trim). Vacío → null (sin familia). Pura, client-safe.
+ */
+export function canonicalizeFamily(
+  input: string,
+  existing: readonly string[],
+): string | null {
+  const trimmed = input.trim();
+  if (trimmed === "") return null;
+  const key = trimmed.toLowerCase();
+  const match = existing.find((f) => f.trim().toLowerCase() === key);
+  return match ?? trimmed;
 }
 
 export interface DoubleReference {

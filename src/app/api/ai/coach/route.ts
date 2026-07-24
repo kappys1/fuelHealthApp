@@ -22,6 +22,11 @@ import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import { getDayView } from "@/server/db/queries/day";
 import { getPlanContext } from "@/server/db/queries/plan";
 import { getTrendData } from "@/server/db/queries/trend";
+import {
+  coachContextHash,
+  type CoachReading,
+} from "@/server/ai/coach-reading";
+import { saveCoachReading } from "@/server/db/queries/coach-reading";
 
 const bodyZ = z.object({
   date: dateZ.optional(),
@@ -58,7 +63,7 @@ export async function POST(request: Request) {
     return serverError(err);
   }
 
-  const targets = plan?.targets ?? { kcal: 1800, prot: 110, carb: 0, fat: 0 };
+  const targets = plan?.targets ?? { kcal: 0, prot: 0, carb: 0, fat: 0 };
 
   // Veredicto + balance + déficit real JUZGADOS EN SERVIDOR (principio 1): el
   // modelo NO recalcula, recibe el mismo juicio determinista que el FuelGauge
@@ -74,12 +79,14 @@ export async function POST(request: Request) {
       : sesionCalendario.toLowerCase().includes("descanso")
         ? "descanso"
         : `día de entreno según calendario: ${sesionCalendario}`;
-  const dataLines = [
-    gaugeVerdictLine(verdict, {
-      faseLabel: phaseLabel(view.day?.phase ?? null),
-      sessionLabel,
-    }),
-  ];
+  const dataLines = plan
+    ? [
+        gaugeVerdictLine(verdict, {
+          faseLabel: phaseLabel(view.day?.phase ?? null),
+          sessionLabel,
+        }),
+      ]
+    : ["Sin pauta nutricional configurada: no evaluar kcal ni macros contra un objetivo."];
   // Balance ingesta−gasto y déficit real solo en modo "ayer" (día cerrado): a
   // mitad de un día en curso el gasto aún no está completo → sería engañoso.
   if (parsed.data.mode === "ayer") {
@@ -106,8 +113,9 @@ export async function POST(request: Request) {
     ? pendingPlanOptions(plan.optionsByMeal, pendingMeals)
     : "";
 
+  let text: string;
   try {
-    const text = await runText({
+    text = await runText({
       kind: "coach",
       task: "coach",
       prompt: coachPrompt({
@@ -115,10 +123,10 @@ export async function POST(request: Request) {
         today: base,
         targetDate,
         mode: parsed.data.mode,
-        kcal: targets.kcal,
-        prot: targets.prot,
-        carb: targets.carb,
-        fat: targets.fat,
+        kcal: plan?.targets.kcal ?? null,
+        prot: plan?.targets.prot ?? null,
+        carb: plan?.targets.carb ?? null,
+        fat: plan?.targets.fat ?? null,
         dayContext: dayContext(view, {
           sessionByWeekday: atleta.sessionByWeekday,
           date: targetDate,
@@ -129,8 +137,22 @@ export async function POST(request: Request) {
       // 100 palabras + thinking "medium": presupuesto amplio para no truncar.
       maxOutputTokens: 3072,
     });
-    return Response.json({ text });
   } catch (err) {
     return aiErrorResponse(err);
+  }
+
+  const reading: CoachReading = {
+    baseDate: base,
+    targetDate,
+    mode: parsed.data.mode,
+    text,
+    generatedAt: new Date().toISOString(),
+    contextHash: coachContextHash(view, targets),
+  };
+  try {
+    await saveCoachReading(reading);
+    return Response.json(reading);
+  } catch (err) {
+    return serverError(err);
   }
 }

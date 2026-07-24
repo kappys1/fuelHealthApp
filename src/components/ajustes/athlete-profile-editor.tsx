@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import {
@@ -21,7 +21,7 @@ type SetProfile = <K extends keyof AthleteProfile>(
 
 /** Input del perfil a 44px (target táctil 05-DISENO §4; hoy el base es 32px). */
 function PInput({ className, ...props }: React.ComponentProps<typeof Input>) {
-  return <Input className={cn("h-11", className)} {...props} />;
+  return <Input className={cn("h-11 text-base", className)} {...props} />;
 }
 
 /** Sub-sección con encabezado y separador fino (aire, no un muro de campos). */
@@ -34,7 +34,7 @@ function Section({
 }) {
   return (
     <div className="space-y-3 border-t border-line pt-4 first:border-t-0 first:pt-0">
-      <h4 className="text-[12px] font-semibold uppercase tracking-wider text-muted-foreground">
+      <h4 className="ui-label">
         {title}
       </h4>
       {children}
@@ -72,19 +72,22 @@ function Chips({
   if (items.length === 0)
     return <p className="text-[13px] text-muted-foreground">{empty}</p>;
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {items.map((v) => (
-        <Badge key={v} variant="secondary" className="gap-1 pr-1">
-          {v}
+        <span
+          key={v}
+          className="inline-flex min-h-11 items-center overflow-hidden rounded-full bg-surface-2 pl-3 text-[13px] font-medium text-foreground ring-1 ring-line"
+        >
+          <span className="max-w-[12rem] truncate">{v}</span>
           <button
             type="button"
             onClick={() => onRemove(v)}
             aria-label={`Quitar ${v}`}
-            className="ml-0.5 rounded-full px-1 text-muted-foreground hover:text-destructive"
+            className="ml-1 inline-flex size-11 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
-            ×
+            <X className="size-3.5" aria-hidden />
           </button>
-        </Badge>
+        </span>
       ))}
     </div>
   );
@@ -102,7 +105,7 @@ function DeporteEntrenoSection({
 }) {
   return (
     <Section title="Deporte y entreno">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Deporte">
           <PInput value={p.deporte} onChange={(e) => set("deporte", e.target.value)} />
         </Field>
@@ -138,7 +141,7 @@ function DatosSection({
 }) {
   return (
     <Section title="Datos">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
           label="Fecha de nacimiento"
           hint={edad != null ? `${edad} años` : "edad no derivable"}
@@ -317,15 +320,15 @@ function ObjetivoSection({
   };
 
   return (
-    <div className="space-y-2 rounded-lg border border-line bg-surface-2 p-3">
-      <div className="flex items-center justify-between">
+    <div className="space-y-3 rounded-2xl bg-primary-soft p-4">
+      <div className="flex items-center justify-between gap-3">
         <span className="text-[13px] font-medium text-foreground">
           Objetivo vigente
         </span>
         <button
           type="button"
           onClick={() => setChangingObj((v) => !v)}
-          className="text-[13px] text-primary hover:underline"
+          className="min-h-11 shrink-0 rounded-xl px-2 text-[13px] font-semibold text-primary hover:bg-surface/70"
         >
           {changingObj ? "Cancelar" : "Cambiar objetivo"}
         </button>
@@ -354,7 +357,7 @@ function ObjetivoSection({
               placeholder="ej. mantenimiento tras la competición"
             />
           </Field>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Desde">
               <PInput
                 type="date"
@@ -374,7 +377,7 @@ function ObjetivoSection({
           <button
             type="button"
             onClick={addObjective}
-            className="w-full rounded-lg bg-primary py-2 text-sm font-semibold text-primary-foreground"
+            className="min-h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
           >
             Añadir objetivo fechado
           </button>
@@ -383,7 +386,7 @@ function ObjetivoSection({
 
       {historial.length > 0 ? (
         <details className="text-sm">
-          <summary className="cursor-pointer text-[13px] text-muted-foreground">
+          <summary className="flex min-h-11 cursor-pointer items-center text-[13px] font-medium text-muted-foreground">
             Historial ({historial.length})
           </summary>
           <ul className="mt-2 space-y-1">
@@ -445,7 +448,7 @@ export function AthleteProfileEditor({
         type="button"
         onClick={save}
         disabled={saving}
-        className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+        className="min-h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
       >
         {saving ? "Guardando…" : "Guardar perfil"}
       </button>

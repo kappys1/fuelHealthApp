@@ -1,9 +1,24 @@
 "use client";
 
-import { Loader2, Pencil, Plus, Sparkles, Trash2, Wand2 } from "lucide-react";
+import {
+  Apple,
+  Calculator,
+  ChevronDown,
+  CircleEllipsis,
+  Loader2,
+  MoonStar,
+  Pencil,
+  Plus,
+  Sparkles,
+  Sunrise,
+  Trash2,
+  Utensils,
+  Wand2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select,
   SelectContent,
@@ -13,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Stepper } from "@/components/ui/stepper";
 import { api } from "@/lib/client-api";
+import { labelForKey } from "@/lib/dates";
 import {
   deriveVariantsForStore,
   displayMacro,
@@ -35,30 +51,52 @@ import {
 
 const n = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
 
+const MEAL_ICONS = {
+  almuerzo: Sunrise,
+  comida: Utensils,
+  merienda: Apple,
+  cena: MoonStar,
+  extra: CircleEllipsis,
+} as const;
+
+const MEAL_COLORS = {
+  almuerzo: "var(--carb)",
+  comida: "var(--primary)",
+  merienda: "var(--protein)",
+  cena: "var(--phase)",
+  extra: "var(--muted-text)",
+} as const;
+
 export function PlanClient({
   targets,
   derived,
   optionsByMeal,
+  effectiveFrom,
 }: {
-  targets: EffectiveTargets;
-  derived: DerivedTargets;
+  targets: EffectiveTargets | null;
+  derived: DerivedTargets | null;
   optionsByMeal: Record<string, PlanOptionDTO[]>;
+  effectiveFrom: string | null;
 }) {
   const router = useRouter();
-  const [kcal, setKcal] = useState(String(targets.kcal));
-  const [prot, setProt] = useState(String(targets.prot));
-  const [carb, setCarb] = useState(String(targets.carb));
-  const [fat, setFat] = useState(String(targets.fat));
+  const [kcal, setKcal] = useState(String(targets?.kcal ?? ""));
+  const [prot, setProt] = useState(String(targets?.prot ?? ""));
+  const [carb, setCarb] = useState(String(targets?.carb ?? ""));
+  const [fat, setFat] = useState(String(targets?.fat ?? ""));
   const [saving, setSaving] = useState(false);
   const [addingMeal, setAddingMeal] = useState<MealKey | null>(null);
+  const [openMeal, setOpenMeal] = useState<MealKey | null>(null);
+  const [editingTargets, setEditingTargets] = useState(false);
 
   const derive = () => {
+    if (!derived) return;
     setCarb(String(displayMacro(derived.carb)));
     setFat(String(displayMacro(derived.fat)));
     toast("Carb/grasa rellenados desde el plan. Revisa y guarda.");
   };
 
   const saveTargets = async () => {
+    if (!targets) return;
     setSaving(true);
     try {
       await api.patchTargets({
@@ -68,6 +106,7 @@ export function PlanClient({
         fat: n(fat),
       });
       toast.success("Objetivos guardados (nueva versión de dieta).");
+      setEditingTargets(false);
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
@@ -76,101 +115,286 @@ export function PlanClient({
     }
   };
 
+  const visibleMeals: MealKey[] = [];
+  for (const meal of MEAL_ORDER) {
+    if (meal !== "extra" || (optionsByMeal.extra?.length ?? 0) > 0) {
+      visibleMeals.push(meal);
+    }
+  }
+
   return (
-    <div className="space-y-5 pb-8">
-      {/* Importar dieta desde foto/PDF (F-IA-9) */}
+    <div className="space-y-7">
       <DietImport />
 
-      {/* Objetivos */}
-      <section className="rounded-xl border border-line bg-surface p-4">
-        <h2 className="mb-3 text-[13px] font-semibold text-foreground">
-          Objetivos diarios
-        </h2>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="kcal (nutri)">
-            <Stepper value={kcal} onChange={setKcal} step={10} ariaLabel="kcal" />
-          </Field>
-          <Field label="Proteína (nutri)">
-            <Stepper value={prot} onChange={setProt} step={5} suffix="g" ariaLabel="Proteína" />
-          </Field>
-          <Field label="Hidratos">
-            <Stepper value={carb} onChange={setCarb} step={5} suffix="g" ariaLabel="Hidratos" />
-          </Field>
-          <Field label="Grasa">
-            <Stepper value={fat} onChange={setFat} step={5} suffix="g" ariaLabel="Grasa" />
-          </Field>
-        </div>
-
-        <button
-          type="button"
-          onClick={derive}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-2 text-[13px]"
-        >
-          <Wand2 className="size-4 text-primary" aria-hidden />
-          Derivar carb/grasa del plan
-        </button>
-        <p className="mt-1.5 text-[12px] text-muted-foreground">
-          Día pautado medio:{" "}
-          <span className="num">{Math.round(derived.kcal).toLocaleString("es-ES")}</span>{" "}
-          kcal · rango{" "}
-          <span className="num">{derived.kmin.toLocaleString("es-ES")}</span>–
-          <span className="num">{derived.kmax.toLocaleString("es-ES")}</span>. Carb/grasa
-          derivados: <span className="num">{displayMacro(derived.carb)}</span> /{" "}
-          <span className="num">{displayMacro(derived.fat)}</span> g.
-        </p>
-
-        <button
-          type="button"
-          onClick={saveTargets}
-          disabled={saving}
-          className="mt-3 w-full rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
-        >
-          {saving ? "Guardando…" : "Guardar objetivos"}
-        </button>
-      </section>
-
-      {/* Opciones del plan */}
-      <section className="space-y-4">
-        <h2 className="text-[13px] font-semibold text-foreground">Opciones del plan</h2>
-        {MEAL_ORDER.filter((m) => m !== "extra").map((meal) => (
-          <div key={meal} className="rounded-xl border border-line bg-surface">
-            <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
-              <h3 className="text-[13px] font-semibold text-foreground">
-                {MEAL_LABELS[meal]}
-              </h3>
+      {targets && derived ? (
+        <section className="wellness-card overflow-hidden" aria-labelledby="daily-target-title">
+          <div className="p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2
+                  id="daily-target-title"
+                  className="num text-[28px] font-semibold leading-none text-foreground"
+                >
+                  {targets.kcal.toLocaleString("es-ES")} kcal
+                </h2>
+                <p className="mt-2 text-[12px] text-muted-foreground">
+                  Objetivo diario del nutricionista
+                </p>
+              </div>
               <button
                 type="button"
-                aria-label={`Añadir opción a ${MEAL_LABELS[meal]}`}
-                onClick={() => setAddingMeal(addingMeal === meal ? null : meal)}
-                className="inline-flex size-7 items-center justify-center rounded-lg border border-line bg-surface-2 text-primary"
+                className="app-icon-button shrink-0"
+                aria-label={editingTargets ? "Cerrar edición de objetivos" : "Editar objetivos"}
+                aria-expanded={editingTargets}
+                onClick={() => setEditingTargets((value) => !value)}
               >
-                <Plus className="size-4" aria-hidden />
+                {editingTargets ? (
+                  <ChevronDown className="size-5" aria-hidden />
+                ) : (
+                  <Pencil className="size-[18px]" aria-hidden />
+                )}
               </button>
             </div>
 
-            <div className="divide-y divide-line">
-              {(optionsByMeal[meal] ?? []).map((o) => (
-                <OptionRow key={o.id} option={o} onChanged={() => router.refresh()} />
-              ))}
-              {addingMeal === meal ? (
-                <OptionForm
-                  meal={meal}
-                  onDone={() => {
-                    setAddingMeal(null);
-                    router.refresh();
-                  }}
-                  onCancel={() => setAddingMeal(null)}
-                />
-              ) : null}
-              {(optionsByMeal[meal] ?? []).length === 0 && addingMeal !== meal ? (
-                <p className="px-4 py-3 text-[12px] text-muted-foreground">
-                  Sin opciones. Usa «+» para añadir.
-                </p>
-              ) : null}
+            {effectiveFrom ? (
+              <span className="mt-4 inline-flex min-h-7 items-center rounded-full bg-surface-2 px-3 text-[11px] font-semibold text-muted-foreground">
+                Vigente desde {labelForKey(effectiveFrom)}
+              </span>
+            ) : null}
+
+            <div className="mt-5 grid grid-cols-3 gap-2 border-t border-line pt-4">
+              <MacroTarget label="Proteína" value={targets.prot} color="var(--protein)" />
+              <MacroTarget
+                label={`Hidratos${targets.carbDerived ? " · derivados" : ""}`}
+                value={targets.carb}
+                color="var(--carb)"
+              />
+              <MacroTarget
+                label={`Grasa${targets.fatDerived ? " · derivada" : ""}`}
+                value={targets.fat}
+                color="var(--fat)"
+              />
+            </div>
+
+            <div className="wellness-panel mt-4 flex items-start gap-3 p-3.5">
+              <Calculator className="mt-0.5 size-[18px] shrink-0 text-primary" aria-hidden />
+              <p className="text-[12px] leading-relaxed text-muted-foreground">
+                Día pautado medio{" "}
+                <span className="num font-semibold text-foreground">
+                  {Math.round(derived.kcal).toLocaleString("es-ES")} kcal
+                </span>{" "}
+                · rango real de opciones{" "}
+                <span className="num font-semibold text-foreground">
+                  {derived.kmin.toLocaleString("es-ES")}–
+                  {derived.kmax.toLocaleString("es-ES")} kcal
+                </span>
+                .
+              </p>
             </div>
           </div>
-        ))}
-      </section>
+
+          {editingTargets ? (
+            <div className="space-y-4 border-t border-line bg-surface-2/55 p-5">
+              <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
+                <Field label="kcal (nutri)">
+                  <Stepper value={kcal} onChange={setKcal} step={10} ariaLabel="kcal" />
+                </Field>
+                <Field label="Proteína (nutri)">
+                  <Stepper
+                    value={prot}
+                    onChange={setProt}
+                    step={5}
+                    suffix="g"
+                    ariaLabel="Proteína"
+                  />
+                </Field>
+                <Field label="Hidratos">
+                  <Stepper
+                    value={carb}
+                    onChange={setCarb}
+                    step={5}
+                    suffix="g"
+                    ariaLabel="Hidratos"
+                  />
+                </Field>
+                <Field label="Grasa">
+                  <Stepper
+                    value={fat}
+                    onChange={setFat}
+                    step={5}
+                    suffix="g"
+                    ariaLabel="Grasa"
+                  />
+                </Field>
+              </div>
+              <button
+                type="button"
+                onClick={derive}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-3 text-[13px] font-semibold text-foreground"
+              >
+                <Wand2 className="size-4 text-primary" aria-hidden />
+                Derivar hidratos y grasa del plan
+              </button>
+              <button
+                type="button"
+                onClick={saveTargets}
+                disabled={saving}
+                className="min-h-11 w-full rounded-xl bg-primary px-4 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {saving ? "Guardando…" : "Guardar objetivos"}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      ) : (
+        <section className="wellness-card p-5 text-center">
+          <p className="text-[14px] font-semibold text-foreground">
+            Todavía no hay una dieta activa
+          </p>
+          <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+            Importa tu pauta para crear la primera versión y sus objetivos.
+          </p>
+        </section>
+      )}
+
+      {targets ? (
+        <section className="space-y-3">
+          <div>
+            <h2 className="section-title">Estructura del día</h2>
+            <p className="section-copy">
+              Abre una comida para gestionar sus opciones y variantes
+            </p>
+          </div>
+          {visibleMeals.map((meal) => (
+            <MealPlanSection
+              key={meal}
+              meal={meal}
+              options={optionsByMeal[meal] ?? []}
+              open={openMeal === meal || addingMeal === meal}
+              adding={addingMeal === meal}
+              onToggle={() => setOpenMeal((value) => (value === meal ? null : meal))}
+              onAdd={() => {
+                setOpenMeal(meal);
+                setAddingMeal(addingMeal === meal ? null : meal);
+              }}
+              onChanged={() => router.refresh()}
+              onAdded={() => {
+                setAddingMeal(null);
+                router.refresh();
+              }}
+              onCancelAdd={() => setAddingMeal(null)}
+            />
+          ))}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function MacroTarget({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="min-w-0">
+      <span className="block min-h-8 text-[11px] leading-tight text-muted-foreground">
+        {label}
+      </span>
+      <strong className="num mt-1 block text-[17px] font-semibold" style={{ color }}>
+        {displayMacro(value)} g
+      </strong>
+    </div>
+  );
+}
+
+function MealPlanSection({
+  meal,
+  options,
+  open,
+  adding,
+  onToggle,
+  onAdd,
+  onChanged,
+  onAdded,
+  onCancelAdd,
+}: {
+  meal: MealKey;
+  options: PlanOptionDTO[];
+  open: boolean;
+  adding: boolean;
+  onToggle: () => void;
+  onAdd: () => void;
+  onChanged: () => void;
+  onAdded: () => void;
+  onCancelAdd: () => void;
+}) {
+  const Icon = MEAL_ICONS[meal];
+  const groups = new Set(options.map((option) => option.grp)).size;
+  const color = MEAL_COLORS[meal];
+
+  return (
+    <div className="wellness-card overflow-hidden">
+      <div className="flex min-h-[76px] items-center gap-2 px-4 py-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          <span
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl"
+            style={{
+              color,
+              background: `color-mix(in srgb, ${color} 12%, transparent)`,
+            }}
+          >
+            <Icon className="size-5" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] font-semibold text-foreground">
+              {MEAL_LABELS[meal]}
+            </span>
+            <span className="mt-0.5 block text-[12px] text-muted-foreground">
+              {options.length === 0
+                ? "Sin opciones"
+                : `${options.length} ${options.length === 1 ? "opción" : "opciones"}${groups > 1 ? ` · ${groups} grupos` : ""}`}
+            </span>
+          </span>
+          <ChevronDown
+            className={`size-[18px] shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+            aria-hidden
+          />
+        </button>
+        <button
+          type="button"
+          aria-label={`Añadir opción a ${MEAL_LABELS[meal]}`}
+          onClick={onAdd}
+          className="app-icon-button shrink-0 border-0 bg-surface-2 text-primary"
+        >
+          <Plus className="size-5" aria-hidden />
+        </button>
+      </div>
+
+      {open ? (
+        <div className="divide-y divide-line border-t border-line">
+          {options.map((option) => (
+            <OptionRow key={option.id} option={option} onChanged={onChanged} />
+          ))}
+          {adding ? (
+            <OptionForm meal={meal} onDone={onAdded} onCancel={onCancelAdd} />
+          ) : null}
+          {options.length === 0 && !adding ? (
+            <p className="px-5 py-4 text-[12px] text-muted-foreground">
+              No hay opciones guardadas en esta comida.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -183,15 +407,20 @@ function OptionRow({
   onChanged: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const del = async () => {
-    if (!window.confirm(`¿Borrar la opción «${option.name}»?`)) return;
+    setDeleting(true);
     try {
       await api.deleteOption(option.id);
       toast.success("Opción borrada.");
+      setDeleteOpen(false);
       onChanged();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -210,37 +439,47 @@ function OptionRow({
   }
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2.5">
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-[14px]">{option.name}</div>
-        <div className="num text-[12px] text-muted-foreground">
-          {option.grp}
-          {option.baseG != null ? ` · ${option.baseG} g` : ""} · {option.kcal} kcal ·{" "}
-          {displayMacro(option.prot)}P/{displayMacro(option.carb)}C/{displayMacro(option.fat)}F
-        </div>
-        {option.variants.length > 0 ? (
-          <div className="mt-0.5 text-[11px] text-primary">
-            {option.variants.length} variantes · {option.variants.map((v) => v.nombre).join(" · ")}
-          </div>
-        ) : null}
+    <>
+      <div className="flex items-center gap-1 px-4 py-3">
+        <button
+          type="button"
+          aria-label={`Editar ${option.name}`}
+          onClick={() => setEditing(true)}
+          className="min-h-11 min-w-0 flex-1 rounded-xl px-1 py-1 text-left transition-colors hover:bg-surface-2/70"
+        >
+          <span className="block truncate text-[14px] font-medium text-foreground">
+            {option.name}
+          </span>
+          <span className="num mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
+            {option.grp}
+            {option.baseG != null ? ` · ${option.baseG} g` : ""} · {option.kcal} kcal ·{" "}
+            {displayMacro(option.prot)}P/{displayMacro(option.carb)}C/{displayMacro(option.fat)}F
+          </span>
+          {option.variants.length > 0 ? (
+            <span className="mt-1 block text-[11px] text-primary">
+              {option.variants.length} variantes · {option.variants.map((variant) => variant.nombre).join(" · ")}
+            </span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          aria-label={`Borrar ${option.name}`}
+          onClick={() => setDeleteOpen(true)}
+          className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
+        >
+          <Trash2 className="size-4" aria-hidden />
+        </button>
       </div>
-      <button
-        type="button"
-        aria-label="Editar opción"
-        onClick={() => setEditing(true)}
-        className="shrink-0 text-muted-foreground hover:text-foreground"
-      >
-        <Pencil className="size-4" aria-hidden />
-      </button>
-      <button
-        type="button"
-        aria-label="Borrar opción"
-        onClick={del}
-        className="shrink-0 text-muted-foreground hover:text-destructive"
-      >
-        <Trash2 className="size-4" aria-hidden />
-      </button>
-    </div>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Borrar opción del plan"
+        description={`«${option.name}» dejará de estar disponible en la pauta vigente. Las comidas registradas en días anteriores no cambian.`}
+        confirmLabel="Borrar opción"
+        busy={deleting}
+        onConfirm={del}
+      />
+    </>
   );
 }
 
@@ -365,7 +604,7 @@ function OptionForm({
           type="button"
           onClick={estimate}
           disabled={estimating}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-[13px] disabled:opacity-60"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-3 text-[13px] font-semibold disabled:opacity-60"
         >
           {estimating ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -377,11 +616,11 @@ function OptionForm({
       ) : null}
       {/* Grupo + gramos base: gramos son los PAUTADOS del hueco, comunes a todas las
           variantes (F08); editarlos NO reescala las variantes (editor manual). */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-[12px] text-muted-foreground">Grupo</span>
           <Select value={grp} onValueChange={(v) => setGrp(v as GrpKey)}>
-            <SelectTrigger className="h-10 w-full">
+            <SelectTrigger className="h-11 w-full text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -411,7 +650,7 @@ function OptionForm({
         <>
           {/* 2×2: el Stepper (−/valor/+) necesita ~128px; en grid-cols-4 sobre móvil
               se recortaba y el botón + desaparecía. En 2 columnas cabe entero. */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
             <SmallField label="kcal">
               <Stepper value={kcal} onChange={setKcal} step={10} ariaLabel="kcal" />
             </SmallField>
@@ -428,7 +667,7 @@ function OptionForm({
           <button
             type="button"
             onClick={addVariants}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-primary"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-[12px] font-semibold text-primary"
           >
             <Plus className="size-3.5" aria-hidden /> Añadir variantes (elegir fuente al
             registrar)
@@ -439,7 +678,7 @@ function OptionForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-3 py-2 text-sm text-muted-foreground"
+          className="min-h-11 rounded-xl px-4 text-sm font-semibold text-muted-foreground"
         >
           Cancelar
         </button>
@@ -447,7 +686,7 @@ function OptionForm({
           type="button"
           onClick={submit}
           disabled={busy}
-          className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+          className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
           {option ? "Guardar" : "Añadir"}
         </button>

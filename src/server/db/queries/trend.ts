@@ -1,5 +1,6 @@
 import { asc } from "drizzle-orm";
 import { dayKey } from "@/lib/dates";
+import { effectiveHealthMetric } from "@/lib/effective-health";
 import type { BloatKey, PhaseKey } from "@/lib/macros";
 import type { DailyRecord, DayTarget } from "@/server/analytics/types";
 import { db, schema } from "@/server/db";
@@ -8,7 +9,8 @@ import { db, schema } from "@/server/db";
   Ensamblado de la serie diaria para la pantalla Tendencia (F6). Une days +
   health_metrics + meal_entries + diet_versions en `DailyRecord[]` (orden asc).
 
-  Precedencia health_metrics > days (principio 6) para peso / agua / % grasa. El
+  Precedencia manual (`days`) > Health para peso / agua / % grasa. Health rellena
+  huecos, pero una corrección consciente del usuario manda en todas las vistas. El
   objetivo de cada día es el de su versión de dieta vigente entonces (F1.5). Las
   fórmulas (ma7, déficit, adherencia) son puras y viven en server/analytics; aquí
   solo se leen datos. Usuario único → se cargan todas las filas y se agregan en JS.
@@ -27,15 +29,16 @@ interface VersionRow {
   protTarget: number;
 }
 
-/** Versión vigente en una fecha: la de effectiveFrom más reciente ≤ date (o la más antigua). */
+/** Versión vigente en una fecha: la más reciente con effectiveFrom ≤ date. */
 function targetForDate(versions: VersionRow[], date: string): DayTarget {
   let chosen: VersionRow | null = null;
   for (const v of versions) {
     if (v.effectiveFrom <= date) chosen = v;
     else break; // versions viene ordenada asc
   }
-  const v = chosen ?? versions[0];
-  return v ? { kcal: v.kcalTarget, prot: v.protTarget } : { kcal: 1800, prot: 110 };
+  return chosen
+    ? { kcal: chosen.kcalTarget, prot: chosen.protTarget }
+    : { kcal: 0, prot: 0 };
 }
 
 export async function getTrendData(today: string = dayKey()): Promise<TrendData> {
@@ -100,7 +103,7 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
         // (Apple Health) solo rellena los huecos. Protege el motor de déficit, que
         // vive de pesajes en ayunas consistentes (principio 1). El resto de
         // métricas del reloj no tienen equivalente manual.
-        weight: day?.weight ?? health?.weight ?? null,
+        weight: effectiveHealthMetric(day?.weight, health?.weight),
         phase: (day?.phase as PhaseKey | null) ?? null,
         logged: (agg?.n ?? 0) > 0,
         kcal: agg?.kcal ?? 0,
@@ -114,8 +117,8 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
         hrvMs: health?.hrvMs ?? null,
         sleepH: health?.sleepH ?? null,
         restingHr: health?.restingHr ?? null,
-        bodyFatPct: day?.bodyFatPct ?? health?.bodyFatPct ?? null,
-        waterL: day?.waterL ?? health?.waterL ?? null,
+        bodyFatPct: effectiveHealthMetric(day?.bodyFatPct, health?.bodyFatPct),
+        waterL: effectiveHealthMetric(day?.waterL, health?.waterL),
         sessionLabel: day?.sessionLabel ?? null,
         bloat: (day?.bloat as BloatKey | null) ?? null,
         notes: day?.notes ?? null,

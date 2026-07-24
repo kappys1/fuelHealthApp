@@ -1,31 +1,20 @@
 import { RotateCcw } from "lucide-react";
 import type { Metadata, Viewport } from "next";
-import {
-  Barlow_Condensed,
-  Barlow_Semi_Condensed,
-  Instrument_Sans,
-} from "next/font/google";
+import { Onest, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 import { Providers } from "./providers";
 
-// Display / cifras (Barlow Semi Condensed) — 05-DISENO §3
-const display = Barlow_Semi_Condensed({
+// Rebrand V2: display y numerales sin identidad condensada.
+const display = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["600", "700"],
+  weight: ["500", "600", "700"],
   variable: "--font-display",
 });
 
-// Cifras XL del gauge (Barlow Condensed)
-const condensed = Barlow_Condensed({
+const body = Onest({
   subsets: ["latin"],
-  weight: ["600", "700"],
-  variable: "--font-condensed",
-});
-
-// Cuerpo (Instrument Sans, variable)
-const body = Instrument_Sans({
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-body",
 });
 
@@ -55,8 +44,8 @@ export const viewport: Viewport = {
   // añadir queda POR ENCIMA del teclado en iOS y su input enfocado se ve.
   interactiveWidget: "resizes-content",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F2F4EF" },
-    { media: "(prefers-color-scheme: dark)", color: "#0F1613" },
+    { media: "(prefers-color-scheme: light)", color: "#f6f8fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1319" },
   ],
 };
 
@@ -67,7 +56,7 @@ export default function RootLayout({
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${display.variable} ${condensed.variable} ${body.variable} h-full antialiased`}
+      className={`${display.variable} ${body.variable} h-full antialiased`}
     >
       <body className="min-h-dvh">
         <PwaRegister>

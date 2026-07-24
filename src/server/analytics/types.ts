@@ -4,7 +4,7 @@
   Las funciones de `server/analytics/` son PURAS y sin dependencias de BD, así que
   se pueden importar también en el cliente (la pantalla Tendencia recalcula al
   cambiar el rango sin volver a pedir datos). El ensamblado desde la BD (con la
-  precedencia health_metrics > days del principio 6) vive en
+  precedencia manual (`days`) > Health) vive en
   `server/db/queries/trend.ts`.
 */
 import type { BloatKey, PhaseKey } from "@/lib/macros";
@@ -22,7 +22,7 @@ export interface DayTarget {
  */
 export interface AnalyticsRecord {
   date: string; // 'YYYY-MM-DD' (Europe/Madrid)
-  weight: number | null; // peso efectivo (health ?? manual)
+  weight: number | null; // peso efectivo (manual ?? Health)
   phase: PhaseKey | null;
   logged: boolean;
   kcal: number;

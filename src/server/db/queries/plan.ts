@@ -63,14 +63,7 @@ export async function getVersionForDate(
     .where(lte(schema.dietVersions.effectiveFrom, date))
     .orderBy(desc(schema.dietVersions.effectiveFrom), desc(schema.dietVersions.id))
     .limit(1);
-  if (rows[0]) return rows[0];
-  // Fallback: la versión más antigua (fechas anteriores a todo el histórico).
-  const earliest = await db
-    .select()
-    .from(schema.dietVersions)
-    .orderBy(asc(schema.dietVersions.effectiveFrom), asc(schema.dietVersions.id))
-    .limit(1);
-  return earliest[0] ?? null;
+  return rows[0] ?? null;
 }
 
 /** Todas las versiones de dieta por effective_from ascendente (Historial, doc 10 B4). */

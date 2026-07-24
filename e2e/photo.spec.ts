@@ -32,29 +32,80 @@ test.describe("Foto de comida", () => {
         }),
       });
     });
+    // El almacenamiento también se mockea: validamos el contrato de la UI sin
+    // crear blobs externos durante el E2E.
+    await page.route("**/api/photos", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ url: "/api/photos/view?p=e2e-photo" }),
+      });
+    });
   });
 
   test("analiza una foto mockeada y añade el desglose", async ({ page }) => {
-    await page.goto("/hoy", { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /Añadir comida/ }).click();
+    const createdIds: number[] = [];
+    try {
+      await page.goto("/hoy", { waitUntil: "domcontentloaded" });
+      // El FAB llega en el HTML del servidor. Esperamos el titulo que HoyClient
+      // calcula al hidratar para no perder el click en el markup aun inerte.
+      await expect.poll(() => page.title()).toMatch(/· Fuelboard$/);
+      await page.getByRole("button", { name: /Añadir comida/ }).click();
 
-    // Capa 1 → acceso «Foto».
-    await page.getByRole("button", { name: "Foto" }).click();
+      // Capa 1 → acceso «Foto».
+      await page.getByRole("button", { name: "Foto" }).click();
 
-    // Sube la imagen al input de archivo (oculto).
-    await page.locator('input[type="file"][accept*="image"]').setInputFiles({
-      name: "plato.jpg",
-      mimeType: "image/jpeg",
-      buffer: Buffer.from(RED_JPEG_B64, "base64"),
-    });
+      // Sube la imagen al input de archivo (oculto).
+      await page.locator('input[type="file"][accept*="image"]').setInputFiles({
+        name: "plato.jpg",
+        mimeType: "image/jpeg",
+        buffer: Buffer.from(RED_JPEG_B64, "base64"),
+      });
 
-    // Analiza y espera el desglose mockeado.
-    await page.getByRole("button", { name: /Analizar foto|Reanalizar/ }).click();
-    await expect(page.getByText("Pechuga de pollo")).toBeVisible();
-    await expect(page.getByText(/Total:/)).toBeVisible();
+      // Analiza y espera el desglose mockeado.
+      await page.getByRole("button", { name: /Analizar foto|Reanalizar/ }).click();
+      await expect(page.getByText("Pechuga de pollo")).toBeVisible();
+      await expect(page.getByText(/Total:/)).toBeVisible();
 
-    // Añade los 3 items por separado y comprueba el timeline.
-    await page.getByRole("button", { name: "Añadir por separado" }).click();
-    await expect(page.getByText("Pechuga de pollo").first()).toBeVisible();
+      // Añade los 3 items por separado y comprueba el contrato persistido.
+      const persisted = page.waitForResponse(
+        (response) =>
+          response.url().endsWith("/api/entries") &&
+          response.request().method() === "POST" &&
+          response.ok(),
+      );
+      await page.getByRole("button", { name: "Añadir por separado" }).click();
+      const response = await persisted;
+      const body = (await response.json()) as { entries: Array<{ id: number }> };
+      createdIds.push(...body.entries.map((entry) => entry.id));
+
+      // La lectura agregada de Hoy debe devolver exactamente el lote recién creado.
+      const dayResponse = await page.request.get("/api/day");
+      expect(dayResponse.ok()).toBe(true);
+      const day = (await dayResponse.json()) as {
+        view: { entries: Array<{ id: number; name: string }> };
+      };
+      const persistedEntries = day.view.entries.filter((entry) =>
+        createdIds.includes(entry.id),
+      );
+      expect(persistedEntries.map((entry) => entry.name).sort()).toEqual(
+        ["Pechuga de pollo", "Arroz blanco", "Aguacate"].sort(),
+      );
+    } finally {
+      for (const id of createdIds) {
+        const cleanup = await page.request.delete(`/api/entries/${id}`);
+        expect(cleanup.ok()).toBe(true);
+      }
+    }
+  });
+
+  test("el share target sin imagen abre el alta y explica cómo recuperarse", async ({
+    page,
+  }) => {
+    await page.goto("/hoy?share=1");
+    await expect(page.getByRole("dialog", { name: "Añadir" })).toBeVisible();
+    await expect(
+      page.getByText("No se encontró la imagen compartida", { exact: false }),
+    ).toBeVisible();
   });
 });

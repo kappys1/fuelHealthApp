@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { dietImportZ, dayDumpZ, labelReadZ } from "./schemas";
+import { dietImportZ, dayDumpZ, labelReadZ, photoResultZ } from "./schemas";
+
+describe("photoResultZ — comparación solo con pauta real", () => {
+  it("acepta encaja_plan null cuando no existe una pauta", () => {
+    const result = photoResultZ.parse({
+      items: [
+        {
+          nombre: "Tortilla francesa",
+          gramos: 180,
+          kcal: 280,
+          proteina_g: 22,
+          carbohidratos_g: 2,
+          grasa_g: 20,
+        },
+      ],
+      encaja_plan: null,
+      comentario: "Estimación visual de la ración.",
+    });
+
+    expect(result.encaja_plan).toBeNull();
+  });
+});
 
 /*
   F06 Fase 2 (AC9): el schema de day-dump acepta `gramos` con cantidad o null (item

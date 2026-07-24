@@ -2,12 +2,14 @@
 
 import { ArrowRight, Trophy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   formatMarkValue,
+  latestRecordPercentage,
   latestEntry,
   marksByRecency,
   MEASURE_TYPE_LABELS,
+  uniqueFamilies,
 } from "@/lib/marks";
 import type { MarkDTO } from "@/server/db/queries/marks";
 import { MarkDetailSheet } from "./mark-detail-sheet";
@@ -31,10 +33,18 @@ export function MarksRail({
   today: string;
 }) {
   const router = useRouter();
-  const { marks, addEntry, updateEntry, deleteEntry, restoreEntry, deleteMark } =
-    useMarks(initialMarks);
+  const {
+    marks,
+    updateMark,
+    addEntry,
+    updateEntry,
+    deleteEntry,
+    restoreEntry,
+    deleteMark,
+  } = useMarks(initialMarks);
   const [detailId, setDetailId] = useState<number | null>(null);
   const detailMark = marks.find((m) => m.id === detailId) ?? null;
+  const families = useMemo(() => uniqueFamilies(marks), [marks]);
 
   const recent = marksByRecency(marks).slice(0, RECENT_LIMIT);
 
@@ -48,7 +58,7 @@ export function MarksRail({
           <button
             type="button"
             onClick={() => router.push("/plan?tab=entrenos")}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-primary"
+            className="inline-flex min-h-11 items-center gap-1 px-1 text-[12px] font-semibold text-primary"
           >
             Ver todas <ArrowRight className="size-3.5" aria-hidden />
           </button>
@@ -63,12 +73,13 @@ export function MarksRail({
         <div className="flex gap-2 overflow-x-auto pb-1">
           {recent.map((m) => {
             const latest = latestEntry(m.entries);
+            const recordPct = latestRecordPercentage(m.measureType, m.entries);
             return (
               <button
                 key={m.id}
                 type="button"
                 onClick={() => setDetailId(m.id)}
-                className="min-w-[8.5rem] shrink-0 rounded-xl border border-line bg-surface p-3 text-left"
+                className="min-w-[9.25rem] shrink-0 rounded-[20px] border border-line bg-surface p-3 text-left"
               >
                 <div className="truncate text-[13px] font-medium text-foreground">
                   {m.name}
@@ -78,8 +89,16 @@ export function MarksRail({
                     ? formatMarkValue(m.measureType, latest.value, m.unit)
                     : "—"}
                 </div>
-                <div className="text-[10.5px] text-muted-foreground">
-                  {MEASURE_TYPE_LABELS[m.measureType]} · última
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+                  <span
+                    className="block h-full rounded-full bg-primary"
+                    style={{ width: `${recordPct ?? 0}%` }}
+                  />
+                </div>
+                <div className="mt-1 text-[10.5px] text-muted-foreground">
+                  {recordPct != null
+                    ? `${Math.round(recordPct)}% del récord`
+                    : MEASURE_TYPE_LABELS[m.measureType]}
                 </div>
               </button>
             );
@@ -101,8 +120,10 @@ export function MarksRail({
         <MarkDetailSheet
           mark={detailMark}
           today={today}
+          families={families}
           onAddEntry={addEntry}
           onUpdateEntry={updateEntry}
+          onUpdateMark={updateMark}
           onDeleteEntry={deleteEntry}
           onRestoreEntry={restoreEntry}
           onDeleteMark={deleteMark}

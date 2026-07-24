@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { badRequest, ensureAuth, parseBody, serverError } from "@/lib/api";
 import { dateZ } from "@/lib/schemas";
-import { reassignTrainingSession } from "@/server/db/queries/training";
+import {
+  reassignTrainingSession,
+  TrainingAssignmentConflictError,
+} from "@/server/db/queries/training";
 
 // doc 10 B3b · Reasignar una sesión a otro día (o desasignar con null).
 function parseId(param: string): number | null {
@@ -29,6 +32,9 @@ export async function POST(
     await reassignTrainingSession(id, parsed.data.date);
     return Response.json({ ok: true });
   } catch (err) {
+    if (err instanceof TrainingAssignmentConflictError) {
+      return Response.json({ error: err.message }, { status: 409 });
+    }
     return serverError(err);
   }
 }

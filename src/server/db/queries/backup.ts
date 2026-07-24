@@ -1,7 +1,14 @@
+import { sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
+import { dateZ } from "@/lib/schemas";
 import { db, schema } from "@/server/db";
 import { productImportRow } from "../products-map";
-import { mealEntryImportRow, planOptionImportRow } from "./backup-map";
+import {
+  bloatEventImportRow,
+  mealEntryImportRow,
+  planOptionImportRow,
+} from "./backup-map";
 
 /*
   Export/restore JSON completo (F4.5 / principio 7: los datos son sagrados).
@@ -11,13 +18,13 @@ import { mealEntryImportRow, planOptionImportRow } from "./backup-map";
   reinsertan SIN id (Postgres asigna nuevos) y las FKs se remapean por el id
   antiguo del archivo (diet_version → plan_options, chat_thread → chat_message).
 
-  Limitación consciente: el driver neon-http no soporta transacciones interactivas,
-  así que el restore es secuencial (delete-all + insert). Es una operación manual y
-  confirmada sobre un backup propio (usuario único) — mismo patrón que migrate:poc.
+  El restore conserva los ids del export y usa `db.batch`: neon-http envía todas
+  las sentencias como una única transacción no interactiva. Un fallo revierte el
+  borrado y todas las inserciones.
 */
 
 export const EXPORT_APP = "fuelboard";
-export const EXPORT_VERSION = 1 as const;
+export const EXPORT_VERSION = 2 as const;
 
 export interface FullExport {
   app: typeof EXPORT_APP;
@@ -31,6 +38,7 @@ export async function exportAll(): Promise<FullExport> {
     dietVersions,
     planOptions,
     days,
+    bloatEvents,
     mealEntries,
     healthMetrics,
     workouts,
@@ -49,6 +57,7 @@ export async function exportAll(): Promise<FullExport> {
     db.select().from(schema.dietVersions),
     db.select().from(schema.planOptions),
     db.select().from(schema.days),
+    db.select().from(schema.bloatEvents),
     db.select().from(schema.mealEntries),
     db.select().from(schema.healthMetrics),
     db.select().from(schema.workouts),
@@ -73,6 +82,7 @@ export async function exportAll(): Promise<FullExport> {
       dietVersions,
       planOptions,
       days,
+      bloatEvents,
       mealEntries,
       healthMetrics,
       workouts,
@@ -93,29 +103,43 @@ export async function exportAll(): Promise<FullExport> {
 
 // ── Validación tolerante del archivo de restore ──
 const anyRow = z.record(z.string(), z.unknown());
-const importSchema = z.object({
-  app: z.string().optional(),
-  version: z.number().optional(),
-  data: z.object({
-    dietVersions: z.array(anyRow).default([]),
-    planOptions: z.array(anyRow).default([]),
-    days: z.array(anyRow).default([]),
-    mealEntries: z.array(anyRow).default([]),
-    healthMetrics: z.array(anyRow).default([]),
-    workouts: z.array(anyRow).default([]),
-    medMeasurements: z.array(anyRow).default([]),
-    favorites: z.array(anyRow).default([]),
-    products: z.array(anyRow).default([]),
-    dayTemplates: z.array(anyRow).default([]),
-    settings: z.array(anyRow).default([]),
-    chatThreads: z.array(anyRow).default([]),
-    chatMessages: z.array(anyRow).default([]),
-    trainingPlans: z.array(anyRow).default([]),
-    trainingSessions: z.array(anyRow).default([]),
-    performanceMarks: z.array(anyRow).default([]),
-    markEntries: z.array(anyRow).default([]),
+const v1DataShape = {
+  dietVersions: z.array(anyRow),
+  planOptions: z.array(anyRow),
+  days: z.array(anyRow),
+  mealEntries: z.array(anyRow),
+  healthMetrics: z.array(anyRow),
+  workouts: z.array(anyRow),
+  medMeasurements: z.array(anyRow),
+  favorites: z.array(anyRow),
+  products: z.array(anyRow),
+  dayTemplates: z.array(anyRow),
+  settings: z.array(anyRow),
+  chatThreads: z.array(anyRow),
+  chatMessages: z.array(anyRow),
+  trainingPlans: z.array(anyRow),
+  trainingSessions: z.array(anyRow),
+  performanceMarks: z.array(anyRow),
+  markEntries: z.array(anyRow),
+};
+const v2DataShape = {
+  ...v1DataShape,
+  bloatEvents: z.array(anyRow),
+};
+const importSchema = z.discriminatedUnion("version", [
+  z.object({
+    app: z.literal(EXPORT_APP),
+    version: z.literal(1),
+    exportedAt: z.string().optional(),
+    data: z.object({ ...v1DataShape, bloatEvents: z.array(anyRow).default([]) }),
   }),
-});
+  z.object({
+    app: z.literal(EXPORT_APP),
+    version: z.literal(EXPORT_VERSION),
+    exportedAt: z.string().optional(),
+    data: z.object(v2DataShape),
+  }),
+]);
 
 export type ImportData = z.infer<typeof importSchema>["data"];
 export type TableCounts = Record<keyof ImportData, number>;
@@ -131,12 +155,180 @@ function countRows(data: ImportData): TableCounts {
   return out;
 }
 
+const ID_TABLES = [
+  "dietVersions",
+  "planOptions",
+  "bloatEvents",
+  "mealEntries",
+  "workouts",
+  "medMeasurements",
+  "favorites",
+  "products",
+  "dayTemplates",
+  "chatThreads",
+  "chatMessages",
+  "trainingPlans",
+  "trainingSessions",
+  "performanceMarks",
+  "markEntries",
+] as const satisfies readonly (keyof ImportData)[];
+
+function importError(table: keyof ImportData, index: number, field: string): never {
+  throw new Error(`Archivo inválido: ${table}[${index}].${field}.`);
+}
+
+function assertField(
+  data: ImportData,
+  table: keyof ImportData,
+  field: string,
+  valid: (value: unknown) => boolean,
+): void {
+  data[table].forEach((row, index) => {
+    if (!valid(row[field])) importError(table, index, field);
+  });
+}
+
+const isId = (value: unknown) =>
+  typeof value === "number" && Number.isInteger(value) && value > 0;
+const isFiniteNumber = (value: unknown) =>
+  typeof value === "number" && Number.isFinite(value);
+const isNullableNumber = (value: unknown) => value == null || isFiniteNumber(value);
+const isString = (value: unknown) => typeof value === "string";
+const isNullableString = (value: unknown) => value == null || isString(value);
+const isDate = (value: unknown) => dateZ.safeParse(value).success;
+const isNullableDate = (value: unknown) => value == null || isDate(value);
+const isTime = (value: unknown) =>
+  typeof value === "string" &&
+  /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,6})?)?$/.test(value);
+const isEnum = (values: readonly string[]) => (value: unknown) =>
+  typeof value === "string" && values.includes(value);
+const isNullableEnum = (values: readonly string[]) => (value: unknown) =>
+  value == null || isEnum(values)(value);
+
+function assertUniqueIds(data: ImportData, table: (typeof ID_TABLES)[number]): void {
+  const ids = new Set<number>();
+  data[table].forEach((row, index) => {
+    if (!isId(row.id) || ids.has(row.id as number)) importError(table, index, "id");
+    ids.add(row.id as number);
+  });
+}
+
+function assertForeignKey(
+  data: ImportData,
+  table: keyof ImportData,
+  field: string,
+  parent: keyof ImportData,
+  parentField = "id",
+  nullable = false,
+): void {
+  const keys = new Set(data[parent].map((row) => row[parentField]));
+  data[table].forEach((row, index) => {
+    const value = row[field];
+    if (nullable && value == null) return;
+    if (!keys.has(value)) importError(table, index, field);
+  });
+}
+
+/** Preflight completo: la vista previa nunca acepta datos que el restore rechazará. */
+function validateImportData(data: ImportData): void {
+  ID_TABLES.forEach((table) => assertUniqueIds(data, table));
+
+  const dateFields: [keyof ImportData, string][] = [
+    ["dietVersions", "effectiveFrom"],
+    ["days", "date"],
+    ["bloatEvents", "date"],
+    ["mealEntries", "date"],
+    ["healthMetrics", "date"],
+    ["workouts", "date"],
+    ["medMeasurements", "date"],
+    ["trainingPlans", "validFrom"],
+    ["markEntries", "recordedOn"],
+  ];
+  dateFields.forEach(([table, field]) => assertField(data, table, field, isDate));
+  assertField(data, "trainingPlans", "validTo", isNullableDate);
+  assertField(data, "trainingPlans", "importRequestId", isNullableString);
+  assertField(data, "trainingPlans", "importFingerprint", isNullableString);
+  assertField(data, "bloatEvents", "occurredAt", isTime);
+
+  const requiredNumbers: [keyof ImportData, string[]][] = [
+    ["dietVersions", ["kcalTarget", "protTarget"]],
+    ["planOptions", ["kcal", "prot", "carb", "fat", "sort"]],
+    ["mealEntries", ["kcal", "prot", "carb", "fat"]],
+    ["favorites", ["kcal", "prot", "carb", "fat"]],
+    ["products", ["baseKcal", "baseProt", "baseCarb", "baseFat"]],
+    ["trainingSessions", ["sort"]],
+    ["markEntries", ["value"]],
+  ];
+  requiredNumbers.forEach(([table, fields]) =>
+    fields.forEach((field) => assertField(data, table, field, isFiniteNumber)),
+  );
+
+  const nullableNumbers: [keyof ImportData, string[]][] = [
+    ["dietVersions", ["carbTarget", "fatTarget"]],
+    ["planOptions", ["baseG"]],
+    ["days", ["weight", "waterL", "bodyFatPct", "sessionKcal", "sessionRef"]],
+    ["mealEntries", ["grams", "baseG", "baseKcal", "baseProt", "baseCarb", "baseFat", "clientMutationIndex"]],
+    ["healthMetrics", ["steps", "activeKcal", "basalKcal", "hrvMs", "sleepH", "restingHr", "vo2max", "waterL", "weight", "bodyFatPct"]],
+    ["workouts", ["durationMin", "avgHr", "activeKcal"]],
+    ["medMeasurements", ["fatKg", "muscleKg", "weightKg"]],
+    ["products", ["baseG"]],
+    ["trainingSessions", ["kcalMin", "kcalMax", "duracionMin"]],
+  ];
+  nullableNumbers.forEach(([table, fields]) =>
+    fields.forEach((field) => assertField(data, table, field, isNullableNumber)),
+  );
+
+  const stringFields: [keyof ImportData, string[]][] = [
+    ["planOptions", ["name"]],
+    ["mealEntries", ["name"]],
+    ["workouts", ["type"]],
+    ["favorites", ["name"]],
+    ["products", ["name"]],
+    ["dayTemplates", ["name"]],
+    ["settings", ["key"]],
+    ["chatThreads", ["title"]],
+    ["chatMessages", ["content"]],
+    ["trainingPlans", ["programa", "etiqueta"]],
+    ["trainingSessions", ["key", "nombre", "contenido"]],
+    ["performanceMarks", ["name", "unit"]],
+  ];
+  stringFields.forEach(([table, fields]) =>
+    fields.forEach((field) => assertField(data, table, field, isString)),
+  );
+  assertField(data, "days", "notes", isNullableString);
+
+  assertField(data, "planOptions", "meal", isEnum(schema.mealEnum.enumValues));
+  assertField(data, "planOptions", "grp", isEnum(schema.grpEnum.enumValues));
+  assertField(data, "days", "phase", isNullableEnum(schema.phaseEnum.enumValues));
+  assertField(data, "days", "bloat", isNullableEnum(schema.bloatEnum.enumValues));
+  assertField(data, "bloatEvents", "severity", isEnum(schema.bloatEnum.enumValues));
+  assertField(data, "mealEntries", "meal", isEnum(schema.mealEnum.enumValues));
+  assertField(data, "mealEntries", "source", isEnum(schema.mealSourceEnum.enumValues));
+  assertField(data, "healthMetrics", "source", isEnum(schema.healthSourceEnum.enumValues));
+  assertField(data, "favorites", "meal", isEnum(schema.mealEnum.enumValues));
+  assertField(data, "products", "grupo", isNullableEnum(schema.grpEnum.enumValues));
+  assertField(data, "products", "source", isEnum(schema.productSourceEnum.enumValues));
+  assertField(data, "chatMessages", "role", isEnum(schema.chatRoleEnum.enumValues));
+  assertField(data, "trainingPlans", "source", isEnum(schema.trainingSourceEnum.enumValues));
+  assertField(data, "trainingSessions", "tipo", isEnum(schema.trainingTipoEnum.enumValues));
+  assertField(data, "performanceMarks", "measureType", isEnum(schema.markMeasureEnum.enumValues));
+
+  assertForeignKey(data, "planOptions", "dietVersionId", "dietVersions");
+  assertForeignKey(data, "bloatEvents", "date", "days", "date");
+  assertForeignKey(data, "mealEntries", "date", "days", "date");
+  assertForeignKey(data, "trainingSessions", "planId", "trainingPlans");
+  assertForeignKey(data, "days", "sessionRef", "trainingSessions", "id", true);
+  assertForeignKey(data, "chatMessages", "threadId", "chatThreads");
+  assertForeignKey(data, "markEntries", "markId", "performanceMarks");
+}
+
 /** Valida el archivo y devuelve los datos + el conteo (para la vista previa). */
 export function parseImport(raw: unknown): ImportData {
   const parsed = importSchema.safeParse(raw);
   if (!parsed.success) {
     throw new Error("El archivo no es un export de Fuelboard válido.");
   }
+  validateImportData(parsed.data.data);
   return parsed.data.data;
 }
 
@@ -149,7 +341,8 @@ export async function previewImport(data: ImportData): Promise<ImportPreview> {
 const n = (v: unknown): number | null =>
   v == null || v === "" ? null : Number(v);
 const s = (v: unknown): string | null => (v == null ? null : String(v));
-const dt = (v: unknown): Date => (v ? new Date(String(v)) : new Date());
+const dt = (v: unknown): Date =>
+  v instanceof Date ? new Date(v.getTime()) : v ? new Date(String(v)) : new Date();
 
 export interface ImportResult {
   restored: TableCounts;
@@ -157,243 +350,292 @@ export interface ImportResult {
 
 /** REEMPLAZA todo el contenido con el del archivo (delete-all + insert remapeado). */
 export async function applyImport(data: ImportData): Promise<ImportResult> {
-  // 1) Borrado hijos → padres (los cascades cubren, pero somos explícitos).
-  await db.delete(schema.chatMessages);
-  await db.delete(schema.chatThreads);
-  await db.delete(schema.mealEntries);
-  await db.delete(schema.planOptions);
-  await db.delete(schema.days);
-  // training_sessions se borra tras days (days.session_ref → training_sessions);
-  // luego training_plans (padre).
-  await db.delete(schema.trainingSessions);
-  await db.delete(schema.trainingPlans);
-  // marcas: entradas (hijas) antes que las marcas (padres).
-  await db.delete(schema.markEntries);
-  await db.delete(schema.performanceMarks);
-  await db.delete(schema.healthMetrics);
-  await db.delete(schema.workouts);
-  await db.delete(schema.medMeasurements);
-  await db.delete(schema.favorites);
-  await db.delete(schema.products);
-  await db.delete(schema.dayTemplates);
-  await db.delete(schema.dietVersions);
-  await db.delete(schema.settings);
+  const queries: BatchItem<"pg">[] = [
+    db.delete(schema.chatMessages),
+    db.delete(schema.chatThreads),
+    db.delete(schema.mealEntries),
+    db.delete(schema.planOptions),
+    db.delete(schema.bloatEvents),
+    db.delete(schema.days),
+    db.delete(schema.trainingSessions),
+    db.delete(schema.trainingPlans),
+    db.delete(schema.markEntries),
+    db.delete(schema.performanceMarks),
+    db.delete(schema.healthMetrics),
+    db.delete(schema.workouts),
+    db.delete(schema.medMeasurements),
+    db.delete(schema.favorites),
+    db.delete(schema.products),
+    db.delete(schema.dayTemplates),
+    db.delete(schema.dietVersions),
+    db.delete(schema.settings),
+  ];
 
-  // 2) diet_versions (remapea id antiguo → nuevo).
-  const versionMap = new Map<number, number>();
-  for (const r of data.dietVersions) {
-    const [row] = await db
-      .insert(schema.dietVersions)
-      .values({
-        effectiveFrom: String(r.effectiveFrom),
-        kcalTarget: Number(r.kcalTarget ?? 0),
-        protTarget: Number(r.protTarget ?? 0),
-        carbTarget: n(r.carbTarget),
-        fatTarget: n(r.fatTarget),
-        note: s(r.note),
-      })
-      .returning({ id: schema.dietVersions.id });
-    if (row && r.id != null) versionMap.set(Number(r.id), row.id);
-  }
-
-  // 2b) training_plans + training_sessions (remapea ids; deben ir ANTES de days,
-  // porque days.session_ref → training_sessions).
-  const planMap = new Map<number, number>();
-  for (const r of data.trainingPlans) {
-    const [row] = await db
-      .insert(schema.trainingPlans)
-      .values({
-        importedAt: dt(r.importedAt),
-        programa: String(r.programa ?? ""),
-        etiqueta: String(r.etiqueta ?? ""),
-        validFrom: String(r.validFrom),
-        validTo: s(r.validTo),
-        source: (r.source ?? "pdf") as typeof schema.trainingSourceEnum.enumValues[number],
-      })
-      .returning({ id: schema.trainingPlans.id });
-    if (row && r.id != null) planMap.set(Number(r.id), row.id);
-  }
-  const sessionMap = new Map<number, number>();
-  for (const r of data.trainingSessions) {
-    const [row] = await db
-      .insert(schema.trainingSessions)
-      .values({
-        planId: planMap.get(Number(r.planId)) ?? Number(r.planId),
-        key: String(r.key ?? ""),
-        nombre: String(r.nombre ?? ""),
-        tipo: (r.tipo ?? "otro") as typeof schema.trainingTipoEnum.enumValues[number],
-        contenido: String(r.contenido ?? ""),
-        kcalMin: n(r.kcalMin),
-        kcalMax: n(r.kcalMax),
-        duracionMin: n(r.duracionMin),
-        sort: Number(r.sort ?? 0),
-      })
-      .returning({ id: schema.trainingSessions.id });
-    if (row && r.id != null) sessionMap.set(Number(r.id), row.id);
-  }
-
-  // 3) days (PK = date, sin identidad; session_ref remapeado a la sesión nueva).
-  if (data.days.length) {
-    await db.insert(schema.days).values(
-      data.days.map((r) => ({
-        date: String(r.date),
-        weight: n(r.weight),
-        waterL: n(r.waterL),
-        bodyFatPct: n(r.bodyFatPct),
-        sessionLabel: s(r.sessionLabel),
-        sessionKcal: n(r.sessionKcal),
-        sessionRef:
-          r.sessionRef == null
-            ? null
-            : (sessionMap.get(Number(r.sessionRef)) ?? Number(r.sessionRef)),
-        phase: (r.phase ?? null) as typeof schema.phaseEnum.enumValues[number] | null,
-        bloat: (r.bloat ?? null) as typeof schema.bloatEnum.enumValues[number] | null,
-        notes: s(r.notes),
-      })),
+  if (data.dietVersions.length) {
+    queries.push(
+      db.insert(schema.dietVersions).overridingSystemValue().values(
+        data.dietVersions.map((r) => ({
+          id: Number(r.id),
+          effectiveFrom: String(r.effectiveFrom),
+          kcalTarget: Number(r.kcalTarget),
+          protTarget: Number(r.protTarget),
+          carbTarget: n(r.carbTarget),
+          fatTarget: n(r.fatTarget),
+          note: s(r.note),
+        })),
+      ),
     );
   }
-
-  // 4) plan_options (FK → diet_versions remapeada; variants F08 vía mapa puro).
+  if (data.trainingPlans.length) {
+    queries.push(
+      db.insert(schema.trainingPlans).overridingSystemValue().values(
+        data.trainingPlans.map((r) => ({
+          id: Number(r.id),
+          importedAt: dt(r.importedAt),
+          programa: String(r.programa),
+          etiqueta: String(r.etiqueta),
+          validFrom: String(r.validFrom),
+          validTo: s(r.validTo),
+          source: r.source as typeof schema.trainingSourceEnum.enumValues[number],
+          importRequestId: s(r.importRequestId),
+          importFingerprint: s(r.importFingerprint),
+        })),
+      ),
+    );
+  }
+  if (data.trainingSessions.length) {
+    queries.push(
+      db.insert(schema.trainingSessions).overridingSystemValue().values(
+        data.trainingSessions.map((r) => ({
+          id: Number(r.id),
+          planId: Number(r.planId),
+          key: String(r.key),
+          nombre: String(r.nombre),
+          tipo: r.tipo as typeof schema.trainingTipoEnum.enumValues[number],
+          contenido: String(r.contenido),
+          kcalMin: n(r.kcalMin),
+          kcalMax: n(r.kcalMax),
+          duracionMin: n(r.duracionMin),
+          sort: Number(r.sort),
+        })),
+      ),
+    );
+  }
+  if (data.days.length) {
+    queries.push(
+      db.insert(schema.days).values(
+        data.days.map((r) => ({
+          date: String(r.date),
+          weight: n(r.weight),
+          waterL: n(r.waterL),
+          bodyFatPct: n(r.bodyFatPct),
+          sessionLabel: s(r.sessionLabel),
+          sessionKcal: n(r.sessionKcal),
+          sessionRef: n(r.sessionRef),
+          phase: (r.phase ?? null) as typeof schema.phaseEnum.enumValues[number] | null,
+          bloat: (r.bloat ?? null) as typeof schema.bloatEnum.enumValues[number] | null,
+          notes: s(r.notes),
+        })),
+      ),
+    );
+  }
+  if (data.bloatEvents.length) {
+    queries.push(
+      db.insert(schema.bloatEvents).overridingSystemValue().values(
+        data.bloatEvents.map((r) => ({ id: Number(r.id), ...bloatEventImportRow(r) })),
+      ),
+    );
+  }
   if (data.planOptions.length) {
-    await db.insert(schema.planOptions).values(
-      data.planOptions.map((r) =>
-        planOptionImportRow(
-          r,
-          versionMap.get(Number(r.dietVersionId)) ?? Number(r.dietVersionId),
-        ),
+    queries.push(
+      db.insert(schema.planOptions).overridingSystemValue().values(
+        data.planOptions.map((r) => ({
+          id: Number(r.id),
+          ...planOptionImportRow(r, Number(r.dietVersionId)),
+        })),
+      ),
+    );
+  }
+  if (data.mealEntries.length) {
+    queries.push(
+      db.insert(schema.mealEntries).overridingSystemValue().values(
+        data.mealEntries.map((r) => ({ id: Number(r.id), ...mealEntryImportRow(r) })),
+      ),
+    );
+  }
+  if (data.healthMetrics.length) {
+    queries.push(
+      db.insert(schema.healthMetrics).values(
+        data.healthMetrics.map((r) => ({
+          date: String(r.date),
+          steps: n(r.steps),
+          activeKcal: n(r.activeKcal),
+          basalKcal: n(r.basalKcal),
+          hrvMs: n(r.hrvMs),
+          sleepH: n(r.sleepH),
+          restingHr: n(r.restingHr),
+          vo2max: n(r.vo2max),
+          waterL: n(r.waterL),
+          weight: n(r.weight),
+          bodyFatPct: n(r.bodyFatPct),
+          extra: (r.extra ?? null) as Record<string, number> | null,
+          source: r.source as typeof schema.healthSourceEnum.enumValues[number],
+          updatedAt: dt(r.updatedAt),
+        })),
+      ),
+    );
+  }
+  if (data.workouts.length) {
+    queries.push(
+      db.insert(schema.workouts).overridingSystemValue().values(
+        data.workouts.map((r) => ({
+          id: Number(r.id),
+          date: String(r.date),
+          type: String(r.type),
+          durationMin: n(r.durationMin),
+          avgHr: n(r.avgHr),
+          activeKcal: n(r.activeKcal),
+        })),
+      ),
+    );
+  }
+  if (data.medMeasurements.length) {
+    queries.push(
+      db.insert(schema.medMeasurements).overridingSystemValue().values(
+        data.medMeasurements.map((r) => ({
+          id: Number(r.id),
+          date: String(r.date),
+          fatKg: n(r.fatKg),
+          muscleKg: n(r.muscleKg),
+          weightKg: n(r.weightKg),
+        })),
+      ),
+    );
+  }
+  if (data.favorites.length) {
+    queries.push(
+      db.insert(schema.favorites).overridingSystemValue().values(
+        data.favorites.map((r) => ({
+          id: Number(r.id),
+          meal: r.meal as typeof schema.mealEnum.enumValues[number],
+          name: String(r.name),
+          kcal: Number(r.kcal),
+          prot: Number(r.prot),
+          carb: Number(r.carb),
+          fat: Number(r.fat),
+        })),
+      ),
+    );
+  }
+  if (data.products.length) {
+    queries.push(
+      db.insert(schema.products).overridingSystemValue().values(
+        data.products.map((r) => ({ id: Number(r.id), ...productImportRow(r) })),
+      ),
+    );
+  }
+  if (data.dayTemplates.length) {
+    queries.push(
+      db.insert(schema.dayTemplates).overridingSystemValue().values(
+        data.dayTemplates.map((r) => ({
+          id: Number(r.id),
+          name: String(r.name),
+          items: (Array.isArray(r.items) ? r.items : []) as typeof schema.dayTemplates.$inferInsert.items,
+        })),
+      ),
+    );
+  }
+  if (data.settings.length) {
+    queries.push(
+      db.insert(schema.settings).values(
+        data.settings.map((r) => ({ key: String(r.key), value: r.value ?? {} })),
+      ),
+    );
+  }
+  if (data.chatThreads.length) {
+    queries.push(
+      db.insert(schema.chatThreads).overridingSystemValue().values(
+        data.chatThreads.map((r) => ({
+          id: Number(r.id),
+          title: String(r.title),
+          summary: s(r.summary),
+          summaryMsgCount: Number(r.summaryMsgCount ?? 0),
+          createdAt: dt(r.createdAt),
+          updatedAt: dt(r.updatedAt),
+        })),
+      ),
+    );
+  }
+  if (data.chatMessages.length) {
+    queries.push(
+      db.insert(schema.chatMessages).overridingSystemValue().values(
+        data.chatMessages.map((r) => ({
+          id: Number(r.id),
+          threadId: Number(r.threadId),
+          role: r.role as typeof schema.chatRoleEnum.enumValues[number],
+          turnId: typeof r.turnId === "string" ? r.turnId : null,
+          content: String(r.content),
+          createdAt: dt(r.createdAt),
+        })),
+      ),
+    );
+  }
+  if (data.performanceMarks.length) {
+    queries.push(
+      db.insert(schema.performanceMarks).overridingSystemValue().values(
+        data.performanceMarks.map((r) => ({
+          id: Number(r.id),
+          name: String(r.name),
+          measureType: r.measureType as typeof schema.markMeasureEnum.enumValues[number],
+          unit: String(r.unit),
+          family: s(r.family),
+          createdAt: dt(r.createdAt),
+        })),
+      ),
+    );
+  }
+  if (data.markEntries.length) {
+    queries.push(
+      db.insert(schema.markEntries).overridingSystemValue().values(
+        data.markEntries.map((r) => ({
+          id: Number(r.id),
+          markId: Number(r.markId),
+          value: Number(r.value),
+          recordedOn: String(r.recordedOn),
+          note: s(r.note),
+          createdAt: dt(r.createdAt),
+        })),
       ),
     );
   }
 
-  // 5) meal_entries (FK → days; conserva createdAt + base inmutable F06).
-  if (data.mealEntries.length) {
-    await db.insert(schema.mealEntries).values(data.mealEntries.map(mealEntryImportRow));
-  }
-
-  // 6) health_metrics.
-  if (data.healthMetrics.length) {
-    await db.insert(schema.healthMetrics).values(
-      data.healthMetrics.map((r) => ({
-        date: String(r.date),
-        steps: n(r.steps),
-        activeKcal: n(r.activeKcal),
-        basalKcal: n(r.basalKcal),
-        hrvMs: n(r.hrvMs),
-        sleepH: n(r.sleepH),
-        restingHr: n(r.restingHr),
-        vo2max: n(r.vo2max),
-        waterL: n(r.waterL),
-        weight: n(r.weight),
-        bodyFatPct: n(r.bodyFatPct),
-        extra: (r.extra ?? null) as Record<string, number> | null,
-        source: (r.source ?? "csv") as typeof schema.healthSourceEnum.enumValues[number],
-        updatedAt: dt(r.updatedAt),
-      })),
+  const identityTables = [
+    "diet_versions",
+    "plan_options",
+    "bloat_events",
+    "meal_entries",
+    "workouts",
+    "med_measurements",
+    "favorites",
+    "products",
+    "day_templates",
+    "chat_threads",
+    "chat_messages",
+    "training_plans",
+    "training_sessions",
+    "performance_marks",
+    "mark_entries",
+  ] as const;
+  for (const table of identityTables) {
+    const identifier = sql.raw(`"${table}"`);
+    const sequence = sql.raw(`pg_get_serial_sequence('${table}', 'id')`);
+    queries.push(
+      db.select({
+        value: sql<number>`setval(${sequence}, coalesce((select max(id) from ${identifier}), 1), exists(select 1 from ${identifier}))`,
+      }).from(sql`(select 1) as reset_source`),
     );
   }
 
-  // 7) workouts / med / favorites / templates / settings.
-  if (data.workouts.length) {
-    await db.insert(schema.workouts).values(
-      data.workouts.map((r) => ({
-        date: String(r.date),
-        type: String(r.type ?? "Entrenamiento"),
-        durationMin: n(r.durationMin),
-        avgHr: n(r.avgHr),
-        activeKcal: n(r.activeKcal),
-      })),
-    );
-  }
-  if (data.medMeasurements.length) {
-    await db.insert(schema.medMeasurements).values(
-      data.medMeasurements.map((r) => ({
-        date: String(r.date),
-        fatKg: n(r.fatKg),
-        muscleKg: n(r.muscleKg),
-        weightKg: n(r.weightKg),
-      })),
-    );
-  }
-  if (data.favorites.length) {
-    await db.insert(schema.favorites).values(
-      data.favorites.map((r) => ({
-        meal: r.meal as typeof schema.mealEnum.enumValues[number],
-        name: String(r.name ?? ""),
-        kcal: Number(r.kcal ?? 0),
-        prot: Number(r.prot ?? 0),
-        carb: Number(r.carb ?? 0),
-        fat: Number(r.fat ?? 0),
-      })),
-    );
-  }
-  if (data.products.length) {
-    await db.insert(schema.products).values(data.products.map(productImportRow));
-  }
-  if (data.dayTemplates.length) {
-    await db.insert(schema.dayTemplates).values(
-      data.dayTemplates.map((r) => ({
-        name: String(r.name ?? ""),
-        items: (Array.isArray(r.items) ? r.items : []) as typeof schema.dayTemplates.$inferInsert.items,
-      })),
-    );
-  }
-  if (data.settings.length) {
-    await db.insert(schema.settings).values(
-      data.settings.map((r) => ({ key: String(r.key), value: r.value ?? {} })),
-    );
-  }
-
-  // 8) chat (remapea thread id).
-  const threadMap = new Map<number, number>();
-  for (const r of data.chatThreads) {
-    const [row] = await db
-      .insert(schema.chatThreads)
-      .values({
-        title: String(r.title ?? ""),
-        createdAt: dt(r.createdAt),
-        updatedAt: dt(r.updatedAt),
-      })
-      .returning({ id: schema.chatThreads.id });
-    if (row && r.id != null) threadMap.set(Number(r.id), row.id);
-  }
-  if (data.chatMessages.length) {
-    await db.insert(schema.chatMessages).values(
-      data.chatMessages.map((r) => ({
-        threadId: threadMap.get(Number(r.threadId)) ?? Number(r.threadId),
-        role: r.role as typeof schema.chatRoleEnum.enumValues[number],
-        content: String(r.content ?? ""),
-        createdAt: dt(r.createdAt),
-      })),
-    );
-  }
-
-  // 9) marcas de rendimiento (remapea id antiguo → nuevo) + sus entradas (FK remapeada).
-  const markMap = new Map<number, number>();
-  for (const r of data.performanceMarks) {
-    const [row] = await db
-      .insert(schema.performanceMarks)
-      .values({
-        name: String(r.name ?? ""),
-        measureType: (r.measureType ??
-          "weight") as typeof schema.markMeasureEnum.enumValues[number],
-        unit: String(r.unit ?? ""),
-        family: s(r.family),
-        createdAt: dt(r.createdAt),
-      })
-      .returning({ id: schema.performanceMarks.id });
-    if (row && r.id != null) markMap.set(Number(r.id), row.id);
-  }
-  if (data.markEntries.length) {
-    await db.insert(schema.markEntries).values(
-      data.markEntries.map((r) => ({
-        markId: markMap.get(Number(r.markId)) ?? Number(r.markId),
-        value: Number(r.value ?? 0),
-        recordedOn: String(r.recordedOn),
-        note: s(r.note),
-        createdAt: dt(r.createdAt),
-      })),
-    );
-  }
-
+  await db.batch(queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
   return { restored: countRows(data) };
 }

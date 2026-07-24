@@ -1,6 +1,11 @@
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
-import { inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { shiftDayKey } from "@/lib/dates";
+import {
+  buildHealthBaseline,
+  type HealthBaseline,
+} from "@/server/analytics/healthBaseline";
 import { db, schema } from "@/server/db";
 import { HEALTH_FIELDS, type HealthDay } from "@/server/ingest/normalize";
 import type { WorkoutRow } from "@/server/ingest/hae-json";
@@ -8,9 +13,9 @@ import { getSetting, setSetting } from "./lookups";
 
 /*
   Capa BD de Salud (Fase 3). health_metrics va SEPARADO de days a propósito:
-  al fusionar la vista efectiva de un día, health_metrics tiene PRECEDENCIA sobre
-  days para las métricas solapadas (peso, agua, % grasa) — principio 6: los datos
-  reales machacan a los manuales cuando traen valor.
+  al fusionar la vista efectiva de un día, `days` tiene precedencia para las
+  métricas solapadas (peso, agua, % grasa). Health conserva la lectura importada
+  y rellena huecos, sin sustituir una corrección manual consciente.
 */
 
 export const HEALTH_SYNC_KEY = "healthSync";
@@ -21,7 +26,7 @@ export interface HealthSyncStatus {
   imported: number;
 }
 
-/** Métricas de days que health puede pisar (para el aviso de la vista previa). */
+/** Métricas manuales que también aparecen en una importación (aviso de preview). */
 const MANUAL_OVERLAP: (keyof HealthDay & string)[] = ["weight", "waterL", "bodyFatPct"];
 
 /**
@@ -89,7 +94,7 @@ export async function insertWorkouts(rows: WorkoutRow[]): Promise<number> {
 
 /**
  * Cuántos de los días entrantes traen una métrica (peso/agua/%grasa) que YA
- * existe manualmente en `days` → la importación la pisará en la vista efectiva.
+ * existe manualmente en `days`. La vista efectiva conservará el dato manual.
  */
 export async function countManualOverwrites(days: HealthDay[]): Promise<number> {
   const dates = days
@@ -138,6 +143,7 @@ export interface HealthSyncView {
   source: "endpoint" | "csv";
   ago: string;
   stale: boolean;
+  imported: number;
 }
 
 /** Estado de sincronización listo para pintar (deriva «hace X» fuera del render). */
@@ -148,5 +154,46 @@ export async function getHealthSyncView(): Promise<HealthSyncView | null> {
     source: s.source,
     ago: formatDistanceToNow(new Date(s.at), { addSuffix: true, locale: es }),
     stale: Date.now() - Date.parse(s.at) > STALE_MS,
+    imported: s.imported,
   };
+}
+
+/**
+ * Baseline personal del día seleccionado. El rango histórico es exactamente los
+ * 30 días naturales anteriores ([date-30, date-1]); el propio día solo aporta el
+ * valor crudo actual y nunca entra en su media.
+ */
+export async function getHealthBaseline(date: string): Promise<HealthBaseline> {
+  const from = shiftDayKey(date, -30);
+  const to = shiftDayKey(date, -1);
+  const projection = {
+    hrvMs: schema.healthMetrics.hrvMs,
+    restingHr: schema.healthMetrics.restingHr,
+    sleepH: schema.healthMetrics.sleepH,
+    steps: schema.healthMetrics.steps,
+  };
+
+  const [currentRows, history] = await Promise.all([
+    db
+      .select(projection)
+      .from(schema.healthMetrics)
+      .where(eq(schema.healthMetrics.date, date))
+      .limit(1),
+    db
+      .select(projection)
+      .from(schema.healthMetrics)
+      .where(
+        and(
+          gte(schema.healthMetrics.date, from),
+          lte(schema.healthMetrics.date, to),
+        ),
+      ),
+  ]);
+
+  return buildHealthBaseline({
+    current: currentRows[0] ?? null,
+    history,
+    from,
+    to,
+  });
 }

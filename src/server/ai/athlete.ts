@@ -15,7 +15,7 @@ import { athleteContext, athleteContextCompact } from "./prompts";
   `diasEntrenoSemana` se deriva del mapeo (una sola fuente de verdad).
 */
 export interface AthleteContexts {
-  peso: number;
+  peso: number | null;
   sessionByWeekday: SessionByWeekday;
   /** Contexto completo (coach/WOD/visita/chat). */
   full: string;
@@ -36,7 +36,7 @@ export async function getAthleteContexts(
       ? Promise.resolve(knownPeso)
       : latestWeightOnOrBefore(date),
   ]);
-  const peso = (knownPeso ?? pesoDb) ?? 92;
+  const peso = knownPeso ?? pesoDb;
   const trainingDays = trainingDaysPerWeek(sessionByWeekday);
   return {
     peso,

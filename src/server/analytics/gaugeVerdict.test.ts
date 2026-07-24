@@ -43,4 +43,22 @@ describe("gaugeVerdict (fuente única del veredicto del día)", () => {
     expect(gaugeVerdict(TARGETS, JUL14, "competicion").phase).toBe("competicion");
     expect(gaugeVerdict(TARGETS, JUL14, null).phase).toBe("normal");
   });
+
+  it("sin objetivos no afirma que el día esté cubierto", () => {
+    const v = gaugeVerdict(
+      { kcal: 0, prot: 0, carb: 0, fat: 0 },
+      { kcal: 0, prot: 0, carb: 0, fat: 0 },
+      null,
+    );
+    expect(v.covered).toBe(false);
+  });
+
+  it("ignora macros sin objetivo al decidir si cubrió la pauta", () => {
+    const v = gaugeVerdict(
+      { kcal: 1800, prot: 110, carb: 0, fat: 0 },
+      { kcal: 1800, prot: 110, carb: 0, fat: 0 },
+      null,
+    );
+    expect(v.covered).toBe(true);
+  });
 });

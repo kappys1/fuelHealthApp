@@ -60,6 +60,7 @@ docs/fuelboard-export*.json
 # CSV real de Health Auto Export (datos de salud personales de Alex): se deja en
 # local para el test condicional de hae-csv, pero NUNCA se commitea.
 /HealthAutoExport-*.csv
+/HealthAutoExport-*.json
 src/server/ingest/__fixtures__/hae-real.csv
 
 # Playwright
@@ -68,3 +69,7 @@ src/server/ingest/__fixtures__/hae-real.csv
 /e2e/.auth/
 /blob-report/
 /playwright/.cache/
+
+# Python bytecode from skill scripts
+__pycache__/
+*.pyc

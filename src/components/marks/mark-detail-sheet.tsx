@@ -9,9 +9,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import { MarkChart } from "@/components/charts/mark-chart";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Sheet,
   SheetContent,
@@ -21,6 +22,7 @@ import {
 import { labelForKey } from "@/lib/dates";
 import {
   bestEntry,
+  canonicalizeFamily,
   type DoubleReference,
   doubleReference,
   formatMarkValue,
@@ -34,6 +36,7 @@ import {
   sortEntriesAsc,
 } from "@/lib/marks";
 import type { MarkDTO, MarkEntryDTO } from "@/server/db/queries/marks";
+import { FamilyPicker } from "./family-picker";
 import { MarkValueInput } from "./mark-value-input";
 
 /*
@@ -45,8 +48,10 @@ import { MarkValueInput } from "./mark-value-input";
 export function MarkDetailSheet({
   mark,
   today,
+  families,
   onAddEntry,
   onUpdateEntry,
+  onUpdateMark,
   onDeleteEntry,
   onRestoreEntry,
   onDeleteMark,
@@ -54,6 +59,7 @@ export function MarkDetailSheet({
 }: {
   mark: MarkDTO;
   today: string;
+  families: string[];
   onAddEntry: (
     markId: number,
     entry: { value: number; recordedOn: string; note: string | null },
@@ -63,6 +69,10 @@ export function MarkDetailSheet({
     entryId: number,
     patch: { value: number; recordedOn: string; note: string | null },
   ) => Promise<void>;
+  onUpdateMark: (
+    markId: number,
+    patch: { name: string; family: string | null },
+  ) => Promise<void>;
   onDeleteEntry: (markId: number, entry: MarkEntryDTO) => void;
   onRestoreEntry: (markId: number, entry: MarkEntryDTO) => void;
   onDeleteMark: (markId: number) => Promise<void>;
@@ -70,6 +80,9 @@ export function MarkDetailSheet({
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingMark, setEditingMark] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingMark, setDeletingMark] = useState(false);
   // Undo INLINE (dentro del sheet): un toast de Sonner se renderiza fuera del sheet
   // modal y no recibe clics (react-remove-scroll). El registro recién borrado se
   // guarda aquí para ofrecer «Deshacer» durante 6 s dentro del propio sheet.
@@ -95,39 +108,75 @@ export function MarkDetailSheet({
   const change = latestChange(mark.measureType, mark.entries);
 
   const deleteMark = async () => {
-    if (
-      !window.confirm(
-        `¿Borrar la marca «${mark.name}» y sus ${mark.entries.length} registros? No se puede deshacer.`,
-      )
-    )
-      return;
+    setDeletingMark(true);
     try {
       await onDeleteMark(mark.id);
       toast.success("Marca borrada.");
+      setDeleteOpen(false);
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "No se pudo borrar.");
+    } finally {
+      setDeletingMark(false);
     }
   };
 
   return (
-    <Sheet open onOpenChange={(v) => !v && onClose()}>
+    <>
+      <Sheet open onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="bottom" className="max-h-[92dvh] gap-0 overflow-y-auto">
         <SheetHeader className="pb-1">
           <SheetTitle className="flex items-center justify-between gap-2 pr-6">
             <span className="min-w-0 truncate">{mark.name}</span>
-            <button
-              type="button"
-              onClick={deleteMark}
-              aria-label="Borrar marca"
-              className="shrink-0 text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="size-4" aria-hidden />
-            </button>
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingMark((v) => !v);
+                  setAdding(false);
+                  setEditingId(null);
+                }}
+                aria-label="Editar marca"
+                aria-pressed={editingMark}
+                className={`app-icon-button shrink-0 border-0 bg-transparent hover:text-foreground ${
+                  editingMark ? "text-primary" : ""
+                }`}
+              >
+                <Pencil className="size-4" aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
+                aria-label="Borrar marca"
+                className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
+              >
+                <Trash2 className="size-4" aria-hidden />
+              </button>
+            </div>
           </SheetTitle>
         </SheetHeader>
 
         <div className="space-y-4 px-4 pb-8">
+          {/* Editor inline de la marca (F11): nombre + familia. NO toca tipo/unidad. */}
+          {editingMark ? (
+            <MarkEditForm
+              mark={mark}
+              families={families}
+              onSave={async (patch) => {
+                await onUpdateMark(mark.id, patch);
+                setEditingMark(false);
+              }}
+              onCancel={() => setEditingMark(false)}
+            />
+          ) : mark.family ? (
+            // Chip de familia bajo el título — solo si hay familia (F11 · AC 4).
+            <div>
+              <span className="inline-flex items-center rounded-full border border-line bg-surface-2 px-2.5 py-1 text-[12px] font-medium text-muted-foreground">
+                {mark.family}
+              </span>
+            </div>
+          ) : null}
+
           {/* Titular: última + indicador de cambio vs la vez anterior */}
           <div className="flex items-baseline justify-between gap-2">
             <div>
@@ -199,7 +248,7 @@ export function MarkDetailSheet({
                   setAdding((v) => !v);
                   setEditingId(null);
                 }}
-                className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-[12px] text-primary"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-line bg-surface-2 px-3 text-[12px] font-semibold text-primary"
               >
                 <Plus className="size-3.5" aria-hidden /> Registro
               </button>
@@ -281,7 +330,7 @@ export function MarkDetailSheet({
                         setEditingId(e.id);
                         setAdding(false);
                       }}
-                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                      className="app-icon-button shrink-0 border-0 bg-transparent hover:text-foreground"
                     >
                       <Pencil className="size-4" aria-hidden />
                     </button>
@@ -289,7 +338,7 @@ export function MarkDetailSheet({
                       type="button"
                       aria-label="Borrar registro"
                       onClick={() => handleDelete(e)}
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
                     >
                       <Trash2 className="size-4" aria-hidden />
                     </button>
@@ -304,8 +353,18 @@ export function MarkDetailSheet({
             </div>
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Borrar marca y registros"
+        description={`Se borrará «${mark.name}» junto con ${mark.entries.length} ${mark.entries.length === 1 ? "registro" : "registros"}. Esta acción no se puede deshacer.`}
+        confirmLabel="Borrar marca"
+        busy={deletingMark}
+        onConfirm={deleteMark}
+      />
+    </>
   );
 }
 
@@ -327,14 +386,14 @@ function PercentCalculator({
         <span className="text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">
           Calculadora de %
         </span>
-        <div className="flex items-center gap-1 rounded-lg border border-input bg-surface px-3">
+        <div className="flex min-h-11 items-center gap-1 rounded-lg border border-input bg-surface px-3">
           <input
             value={pct}
             onChange={(e) => setPct(e.target.value)}
             onFocus={(e) => e.currentTarget.select()}
             inputMode="decimal"
             aria-label="Porcentaje"
-            className="num h-10 w-12 bg-transparent text-right text-base outline-none"
+            className="num h-11 w-12 bg-transparent text-right text-base outline-none"
           />
           <span className="text-[13px] text-muted-foreground">%</span>
         </div>
@@ -372,6 +431,85 @@ function PercentCalculator({
           ? "La última es tu marca vigente; el récord es solo referencia. La responsabilidad del % es tuya."
           : "Sobre tu marca vigente (última). La responsabilidad del % es tuya."}
       </p>
+    </div>
+  );
+}
+
+// Editor inline de la marca (F11): nombre + familia. El tipo/unidad NO se editan
+// (cambiarlos invalidaría las entradas — decisión firme). Nombre vacío → no guarda
+// (AC 2). La familia se canoniza contra las existentes al guardar (AC 6).
+function MarkEditForm({
+  mark,
+  families,
+  onSave,
+  onCancel,
+}: {
+  mark: MarkDTO;
+  families: string[];
+  onSave: (patch: { name: string; family: string | null }) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const nameId = useId();
+  const [name, setName] = useState(mark.name);
+  const [family, setFamily] = useState(mark.family ?? "");
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (!name.trim()) {
+      toast.error("El nombre no puede estar vacío.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSave({
+        name: name.trim(),
+        family: canonicalizeFamily(family, families),
+      });
+      toast.success("Marca actualizada.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border border-line bg-surface-2/60 p-3">
+      <label className="block" htmlFor={nameId}>
+        <span className="mb-1 block text-[12px] text-muted-foreground">Nombre</span>
+        <input
+          id={nameId}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Sentadilla 1RM, Fran, 5k…"
+          className="h-11 w-full rounded-lg border border-input bg-surface px-3 text-base outline-none focus-visible:border-ring"
+          aria-label="Nombre de la marca"
+          autoFocus
+        />
+      </label>
+      <div className="block">
+        <span className="mb-1 block text-[12px] text-muted-foreground">
+          Familia (opcional)
+        </span>
+        <FamilyPicker value={family} onChange={setFamily} families={families} />
+      </div>
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-11 rounded-xl px-4 text-sm font-semibold text-muted-foreground"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          onClick={save}
+          disabled={busy}
+          className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+        >
+          {busy ? "Guardando…" : "Guardar"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -430,7 +568,7 @@ function EntryForm({
         onChange={setValueStr}
         autoFocus
       />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
         <input
           type="date"
           value={date}
@@ -450,7 +588,7 @@ function EntryForm({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-3 py-2 text-sm text-muted-foreground"
+          className="min-h-11 rounded-xl px-4 text-sm font-semibold text-muted-foreground"
         >
           Cancelar
         </button>
@@ -458,7 +596,7 @@ function EntryForm({
           type="button"
           onClick={save}
           disabled={busy}
-          className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+          className="min-h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
           {entry ? "Guardar" : "Añadir"}
         </button>

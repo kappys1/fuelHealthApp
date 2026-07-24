@@ -25,6 +25,7 @@ export function Stepper({
   suffix,
   className,
   ariaLabel,
+  id,
 }: {
   value: string;
   onChange: (next: string) => void;
@@ -34,6 +35,7 @@ export function Stepper({
   suffix?: string;
   className?: string;
   ariaLabel?: string;
+  id?: string;
 }) {
   const [text, setText] = useState(value);
   const [prevValue, setPrevValue] = useState(value);
@@ -72,12 +74,13 @@ export function Stepper({
         type="button"
         aria-label="Restar"
         onClick={() => bump(-step)}
-        className="flex w-10 shrink-0 items-center justify-center bg-surface-2 text-foreground active:translate-y-px"
+        className="flex w-11 shrink-0 items-center justify-center bg-surface-2 text-foreground active:translate-y-px"
       >
         <Minus className="size-4" aria-hidden />
       </button>
       <div className="flex min-w-0 flex-1 items-center">
         <input
+          id={id}
           aria-label={ariaLabel}
           value={text}
           inputMode="decimal"
@@ -98,7 +101,7 @@ export function Stepper({
         type="button"
         aria-label="Sumar"
         onClick={() => bump(step)}
-        className="flex w-10 shrink-0 items-center justify-center bg-surface-2 text-foreground active:translate-y-px"
+        className="flex w-11 shrink-0 items-center justify-center bg-surface-2 text-foreground active:translate-y-px"
       >
         <Plus className="size-4" aria-hidden />
       </button>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isDayKey } from "@/lib/dates";
 import { MEASURE_TYPES } from "@/lib/marks";
 import { TRAINING_TIPOS } from "@/lib/training";
 
@@ -14,8 +15,23 @@ export const grpZ = z.enum([
 ]);
 export const phaseZ = z.enum(["carga", "competicion", "recuperacion"]);
 export const bloatZ = z.enum(["ninguna", "leve", "moderada", "alta"]);
+export const dateZ = z.string().refine(isDayKey, "Fecha inválida.");
+export const localTimeZ = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Hora inválida.")
+  .transform((value) => (value.length === 5 ? `${value}:00` : value));
+export const bloatEventCreateZ = z.object({
+  date: dateZ,
+  severity: bloatZ,
+  occurredAt: localTimeZ,
+});
+export const bloatEventPatchZ = z
+  .object({
+    severity: bloatZ.optional(),
+    occurredAt: localTimeZ.optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, "No hay cambios.");
 export const sourceZ = z.enum(["plan", "foto", "manual", "ia", "fav", "plantilla"]);
-export const dateZ = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida.");
 
 // Tope del mensaje del chat: cabe un menú de comedor entero pegado. Compartido
 // para que cliente (aviso en vivo) y servidor (validación) no se desincronicen.
@@ -43,7 +59,10 @@ export const newEntryZ = z.object({
 
 // Productos (F07 · catálogo). grupo nullable (la etiqueta puede no clasificar);
 // baseG null = producto fijo (por unidad, sin escalado).
-export const productSourceZ = z.enum(["etiqueta", "manual", "legacy"]);
+export const productSourceZ = z.enum(["etiqueta", "manual", "estimado", "legacy"]);
+// Unidad de visualización (F10). Default 'g' → un cliente/import previo sin `unit`
+// no rompe (restore de export antiguo).
+export const productUnitZ = z.enum(["g", "ml", "ud"]);
 export const productCreateZ = z.object({
   name: z.string().min(1).max(200),
   baseG: z.number().int().min(0).max(5000).nullable(),
@@ -53,6 +72,7 @@ export const productCreateZ = z.object({
   baseFat: z.number().min(0).max(2000),
   grupo: grpZ.nullable(),
   source: productSourceZ,
+  unit: productUnitZ.default("g"),
   pinned: z.boolean(),
 });
 export const productPatchZ = productCreateZ.partial();
@@ -114,9 +134,12 @@ export const trainingSessionCreateZ = z.object({
   duracionMin: z.number().int().min(0).max(1000).nullable(),
 });
 export const trainingPlanCreateZ = z.object({
+  requestId: z.uuid(),
   programa: z.string().min(1).max(120),
   etiqueta: z.string().min(1).max(120),
   source: trainingSourceZ,
+  // Clientes V2 persisten el rango lunes-domingo aunque haya días sin asignar.
+  weekStart: dateZ.optional(),
   sessions: z.array(trainingSessionCreateZ).min(1).max(20),
   // sessionIndex apunta al índice de `sessions` (orden de la vista previa).
   assignments: z
@@ -144,4 +167,10 @@ export const markEntryPatchZ = z.object({
   value: markValueZ.optional(),
   recordedOn: dateZ.optional(),
   note: z.string().max(600).nullable().optional(),
+});
+// Editar la marca (F11): nombre y/o familia. No toca measureType/unit (cambiar el
+// tipo invalidaría las entradas). `family: null` la vacía.
+export const markPatchZ = z.object({
+  name: z.string().min(1).max(120).optional(),
+  family: z.string().max(60).nullable().optional(),
 });
