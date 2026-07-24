@@ -76,9 +76,9 @@ puntual (crear/editar un producto; añadir uno del long tail). No añade pantall
 permanente a Hoy (09 §6).
 
 ## Datos
-- **Migración 0009** (aditiva): valor `estimado` en el enum `product_source`. Sin backfill
+- **Migración 0014** (aditiva): valor `estimado` en el enum `product_source`. Sin backfill
   (los existentes conservan su origen).
-- **Migración 0010** (aditiva): columna `products.unit` (`text`/enum `g|ml|ud`, `NOT NULL
+- **Migración 0015** (aditiva): columna `products.unit` (`text`/enum `g|ml|ud`, `NOT NULL
   DEFAULT 'g'`). Backfill implícito por el default.
 - **export/restore, `migrate:poc`, `db:seed`** transportan `unit` (default `g` si falta) y
   aceptan `source = "estimado"`. Datos sagrados (principio 7): 0 pérdidas.
@@ -139,6 +139,6 @@ cambian). `estimado` es procedencia del producto, no del día.
 1. **Catálogo tap-para-añadir** (Alcance D) — la más barata, quita fricción diaria, **sin
    migración**. Reusa `addProduct`.
 2. **Describir + ✨ en Manual + selector Foto·Describir·Manual + badge `estimado`**
-   (Alcance A·B) — migración **0009** (enum), reusa F-IA-3/F-IA-11 sin prompt nuevo.
-3. **Unidad-etiqueta g/ml/ud** (Alcance C) — migración **0010** (`products.unit`) +
+   (Alcance A·B) — migración **0014** (enum), reusa F-IA-3/F-IA-11 sin prompt nuevo.
+3. **Unidad-etiqueta g/ml/ud** (Alcance C) — migración **0015** (`products.unit`) +
    export/restore/`migrate:poc`/`seed` + rótulos.

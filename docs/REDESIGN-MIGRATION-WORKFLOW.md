@@ -3,6 +3,20 @@
 This document is the operating contract for migrating Fuelboard to the approved
 `fuelboard-redesign-concept-v2.html` direction without losing existing behavior.
 
+## Current release status · 2026-07-24
+
+- Gates 0–4 have a recorded evidence snapshot at commit `965e992`.
+- F10, F11 and ingest fix `363fa61` landed after that snapshot. Gate 4 must be
+  interpreted with that boundary; prior `PASS` rows remain historical evidence.
+- The automated Gate 4 suite is green on the current HEAD: lint, typecheck,
+  247 tests, contrast audit, Drizzle check and production build.
+- Alex approved Gate 5 on 2026-07-24 after two days of real use without
+  incidents. This real-device acceptance replaces a new exhaustive screenshot
+  freeze for this personal, single-user app (DECISIONS #73).
+- Neon reports all 16 migrations `0000–0015` applied. Gate 6 is pending: sync the
+  latest `main`, run the final non-destructive verification, merge through review,
+  deploy and observe production.
+
 ## Confidence model
 
 `99%` is a release-readiness threshold, not a mathematical promise that software

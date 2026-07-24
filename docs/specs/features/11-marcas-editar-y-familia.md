@@ -1,5 +1,6 @@
 # F11 · Editar marca (nombre + familia) + selector de familia visible
-**Estado**: aprobada · **Tamaño**: feature (pequeña)
+**Estado**: implementada (AC 🖐 1/3/5 validados por Alex, 2026-07-21) ·
+**Tamaño**: feature (pequeña)
 **Fecha**: 2026-07-21 · **Origen**: uso real de Alex en la pantalla de Marcas (Progreso · Historial / Plan · Entrenos)
 
 ## Motivación (caso real)

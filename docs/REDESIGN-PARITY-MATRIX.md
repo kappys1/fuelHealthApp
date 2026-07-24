@@ -6,6 +6,10 @@ the approved concept needs a real additive adapter before it can ship.
 
 Every completed row must link automated evidence, browser evidence, or both.
 
+> Evidence snapshot: commit `965e992`. F10, F11 and ingest fix `363fa61` are
+> later changes. All rows must be reverified by Gate 4 before release; `PASS`
+> below records the accepted snapshot, not approval of the current HEAD.
+
 ## Product surfaces
 
 | ID | Surface | Current contract to preserve | V2 acceptance condition | State |
@@ -24,7 +28,7 @@ Every completed row must link automated evidence, browser evidence, or both.
 | TODAY-07 | Food edit | Entry detail/edit contract | Tapping an entry edits amount/product and can move it to another meal | PASS |
 | TODAY-08 | Food delete | Current delete plus undo behavior | Delete is available in entry detail and existing undo behavior survives | PASS |
 | TODAY-09 | Add destination | AddSheet meal selection | Product, plan, photo, describe, label and manual layers retain the selected meal | PASS |
-| TODAY-10 | Product CRUD | Product search/register/edit APIs | Camera/barcode/manual registration and product editing remain complete | PASS |
+| TODAY-10 | Product CRUD | Product search/register/edit APIs | Camera/describe/manual registration and product editing remain complete; barcode remains backlog | PASS |
 | TODAY-11 | Add helpers | Copy yesterday, templates and planned food | Every current entry point remains reachable and writes the expected entry | PASS |
 | TODAY-12 | Bloating | Current daily `bloat` check-in | One clear selector and a timeline marker with a real time; no duplicate explanatory row | PASS |
 | TODAY-13 | Training | Current WOD/training card and errors | Training follows meals and preserves detail, loading and error/manual paths | PASS |
@@ -85,7 +89,7 @@ Use one row per completed scenario. A browser row must include theme and viewpor
 
 | Scenario ID | Automated evidence | Browser evidence | Data evidence | Auditor | Result |
 | --- | --- | --- | --- | --- | --- |
-| FOUNDATION-CONTRAST | `pnpm audit:contrast` | Pending | Token pairs light/dark | Integrator | PASS |
+| FOUNDATION-CONTRAST | `pnpm audit:contrast` | Automated gate only; final visual approval is Gate 5 | Token pairs light/dark | Integrator | PASS |
 | FOUNDATION-TYPES | `pnpm typecheck` | Not applicable | Not applicable | Integrator | PASS |
 | FOUNDATION-UNIT | `pnpm test`: 28 files, 236 tests | Not applicable | Existing fixtures | Integrator | PASS |
 | FOUNDATION-BUILD | `pnpm build`: 43 pages; Serwist bundles 55 precache entries | Login/offline checked at 320x568 in both themes | Isolated Neon branch only | Integrator | PASS |
