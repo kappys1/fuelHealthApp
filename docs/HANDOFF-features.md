@@ -3,7 +3,7 @@
 > Documento único para pasar al agente que construyó la app. Resume **qué hay ya en
 > producción** y **qué features quedan pendientes** (backlog). Los detalles de arquitectura,
 > principios y convenciones están en `CLAUDE.md` y `docs/specs/` (00–09); las decisiones
-> técnicas en `docs/DECISIONS.md`. App de **usuario único (Alex)**. Fecha: 2026-07-12.
+> técnicas en `docs/DECISIONS.md`. App de **usuario único (Alex)**. Actualizado: 2026-07-24.
 
 ---
 
@@ -44,6 +44,22 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   (`hoy/checkins.tsx`, `hoy/mi-dia-card.tsx`).
 - IA reusable: `server/ai/` (client/provider/prompts/context/errors); import PDF→Gemini
   (F-IA-9) y estimación de gasto de sesión (F-IA-5) como patrones a copiar.
+
+### Estado de release · Wellness v2
+
+- `main` conserva la v1 de producción. El desarrollo activo es
+  `feat/wellness-premium-v2`.
+- La matriz de paridad quedó congelada en `965e992`; F10, F11 y el fix de ingesta
+  `363fa61` son posteriores. Sus filas `PASS` son evidencia histórica, no la
+  aprobación final del HEAD actual.
+- Gate 4 automatizado verde sobre el HEAD actual: lint, tipos, 247 tests,
+  contraste, Drizzle y build. Alex aprobó Gate 5 el 2026-07-24 tras dos días de
+  uso real sin incidencias.
+- Neon ya tiene aplicadas `0000–0015`. Antes de producción solo queda sincronizar
+  `main`, verificación final sin escrituras, merge revisado y observación de Gate 6.
+- Los requisitos de deploy antiguos incrustados en las entradas F04/F06/F08 se
+  consideran históricos; el checklist vigente es
+  `docs/REDESIGN-MIGRATION-WORKFLOW.md`.
 
 ---
 
@@ -103,7 +119,7 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
 - ✅ **Marcas a escala + calculadora doble + familia** (2026-07-14) — **IMPLEMENTADA (F04)**:
   [`docs/specs/features/04-marcas-escala-calculadora.md`](./specs/features/04-marcas-escala-calculadora.md).
   Calculadora doble (% sobre última **y** récord), buscador en vivo en Plan·Entrenos, familia
-  opcional (migración **0005 aditiva, pendiente de aplicar a la BD**) y Historial con marcas
+  opcional (migración **0005** aditiva) y Historial con marcas
   recientes + «ver todas →». AC de flujo (🖐 1, 2, 4) pendientes de validación con el pulgar.
 - ✅ **Editar marca (nombre + familia) + selector de familia visible** (uso real Alex, 21-jul) —
   **IMPLEMENTADA (F11)**, spec [`docs/specs/features/11-marcas-editar-y-familia.md`](./specs/features/11-marcas-editar-y-familia.md).
@@ -143,8 +159,8 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   `04-IA.md`) + Describir a la altura de la foto (items con stepper, «separado/como una»). AC de
   flujo (🖐 1, 3, 4, 5, 8, 9, 10 y el 2 en su parte de pulgar) pendientes de validación en
   producción, + re-validación en vivo de F-IA-4 y café ×3 (se tocó el prompt congelado).
-  **Deploy**: `pnpm db:migrate` (aplica 0005 pendiente + 0006) → `pnpm backfill:grams`; el modelo
-  de day-dump (`AI_MODEL_VISION`) ya está configurado.
+  El modelo de day-dump (`AI_MODEL_VISION`) ya está configurado. El estado de
+  migraciones/deploy se gobierna por el checklist de release de Wellness.
 - 💡 **Registrar en el día los eventos que cuentas en el chat** (idea Alex, 15-jul — a refinar con el
   product-partner): cuando le dices algo al Chat que cambia el día («hoy no entreno, me han puesto
   implantes», «hoy ando solo»), esa info **muere en el hilo**: el Coach de mañana no la conoce. Debería
@@ -162,16 +178,16 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   OpenFoodFacts que *prerrellena* el formulario de producto (nunca como fuente de verdad; la etiqueta
   manda). Decidir **tras usar la foto de etiqueta** y ver si enfocar la tabla molesta (anti-optimización-
   sin-medición). Descartadas como fuente de estimación: USDA/BEDCA (genéricos) y OFF (colaborativo → ruido).
-- ✅ **Variantes de opción del plan** (idea Alex, 16-jul) — **IMPLEMENTADA Fase 1 (F08, v1.10)**,
-  **validada por Alex 🖐 (AC1 import + AC3 registrar día real, 17-jul)**; pendiente **deploy**:
+- ✅ **Variantes de opción del plan** (idea Alex, 16-jul) — **IMPLEMENTADAS Fases 1 y 2
+  (F08, v1.10)**, **validada por Alex 🖐 (AC1 import + AC3 registrar día real, 17-jul)**:
   [`docs/specs/features/08-variantes-opcion-plan.md`](./specs/features/08-variantes-opcion-plan.md).
   «Carne magra (pollo/pavo/ternera/cerdo)» sigue siendo **un** hueco; al **registrar** eliges
   la fuente con chips → macros correctas (swing pollo↔cerdo ~80 kcal a 210 g, ruido que la
   báscula no absorbe). `plan_options.variants` jsonb (migración **0008** aditiva); importador
   F-IA-9 con prompt reescrito que detecta y rellena las variantes; escalado por gramos reusa
-  F06. export/restore/migrate:poc las transportan. DECISIONS #66. **Fase 2** (editar variantes
-  a mano en el editor del plan, sin reimportar) **aplazada**.
-  - **Requisito de deploy**: `pnpm db:migrate` (aplica **0008**) antes/junto al deploy en Vercel.
+  F06. export/restore/migrate:poc las transportan. **Fase 2** (editar variantes
+  a mano en el editor del plan, sin reimportar) está hecha; quedan sus AC de edición
+  manual marcados 🖐 en la spec. DECISIONS #66/#67.
 - 💡 **Describir que conoce tus productos** (idea Alex, 16-jul, durante la validación de F07) —
   **backlog, medir primero.** Caso real: los combos legacy tipo «Pan bimbo 1 reb. + mermelada
   s/a» no encajan en el modelo de producto (una combinación no reescala ni ajusta proporción;

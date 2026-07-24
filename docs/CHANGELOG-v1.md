@@ -7,6 +7,19 @@ desplegada en Vercel (`fuelboard`, región `fra1`) y en uso en el iPhone de Alex
 Fecha de cierre v1: **2026-07-12**. Fuente de verdad de las decisiones: `docs/DECISIONS.md`
 (este documento las resume y agrupa). Specs: `docs/specs/00-09`.
 
+## Estado posterior · Wellness v2 (release candidate)
+
+La v1 de producción sigue en `main`. El rediseño **Wellness v2** está implementado
+en `feat/wellness-premium-v2`; su evidencia de paridad se congeló en `965e992`.
+Después se añadieron F10, F11 y el fix de ingesta `363fa61`, así que esa evidencia
+es un snapshot histórico. El Gate 4 automatizado se repitió sobre el HEAD actual
+con lint, tipos, 247 tests, contraste, Drizzle y build en verde.
+
+Alex aprobó el Gate 5 el 2026-07-24 tras dos días de uso real sin incidencias.
+Neon ya registra las 16 migraciones `0000–0015`. Pendiente antes de producción:
+sincronizar `main`, verificación final sin escrituras contra producción, merge
+revisado y Gate 6 de observación. Ver `docs/REDESIGN-MIGRATION-WORKFLOW.md`.
+
 ---
 
 ## 1. Resumen por fases
@@ -223,7 +236,7 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 
 ---
 
-### v1.10 · Variantes de opción del plan — Fase 1 (F08)
+### v1.10 · Variantes de opción del plan — Fases 1 y 2 (F08)
 - **Precisión al registrar, no en el plan**: una opción de la pauta que agrupa alimentos
   intercambiables («Carne magra: pollo/pavo/ternera/cerdo») sigue siendo **una** fila
   (espejo de la pauta, principio 8); al **registrarla** eliges la fuente con chips y se
@@ -247,8 +260,9 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   deriva), round-trip export→restore. `typecheck+test+build` en verde. **AC1 y AC3 validados
   por Alex 🖐 (17-jul)**: import real reconstruye las variantes y la vista previa las corrige;
   registrar un día real eligiendo variante cuadra las kcal (swing pollo↔cerdo).
-  **Fase 2** (editar variantes a mano en el editor del plan, sin reimportar) aplazada.
-  DECISIONS #66. Pendiente: `pnpm db:migrate` (0008) + deploy a Vercel.
+- **Fase 2 hecha**: edición manual de variantes en el editor del plan mediante el
+  `VariantsEditor` compartido; quedan los AC de flujo 🖐 detallados en la spec.
+  DECISIONS #66/#67. El despliegue se gobierna por el checklist de Wellness v2.
 
 ### v1.11 · Mis productos II — crear como en el día + añadir desde el catálogo (F10)
 - **Misma ergonomía que el día en el editor de producto** (caso real Alex 21-jul, sobre
@@ -275,6 +289,15 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   **AC1/AC2/AC5/AC6 validados por Alex 🖐 (21–22-jul)**. NO-alcance: router «una cosa» a
   producto/plan/dieta, variantes en productos, describir-empareja-tus-productos (backlog).
   Pendiente: `pnpm db:migrate` (0014+0015) + deploy a Vercel.
+
+### v1.12 · Editar marca y familia visible (F11)
+- El detalle de una marca permite editar nombre y familia con actualización optimista
+  y revert; tipo/unidad siguen inmutables para no reinterpretar registros históricos.
+- `FamilyPicker` sustituye el `<datalist>` invisible de Safari iOS por chips tocables;
+  `canonicalizeFamily` evita duplicados por mayúsculas/minúsculas.
+- Sin migración ni cambios de IA/export. `typecheck+test` verdes; **AC1/3/5
+  validados por Alex 🖐 (21-jul)**. Queda solo un posible refinamiento de ubicación
+  del editor inline, sin urgencia.
 
 ---
 

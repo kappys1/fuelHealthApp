@@ -27,6 +27,14 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
 
 ## Estado actual
 
+- **Desarrollo activo: `feat/wellness-premium-v2` (release candidate en uso real,
+  todavía no integrado en `main`).**
+  La matriz de paridad quedó congelada en `965e992`; después se añadieron F10, F11
+  y el fix de ingesta `363fa61`. El Gate 4 automatizado está verde sobre el HEAD
+  actual y Alex aprobó el Gate 5 el 2026-07-24 tras dos días de uso real sin
+  incidencias. Neon ya tiene aplicadas `0000–0015`. Solo queda Gate 6:
+  sincronización con `main`, verificación final, merge y observación en producción.
+  Fuente operativa: `docs/REDESIGN-MIGRATION-WORKFLOW.md`.
 - **Fases 0–5 completas, desplegadas y en uso** (Vercel `fuelboard`, región `fra1`) —
   **v1 completa** (resumen en `docs/CHANGELOG-v1.md`):
   - **F0**: Next 16 + Tailwind4/shadcn tematizado (tokens 05 §2, AA verificado),
@@ -64,8 +72,9 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
     vivo; antes se ignoraba en Hobby → `iad1`); **LCP real ~0,5 s** (el 4,2 s de
     Lighthouse es lab, slow-4G simulado, documentado); **coste IA ~€1,6–1,9/mes** (< 5 €;
     `AI_MODEL_COACH` = Gemini 3.5 Flash).
-- **v1 completa.** Siguiente: **uso real** hasta la MED de agosto (validar la predicción
-  de Tendencia contra los pliegues del nutri) y **backlog v1.1** (`docs/CHANGELOG-v1.md`).
+- **v1 completa.** Siguiente: cerrar y publicar Wellness v2; después, **uso real**
+  hasta la MED de agosto (validar la predicción de Tendencia contra los pliegues
+  del nutri) y backlog (`docs/HANDOFF-features.md`).
 - Se trabaja **fase a fase**. **Nunca adelantar trabajo de fases futuras.** Cada
   fase termina con sus tests de aceptación en verde y deploy a Vercel funcionando.
 
