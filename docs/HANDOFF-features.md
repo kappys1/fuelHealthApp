@@ -3,7 +3,7 @@
 > Documento único para pasar al agente que construyó la app. Resume **qué hay ya en
 > producción** y **qué features quedan pendientes** (backlog). Los detalles de arquitectura,
 > principios y convenciones están en `CLAUDE.md` y `docs/specs/` (00–09); las decisiones
-> técnicas en `docs/DECISIONS.md`. App de **usuario único (Alex)**. Actualizado: 2026-07-24.
+> técnicas en `docs/DECISIONS.md`. App de **usuario único (Alex)**. Actualizado: 2026-07-25.
 
 ---
 
@@ -132,7 +132,7 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   chip, chips tocables en crear y editar. **Nota UX pendiente**: la ubicación del editor inline
   (bajo el título, tras el lápiz) es funcional pero no convence del todo a Alex → posible
   refinamiento de dónde/cómo aparece (a pensar con el product-partner, sin urgencia).
-- ✅ **Chat inteligente + comer fuera** (idea Alex, 15-jul; reencuadrada 16-jul) — **Fases 0 y 1
+- ✅ **Chat inteligente + comer fuera** (idea Alex, 15-jul; reencuadrada 16-jul) — **Fases 0–2
   IMPLEMENTADAS**, spec [`docs/specs/features/05-busqueda-web-y-foto-chat.md`](./specs/features/05-busqueda-web-y-foto-chat.md).
   **Fase 0** (reconstrucción del prompt congelado F-IA-8, sin infra): reescritura desde principios
   (contrato C1-C9), fin del parche-treadmill #54→#56→#61; **guardarraíles compartidos
@@ -149,7 +149,11 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   nunca en coach/visita/estimador); asesor, sin puente al registro. 2 rondas de validación en dev:
   se confirmó con un log temporal que `googleSearch` dispara (`sources≥1`); el residuo de error es
   de la fuente web (Open Food Facts) → nudge de honestidad. AC 🖐 1/2/3/5b/7 a validar en producción.
-  **Fase 2 (foto en el chat) pendiente**, se monta sobre este prompt — tras rodar la Fase 1 en uso.
+  **Fase 2 (foto en el chat) IMPLEMENTADA y VALIDADA en móvil (AC 8–13, 25-jul)** (DECISIONS #74):
+  selector nativo sin `capture`, una foto, preview/quitar/cambiar y pregunta opcional;
+  carta/plato/etiqueta; imagen efímera (sin BD/Blob/export/logs) y retry exacto en memoria con
+  el mismo `turnId`. Solo persisten «📷 Foto adjunta», pregunta y respuesta. El plato devuelve
+  rangos e incertidumbre; es asesoramiento puro y **no registra ni modifica comidas**.
 - ✅ **Gramos como dato de primera clase** (idea Alex, 15-jul) — **Fases 1 y 2 IMPLEMENTADAS**,
   spec [`docs/specs/features/06-gramos-dato-primera-clase.md`](./specs/features/06-gramos-dato-primera-clase.md).
   **Fase 1**: base inmutable en `meal_entries` (migración **0006** aditiva) + stepper de cantidad

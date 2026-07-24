@@ -11,18 +11,30 @@ import {
   Loader2,
   MessageCircle,
   MessageSquarePlus,
+  Paperclip,
   ScanSearch,
   Send,
   Sparkles,
   Trash2,
   Waves,
   WifiOff,
+  X,
 } from "lucide-react";
+import Image from "next/image";
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  createChatTurnId,
+  planChatSend,
+} from "@/components/chat/chat-send";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Markdown } from "@/components/ui/markdown";
+import {
+  type ChatImagePayload,
+  persistedChatUserText,
+} from "@/lib/chat-turn";
 import { api } from "@/lib/client-api";
+import { processImage } from "@/lib/image";
 import { CHAT_MAX_CHARS } from "@/lib/schemas";
 import { relativeDate } from "@/lib/relative-time";
 import { useKeyboardOpen } from "@/lib/use-keyboard-open";
@@ -72,6 +84,13 @@ interface SendErrorState {
   message: string;
   retryText: string;
   turnId: string;
+  image: ChatImagePayload | null;
+}
+
+interface ChatAttachment {
+  image: ChatImagePayload;
+  previewUrl: string;
+  name: string;
 }
 
 let tmp = 0;
@@ -104,12 +123,15 @@ export function ChatClient({
       initialThreads.find((thread) => thread.id === initialThreadId)?.title ?? null,
   );
   const [sendError, setSendError] = useState<SendErrorState | null>(null);
+  const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
+  const [processingImage, setProcessingImage] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ThreadDTO | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const imageTaskRef = useRef(0);
   // ¿El usuario está pegado al fondo? Se actualiza al scrollear. Sirve para
   // re-anclar al fondo cuando el viewport cambia (teclado iOS abre/cierra) sin
   // dar tirones si estaba leyendo mensajes de más arriba.
@@ -190,12 +212,15 @@ export function ChatClient({
 
   const openThread = useCallback(
     async (id: number) => {
+      imageTaskRef.current += 1;
       setActiveId(id);
       setActiveTitle(threads.find((thread) => thread.id === id)?.title ?? null);
       setView("thread");
       setMessages([]);
       setStreaming(null);
       setSendError(null);
+      setAttachment(null);
+      setProcessingImage(false);
       setThreadLoadError(null);
       setLoadingThread(true);
       try {
@@ -231,6 +256,7 @@ export function ChatClient({
   }, [initialThreadId, openThread]);
 
   const newThread = () => {
+    imageTaskRef.current += 1;
     setActiveId(null);
     setView("thread");
     setMessages([]);
@@ -238,14 +264,19 @@ export function ChatClient({
     setInput("");
     setActiveTitle(null);
     setSendError(null);
+    setAttachment(null);
+    setProcessingImage(false);
     setThreadLoadError(null);
   };
 
   const backToList = () => {
+    imageTaskRef.current += 1;
     setView("list");
     setActiveId(null);
     setActiveTitle(null);
     setSendError(null);
+    setAttachment(null);
+    setProcessingImage(false);
     setThreadLoadError(null);
   };
 
@@ -266,20 +297,67 @@ export function ChatClient({
     }
   };
 
-  const send = async (text: string, retryTurnId?: string) => {
+  const selectImage = async (file: File) => {
+    const task = ++imageTaskRef.current;
+    setProcessingImage(true);
+    try {
+      const processed = await processImage(file);
+      if (imageTaskRef.current !== task) return;
+      setAttachment({
+        image: {
+          base64: processed.base64,
+          mediaType: processed.mediaType,
+        },
+        previewUrl: `data:${processed.mediaType};base64,${processed.base64}`,
+        name: file.name || "Foto",
+      });
+      // Cambiar la entrada abandona un retry previo; el siguiente envío es nuevo.
+      setSendError(null);
+    } catch (err) {
+      if (imageTaskRef.current !== task) return;
+      toast.error(
+        err instanceof Error ? err.message : "No se pudo procesar la imagen.",
+      );
+    } finally {
+      if (imageTaskRef.current === task) setProcessingImage(false);
+    }
+  };
+
+  const removeImage = () => {
+    imageTaskRef.current += 1;
+    setAttachment(null);
+    setProcessingImage(false);
+    // Quitar la foto abandona el retry exacto que dependía de esos bytes.
+    setSendError(null);
+  };
+
+  const send = async (
+    text: string,
+    retryTurnId?: string,
+    retryImage?: ChatImagePayload | null,
+  ) => {
     const message = text.trim();
-    if (!message || sending) return;
+    const candidateImage = retryTurnId ? retryImage : attachment?.image;
+    if ((!message && !candidateImage) || sending || processingImage) return;
     if (message.length > CHAT_MAX_CHARS) {
       toast.error(`Mensaje demasiado largo (máx. ${CHAT_MAX_CHARS} caracteres).`);
       return;
     }
     setInput("");
     setSendError(null);
-    const turnId = retryTurnId ?? crypto.randomUUID();
-    if (!retryTurnId) {
+    const sendPlan = planChatSend({
+      message,
+      image: candidateImage,
+      retryTurnId,
+      failedTurn: sendError,
+      candidateTurnId: createChatTurnId(),
+    });
+    const { turnId } = sendPlan;
+    const visibleMessage = persistedChatUserText(message, sendPlan.image != null);
+    if (sendPlan.appendUserMessage) {
       setMessages((current) => [
         ...current,
-        { id: tmpId(), role: "user", content: message, turnId },
+        { id: tmpId(), role: "user", content: visibleMessage, turnId },
       ]);
     }
     setStreaming("");
@@ -289,13 +367,22 @@ export function ChatClient({
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ threadId: activeId, message, turnId }),
+        body: JSON.stringify({
+          threadId: activeId,
+          message,
+          turnId,
+          ...(sendPlan.image ? { image: sendPlan.image } : {}),
+        }),
       });
       const headerId = res.headers.get("X-Thread-Id");
       const newId = headerId ? Number(headerId) : null;
       if (newId != null && Number.isFinite(newId) && activeId == null) {
         setActiveId(newId);
-        setActiveTitle(message.split(/\s+/).slice(0, 6).join(" "));
+        setActiveTitle(
+          message
+            ? message.split(/\s+/).slice(0, 6).join(" ")
+            : "Foto adjunta",
+        );
         api
           .listThreads()
           .then((result) => setThreads(result.threads))
@@ -329,6 +416,7 @@ export function ChatClient({
         { id: tmpId(), role: "assistant", content: acc, turnId },
       ]);
       setStreaming(null);
+      setAttachment(null);
 
       api
         .listThreads()
@@ -337,7 +425,12 @@ export function ChatClient({
     } catch (err) {
       setStreaming(null);
       const messageText = err instanceof Error ? err.message : "No se pudo enviar.";
-      setSendError({ message: messageText, retryText: message, turnId });
+      setSendError({
+        message: messageText,
+        retryText: message,
+        turnId,
+        image: sendPlan.image,
+      });
       toast.error(messageText);
     } finally {
       setSending(false);
@@ -365,13 +458,14 @@ export function ChatClient({
             })),
           );
           setSendError(null);
+          setAttachment(null);
           return;
         }
       } catch {
         // Si no se puede recuperar, el reintento normal conserva el error visible.
       }
     }
-    await send(sendError.retryText, sendError.turnId);
+    await send(sendError.retryText, sendError.turnId, sendError.image);
   };
 
   const activeThread =
@@ -468,6 +562,10 @@ export function ChatClient({
         setInput={setInput}
         online={online}
         sending={sending}
+        processingImage={processingImage}
+        attachment={attachment}
+        onSelectImage={selectImage}
+        onRemoveImage={removeImage}
         onSend={send}
       />
     </section>
@@ -787,13 +885,17 @@ function MessageArea({
   );
 }
 
-/** Composer: textarea + botón enviar + contador de tope + aviso sin conexión. */
+/** Composer: una foto efímera opcional + textarea + envío + aviso offline. */
 function Composer({
   inputRef,
   input,
   setInput,
   online,
   sending,
+  processingImage,
+  attachment,
+  onSelectImage,
+  onRemoveImage,
   onSend,
 }: {
   inputRef: RefObject<HTMLTextAreaElement | null>;
@@ -801,15 +903,93 @@ function Composer({
   setInput: (v: string) => void;
   online: boolean;
   sending: boolean;
+  processingImage: boolean;
+  attachment: ChatAttachment | null;
+  onSelectImage: (file: File) => void;
+  onRemoveImage: () => void;
   onSend: (text: string) => void;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
   const over = input.length - CHAT_MAX_CHARS; // > 0 si se pasa del tope
   const tooLong = over > 0;
   const nearLimit = input.length > CHAT_MAX_CHARS * 0.9;
+  const disabled = !online || sending || processingImage;
+
+  const openPicker = () => {
+    const picker = fileRef.current;
+    if (!picker || disabled) return;
+    // Permite volver a elegir exactamente el mismo archivo al usar «Cambiar».
+    picker.value = "";
+    picker.click();
+  };
 
   return (
     <div className="border-t border-line pt-3 pb-2">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*,.heic,.heif"
+        aria-label="Seleccionar una foto para el chat"
+        className="sr-only"
+        disabled={disabled}
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) onSelectImage(file);
+        }}
+      />
+      {attachment ? (
+        <div className="mb-3 flex items-center gap-3 rounded-2xl border border-line bg-surface-2/70 p-2">
+          <span className="relative size-14 shrink-0 overflow-hidden rounded-xl bg-surface">
+            <Image
+              src={attachment.previewUrl}
+              alt="Vista previa de la foto adjunta"
+              fill
+              sizes="56px"
+              className="object-cover"
+              unoptimized
+            />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[12px] font-semibold text-foreground">
+              Foto adjunta
+            </span>
+            <span className="block truncate text-[11px] text-muted-foreground">
+              {attachment.name}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={openPicker}
+            disabled={disabled}
+            className="min-h-11 rounded-xl px-2 text-[12px] font-semibold text-primary disabled:opacity-50"
+          >
+            Cambiar
+          </button>
+          <button
+            type="button"
+            onClick={onRemoveImage}
+            disabled={disabled}
+            aria-label="Quitar foto"
+            className="app-icon-button shrink-0 border-0 bg-transparent text-muted-foreground disabled:opacity-50"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
+      ) : null}
       <div className="flex items-end gap-2">
+        <button
+          type="button"
+          onClick={openPicker}
+          disabled={disabled}
+          aria-label={attachment ? "Cambiar foto adjunta" : "Adjuntar foto"}
+          className="app-icon-button shrink-0 disabled:opacity-50"
+        >
+          {processingImage ? (
+            <Loader2 className="size-5 animate-spin" aria-hidden />
+          ) : (
+            <Paperclip className="size-5" aria-hidden />
+          )}
+        </button>
         <textarea
           ref={inputRef}
           value={input}
@@ -817,14 +997,20 @@ function Composer({
           // En móvil Enter = salto de línea (respuestas multilínea); se envía
           // SOLO con el botón. Antes Enter enviaba y no dejaba escribir párrafos.
           rows={2}
-          placeholder={online ? "Pregunta sobre tus datos…" : "Sin conexión"}
-          disabled={!online || sending}
+          placeholder={
+            online
+              ? attachment
+                ? "Pregunta opcional sobre la foto…"
+                : "Pregunta sobre tus datos…"
+              : "Sin conexión"
+          }
+          disabled={disabled}
           className="max-h-40 min-h-11 flex-1 resize-none rounded-xl border border-input bg-surface px-3 py-2.5 text-base outline-none focus-visible:border-ring disabled:opacity-60"
         />
         <button
           type="button"
           onClick={() => onSend(input)}
-          disabled={!online || sending || !input.trim() || tooLong}
+          disabled={disabled || (!input.trim() && !attachment) || tooLong}
           aria-label="Enviar"
           className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground disabled:opacity-50"
         >
@@ -845,6 +1031,11 @@ function Composer({
         <p className="mt-1.5 text-right text-[12px] text-muted-foreground">
           {input.length.toLocaleString("es-ES")}/
           {CHAT_MAX_CHARS.toLocaleString("es-ES")}
+        </p>
+      ) : null}
+      {processingImage ? (
+        <p className="mt-1.5 text-[12px] text-muted-foreground">
+          Procesando la foto…
         </p>
       ) : null}
       {!online ? (
