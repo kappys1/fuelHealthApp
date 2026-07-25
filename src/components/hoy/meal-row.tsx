@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { BookmarkPlus, Copy, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import {
@@ -40,6 +40,10 @@ export function MealRow({
   entry,
   onSave,
   onDelete,
+  onDuplicate,
+  onDuplicateToToday,
+  onSaveProduct,
+  isPastDay,
 }: {
   entry: EntryDTO;
   onSave: (patch: {
@@ -52,6 +56,10 @@ export function MealRow({
     grams?: number | null;
   }) => void;
   onDelete: (entry: EntryDTO) => void;
+  onDuplicate: (entry: EntryDTO) => void;
+  onDuplicateToToday: (entry: EntryDTO) => void;
+  onSaveProduct: (entry: EntryDTO) => void;
+  isPastDay: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -127,9 +135,22 @@ export function MealRow({
           </SheetHeader>
           <EditForm
             entry={entry}
+            isPastDay={isPastDay}
             onCancel={() => setOpen(false)}
             onSave={(patch) => {
               onSave(patch);
+              setOpen(false);
+            }}
+            onDuplicate={() => {
+              onDuplicate(entry);
+              setOpen(false);
+            }}
+            onDuplicateToToday={() => {
+              onDuplicateToToday(entry);
+              setOpen(false);
+            }}
+            onSaveProduct={() => {
+              onSaveProduct(entry);
               setOpen(false);
             }}
           />
@@ -141,10 +162,15 @@ export function MealRow({
 
 function EditForm({
   entry,
+  isPastDay,
   onCancel,
   onSave,
+  onDuplicate,
+  onDuplicateToToday,
+  onSaveProduct,
 }: {
   entry: EntryDTO;
+  isPastDay: boolean;
   onCancel: () => void;
   onSave: (patch: {
     meal: MealKey;
@@ -155,6 +181,9 @@ function EditForm({
     fat: number;
     grams?: number | null;
   }) => void;
+  onDuplicate: () => void;
+  onDuplicateToToday: () => void;
+  onSaveProduct: () => void;
 }) {
   const [name, setName] = useState(entry.name);
   const [meal, setMeal] = useState<MealKey>(entry.meal);
@@ -243,6 +272,47 @@ function EditForm({
           className="min-h-11 rounded-xl bg-primary text-[13px] font-semibold text-primary-foreground"
         >
           Guardar
+        </button>
+      </div>
+
+      {/* F13 §B·C — acciones de la entrada: duplicar (idéntica, conserva base) y
+          promover a «Mis productos». En día pasado, duplicar aquí o a hoy. */}
+      <div className="space-y-2 border-t border-line pt-3">
+        {isPastDay ? (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onDuplicateToToday}
+              className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-primary text-[13px] font-semibold text-primary"
+            >
+              <Copy className="size-4" aria-hidden />
+              Duplicar a hoy
+            </button>
+            <button
+              type="button"
+              onClick={onDuplicate}
+              className="min-h-11 rounded-xl border border-line-strong text-[13px] font-medium text-foreground"
+            >
+              Duplicar aquí
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onDuplicate}
+            className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-line-strong text-[13px] font-medium text-foreground"
+          >
+            <Copy className="size-4" aria-hidden />
+            Duplicar
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onSaveProduct}
+          className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-line-strong text-[13px] font-medium text-foreground"
+        >
+          <BookmarkPlus className="size-4" aria-hidden />
+          Guardar en Mis productos
         </button>
       </div>
     </div>
