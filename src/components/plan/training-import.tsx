@@ -40,6 +40,7 @@ import {
   TRAINING_TIPOS,
 } from "@/lib/training";
 import { useOnline } from "@/lib/use-online";
+import { randomUUID } from "@/lib/uuid";
 import type { TrainingImportResult } from "@/server/ai/schemas";
 
 const n = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
@@ -165,7 +166,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
   };
 
   const applyResult = (r: TrainingImportResult) => {
-    requestIdRef.current = crypto.randomUUID();
+    requestIdRef.current = randomUUID();
     if (r.programa) setPrograma(r.programa);
     if (r.etiqueta) setEtiqueta(r.etiqueta);
     const next: SRow[] = r.sesiones.map((s) => ({
@@ -221,7 +222,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
     setSaving(true);
     try {
       const res = await api.createTrainingPlan({
-        requestId: requestIdRef.current ?? (requestIdRef.current = crypto.randomUUID()),
+        requestId: requestIdRef.current ?? (requestIdRef.current = randomUUID()),
         programa: programa.trim(),
         etiqueta: etiqueta.trim(),
         source,

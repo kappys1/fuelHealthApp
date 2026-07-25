@@ -3,6 +3,7 @@
 import { type DBSchema, type IDBPDatabase, openDB } from "idb";
 import { api, type EntryInput } from "@/lib/client-api";
 import { isRetriableRequestError } from "@/lib/request-errors";
+import { randomUUID } from "@/lib/uuid";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { BloatKey } from "@/lib/macros";
 
@@ -92,7 +93,7 @@ export async function enqueue(op: Omit<QueuedOp, "id">): Promise<void> {
     op.kind === "addEntries"
       ? {
           ...op,
-          clientMutationId: op.clientMutationId ?? crypto.randomUUID(),
+          clientMutationId: op.clientMutationId ?? randomUUID(),
           revision: op.revision ?? 0,
         }
       : { ...op, revision: op.revision ?? 0, createdOffline: op.kind === "upsertBloat" };
@@ -291,7 +292,7 @@ async function flushQueueOnce(): Promise<number> {
   for (const op of ops) {
     try {
       if (op.kind === "addEntries" && op.entries) {
-        const clientMutationId = op.clientMutationId ?? crypto.randomUUID();
+        const clientMutationId = op.clientMutationId ?? randomUUID();
         if (!op.clientMutationId && op.id != null) {
           // Persistir ANTES del fetch: si llega a BD pero se pierde la respuesta,
           // el siguiente replay conserva la misma clave y el servidor deduplica.
