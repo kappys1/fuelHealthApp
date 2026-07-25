@@ -349,6 +349,30 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 
 ---
 
+### v1.16 · Gramos editables tras registrar + la foto detecta etiqueta → producto (F14)
+- **Parte A · gramos editables (el dolor real):** «base efectiva» en el editor de una entrada
+  (`lib/macros.ts:effectiveBase`, función pura testeada). Caso 1 = base guardada (como hoy);
+  **caso 2** = entrada con gramos pero SIN base (etiquetas, «Describir», algunas de foto) →
+  la base se deriva de las macros actuales a `baseG=grams` y **aparece el stepper Cantidad**;
+  al guardar se persiste la base derivada → la entrada queda «sanada» (próxima edición = caso 1
+  nativo). Caso 3 (sin gramos) sigue solo-macros. El PATCH de entrada y `updateEntry` pasan a
+  aceptar `baseG/base*` para el sanado (antes se rechazaban; DECISIONS 25-jul).
+- **Parte B · la foto LEE la etiqueta (una lectura, dos destinos — enmienda 25-jul tras
+  feedback de Alex):** el prompt CONGELADO de F-IA-1 gana `es_etiqueta` + bloque `producto`
+  (por 100 g). Si la foto es una etiqueta, la IA la **lee**: `items` = la ración (se añade como
+  comida directamente, escalable por la Parte A) y `producto` = valores por 100 g. La capa de
+  foto muestra **siempre las filas** + una afordance **«Guardar producto»** que abre Nuevo
+  producto **prerelleno con los macros ya leídos, sin 2ª llamada a la IA**. (La 1ª implementación
+  ocultaba las filas y re-leía con una 2ª llamada; Alex pidió leer una vez y reusar.) Comida real
+  → `es_etiqueta:false`, `producto:null`, intacto.
+- Sin migración (los campos `grams/baseG/base*` ya existían). Suite verde (typecheck + lint +
+  349 tests, con 2 casos canónicos nuevos en `prompts.test.ts` y 3 de `effectiveBase`). Sync a
+  `04-IA.md` (esquema F-IA-1). **AC de flujo A1-A4 y B1-B4 ✅ validados por Alex en dev (25-jul):
+  gramos editables/sanado, etiqueta leída con filas visibles, «Guardar producto» sin 2ª llamada y
+  reescalado.** Nota: la estimación de comida real no cambia (café×3 no requerido).
+
+---
+
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
 
 ### Arquitectura, toolchain y build

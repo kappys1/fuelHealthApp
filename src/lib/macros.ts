@@ -172,6 +172,72 @@ export function backfillEntryGrams(entry: {
   };
 }
 
+// ── Base efectiva del editor (F14 · Parte A) ──
+/*
+  Al editar una entrada ya registrada queremos poder reescalar por gramos aunque
+  no se guardara una base inmutable (etiquetas, «Describir», algunas de foto). La
+  base efectiva es la referencia desde la que reescalar:
+   - Caso 1: base guardada (baseG + base* presentes) → esa base (como hoy).
+   - Caso 2: sin base pero grams>0 → base = las macros ACTUALES a baseG=grams
+     (mismo criterio que backfillEntryGrams, pero desde el campo `grams`). derived=true.
+   - Caso 3: sin base y sin gramos → null (no escalable; solo-macros, como hoy).
+  El reescalado del caso 2 es lineal (doblar gramos ≈ doblar macros): exacto para
+  etiquetas, aproximación razonable para estimaciones de plato (spec F14 §Riesgos).
+*/
+export interface EntryBaseInput {
+  grams: number | null;
+  baseG: number | null;
+  baseKcal: number | null;
+  baseProt: number | null;
+  baseCarb: number | null;
+  baseFat: number | null;
+  kcal: number;
+  prot: number;
+  carb: number;
+  fat: number;
+}
+
+export interface EffectiveBase {
+  baseG: number;
+  base: Macros;
+  /** true = derivada del caso 2 → hay que persistirla al guardar (la entrada se «sana»). */
+  derived: boolean;
+}
+
+/**
+ * Base efectiva desde la que reescalar una entrada al editar la cantidad (F14·A).
+ * Función pura: la usan el editor de Hoy (stepper Cantidad) y sus tests.
+ */
+export function effectiveBase(entry: EntryBaseInput): EffectiveBase | null {
+  if (
+    entry.baseG != null &&
+    entry.baseG > 0 &&
+    entry.baseKcal != null &&
+    entry.baseProt != null &&
+    entry.baseCarb != null &&
+    entry.baseFat != null
+  ) {
+    return {
+      baseG: entry.baseG,
+      base: {
+        kcal: entry.baseKcal,
+        prot: entry.baseProt,
+        carb: entry.baseCarb,
+        fat: entry.baseFat,
+      },
+      derived: false,
+    };
+  }
+  if (entry.grams != null && entry.grams > 0) {
+    return {
+      baseG: entry.grams,
+      base: { kcal: entry.kcal, prot: entry.prot, carb: entry.carb, fat: entry.fat },
+      derived: true,
+    };
+  }
+  return null;
+}
+
 // ── Productos (F07) ──
 /*
   Un producto tiene macros por base de gramos (baseG, típicamente 100 g de la

@@ -26,6 +26,7 @@ import {
 import { Stepper } from "@/components/ui/stepper";
 import {
   displayMacro,
+  effectiveBase,
   type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
@@ -35,6 +36,23 @@ import type { EntryDTO } from "@/server/db/queries/day";
 
 const numberFromInput = (value: string) =>
   value === "" ? 0 : Number(value.replace(",", "."));
+
+// Patch del editor de entrada. La base (baseG/base*) solo viaja cuando la entrada
+// es escalable (F14·A): al guardar el caso 2 persiste la base derivada («sanado»).
+export type EntryEditPatch = {
+  meal: MealKey;
+  name: string;
+  kcal: number;
+  prot: number;
+  carb: number;
+  fat: number;
+  grams?: number | null;
+  baseG?: number | null;
+  baseKcal?: number | null;
+  baseProt?: number | null;
+  baseCarb?: number | null;
+  baseFat?: number | null;
+};
 
 export function MealRow({
   entry,
@@ -46,15 +64,7 @@ export function MealRow({
   isPastDay,
 }: {
   entry: EntryDTO;
-  onSave: (patch: {
-    meal: MealKey;
-    name: string;
-    kcal: number;
-    prot: number;
-    carb: number;
-    fat: number;
-    grams?: number | null;
-  }) => void;
+  onSave: (patch: EntryEditPatch) => void;
   onDelete: (entry: EntryDTO) => void;
   onDuplicate: (entry: EntryDTO) => void;
   onDuplicateToToday: (entry: EntryDTO) => void;
@@ -172,15 +182,7 @@ function EditForm({
   entry: EntryDTO;
   isPastDay: boolean;
   onCancel: () => void;
-  onSave: (patch: {
-    meal: MealKey;
-    name: string;
-    kcal: number;
-    prot: number;
-    carb: number;
-    fat: number;
-    grams?: number | null;
-  }) => void;
+  onSave: (patch: EntryEditPatch) => void;
   onDuplicate: () => void;
   onDuplicateToToday: () => void;
   onSaveProduct: () => void;
@@ -191,26 +193,15 @@ function EditForm({
   const [prot, setProt] = useState(String(entry.prot));
   const [carb, setCarb] = useState(String(entry.carb));
   const [fat, setFat] = useState(String(entry.fat));
-  const scalable =
-    entry.baseG != null &&
-    entry.baseKcal != null &&
-    entry.baseProt != null &&
-    entry.baseCarb != null &&
-    entry.baseFat != null;
-  const [grams, setGrams] = useState(String(entry.grams ?? entry.baseG ?? ""));
+  // Base efectiva (F14·A): caso 1 = base guardada; caso 2 = macros actuales a
+  // baseG=grams (derivada); caso 3 = null → solo-macros, sin stepper.
+  const eff = effectiveBase(entry);
+  const scalable = eff != null;
+  const [grams, setGrams] = useState(String(entry.grams ?? eff?.baseG ?? ""));
   const onGrams = (value: string) => {
     setGrams(value);
-    if (!scalable) return;
-    const scaled = scaledForStore(
-      {
-        kcal: entry.baseKcal as number,
-        prot: entry.baseProt as number,
-        carb: entry.baseCarb as number,
-        fat: entry.baseFat as number,
-      },
-      numberFromInput(value),
-      entry.baseG,
-    );
+    if (!eff) return;
+    const scaled = scaledForStore(eff.base, numberFromInput(value), eff.baseG);
     setKcal(String(scaled.kcal));
     setProt(String(scaled.prot));
     setCarb(String(scaled.carb));
@@ -266,7 +257,19 @@ function EditForm({
               prot: numberFromInput(prot),
               carb: numberFromInput(carb),
               fat: numberFromInput(fat),
-              ...(scalable ? { grams: Math.round(numberFromInput(grams)) } : {}),
+              // Escalable → persistir cantidad + base efectiva. En el caso 2 esto
+              // «sana» la entrada (queda como caso 1 nativo, AC A3); en el caso 1
+              // reescribe la misma base (idempotente).
+              ...(eff
+                ? {
+                    grams: Math.round(numberFromInput(grams)),
+                    baseG: eff.baseG,
+                    baseKcal: eff.base.kcal,
+                    baseProt: eff.base.prot,
+                    baseCarb: eff.base.carb,
+                    baseFat: eff.base.fat,
+                  }
+                : {}),
             })
           }
           className="min-h-11 rounded-xl bg-primary text-[13px] font-semibold text-primary-foreground"

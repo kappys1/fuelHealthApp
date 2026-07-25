@@ -58,6 +58,32 @@ describe("foto sin pauta nutricional", () => {
   });
 });
 
+describe("F14·B · la foto detecta etiqueta nutricional (prompt congelado)", () => {
+  const prompt = photoPrompt({
+    contexto: "Contexto del usuario.",
+    meal: "comida",
+    kcalObjetivo: 2200,
+    protObjetivo: 170,
+    listaOpciones: "Pollo, arroz",
+  });
+
+  it("caso etiqueta → la LEE (ración en items + por 100 g en producto), no la vacía", () => {
+    expect(prompt).toContain("ETIQUETA o tabla de información nutricional");
+    expect(prompt).toContain('devuelve "es_etiqueta": true');
+    // La ración va como item (para añadir como comida directamente) y el por-100 g
+    // como bloque producto (para «Guardar como producto» sin 2ª llamada).
+    expect(prompt).toContain("los valores POR 100 g de la etiqueta");
+    expect(prompt).toContain("leídos tal cual, sin estimar");
+    expect(prompt).not.toContain('"items": []');
+  });
+
+  it("caso plato real → es_etiqueta:false, producto:null y análisis normal", () => {
+    expect(prompt).toContain('devuelve "es_etiqueta": false, "producto": null');
+    expect(prompt).toContain('"es_etiqueta": boolean');
+    expect(prompt).toContain('"producto":');
+  });
+});
+
 describe("ATHLETE_CONTEXT dinámico (doc 10 A2)", () => {
   it("el contexto completo sale del perfil (edita el perfil → cambia el texto)", () => {
     const full = athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY);

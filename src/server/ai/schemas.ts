@@ -18,13 +18,30 @@ export const photoItemZ = z.object({
   carbohidratos_g: num,
   grasa_g: num,
 });
+// F14·B (enmienda 25-jul): al leer una etiqueta, sus valores POR 100 g. La misma
+// lectura sirve para añadir como comida (items = la ración) y para «Guardar como
+// producto» (este bloque, sin 2ª llamada a la IA). Leídos, no estimados.
+export const photoProductoZ = z.object({
+  nombre: z.string(),
+  base_g: num,
+  kcal: num,
+  proteina_g: num,
+  carbohidratos_g: num,
+  grasa_g: num,
+});
 export const photoResultZ = z.object({
   items: z.array(photoItemZ),
+  // F14·B: la foto es una etiqueta/tabla nutricional. Nullable defensivo:
+  // null/ausente = false → degrada al comportamiento de hoy si el modelo lo omite.
+  es_etiqueta: z.boolean().nullable().default(false),
+  // Valores por 100 g leídos de la etiqueta (null si no es etiqueta).
+  producto: photoProductoZ.nullable().default(null),
   encaja_plan: z.boolean().nullable(),
   comentario: z.string(),
 });
 export type PhotoResult = z.infer<typeof photoResultZ>;
 export type PhotoItem = z.infer<typeof photoItemZ>;
+export type PhotoProducto = z.infer<typeof photoProductoZ>;
 
 // ── F-IA-2 · Estimar macros desde texto ──
 export const estimateZ = z.object({

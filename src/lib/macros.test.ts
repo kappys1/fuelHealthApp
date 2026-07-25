@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   backfillEntryGrams,
   deriveVariantsForStore,
+  effectiveBase,
   entryBaseFields,
   formatMacros,
   parseGramsSuffix,
@@ -157,6 +158,76 @@ describe("F06 · backfillEntryGrams (AC5/AC7)", () => {
       baseCarb: null,
       baseFat: null,
     });
+  });
+});
+
+describe("F14 · effectiveBase — base efectiva del editor de Hoy (Parte A)", () => {
+  const macros = { kcal: 130, prot: 1.7, carb: 12.4, fat: 8.8 };
+
+  it("caso 1 · base guardada → esa base, derived=false", () => {
+    expect(
+      effectiveBase({
+        grams: 40,
+        baseG: 100,
+        baseKcal: 200,
+        baseProt: 4,
+        baseCarb: 20,
+        baseFat: 10,
+        ...macros,
+      }),
+    ).toEqual({
+      baseG: 100,
+      base: { kcal: 200, prot: 4, carb: 20, fat: 10 },
+      derived: false,
+    });
+  });
+
+  it("caso 2 · sin base pero con gramos → base = macros ACTUALES a baseG=grams, derived=true", () => {
+    // La etiqueta de la bolsa de patatas: 25 g → 130 kcal · 1,7P/12,4C/8,8F.
+    const eff = effectiveBase({
+      grams: 25,
+      baseG: null,
+      baseKcal: null,
+      baseProt: null,
+      baseCarb: null,
+      baseFat: null,
+      ...macros,
+    });
+    expect(eff).toEqual({ baseG: 25, base: macros, derived: true });
+    // 25 g → 50 g duplica las macros (AC A2).
+    if (!eff) throw new Error("esperaba base efectiva");
+    expect(scaledForStore(eff.base, 50, eff.baseG)).toEqual({
+      kcal: 260,
+      prot: 3.4,
+      carb: 24.8,
+      fat: 17.6,
+    });
+  });
+
+  it("caso 3 · sin base y sin gramos → null (solo-macros, AC A4)", () => {
+    expect(
+      effectiveBase({
+        grams: null,
+        baseG: null,
+        baseKcal: null,
+        baseProt: null,
+        baseCarb: null,
+        baseFat: null,
+        ...macros,
+      }),
+    ).toBeNull();
+    // grams=0 también es fija (consistente con baseG null/0 = sin escalado).
+    expect(
+      effectiveBase({
+        grams: 0,
+        baseG: null,
+        baseKcal: null,
+        baseProt: null,
+        baseCarb: null,
+        baseFat: null,
+        ...macros,
+      }),
+    ).toBeNull();
   });
 });
 
