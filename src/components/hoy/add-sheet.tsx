@@ -86,6 +86,7 @@ export function AddSheet({
   date,
   onAdd,
   initialFile,
+  initialLayer,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -99,6 +100,8 @@ export function AddSheet({
   onAdd: (entries: EntryInput[]) => void;
   /** Imagen compartida al sistema (share target): abre directo en la capa de foto. */
   initialFile?: File | null;
+  /** Abrir directo en el catálogo (acción «Editar» del toast de F13 §C). */
+  initialLayer?: "products";
 }) {
   const [layer, setLayer] = useState<Layer>("home");
   // Producto seleccionado para el stepper (capa "product") y en edición (capa
@@ -113,10 +116,13 @@ export function AddSheet({
   const productFromRef = useRef<Layer>("home");
 
   // Share target: al abrir con una imagen compartida, saltar a la capa de foto.
-  // Diferido para no encadenar renders síncronos dentro del efecto.
+  // «Editar» del toast de F13 §C: abrir directo en el catálogo. Diferido para no
+  // encadenar renders síncronos dentro del efecto.
   useEffect(() => {
     if (open && initialFile) queueMicrotask(() => setLayer("photo"));
-  }, [open, initialFile]);
+    else if (open && initialLayer === "products")
+      queueMicrotask(() => setLayer("products"));
+  }, [open, initialFile, initialLayer]);
   const [search, setSearch] = useState("");
   const [justAdded, setJustAdded] = useState<{ delta: number; total: number } | null>(
     null,
