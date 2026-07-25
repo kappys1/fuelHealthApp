@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { useState } from "react";
-import { MealRow } from "@/components/hoy/meal-row";
+import { type EntryEditPatch, MealRow } from "@/components/hoy/meal-row";
 import { QuickAddMenu } from "@/components/hoy/quick-add-menu";
 import {
   displayMacro,
@@ -34,17 +34,7 @@ export function MealTimeline({
 }: {
   entries: EntryDTO[];
   templates: TemplateDTO[];
-  onSaveEntry: (
-    id: number,
-    patch: {
-      meal: MealKey;
-      name: string;
-      kcal: number;
-      prot: number;
-      carb: number;
-      fat: number;
-    },
-  ) => void;
+  onSaveEntry: (id: number, patch: EntryEditPatch) => void;
   onDeleteEntry: (entry: EntryDTO) => void;
   onAddMeal: (meal: MealKey) => void;
   onDuplicateEntry: (entry: EntryDTO) => void;

@@ -143,6 +143,22 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   dedup por nombre; toast con «Editar» → catálogo). Derivación pura testeada (`lib/entry-actions.ts`). **Fix de robustez
   colateral** (DECISIONS #77): `randomUUID` con fallback para contexto no seguro (crash real al
   añadir desde el iPhone por LAN). **Sin migración** (productos de C = productos F07 normales).
+- ✅ **Gramos editables tras registrar + la foto detecta etiqueta → producto** (uso real Alex,
+  25-jul: fotografió una etiqueta con la puerta «Foto» y luego no podía tocar los gramos) —
+  **IMPLEMENTADA (F14, v1.16)**, spec
+  [`docs/specs/features/14-gramos-editables-tras-registro-y-etiqueta-a-producto.md`](./specs/features/14-gramos-editables-tras-registro-y-etiqueta-a-producto.md).
+  **Fase 1 (Parte A · gramos editables)**: «base efectiva» (`macros.ts:effectiveBase`, pura y
+  testeada) hace escalable también una entrada con gramos pero sin base (caso 2), derivando la
+  base de las macros actuales y persistiéndola al guardar («sanado» → caso 1 nativo); el PATCH de
+  entrada acepta ahora `baseG/base*` para ello (DECISIONS 25-jul). Caso 3 (sin gramos) fuera de
+  alcance por decisión de Alex. **A1-A4 ✅ validados por Alex (25-jul).** **Fase 2 (Parte B · la
+  foto LEE la etiqueta — enmienda 25-jul, «una lectura, dos destinos»)**: F-IA-1 gana `es_etiqueta`
+  + bloque `producto` (por 100 g); la etiqueta se **lee** (ración en `items`, por-100 g en
+  `producto`) → se añade como comida directamente (escalable por la Parte A) y una afordance
+  «Guardar producto» abre Nuevo producto **prerelleno sin 2ª llamada a la IA**. (La 1ª impl.
+  ocultaba las filas y re-leía; Alex pidió leer una vez y reusar; se retiró el escape hatch.)
+  **Sin migración** (`grams/baseG/base*` ya existían). Sync a `04-IA.md`. **A1-A4 y B1-B4 ✅
+  validados por Alex en dev (25-jul)**; A5/B6 (regresión: 349 tests) verdes.
 - ✅ **Chat inteligente + comer fuera** (idea Alex, 15-jul; reencuadrada 16-jul) — **Fases 0–2
   IMPLEMENTADAS**, spec [`docs/specs/features/05-busqueda-web-y-foto-chat.md`](./specs/features/05-busqueda-web-y-foto-chat.md).
   **Fase 0** (reconstrucción del prompt congelado F-IA-8, sin infra): reescritura desde principios

@@ -11,9 +11,16 @@ const patchZ = z
     prot: z.number().min(0).max(2000),
     carb: z.number().min(0).max(2000),
     fat: z.number().min(0).max(2000),
-    // Cantidad editada (F06): reescala kcal/macros desde la base inmutable. La
-    // base (baseG/base*) es inmutable y nunca se acepta en el patch.
+    // Cantidad editada (F06): reescala kcal/macros desde la base inmutable.
     grams: z.number().int().min(0).max(20000).nullable(),
+    // Base (F14 · Parte A): normalmente inmutable, pero al editar una entrada del
+    // caso 2 (con gramos, sin base) el editor deriva y persiste la base efectiva
+    // → la entrada queda «sanada» y la próxima edición es caso 1 nativo.
+    baseG: z.number().int().min(0).max(20000).nullable(),
+    baseKcal: z.number().int().min(0).max(20000).nullable(),
+    baseProt: z.number().min(0).max(2000).nullable(),
+    baseCarb: z.number().min(0).max(2000).nullable(),
+    baseFat: z.number().min(0).max(2000).nullable(),
   })
   .partial();
 

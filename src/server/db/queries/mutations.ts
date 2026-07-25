@@ -102,9 +102,15 @@ export interface EntryPatch {
   prot?: number;
   carb?: number;
   fat?: number;
-  // Cantidad editada en el editor de Hoy (F06): reescala kcal/macros desde la base
-  // inmutable. La base (baseG/base*) NO se parchea nunca (es inmutable por diseño).
+  // Cantidad editada en el editor de Hoy (F06): reescala kcal/macros desde la base.
   grams?: number | null;
+  // Base (F14 · Parte A): el editor solo la manda al «sanar» una entrada del caso 2
+  // (con gramos, sin base) o cuando ya existía; en el resto de ediciones no viaja.
+  baseG?: number | null;
+  baseKcal?: number | null;
+  baseProt?: number | null;
+  baseCarb?: number | null;
+  baseFat?: number | null;
 }
 
 export async function updateEntry(id: number, patch: EntryPatch) {

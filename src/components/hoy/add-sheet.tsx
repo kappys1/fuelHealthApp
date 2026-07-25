@@ -15,7 +15,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -54,7 +54,7 @@ import {
   sumMacros,
 } from "@/lib/macros";
 import { cn } from "@/lib/utils";
-import type { PhotoResult } from "@/server/ai/schemas";
+import type { PhotoProducto, PhotoResult } from "@/server/ai/schemas";
 import type { ProductDTO, RecentDTO } from "@/server/db/queries/lookups";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
 
@@ -73,6 +73,19 @@ export interface ProductActions {
 }
 
 type Layer = "home" | "plan" | "photo" | "describe" | "product" | "products" | "editor";
+
+// F14·B (enmienda): datos con los que el editor de producto arranca prerelleno
+// (etiqueta ya leída en la capa de foto) → sin volver a llamar a la IA. null =
+// editor normal (vacío o editando un producto existente).
+type ProductPrefill = {
+  name: string;
+  baseG: number | null;
+  kcal: number;
+  prot: number;
+  carb: number;
+  fat: number;
+  source: ProductInput["source"];
+};
 
 export function AddSheet({
   open,
@@ -108,6 +121,10 @@ export function AddSheet({
   // "editor"; null = producto nuevo). `editorFrom` = a dónde vuelve el editor.
   const [selectedProduct, setSelectedProduct] = useState<ProductDTO | null>(null);
   const [editingProduct, setEditingProduct] = useState<ProductDTO | null>(null);
+  // Prefill del editor de producto (F14·B): la etiqueta leída en la capa de foto
+  // pasa sus valores por 100 g aquí → el editor arranca relleno SIN re-llamar a la
+  // IA. null = editor normal.
+  const [editorPrefill, setEditorPrefill] = useState<ProductPrefill | null>(null);
   // `editorFrom` solo se lee en el handler `back()`, nunca en el render → useRef
   // (react-doctor/rerender-state-only-in-handlers).
   const editorFromRef = useRef<Layer>("products");
@@ -173,6 +190,7 @@ export function AddSheet({
       setJustAdded(null);
       setSelectedProduct(null);
       setEditingProduct(null);
+      setEditorPrefill(null);
     }
     onOpenChange(v);
   };
@@ -190,10 +208,29 @@ export function AddSheet({
     commit([{ meal, name: p.name, ...f, source: "fav" }]);
   };
 
-  const openEditor = (p: ProductDTO | null, from: Layer) => {
+  const openEditor = (
+    p: ProductDTO | null,
+    from: Layer,
+    prefill?: ProductPrefill | null,
+  ) => {
     setEditingProduct(p);
+    setEditorPrefill(prefill ?? null);
     editorFromRef.current = from;
     setLayer("editor");
+  };
+
+  // F14·B (enmienda): guardar una etiqueta ya leída como producto, reusando los
+  // valores por 100 g del análisis (sin 2ª llamada a la IA). Vuelve a «home».
+  const saveLabelAsProduct = (producto: PhotoProducto) => {
+    openEditor(null, "home", {
+      name: producto.nombre,
+      baseG: producto.base_g > 0 ? Math.round(producto.base_g) : 100,
+      kcal: Math.round(producto.kcal),
+      prot: producto.proteina_g,
+      carb: producto.carbohidratos_g,
+      fat: producto.grasa_g,
+      source: "etiqueta",
+    });
   };
 
   const back = () => {
@@ -327,9 +364,16 @@ export function AddSheet({
             product={editingProduct}
             actions={products}
             onDone={back}
+            initialFields={editorPrefill}
           />
         ) : layer === "photo" ? (
-          <PhotoLayer meal={meal} date={date} onCommit={commit} initialFile={initialFile} />
+          <PhotoLayer
+            meal={meal}
+            date={date}
+            onCommit={commit}
+            initialFile={initialFile}
+            onSaveAsProduct={saveLabelAsProduct}
+          />
         ) : (
           <DescribeLayer meal={meal} date={date} onCommit={commit} />
         )}
@@ -827,11 +871,15 @@ function PhotoLayer({
   date,
   onCommit,
   initialFile,
+  onSaveAsProduct,
 }: {
   meal: MealKey;
   date: string;
   onCommit: (e: EntryInput[]) => void;
   initialFile?: File | null;
+  /** F14·B (enmienda): guardar la etiqueta ya leída como producto (por 100 g),
+   *  reusando los macros del análisis SIN una 2ª llamada a la IA. */
+  onSaveAsProduct: (producto: PhotoProducto) => void;
 }) {
   const online = useOnline();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -1008,7 +1056,7 @@ function PhotoLayer({
         <>
           <button
             type="button"
-            onClick={analyze}
+            onClick={() => analyze()}
             disabled={analyzing || !online}
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-[14px] font-medium text-primary-foreground disabled:opacity-60"
           >
@@ -1035,6 +1083,25 @@ function PhotoLayer({
 
       {result ? (
         <div className="space-y-3">
+          {/* F14·B (enmienda): una etiqueta se LEE como comida (filas visibles,
+              escalables por la Parte A). Si además es etiqueta, ofrecemos guardarla
+              como producto REUSANDO los valores por 100 g ya leídos (sin 2ª llamada). */}
+          {result.es_etiqueta === true && result.producto ? (
+            <div className="flex items-center gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2">
+              <span className="min-w-0 flex-1 text-[13px] text-muted-foreground">
+                📷 Es una etiqueta. Puedes añadirla como comida o guardarla como
+                producto (por 100 g).
+              </span>
+              <button
+                type="button"
+                onClick={() => result.producto && onSaveAsProduct(result.producto)}
+                className="shrink-0 rounded-lg border border-primary px-2.5 py-1.5 text-[12px] font-semibold text-primary"
+              >
+                Guardar producto
+              </button>
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             {rows.map((row, i) => (
               <PhotoItemRow
@@ -1606,31 +1673,58 @@ function ProductEditorLayer({
   product,
   actions,
   onDone,
+  initialFields,
 }: {
   product: ProductDTO | null;
   actions: ProductActions;
   onDone: () => void;
+  /** F14·B (enmienda): etiqueta ya leída en la capa de foto → prefill por 100 g
+   *  SIN re-leer con la IA. Solo para producto nuevo (product null). */
+  initialFields?: ProductPrefill | null;
 }) {
-  const [name, setName] = useState(product?.name ?? "");
-  const [baseG, setBaseG] = useState(product?.baseG != null ? String(product.baseG) : "");
-  const [kcal, setKcal] = useState(product ? String(product.baseKcal) : "");
-  const [prot, setProt] = useState(product ? String(product.baseProt) : "");
-  const [carb, setCarb] = useState(product ? String(product.baseCarb) : "");
-  const [fat, setFat] = useState(product ? String(product.baseFat) : "");
+  // Prefill: producto existente (edición) tiene precedencia; si no, los valores por
+  // 100 g leídos de la etiqueta (F14·B); si no, vacío.
+  const pf = product ? null : initialFields;
+  const [name, setName] = useState(product?.name ?? pf?.name ?? "");
+  const [baseG, setBaseG] = useState(
+    product?.baseG != null
+      ? String(product.baseG)
+      : pf?.baseG != null
+        ? String(pf.baseG)
+        : "",
+  );
+  const [kcal, setKcal] = useState(
+    product ? String(product.baseKcal) : pf ? String(pf.kcal) : "",
+  );
+  const [prot, setProt] = useState(
+    product ? String(product.baseProt) : pf ? String(pf.prot) : "",
+  );
+  const [carb, setCarb] = useState(
+    product ? String(product.baseCarb) : pf ? String(pf.carb) : "",
+  );
+  const [fat, setFat] = useState(
+    product ? String(product.baseFat) : pf ? String(pf.fat) : "",
+  );
   const [grupo, setGrupo] = useState<string>(product?.grupo ?? GRUPO_NONE);
   const [unit, setUnit] = useState<ProductUnit>(product?.unit ?? "g");
   const [pinned, setPinned] = useState(product?.pinned ?? true);
   // Método de creación (F10): Foto (F-IA-11 lee etiqueta) · Describir (F-IA-3 estima)
   // · Manual (formulario + ✨ inline). «Del plan» no aplica a crear un producto.
-  // Los tres desembocan en el MISMO formulario, prerrelleno y editable.
+  // Los tres desembocan en el MISMO formulario, prerrelleno y editable. Con prefill
+  // de etiqueta (F14·B) arrancamos en Manual: los datos ya están, sin foto que subir.
   const [method, setMethod] = useState<"photo" | "describe" | "manual">("manual");
   const [describeText, setDescribeText] = useState("");
   // Origen: al leer la etiqueta pasa a 'etiqueta'; con ✨/Describir a 'estimado'; si no,
-  // conserva el del producto (o 'manual' para uno nuevo). Solo se lee en `save()`, nunca
-  // en el render (el aviso lo dispara `aiFilled`) → useRef (rerender-state-only-in-handlers).
-  const sourceRef = useRef<ProductInput["source"]>(product?.source ?? "manual");
+  // conserva el del producto, el del prefill de etiqueta, o 'manual'. Solo se lee en
+  // `save()`, nunca en el render → useRef (rerender-state-only-in-handlers).
+  const sourceRef = useRef<ProductInput["source"]>(
+    product?.source ?? pf?.source ?? "manual",
+  );
   // Aviso de procedencia IA a confirmar: 'etiqueta' (leída) o 'estimado' (adivinada).
-  const [aiFilled, setAiFilled] = useState<null | "etiqueta" | "estimado">(null);
+  // Con prefill de etiqueta arranca ya en 'etiqueta' (los valores vienen de la IA).
+  const [aiFilled, setAiFilled] = useState<null | "etiqueta" | "estimado">(
+    pf ? "etiqueta" : null,
+  );
   const [reading, setReading] = useState(false);
   const [estimating, setEstimating] = useState(false);
   const online = useOnline();
@@ -1639,32 +1733,45 @@ function ProductEditorLayer({
 
   // Foto de la etiqueta → F-IA-11 rellena el formulario (LECTURA, no estimación).
   // Alex confirma/edita antes de guardar (el aviso «se fijan» sigue vigente).
+  // Variante que acepta la imagen YA procesada (F14·B: reusa la foto del analizador
+  // de platos sin re-fotografiar); `pickLabel` la envuelve procesando el File.
+  const readLabelImage = useCallback(
+    async (img: { base64: string; mediaType: string }) => {
+      setReading(true);
+      try {
+        const r = await api.readLabel([
+          { base64: img.base64, mediaType: img.mediaType },
+        ]);
+        setName((n) => r.nombre || n);
+        setBaseG(r.base_g != null ? String(r.base_g) : "");
+        setKcal(r.kcal != null ? String(r.kcal) : "");
+        setProt(r.proteina_g != null ? String(r.proteina_g) : "");
+        setCarb(r.carbohidratos_g != null ? String(r.carbohidratos_g) : "");
+        setFat(r.grasa_g != null ? String(r.grasa_g) : "");
+        setGrupo(
+          (PRODUCT_GROUPS as string[]).includes(r.grupo) ? r.grupo : GRUPO_NONE,
+        );
+        // Una foto posterior PISA a 'etiqueta' (fuente autorizada) aunque venía de ✨.
+        sourceRef.current = "etiqueta";
+        setAiFilled("etiqueta");
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "No se pudo leer la etiqueta.",
+        );
+      } finally {
+        setReading(false);
+      }
+    },
+    [],
+  );
+
   const pickLabel = async (file: File | undefined) => {
     if (!file) return;
-    setReading(true);
     try {
       const img = await processImage(file);
-      const r = await api.readLabel([
-        { base64: img.base64, mediaType: img.mediaType },
-      ]);
-      setName(r.nombre || name);
-      setBaseG(r.base_g != null ? String(r.base_g) : "");
-      setKcal(r.kcal != null ? String(r.kcal) : "");
-      setProt(r.proteina_g != null ? String(r.proteina_g) : "");
-      setCarb(r.carbohidratos_g != null ? String(r.carbohidratos_g) : "");
-      setFat(r.grasa_g != null ? String(r.grasa_g) : "");
-      setGrupo(
-        (PRODUCT_GROUPS as string[]).includes(r.grupo) ? r.grupo : GRUPO_NONE,
-      );
-      // Una foto posterior PISA a 'etiqueta' (fuente autorizada) aunque venía de ✨.
-      sourceRef.current = "etiqueta";
-      setAiFilled("etiqueta");
+      await readLabelImage(img);
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "No se pudo leer la etiqueta.",
-      );
-    } finally {
-      setReading(false);
+      toast.error(err instanceof Error ? err.message : "No se pudo cargar la foto.");
     }
   };
 
