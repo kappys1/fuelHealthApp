@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { ensureAuth, parseBody, serverError } from "@/lib/api";
-import { dayKey, isoWeekday, shiftDayKey } from "@/lib/dates";
+import { dayKey, isoWeekday, shiftDayKey, timeOfDay } from "@/lib/dates";
 import { MEAL_ORDER, phaseLabel } from "@/lib/macros";
+import { currentObjective } from "@/lib/profile";
 import { retry } from "@/lib/retry";
 import { dateZ } from "@/lib/schemas";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
 import {
+  closureLine,
   dayContext,
   energyBalanceLine,
   gaugeVerdictLine,
@@ -15,6 +17,7 @@ import {
 } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { coachPrompt } from "@/server/ai/prompts";
+import { objectiveStance, trainingTiming } from "@/server/analytics/dayClosure";
 import { dayTotals } from "@/server/analytics/dayTotals";
 import { computeDeficit } from "@/server/analytics/deficit";
 import { energyBalance } from "@/server/analytics/energyBalance";
@@ -45,8 +48,12 @@ export async function POST(request: Request) {
   const parsed = await parseBody(request, bodyZ);
   if ("error" in parsed) return parsed.error;
 
-  const base = parsed.data.date ?? dayKey();
+  const realToday = dayKey();
+  const base = parsed.data.date ?? realToday;
   const targetDate = parsed.data.mode === "ayer" ? shiftDayKey(base, -1) : base;
+  // Modo "hoy" sobre un día YA PASADO (navegado en Hoy): se valora como terminado,
+  // no como día en curso (fix ai-tuner 25-jul: los retroactivos salían como "hoy").
+  const retroactive = parsed.data.mode === "hoy" && targetDate !== realToday;
 
   let view: Awaited<ReturnType<typeof getDayView>>;
   let plan: Awaited<ReturnType<typeof getPlanContext>>;
@@ -101,6 +108,24 @@ export async function POST(request: Request) {
     if (balanceLine) dataLines.push(balanceLine);
     dataLines.push(trendJudgeLine(computeDeficit(trend.records)));
   }
+  // Directriz de cierre del día EN CURSO real (F-IA-6 · ai-tuner 25-jul): clase del
+  // cierre × doctrina del objetivo vigente (techo/banda/suelo, principio 9) × timing
+  // de entreno. Decidido en servidor; el prompt solo pone el tono. No para el día
+  // ya pasado (retroactivo): ahí no hay "para hoy" que cuadrar.
+  if (plan && parsed.data.mode === "hoy" && !retroactive) {
+    const stance = objectiveStance(
+      currentObjective(atleta.profile)?.texto ?? null,
+    );
+    const isTrainingDay =
+      !!(view.day?.sessionLabel || view.session) ||
+      !sesionCalendario.toLowerCase().includes("descanso");
+    const timing = trainingTiming({
+      now: timeOfDay(),
+      franja: atleta.profile.franjaEntreno,
+      isTrainingDay,
+    });
+    dataLines.push(closureLine({ stance, verdict, timing }));
+  }
   const dayData = dataLines.join("\n");
 
   // Comidas del plan que aún le quedan (F01 Fase 1): en curso = las sin entrada
@@ -120,9 +145,10 @@ export async function POST(request: Request) {
       task: "coach",
       prompt: coachPrompt({
         atleta: atleta.full,
-        today: base,
+        today: realToday,
         targetDate,
         mode: parsed.data.mode,
+        retroactive,
         kcal: plan?.targets.kcal ?? null,
         prot: plan?.targets.prot ?? null,
         carb: plan?.targets.carb ?? null,

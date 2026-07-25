@@ -19,6 +19,11 @@ export function shortDayLabel(date: Date = new Date()): string {
   return formatInTimeZone(date, APP_TZ, "EEE d LLL", { locale: es });
 }
 
+/** Hora del día "HH:mm" en Europe/Madrid para un instante dado (coach: timing). */
+export function timeOfDay(date: Date = new Date()): string {
+  return formatInTimeZone(date, APP_TZ, "HH:mm");
+}
+
 /** Instante "seguro" (mediodía UTC) para una clave de día — evita saltos de TZ. */
 function keyToInstant(key: string): Date {
   return new Date(`${key}T12:00:00Z`);

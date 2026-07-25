@@ -165,13 +165,21 @@ export function sharedGuardrails(): string {
 // dramatizar) y los guardarraíles. Reescritura tras el caso del 14-jul (DECISIONS
 // #53): el coach echaba «bronca» por un buen día — pedía «en qué falló», ignoraba
 // el gasto y prescribía («cíñete a 1800», «grasa abdominal»), rompiendo P1 y P8.
+// ai-tuner 25-jul (DECISIONS #76): el bloque «hoy» pedía «una sugerencia concreta
+// para cuadrar» INCONDICIONALMENTE → compulsión de rellenar huecos triviales
+// (10 kcal → salmón). Se traslada la DECISIÓN al servidor (`closureLine`): clase
+// del cierre × doctrina del objetivo (techo/banda/suelo) × timing de entreno; el
+// bloque «hoy» ahora ACTÚA SEGÚN esa directriz y solo pone el tono. Además, un día
+// pasado analizado en modo «hoy» (retroactivo) se etiqueta como día ya terminado.
 export function coachPrompt(args: {
   atleta: string;
-  /** Día que la UI trata como "hoy" (el día visible en Hoy). */
+  /** Día que la UI trata como "hoy" (el día real, para anclar la fecha). */
   today: string;
-  /** Día que se evalúa: = today en modo hoy; today−1 en modo ayer. */
+  /** Día que se evalúa: = today en modo hoy del día en curso; today−1 en modo ayer. */
   targetDate: string;
   mode: "hoy" | "ayer";
+  /** modo hoy sobre un día YA PASADO (navegado en Hoy): valorar como terminado. */
+  retroactive?: boolean;
   kcal: number | null;
   prot: number | null;
   carb: number | null;
@@ -179,15 +187,18 @@ export function coachPrompt(args: {
   dayContext: string;
   /** Opciones del plan de las comidas pendientes (F01 Fase 1; "" si ninguna). */
   planPendiente: string;
-  /** Datos YA juzgados en servidor (veredicto app + balance + déficit real). "" si no aplica. */
+  /** Datos YA juzgados en servidor (veredicto + directriz de cierre + balance + déficit). "" si no aplica. */
   dayData?: string;
 }): string {
   // Fecha objetivo explícita (F01 Fase 0): el modelo nunca alucina qué día es.
-  // Por paridad con el chat; en modo ayer se declara además el día evaluado.
+  // Por paridad con el chat; en modo ayer (y en el retroactivo) se declara además
+  // el día evaluado para que no trate un día pasado como el día en curso.
   const dateLine =
     args.mode === "ayer"
       ? `HOY es ${args.today} (${weekdayName(args.today)}). Analizas AYER, ${args.targetDate} (${weekdayName(args.targetDate)}).`
-      : `HOY es ${args.today} (${weekdayName(args.today)}).`;
+      : args.retroactive
+        ? `HOY es ${args.today} (${weekdayName(args.today)}). Analizas un día YA PASADO, ${args.targetDate} (${weekdayName(args.targetDate)}); no es el día en curso.`
+        : `HOY es ${args.today} (${weekdayName(args.today)}).`;
   // P1 en el header: el objetivo es pauta de INGESTA, no la vara para juzgar si
   // «se pasó». El juez del déficit es la báscula (déficit real, en dayData).
   const targetContext =
@@ -209,9 +220,12 @@ export function coachPrompt(args: {
   const dataBlock = args.dayData?.trim()
     ? `\n\nDATOS DEL DÍA (ya calculados; úsalos tal cual, no recalcules cifras):\n${args.dayData.trim()}`
     : "";
+  // Modo hoy del día en curso → sigue la DIRECTRIZ DE CIERRE (dayData). Un día ya
+  // pasado analizado en modo hoy (retroactivo) o el modo ayer → valoración de día
+  // terminado (no hay «para hoy» que cuadrar).
   const block =
-    args.mode === "hoy"
-      ? `Día EN CURSO. ${args.dayContext} Di qué le falta para cuadrar el día: kcal y proteína restantes, y una sugerencia concreta con las comidas del plan que le quedan. Si algo va desviado (proteína baja, hidrato lejos del entreno, poca agua), avísalo con calma.`
+    args.mode === "hoy" && !args.retroactive
+      ? `Día EN CURSO. ${args.dayContext} Di el hueco real con calma (kcal y, si aplica, proteína restantes) y ACTÚA SEGÚN LA DIRECTRIZ DE CIERRE de los DATOS DEL DÍA: NO sugieras comida por defecto ni para rellenar huecos pequeños — hazlo SOLO si la directriz lo pide, y entonces con UNA opción del plan pendiente. Respeta el techo de kcal: si cerrar un macro te haría pasarte, no lo cierres. Señala como MUCHO 1-2 cosas realmente mejorables (proteína baja, hidrato mal colocado respecto al entreno, poca agua), con calma y según la directriz; no las amontones.`
       : `Día TERMINADO. ${args.dayContext} Valóralo con honestidad y proporción, con calma y SIN dramatizar. Apóyate en los DATOS DEL DÍA de arriba: si el balance y el déficit real muestran que el día estuvo bien, dilo claramente y NO lo conviertas en un fracaso ni lo reescribas como fallo. Reconoce lo que estuvo bien y señala como MUCHO 1-2 cosas realmente mejorables, con calma (un macro notablemente alto o un alimento fuera de pauta van como observación, no como titular). Cierra con 1 acción concreta para hoy solo si aporta de verdad.`;
   return `${header}\n\n${guardrails}${planBlock}${dataBlock}\n\n${block}\n\nMáximo 100 palabras, directo, sin saludos, en español.`;
 }

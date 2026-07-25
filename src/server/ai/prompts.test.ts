@@ -8,7 +8,9 @@ import type { MarkDTO } from "@/server/db/queries/marks";
 import type { DeficitResult } from "@/server/analytics/deficit";
 import { energyBalance } from "@/server/analytics/energyBalance";
 import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
+import type { TrainingTiming } from "@/server/analytics/dayClosure";
 import {
+  closureLine,
   dayContext,
   energyBalanceLine,
   gaugeVerdictLine,
@@ -471,6 +473,121 @@ describe("coach: datos juzgados en servidor + tono (regresión 14-jul, DECISIONS
     expect(p).toContain("no inventes alimentos");
     // (4) el marco que causaba la «bronca» YA NO está
     expect(p).not.toContain("en qué falló respecto a objetivos");
+  });
+});
+
+describe("coach: directriz de cierre por dato, no por prompt (ai-tuner 25-jul, DECISIONS #76)", () => {
+  const T = { kcal: 1800, prot: 110, carb: 215, fat: 55 };
+  const noTiming: TrainingTiming = { rel: "sin_dato", hoursToStart: null };
+
+  // Casos canónicos LITERALES del export real (skill §6: sin caso, no hay fix).
+  it("21-jul (faltan 10 kcal, definición) → DÍA CERRADO, NO sugerir comida", () => {
+    const v = gaugeVerdict(T, { kcal: 1790, prot: 129, carb: 195, fat: 57 }, null);
+    const line = closureLine({ stance: "deficit", verdict: v, timing: noTiming });
+    expect(line).toContain("DÍA CERRADO");
+    expect(line).toContain("NO sugieras comida");
+  });
+
+  it("23-jul (67 kcal, proteína cubierta, definición) → día cerrado", () => {
+    const v = gaugeVerdict(T, { kcal: 1733, prot: 114, carb: 181, fat: 60 }, null);
+    expect(
+      closureLine({ stance: "deficit", verdict: v, timing: noTiming }),
+    ).toContain("DÍA CERRADO");
+  });
+
+  it("24-jul (22 g proteína pendientes) → PROTEÍNA PRIORITARIA (proteína magra)", () => {
+    const v = gaugeVerdict(T, { kcal: 1748, prot: 88, carb: 200, fat: 60 }, null);
+    const line = closureLine({ stance: "deficit", verdict: v, timing: noTiming });
+    expect(line).toContain("PROTEÍNA PRIORITARIA");
+    expect(line).toContain("proteína magra");
+  });
+
+  it("MISMO 23-jul con objetivo=volumen → SUELO, sí invita a cerrar (no «día cerrado»)", () => {
+    const v = gaugeVerdict(T, { kcal: 1733, prot: 114, carb: 181, fat: 60 }, null);
+    const line = closureLine({ stance: "superavit", verdict: v, timing: noTiming });
+    expect(line).toContain("SUELO");
+    expect(line).not.toContain("NO sugieras comida");
+  });
+
+  it("hueco material: definición NO empuja (techo, «si tienes hambre»); volumen sugiere cerrar", () => {
+    const v = gaugeVerdict(T, { kcal: 1600, prot: 110, carb: 180, fat: 40 }, null); // 200 kcal rem
+    const def = closureLine({ stance: "deficit", verdict: v, timing: noTiming });
+    expect(def).toContain("TECHO");
+    expect(def).toContain("si tienes hambre");
+    const vol = closureLine({ stance: "superavit", verdict: v, timing: noTiming });
+    expect(vol).toContain("sugiere cerrarlo");
+  });
+
+  it("exceso en definición se comenta con calma, sin sugerir más comida", () => {
+    const v = gaugeVerdict(T, { kcal: 1950, prot: 120, carb: 240, fat: 70 }, null);
+    const line = closureLine({ stance: "deficit", verdict: v, timing: noTiming });
+    expect(line).toContain("EXCESO");
+    expect(line).toContain("NO sugieras más comida");
+  });
+
+  it("mantenimiento: hueco dentro del ±10 % → EN BANDA (no comentar)", () => {
+    const v = gaugeVerdict(T, { kcal: 1650, prot: 110, carb: 215, fat: 55 }, null); // 150 kcal rem
+    expect(
+      closureLine({ stance: "mantenimiento", verdict: v, timing: noTiming }),
+    ).toContain("EN BANDA");
+  });
+
+  it("timing: hidratos pendientes a las 17:00 (pre) vs 22:30 (post) → directrices distintas", () => {
+    const v = gaugeVerdict(T, { kcal: 1400, prot: 110, carb: 150, fat: 40 }, null); // carb rem 65
+    const pre = closureLine({
+      stance: "deficit",
+      verdict: v,
+      timing: { rel: "pre", hoursToStart: 2.5 },
+    });
+    const post = closureLine({
+      stance: "deficit",
+      verdict: v,
+      timing: { rel: "post", hoursToStart: null },
+    });
+    expect(pre).toContain("comida previa");
+    expect(pre).toContain("2,5 h");
+    expect(post).toContain("recuperación");
+    expect(pre).not.toEqual(post);
+  });
+
+  it("el bloque «hoy» sigue la directriz y ya NO pide una sugerencia incondicional", () => {
+    const base = {
+      atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+      today: TODAY,
+      targetDate: TODAY,
+      kcal: 1800,
+      prot: 110,
+      carb: 215,
+      fat: 55,
+      dayContext: "Comidas: [...]",
+      planPendiente: "",
+    };
+    const p = coachPrompt({ ...base, mode: "hoy" });
+    expect(p).toContain("ACTÚA SEGÚN LA DIRECTRIZ DE CIERRE");
+    expect(p).toContain("NO sugieras comida por defecto ni para rellenar huecos pequeños");
+    // el marco que causaba la compulsión de cuadrar YA NO está
+    expect(p).not.toContain(
+      "una sugerencia concreta con las comidas del plan que le quedan",
+    );
+  });
+
+  it("día pasado analizado en modo «hoy» (retroactivo) se etiqueta como terminado", () => {
+    const p = coachPrompt({
+      atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+      today: TODAY,
+      targetDate: "2026-07-10",
+      mode: "hoy",
+      retroactive: true,
+      kcal: 1800,
+      prot: 110,
+      carb: 215,
+      fat: 55,
+      dayContext: "Comidas: [...]",
+      planPendiente: "",
+    });
+    expect(p).toContain("Analizas un día YA PASADO, 2026-07-10");
+    expect(p).toContain("Día TERMINADO");
+    expect(p).not.toContain("Día EN CURSO");
   });
 });
 
