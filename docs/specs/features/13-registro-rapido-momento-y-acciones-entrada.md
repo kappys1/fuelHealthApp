@@ -1,5 +1,5 @@
 # F13 · Registro más rápido — añadir por momento + acciones de la entrada
-**Estado**: implementada (Fase 1 validada 🖐; Fase 2 AC 4/5/6 pendientes 🖐) · **Tamaño**: feature
+**Estado**: implementada · validada 🖐 en dev (AC 1/2/4/5/6, 25-jul) · **Tamaño**: feature
 **Fecha**: 2026-07-25 · **Origen**: tres observaciones de uso real de Alex (25-jul), sobre
 `feat/chat-f12`, con captura de la tarjeta «Comidas» a 0 entradas:
 (1) «cada dos por tres estoy metiendo un producto [en descripción] y luego no lo puedo pasar
