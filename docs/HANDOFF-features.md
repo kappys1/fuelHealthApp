@@ -132,6 +132,18 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   chip, chips tocables en crear y editar. **Nota UX pendiente**: la ubicación del editor inline
   (bajo el título, tras el lápiz) es funcional pero no convence del todo a Alex → posible
   refinamiento de dónde/cómo aparece (a pensar con el product-partner, sin urgencia).
+- ✅ **Registro más rápido — añadir por momento + acciones de la entrada** (3 observaciones de
+  uso real Alex, 25-jul) — **IMPLEMENTADA (F13, v1.15)**, spec
+  [`docs/specs/features/13-registro-rapido-momento-y-acciones-entrada.md`](./specs/features/13-registro-rapido-momento-y-acciones-entrada.md).
+  **Fase 1 (Añadir por momento)** — VALIDADA por Alex 🖐 (AC 1/2, 25-jul): la sección expandida
+  de cada comida gana la acción de añadir (CTA en momento vacío; pie «＋ Añadir a {Comida}» con
+  entradas); el gesto de la fila-cabecera no cambia. **Fase 2 (Duplicar + Guardar en Mis
+  productos)** — implementada, **AC de escritura 🖐 (4/5/6) pendientes de validación**: duplicar
+  idéntico (conserva base/gramos/foto, «Duplicar a hoy» desde día pasado) y promover una entrada
+  al catálogo desde el día (con base → reescala, sin base → fijo, dedup por nombre; toast con
+  «Editar» → catálogo). Derivación pura testeada (`lib/entry-actions.ts`). **Fix de robustez
+  colateral** (DECISIONS #77): `randomUUID` con fallback para contexto no seguro (crash real al
+  añadir desde el iPhone por LAN). **Sin migración** (productos de C = productos F07 normales).
 - ✅ **Chat inteligente + comer fuera** (idea Alex, 15-jul; reencuadrada 16-jul) — **Fases 0–2
   IMPLEMENTADAS**, spec [`docs/specs/features/05-busqueda-web-y-foto-chat.md`](./specs/features/05-busqueda-web-y-foto-chat.md).
   **Fase 0** (reconstrucción del prompt congelado F-IA-8, sin infra): reescritura desde principios
