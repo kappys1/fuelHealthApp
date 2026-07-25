@@ -345,7 +345,7 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   seguro (http de LAN / Safari viejo) — crash real al añadir desde el iPhone; cableado en
   los 3 puntos de cliente afectados.
 - Sin schema ni migración (productos de C = productos F07 normales). Suite verde (typecheck +
-  344 tests + build); **AC 4/5/6 (flujo de escritura) pendientes de validación de Alex 🖐**.
+  344 tests + build); **AC 1/2/4/5/6 validados por Alex en dev (25-jul) 🖐**.
 
 ---
 
