@@ -243,6 +243,7 @@ export function HoyClient({
         templates={data.templates}
         onSaveEntry={(id, patch) => todayState.updateEntry(id, patch)}
         onDeleteEntry={todayState.deleteEntry}
+        onAddMeal={openAdd}
         onCopyYesterday={todayState.copyYesterday}
         onSaveTemplate={todayState.saveTemplate}
         onApplyTemplate={todayState.applyTemplate}
