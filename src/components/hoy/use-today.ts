@@ -13,6 +13,7 @@ import {
   updateQueuedBloatUpsert,
 } from "@/lib/offline-queue";
 import { isRetriableRequestError } from "@/lib/request-errors";
+import { randomUUID } from "@/lib/uuid";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { EntryDTO } from "@/server/db/queries/day";
 import type { TodayPayload } from "@/server/db/queries/today";
@@ -44,7 +45,7 @@ export function useToday(date: string, initial: TodayPayload) {
   // ── Añadir entradas (optimista) ──
   const addEntries = useCallback(
     async (entries: EntryInput[]) => {
-      const clientMutationId = crypto.randomUUID();
+      const clientMutationId = randomUUID();
       const optimistic: EntryDTO[] = entries.map((e) => ({
         id: tempId--,
         meal: e.meal,
