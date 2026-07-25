@@ -21,6 +21,12 @@ import { TRAINING_TIPO_LABELS } from "@/lib/training";
 import type { ProductDTO } from "@/server/db/queries/lookups";
 import type { MarkDTO } from "@/server/db/queries/marks";
 import type { AdherenceResult } from "@/server/analytics/adherence";
+import {
+  classifyClosure,
+  MAINTENANCE_BAND,
+  type Stance,
+  type TrainingTiming,
+} from "@/server/analytics/dayClosure";
 import type { DeficitResult } from "@/server/analytics/deficit";
 import type { EnergyBalance } from "@/server/analytics/energyBalance";
 import type { GaugeVerdict } from "@/server/analytics/gaugeVerdict";
@@ -283,6 +289,88 @@ export function trendJudgeLine(deficit: DeficitResult): string {
   const kg = deficit.kgPerWeek;
   const kgStr = `${kg > 0 ? "+" : ""}${num(kg, 2)} kg/semana`;
   return `Déficit real (báscula, media 7 d) — ESTE es el juez (principio 1): ~${num(deficit.deficitKcal ?? 0)} kcal/día (${kgStr}).`;
+}
+
+/**
+ * (d · F-IA-6 · ai-tuner 25-jul) DIRECTRIZ DE CIERRE del día EN CURSO: qué
+ * procede hacer con el hueco (cerrar, priorizar proteína, no tocar, comentar un
+ * exceso), YA DECIDIDO en servidor. Sustituye la orden incondicional del prompt
+ * («una sugerencia concreta para cuadrar») que provocaba la compulsión de rellenar
+ * huecos triviales. Combina la CLASE del cierre (umbrales) con la DOCTRINA del
+ * objetivo vigente (techo/banda/suelo, principio 9) y el TIMING de entreno. El
+ * prompt solo pone el tono; el modelo NO reclasifica. Solo modo hoy · día real.
+ */
+export function closureLine(args: {
+  stance: Stance;
+  verdict: GaugeVerdict;
+  timing: TrainingTiming;
+}): string {
+  const { stance, verdict: v, timing } = args;
+  const cls = classifyClosure(v);
+  const band = Math.round(v.targetKcal * MAINTENANCE_BAND);
+  const kcalRem = v.kcalRemaining;
+  const kcalOver = v.kcalOver;
+  const protRem = Math.round(v.prot.remaining);
+
+  let dir: string;
+  if (cls === "exceso") {
+    dir =
+      stance === "superavit"
+        ? `POR ENCIMA (+${kcalOver} kcal): en volumen es lo esperado, no es una desviación; no lo señales como problema.`
+        : stance === "mantenimiento"
+          ? kcalOver <= band
+            ? `EN BANDA: +${kcalOver} kcal, dentro del ±10 % de mantenimiento; no lo comentes como desviación.`
+            : `EXCESO leve sobre mantenimiento (+${kcalOver} kcal): obsérvalo sin dramatizar; no prescribas recortes.`
+          : `EXCESO: te has pasado ${kcalOver} kcal del techo del día. Coméntalo con calma como observación (la báscula es el juez, no es un fracaso); NO sugieras más comida para «cuadrar».`;
+  } else if (cls === "proteina_prioritaria") {
+    const head = `PROTEÍNA PRIORITARIA: faltan ${protRem} g de proteína — es lo único material que falta.`;
+    dir =
+      stance === "superavit"
+        ? `${head} Sugiere UNA fuente de proteína magra de su plan y, si queda hueco de kcal para tu suelo, ciérralo también.`
+        : stance === "mantenimiento"
+          ? `${head} Sugiere UNA fuente de proteína magra de su plan; no persigas el resto de macros.`
+          : `${head} Sugiere UNA fuente de proteína magra de las opciones del plan pendientes; el resto del hueco de kcal NO hay que rellenarlo (en definición, quedarse corto en kcal es correcto).`;
+  } else if (cls === "hueco_material") {
+    dir =
+      stance === "superavit"
+        ? `HUECO: quedan ${kcalRem} kcal por debajo de tu SUELO. En volumen quedarse corto es el fallo: sugiere cerrarlo con una opción del plan pendiente.`
+        : stance === "mantenimiento"
+          ? kcalRem <= band
+            ? `EN BANDA: quedan ${kcalRem} kcal, dentro del ±10 % de mantenimiento; no hace falta comentarlo.`
+            : `HUECO: quedan ${kcalRem} kcal. En mantenimiento no fuerces el cierre; menciónalo solo como opción ligera.`
+          : `HUECO MATERIAL: quedan ${kcalRem} kcal con la proteína cubierta. En definición el objetivo es un TECHO: quedarse por debajo es correcto, NO hay que rellenarlo. Como MUCHO, y solo si menciona hambre, ofrece UNA opción del plan como opcional («si tienes hambre…»); no lo conviertas en una tarea.`;
+  } else {
+    // sin_hueco
+    dir =
+      stance === "superavit"
+        ? `CASI EN EL SUELO: faltan ${kcalRem} kcal para tu objetivo; si te apetece, un cierre pequeño, pero no es crítico.`
+        : stance === "mantenimiento"
+          ? `DÍA CERRADO: dentro de banda; no sugieras añadidos.`
+          : `DÍA CERRADO: solo faltan ${kcalRem} kcal con la proteína cubierta, por debajo del umbral. NO sugieras comida para cuadrar; confírmale que el día está cerrado (en definición, quedarse algo corto es lo correcto).`;
+  }
+
+  // Timing de entreno (solo cuando aporta): hidratos pendientes antes/después de
+  // la sesión, o descanso sin urgencia. Evita ruido si no hay nada material.
+  const carbRem = Math.round(v.carb.remaining);
+  const carbMaterial = carbRem >= 20;
+  const anythingPending =
+    cls === "proteina_prioritaria" || cls === "hueco_material" || carbMaterial;
+  let timingLine = "";
+  if (timing.rel === "pre" && carbMaterial) {
+    const h =
+      timing.hoursToStart == null
+        ? ""
+        : timing.hoursToStart < 1
+          ? "menos de 1 h"
+          : `~${num(timing.hoursToStart, 1)} h`;
+    timingLine = ` TIMING: entrenas en ${h} — prioriza colocar los hidratos pendientes (${carbRem} g) en la comida previa para llegar con gasolina.`;
+  } else if (timing.rel === "post" && anythingPending) {
+    timingLine = ` TIMING: ya has entrenado — orienta lo que quede a la recuperación (proteína + algo de hidrato).`;
+  } else if (timing.rel === "descanso" && carbMaterial) {
+    timingLine = ` TIMING: día de descanso — sin urgencia de timing de nutrientes.`;
+  }
+
+  return `Directriz de cierre (juicio determinista; síguela tal cual, tú solo pones el tono): ${dir}${timingLine}`;
 }
 
 /**

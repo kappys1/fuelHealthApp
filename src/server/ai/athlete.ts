@@ -1,6 +1,6 @@
 import { dayKey } from "@/lib/dates";
 import type { SessionByWeekday } from "@/lib/macros";
-import { trainingDaysPerWeek } from "@/lib/profile";
+import { type AthleteProfile, trainingDaysPerWeek } from "@/lib/profile";
 import { latestWeightOnOrBefore } from "@/server/db/queries/day";
 import {
   getAthleteProfile,
@@ -17,6 +17,8 @@ import { athleteContext, athleteContextCompact } from "./prompts";
 export interface AthleteContexts {
   peso: number | null;
   sessionByWeekday: SessionByWeekday;
+  /** Perfil vigente (para leer objetivo/franja en servidor; F-IA-6 cierre). */
+  profile: AthleteProfile;
   /** Contexto completo (coach/WOD/visita/chat). */
   full: string;
   /** Contexto compacto + cláusula anti-sesgo (estimaciones). */
@@ -41,6 +43,7 @@ export async function getAthleteContexts(
   return {
     peso,
     sessionByWeekday,
+    profile,
     full: athleteContext(profile, peso, trainingDays, date),
     compact: athleteContextCompact(profile, peso),
     compactPhoto: athleteContextCompact(profile, peso, {
