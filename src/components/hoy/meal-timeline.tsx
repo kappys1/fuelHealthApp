@@ -23,6 +23,10 @@ export function MealTimeline({
   onSaveEntry,
   onDeleteEntry,
   onAddMeal,
+  onDuplicateEntry,
+  onDuplicateEntryToToday,
+  onSaveEntryProduct,
+  isPastDay,
   onCopyYesterday,
   onSaveTemplate,
   onApplyTemplate,
@@ -43,6 +47,10 @@ export function MealTimeline({
   ) => void;
   onDeleteEntry: (entry: EntryDTO) => void;
   onAddMeal: (meal: MealKey) => void;
+  onDuplicateEntry: (entry: EntryDTO) => void;
+  onDuplicateEntryToToday: (entry: EntryDTO) => void;
+  onSaveEntryProduct: (entry: EntryDTO) => void;
+  isPastDay: boolean;
   onCopyYesterday: () => void;
   onSaveTemplate: (name: string) => void;
   onApplyTemplate: (id: number) => void;
@@ -151,6 +159,10 @@ export function MealTimeline({
                           entry={entry}
                           onSave={(patch) => onSaveEntry(entry.id, patch)}
                           onDelete={onDeleteEntry}
+                          onDuplicate={onDuplicateEntry}
+                          onDuplicateToToday={onDuplicateEntryToToday}
+                          onSaveProduct={onSaveEntryProduct}
+                          isPastDay={isPastDay}
                         />
                       ))}
                       <p className="border-t border-line py-2 text-[11px] text-muted-foreground">
