@@ -329,6 +329,24 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 - Sin schema ni migración. Deploy: nueva env `AI_MODEL_TITLE`. Suite verde (typecheck +
   297 tests + build); **AC1/AC3/AC5 validados por Alex en móvil (25-jul) 🖐**.
 
+### v1.15 · Registro más rápido — añadir por momento + acciones de la entrada (F13)
+- **Añadir por momento** (Alcance A): la sección expandida de cada comida gana la acción de
+  añadir (reusa `openAdd`, preselecciona la comida). Momento vacío → CTA «Aún no hay comidas
+  aquí · Toca para registrar» (antes: hueco muerto); momento con comidas → pie «＋ Añadir a
+  {Comida}» bajo el subtotal. El gesto de la fila-cabecera no cambia. **Validado por Alex 🖐**.
+- **Duplicar entrada** (Alcance B): en el sheet de editar, copia idéntica que conserva
+  base/gramos/foto/`source` (el diferencial frente a «recientes», que los pierde). En día
+  pasado, «Duplicar a hoy» (escribe en hoy vía api directo + toast) / «Duplicar aquí».
+- **Guardar en Mis productos** (Alcance C): promueve la entrada al catálogo desde el día
+  (antes solo el chat, F12). Con base → producto que reescala; sin base → fijo; dedup por
+  nombre exacto (1:1 con `saveConfirmedProduct`). Toast con acción «Editar» → add-sheet en
+  el catálogo. Derivación pura y testeada (`lib/entry-actions.ts`, 17 casos).
+- **Fix de robustez** (DECISIONS #77): `crypto.randomUUID` con fallback para contexto no
+  seguro (http de LAN / Safari viejo) — crash real al añadir desde el iPhone; cableado en
+  los 3 puntos de cliente afectados.
+- Sin schema ni migración (productos de C = productos F07 normales). Suite verde (typecheck +
+  344 tests + build); **AC 1/2/4/5/6 validados por Alex en dev (25-jul) 🖐**.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

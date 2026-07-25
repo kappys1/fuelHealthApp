@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Plus } from "lucide-react";
 import { useState } from "react";
 import { MealRow } from "@/components/hoy/meal-row";
 import { QuickAddMenu } from "@/components/hoy/quick-add-menu";
@@ -22,6 +22,11 @@ export function MealTimeline({
   templates,
   onSaveEntry,
   onDeleteEntry,
+  onAddMeal,
+  onDuplicateEntry,
+  onDuplicateEntryToToday,
+  onSaveEntryProduct,
+  isPastDay,
   onCopyYesterday,
   onSaveTemplate,
   onApplyTemplate,
@@ -41,6 +46,11 @@ export function MealTimeline({
     },
   ) => void;
   onDeleteEntry: (entry: EntryDTO) => void;
+  onAddMeal: (meal: MealKey) => void;
+  onDuplicateEntry: (entry: EntryDTO) => void;
+  onDuplicateEntryToToday: (entry: EntryDTO) => void;
+  onSaveEntryProduct: (entry: EntryDTO) => void;
+  isPastDay: boolean;
   onCopyYesterday: () => void;
   onSaveTemplate: (name: string) => void;
   onApplyTemplate: (id: number) => void;
@@ -139,21 +149,46 @@ export function MealTimeline({
                 />
               </button>
 
-              {open && rows.length > 0 ? (
+              {open ? (
                 <div className="border-t border-line bg-surface-2/55 px-[18px] py-2">
-                  {rows.map((entry) => (
-                    <MealRow
-                      key={entry.id}
-                      entry={entry}
-                      onSave={(patch) => onSaveEntry(entry.id, patch)}
-                      onDelete={onDeleteEntry}
-                    />
-                  ))}
-                  <p className="border-t border-line py-2 text-[11px] text-muted-foreground">
-                    {displayMacro(subtotals[meal].prot)} P ·{" "}
-                    {displayMacro(subtotals[meal].carb)} C ·{" "}
-                    {displayMacro(subtotals[meal].fat)} F
-                  </p>
+                  {rows.length > 0 ? (
+                    <>
+                      {rows.map((entry) => (
+                        <MealRow
+                          key={entry.id}
+                          entry={entry}
+                          onSave={(patch) => onSaveEntry(entry.id, patch)}
+                          onDelete={onDeleteEntry}
+                          onDuplicate={onDuplicateEntry}
+                          onDuplicateToToday={onDuplicateEntryToToday}
+                          onSaveProduct={onSaveEntryProduct}
+                          isPastDay={isPastDay}
+                        />
+                      ))}
+                      <p className="border-t border-line py-2 text-[11px] text-muted-foreground">
+                        {displayMacro(subtotals[meal].prot)} P ·{" "}
+                        {displayMacro(subtotals[meal].carb)} C ·{" "}
+                        {displayMacro(subtotals[meal].fat)} F
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => onAddMeal(meal)}
+                        className="flex min-h-11 w-full items-center gap-1.5 border-t border-line text-[13px] font-semibold text-primary"
+                      >
+                        <Plus className="size-4" aria-hidden />
+                        Añadir a {MEAL_LABELS[meal]}
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onAddMeal(meal)}
+                      className="flex min-h-11 w-full items-center justify-center gap-1.5 py-1 text-[13px] font-medium text-muted-foreground"
+                    >
+                      <Plus className="size-4 text-primary" aria-hidden />
+                      Aún no hay comidas aquí · Toca para registrar
+                    </button>
+                  )}
                 </div>
               ) : null}
             </div>

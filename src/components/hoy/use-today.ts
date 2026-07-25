@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { api, type EntryInput, type ProductInput } from "@/lib/client-api";
+import { resolveProductSave } from "@/lib/entry-actions";
 import type { BloatKey } from "@/lib/macros";
 import type { CoachReading } from "@/server/ai/coach-reading";
 import {
@@ -13,6 +14,7 @@ import {
   updateQueuedBloatUpsert,
 } from "@/lib/offline-queue";
 import { isRetriableRequestError } from "@/lib/request-errors";
+import { randomUUID } from "@/lib/uuid";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { EntryDTO } from "@/server/db/queries/day";
 import type { TodayPayload } from "@/server/db/queries/today";
@@ -44,7 +46,7 @@ export function useToday(date: string, initial: TodayPayload) {
   // ── Añadir entradas (optimista) ──
   const addEntries = useCallback(
     async (entries: EntryInput[]) => {
-      const clientMutationId = crypto.randomUUID();
+      const clientMutationId = randomUUID();
       const optimistic: EntryDTO[] = entries.map((e) => ({
         id: tempId--,
         meal: e.meal,
@@ -283,6 +285,32 @@ export function useToday(date: string, initial: TodayPayload) {
       }
     },
     [setData, refetch],
+  );
+
+  // F13 §C · Promover una entrada a «Mis productos» (dedup por nombre exacto:
+  // actualiza si existe, crea si no). Optimista sobre data.products; SIN toast de
+  // éxito propio — el toast «Guardado en Mis productos» + acción «Editar» lo pone
+  // hoy-client, que es quien controla el add-sheet. Reusa la derivación pura.
+  const promoteEntryToProduct = useCallback(
+    async (entry: EntryDTO) => {
+      const { input, existingId } = resolveProductSave(entry, query.data.products);
+      setData((p) => ({
+        ...p,
+        products:
+          existingId != null
+            ? p.products.map((x) => (x.id === existingId ? { ...x, ...input } : x))
+            : [{ id: tempId--, ...input }, ...p.products],
+      }));
+      try {
+        if (existingId != null) await api.updateProduct(existingId, input);
+        else await api.createProduct(input);
+        refetch();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "No se pudo guardar el producto.");
+        refetch();
+      }
+    },
+    [query.data.products, setData, refetch],
   );
 
   const toggleProductPin = useCallback(
@@ -639,6 +667,7 @@ export function useToday(date: string, initial: TodayPayload) {
     createProduct,
     updateProduct,
     deleteProduct,
+    promoteEntryToProduct,
     toggleProductPin,
     copyYesterday,
     applyTemplate,

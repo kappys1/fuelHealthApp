@@ -21,11 +21,14 @@ import {
   WatchContextSection,
 } from "@/components/hoy/today-context";
 import { useToday } from "@/components/hoy/use-today";
+import { api } from "@/lib/client-api";
 import { dayKey, labelForKey, shiftDayKey } from "@/lib/dates";
+import { entryToDuplicateInput } from "@/lib/entry-actions";
 import type { BloatKey, MealKey } from "@/lib/macros";
 import { roundKcal } from "@/lib/macros";
 import { dayTotals } from "@/server/analytics/dayTotals";
 import type { BloatEventDTO } from "@/server/db/queries/bloat";
+import type { EntryDTO } from "@/server/db/queries/day";
 import type { TodayPayload } from "@/server/db/queries/today";
 
 const MADRID_TIME_FORMATTER = new Intl.DateTimeFormat("es-ES", {
@@ -74,6 +77,8 @@ export function HoyClient({
   const [addMeal, setAddMeal] = useState<MealKey>(() =>
     searchParams.get("add") === "1" ? mealByHour() : "comida",
   );
+  // «Editar» del toast de F13 §C: abrir el add-sheet directo en el catálogo.
+  const [addCatalog, setAddCatalog] = useState(false);
   const [matinalOpen, setMatinalOpen] = useState(false);
   const [cierreOpen, setCierreOpen] = useState(false);
   const [weightOpen, setWeightOpen] = useState(
@@ -169,6 +174,37 @@ export function HoyClient({
     await todayState.createBloatEvent(severity, currentMadridTime());
   };
 
+  // F13 §B — Duplicar en el día visible (optimista; la fila aparece al cerrar el sheet).
+  const duplicateEntry = (entry: EntryDTO) => {
+    void todayState.addEntries([entryToDuplicateInput(entry)]);
+  };
+
+  // F13 §B — Duplicar a HOY desde un día pasado: escribe fuera de la vista actual
+  // (api directo, sin optimista de una vista que no se ve) + toast (Riesgo #1).
+  const duplicateEntryToToday = async (entry: EntryDTO) => {
+    try {
+      await api.addEntries(today, [entryToDuplicateInput(entry)]);
+      toast.success("Añadido a hoy");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo añadir a hoy.");
+    }
+  };
+
+  // F13 §C — Promover a «Mis productos» (dedup por nombre en use-today) + toast con
+  // acción «Editar» que abre el add-sheet en el catálogo.
+  const saveEntryAsProduct = (entry: EntryDTO) => {
+    void todayState.promoteEntryToProduct(entry);
+    toast.success("Guardado en Mis productos", {
+      action: {
+        label: "Editar",
+        onClick: () => {
+          setAddCatalog(true);
+          setAddOpen(true);
+        },
+      },
+    });
+  };
+
   return (
     <div className="space-y-6 pb-16">
       <div className="flex items-center justify-between gap-2">
@@ -243,6 +279,11 @@ export function HoyClient({
         templates={data.templates}
         onSaveEntry={(id, patch) => todayState.updateEntry(id, patch)}
         onDeleteEntry={todayState.deleteEntry}
+        onAddMeal={openAdd}
+        onDuplicateEntry={duplicateEntry}
+        onDuplicateEntryToToday={duplicateEntryToToday}
+        onSaveEntryProduct={saveEntryAsProduct}
+        isPastDay={!isToday}
         onCopyYesterday={todayState.copyYesterday}
         onSaveTemplate={todayState.saveTemplate}
         onApplyTemplate={todayState.applyTemplate}
@@ -293,10 +334,14 @@ export function HoyClient({
         open={addOpen}
         onOpenChange={(open) => {
           setAddOpen(open);
-          if (!open) setSharedFile(null);
+          if (!open) {
+            setSharedFile(null);
+            setAddCatalog(false);
+          }
         }}
         meal={addMeal}
         setMeal={setAddMeal}
+        initialLayer={addCatalog ? "products" : undefined}
         corpus={{
           optionsByMeal: data.optionsByMeal,
           products: data.products,
