@@ -229,5 +229,8 @@ por último, cambios de prompts congelados.
 - Automatizado: AC6, AC7, AC8, AC10 y AC11 pasan (`typecheck` + 389 tests + build;
   export/restore sigue cubierto sin cambio de schema). Consistencia real ×3 pasa en WOD y
   running.
+- Quick-fix de uso real (domingo 26-jul): Plan permite navegar a semanas futuras y el
+  importador hereda la semana visible, en vez de recortarla a la actual. Cubierto por
+  regresión pura con `2026-07-26 → 2026-07-27` y Playwright sin escrituras.
 - Pendiente: AC 🖐 1–5 requieren pulgar de Alex. AC9 queda parcial hasta aportar
   `TP1_Week_29.pdf`; no se auto-valida.
