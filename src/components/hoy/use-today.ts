@@ -772,6 +772,7 @@ export function useToday(date: string, initial: TodayPayload) {
     createBloatEvent,
     updateBloatEvent,
     deleteBloatEvent,
+    refresh: refetch,
   };
 }
 
