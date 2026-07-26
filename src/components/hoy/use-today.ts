@@ -201,13 +201,9 @@ export function useToday(date: string, initial: TodayPayload) {
     [setData, refetch, addEntries],
   );
 
-  // ── Marcar/desmarcar flexible (optimista + undo + cola idempotente) ──
-  const setFlexibleMeal = useCallback(
-    async (
-      meal: FlexibleMealKey,
-      marked: boolean,
-      options: { undo?: boolean } = { undo: true },
-    ) => {
+  // ── Marcar/desmarcar flexible (optimista + cola idempotente) ──
+  const updateFlexibleMeal = useCallback(
+    async (meal: FlexibleMealKey, marked: boolean) => {
       setData((p) => ({
         ...p,
         view: {
@@ -252,23 +248,32 @@ export function useToday(date: string, initial: TodayPayload) {
             error instanceof Error ? error.message : "No se pudo guardar.",
           );
           refetch();
-          return;
+          return false;
         }
       }
 
-      if (options.undo !== false) {
-        toast(marked ? "Marcada como flexible" : "Marcador flexible retirado", {
-          duration: 6000,
-          action: {
-            label: "Deshacer",
-            onClick: () => {
-              void setFlexibleMeal(meal, !marked, { undo: false });
-            },
-          },
-        });
-      }
+      return true;
     },
     [date, setData, refetch],
+  );
+
+  // ── Marcar/desmarcar flexible (operación + undo) ──
+  const setFlexibleMeal = useCallback(
+    async (meal: FlexibleMealKey, marked: boolean) => {
+      const updated = await updateFlexibleMeal(meal, marked);
+      if (!updated) return;
+
+      toast(marked ? "Marcada como flexible" : "Marcador flexible retirado", {
+        duration: 6000,
+        action: {
+          label: "Deshacer",
+          onClick: () => {
+            void updateFlexibleMeal(meal, !marked);
+          },
+        },
+      });
+    },
+    [updateFlexibleMeal],
   );
 
   // ── Autosave de campos del día (optimista + debounce 600 ms — 07 §1) ──
