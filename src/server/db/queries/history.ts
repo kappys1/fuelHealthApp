@@ -49,6 +49,8 @@ export interface HistEntreno extends HistBase {
   etiqueta: string;
   validFrom: string;
   validTo: string | null;
+  source: "pdf" | "foto" | "texto";
+  importRequestId: string | null;
   sessions: TrainingSessionDTO[];
 }
 export type HistorialEntry =
@@ -142,6 +144,8 @@ export async function getHistorialData(): Promise<HistorialEntry[]> {
       etiqueta: p.etiqueta,
       validFrom: p.validFrom,
       validTo: p.validTo,
+      source: p.source,
+      importRequestId: p.importRequestId,
       sessions: sessByPlan.get(p.id) ?? [],
     });
   }

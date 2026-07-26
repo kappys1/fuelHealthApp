@@ -3,6 +3,7 @@ import { SESSIONS } from "@/lib/macros";
 import {
   orderedSessionOptions,
   planSpanFromAssignments,
+  splitTrainingContent,
   sessionKcal,
   sessionPatchFor,
   trainingWeekSpan,
@@ -84,5 +85,37 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
     for (const t of TRAINING_TIPOS) {
       expect(TRAINING_TIPO_LABELS[t]).toBeTruthy();
     }
+  });
+
+  describe("splitTrainingContent · F17", () => {
+    it.each([
+      [
+        "encabezados",
+        "Fuerza/Halterofilia: Clean pull + squat clean. CrossFit: 5 rondas. Accesorios: planchas.",
+        3,
+      ],
+      [
+        "párrafos",
+        "Bloque de fuerza con dos series.\n\nMetcon por tiempo.\n\nVuelta a la calma.",
+        3,
+      ],
+      ["líneas", "Clean pull\nSquat clean\nBack squat", 3],
+      ["fallback", "Sesión completa sin estructura detectable", 1],
+    ])("preserva el 100 %% del texto con %s", (_case, content, count) => {
+      const blocks = splitTrainingContent(content);
+      expect(blocks).toHaveLength(count);
+      expect(blocks.join("")).toBe(content);
+    });
+
+    it("conserva saltos iniciales/finales y CRLF sin normalizarlos", () => {
+      const content = "\r\nFuerza: sentadilla\r\n\r\nCrossFit: remo\r\n";
+      const blocks = splitTrainingContent(content);
+      expect(blocks.join("")).toBe(content);
+      expect(blocks).toHaveLength(2);
+    });
+
+    it("no inventa bloques para contenido vacío", () => {
+      expect(splitTrainingContent("")).toEqual([]);
+    });
   });
 });

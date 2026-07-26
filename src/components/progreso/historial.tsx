@@ -20,6 +20,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { MarksRail } from "@/components/marks/marks-rail";
+import { TrainingSessionDetail } from "@/components/training/training-session-detail";
 import { labelForKey, shiftDayKey } from "@/lib/dates";
 import {
   type GrpKey,
@@ -29,7 +30,6 @@ import {
   type MealKey,
 } from "@/lib/macros";
 import type { DailyRecord } from "@/server/analytics/types";
-import { TRAINING_TIPO_LABELS } from "@/lib/training";
 import type {
   HistDieta,
   HistEntreno,
@@ -585,38 +585,21 @@ function EntrenoSheet({
             {entry.validTo ? ` – ${labelForKey(entry.validTo)}` : ""} ·{" "}
             {entry.sessions.length} sesiones · solo lectura
           </p>
-          {entry.sessions.map((s) => (
-            <div
-              key={s.id}
-              className="mb-2.5 rounded-xl border border-line bg-surface-2 p-3"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[13px] font-bold">
-                  {s.key} · {s.nombre}
-                </span>
-                <span
-                  className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold"
-                  style={{
-                    color: "var(--protein)",
-                    background: "color-mix(in srgb, var(--protein) 18%, transparent)",
-                  }}
-                >
-                  {TRAINING_TIPO_LABELS[s.tipo]}
-                </span>
-              </div>
-              <div className="num mt-0.5 text-[11px] text-muted-foreground">
-                {s.duracionMin != null ? `${s.duracionMin} min · ` : ""}
-                {s.kcalMin != null || s.kcalMax != null
-                  ? `${s.kcalMin ?? "?"}–${s.kcalMax ?? "?"} kcal`
-                  : ""}
-              </div>
-              {s.contenido ? (
-                <p className="mt-1.5 text-[12px] leading-relaxed text-foreground/90">
-                  {s.contenido}
-                </p>
-              ) : null}
-            </div>
-          ))}
+          <div className="space-y-3">
+            {entry.sessions.map((session) => (
+              <TrainingSessionDetail
+                key={session.id}
+                session={session}
+                plan={{
+                  programa: entry.programa,
+                  etiqueta: entry.etiqueta,
+                  source: entry.source,
+                  importRequestId: entry.importRequestId,
+                }}
+                className="bg-surface-2 shadow-none"
+              />
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => router.push("/plan?tab=entrenos")}

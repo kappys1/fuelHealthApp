@@ -495,6 +495,17 @@ export async function reassignTrainingSession(
   }
 }
 
+/** Borra una sesión y limpia su asignación del día en el mismo lote. */
+export async function deleteTrainingSession(id: number): Promise<void> {
+  await db.batch([
+    db
+      .update(schema.days)
+      .set({ sessionRef: null, sessionLabel: null, sessionKcal: null })
+      .where(eq(schema.days.sessionRef, id)),
+    db.delete(schema.trainingSessions).where(eq(schema.trainingSessions.id, id)),
+  ]);
+}
+
 /** Borra un plan y limpia todos los campos desnormalizados de sus días. */
 export async function deleteTrainingPlan(id: number): Promise<void> {
   const sessions = await db
