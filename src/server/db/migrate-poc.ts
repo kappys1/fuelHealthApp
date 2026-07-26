@@ -10,6 +10,7 @@ import { drizzle } from "drizzle-orm/neon-http";
 import { z } from "zod";
 import { backfillEntryGrams } from "../../lib/macros";
 import { favoritesToProducts } from "./products-map";
+import { normalizeTrainingSettings } from "./settings-map";
 import * as schema from "./schema";
 
 /*
@@ -119,6 +120,14 @@ const exportSchema = z
       .default([]),
     plan: z.record(z.string(), z.array(planOptionSchema)).optional(),
     lastExport: z.string().optional(),
+    // Compatibilidad F20: el PoC antiguo no traía settings; snapshots posteriores
+    // pueden traerlas como filas o como claves superiores.
+    settings: z
+      .array(z.object({ key: z.string(), value: z.unknown() }).passthrough())
+      .optional(),
+    sessionByWeekday: z.record(z.string(), z.string()).optional(),
+    trainingByWeekday: z.record(z.string(), z.string()).optional(),
+    trainingByWeekdayReviewed: z.boolean().optional(),
   })
   .passthrough();
 
@@ -196,6 +205,7 @@ async function main() {
     products: 0,
     templates: 0,
     flexibleMeals: 0,
+    settings: 0,
   };
 
   // ── 1) diet_version 'migrated:poc' (idempotente: borrar + reinsertar) ──
@@ -439,6 +449,50 @@ async function main() {
     summary.templates++;
   }
 
+  // ── 9) settings de entrenamiento (F20). Lee primero el estado vigente para
+  // que re-ejecutar un PoC antiguo no reabra una revisión ni degrade el patrón.
+  const existingSettings = await db
+    .select()
+    .from(schema.settings)
+    .where(
+      inArray(schema.settings.key, [
+        "sessionByWeekday",
+        "trainingByWeekday",
+        "trainingByWeekdayReviewed",
+      ]),
+    );
+  const incomingSettings = [
+    ...(data.settings ?? []),
+    ...(data.sessionByWeekday
+      ? [{ key: "sessionByWeekday", value: data.sessionByWeekday }]
+      : []),
+    ...(data.trainingByWeekday
+      ? [{ key: "trainingByWeekday", value: data.trainingByWeekday }]
+      : []),
+    ...(data.trainingByWeekdayReviewed != null
+      ? [
+          {
+            key: "trainingByWeekdayReviewed",
+            value: data.trainingByWeekdayReviewed,
+          },
+        ]
+      : []),
+  ];
+  const trainingSettings = normalizeTrainingSettings([
+    ...existingSettings,
+    ...incomingSettings,
+  ]);
+  for (const setting of trainingSettings) {
+    await db
+      .insert(schema.settings)
+      .values({ key: String(setting.key), value: setting.value })
+      .onConflictDoUpdate({
+        target: schema.settings.key,
+        set: { value: setting.value },
+      });
+  }
+  summary.settings = trainingSettings.length;
+
   // ── Resumen de conteos ──
   console.log("\n── Migración PoC completada ──");
   console.log(`  Archivo:         ${file}`);
@@ -451,6 +505,7 @@ async function main() {
   console.log(`  favorites:       ${summary.favorites}`);
   console.log(`  products:        ${summary.products}`);
   console.log(`  templates:       ${summary.templates}`);
+  console.log(`  settings:        ${summary.settings}`);
 
   // Cordura: total kcal por día con comidas (para cruzar con el JSON original).
   console.log("\n  Totales kcal por día con comidas (verifica contra el JSON):");

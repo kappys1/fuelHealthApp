@@ -7,6 +7,7 @@ import {
 } from "@/lib/flexible-meals";
 import { dayKey, shiftDayKey } from "@/lib/dates";
 import type { TrainingTipo } from "@/lib/training";
+import type { SessionFranja } from "@/lib/training-slot";
 import { db, schema } from "@/server/db";
 
 export interface EntryDTO {
@@ -53,6 +54,7 @@ export interface DaySessionInfo {
   kcalMin: number | null;
   kcalMax: number | null;
   duracionMin: number | null;
+  franja?: SessionFranja | null;
   programa: string;
   etiqueta: string;
   source: "pdf" | "foto" | "texto";
@@ -196,6 +198,7 @@ export async function getDayView(date: string): Promise<DayView> {
         kcalMin: schema.trainingSessions.kcalMin,
         kcalMax: schema.trainingSessions.kcalMax,
         duracionMin: schema.trainingSessions.duracionMin,
+        franja: schema.trainingSessions.franja,
         programa: schema.trainingPlans.programa,
         etiqueta: schema.trainingPlans.etiqueta,
         source: schema.trainingPlans.source,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRAINING_SLOTS } from "@/lib/training-slot";
 import { isDayKey } from "@/lib/dates";
 import { MEASURE_TYPES } from "@/lib/marks";
 import { TRAINING_TIPOS } from "@/lib/training";
@@ -125,6 +126,8 @@ export const dietVersionCreateZ = z.object({
 // Crear un plan de entrenamiento COMPLETO desde importación (F-IA-10).
 export const trainingSourceZ = z.enum(["pdf", "foto", "texto"]);
 export const trainingTipoZ = z.enum(TRAINING_TIPOS);
+export const trainingSlotZ = z.enum(TRAINING_SLOTS);
+export const sessionFranjaZ = z.enum(["mañana", "tarde"]).nullable();
 export const trainingSessionCreateZ = z.object({
   key: z.string().max(40),
   nombre: z.string().min(1).max(200),

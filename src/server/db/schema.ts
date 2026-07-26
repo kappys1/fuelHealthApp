@@ -422,8 +422,14 @@ export const trainingSessions = pgTable("training_sessions", {
   kcalMin: integer("kcal_min"),
   kcalMax: integer("kcal_max"),
   duracionMin: integer("duracion_min"),
+  franja: text(),
   sort: integer().notNull().default(0),
-});
+}, (t) => [
+  check(
+    "training_sessions_franja_check",
+    sql`${t.franja} is null or ${t.franja} in ('mañana', 'tarde')`,
+  ),
+]);
 
 // ── performance_marks / mark_entries (F03 · marcas / registros de rendimiento) ──
 // Marca agnóstica de deporte (nombre libre, sin catálogo): 1RM sentadilla, Fran
