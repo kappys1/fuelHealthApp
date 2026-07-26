@@ -127,7 +127,8 @@ export const dietVersionCreateZ = z.object({
 export const trainingSourceZ = z.enum(["pdf", "foto", "texto"]);
 export const trainingTipoZ = z.enum(TRAINING_TIPOS);
 export const trainingSlotZ = z.enum(TRAINING_SLOTS);
-export const sessionFranjaZ = z.enum(["mañana", "tarde"]).nullable();
+export const sessionFranjaRequiredZ = z.enum(["mañana", "tarde"]);
+export const sessionFranjaZ = sessionFranjaRequiredZ.nullable();
 export const trainingSessionCreateZ = z.object({
   key: z.string().max(40),
   nombre: z.string().min(1).max(200),
@@ -147,7 +148,13 @@ export const trainingPlanCreateZ = z.object({
   sessions: z.array(trainingSessionCreateZ).min(1).max(20),
   // sessionIndex apunta al índice de `sessions` (orden de la vista previa).
   assignments: z
-    .array(z.object({ sessionIndex: z.number().int().min(0), date: dateZ }))
+    .array(
+      z.object({
+        sessionIndex: z.number().int().min(0),
+        date: dateZ,
+        franja: sessionFranjaRequiredZ,
+      }),
+    )
     .max(31),
 });
 
@@ -156,6 +163,7 @@ export const canonicalTrainingSessionZ = z.object({
   date: dateZ,
   session: trainingSessionCreateZ.omit({ key: true }).extend({
     key: z.string().max(40).optional(),
+    franja: sessionFranjaRequiredZ,
   }),
 });
 const canonicalDaySnapshotZ = z.object({
@@ -167,6 +175,7 @@ const canonicalDaySnapshotZ = z.object({
 const canonicalSessionSnapshotZ = trainingSessionCreateZ.extend({
   id: z.number().int().positive(),
   planId: z.number().int().positive(),
+  franja: sessionFranjaZ,
   sort: z.number().int().min(0),
 });
 export const canonicalTrainingUndoZ = z.object({

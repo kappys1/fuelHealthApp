@@ -321,6 +321,7 @@ export function HoyClient({
         onPatch={todayState.patchDay}
         trainingSessions={data.trainingSessions}
         suggestedPhase={data.suggestedPhase}
+        trainingByWeekday={data.trainingByWeekday}
       />
 
       <BaselineSection baseline={data.baseline} />

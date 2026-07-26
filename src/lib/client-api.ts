@@ -2,7 +2,10 @@ import type { GrpKey, MealKey, PlanVariant } from "@/lib/macros";
 import type { FlexibleMealKey } from "@/lib/flexible-meals";
 import type { MeasureType } from "@/lib/marks";
 import type { AthleteProfile } from "@/lib/profile";
-import type { TrainingByWeekday } from "@/lib/training-slot";
+import type {
+  SessionFranja,
+  TrainingByWeekday,
+} from "@/lib/training-slot";
 import type { MarkEntryDTO } from "@/server/db/queries/marks";
 import type {
   DayDumpResult,
@@ -261,7 +264,11 @@ export const api = {
       kcalMax: number | null;
       duracionMin: number | null;
     }[];
-    assignments: { sessionIndex: number; date: string }[];
+    assignments: {
+      sessionIndex: number;
+      date: string;
+      franja: SessionFranja;
+    }[];
   }) =>
     req<{ ok: true; assigned: number; skipped: number }>("/api/training/plan", {
       method: "POST",
@@ -277,6 +284,7 @@ export const api = {
       kcalMin?: number | null;
       kcalMax?: number | null;
       duracionMin?: number | null;
+      franja?: SessionFranja | null;
     },
   ) =>
     req<{ ok: true }>(`/api/training/sessions/${id}`, {
@@ -284,10 +292,14 @@ export const api = {
       body: JSON.stringify(patch),
     }),
 
-  reassignTrainingSession: (id: number, date: string | null) =>
+  reassignTrainingSession: (
+    id: number,
+    date: string | null,
+    franja?: SessionFranja | null,
+  ) =>
     req<{ ok: true }>(`/api/training/sessions/${id}/assign`, {
       method: "POST",
-      body: JSON.stringify({ date }),
+      body: JSON.stringify({ date, franja }),
     }),
 
   deleteTrainingSession: (id: number) =>

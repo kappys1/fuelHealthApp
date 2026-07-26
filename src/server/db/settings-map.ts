@@ -3,7 +3,6 @@ import {
   type SessionByWeekday,
 } from "@/lib/macros";
 import {
-  DEFAULT_TRAINING_BY_WEEKDAY,
   TRAINING_SLOTS,
   type TrainingByWeekday,
 } from "@/lib/training-slot";

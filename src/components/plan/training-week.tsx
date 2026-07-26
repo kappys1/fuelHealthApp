@@ -32,6 +32,16 @@ import {
 import { api } from "@/lib/client-api";
 import { labelForKey, shiftDayKey } from "@/lib/dates";
 import {
+  createTrainingAssignment,
+  type TrainingAssignmentState,
+  changeAssignmentDate,
+  overrideAssignmentFranja,
+} from "@/lib/training-assignment";
+import type {
+  SessionFranja,
+  TrainingByWeekday,
+} from "@/lib/training-slot";
+import {
   TRAINING_TIPO_LABELS,
   type TrainingTipo,
   TRAINING_TIPOS,
@@ -71,10 +81,12 @@ export function TrainingWeek({
   week,
   selectedWeek,
   today,
+  trainingByWeekday,
 }: {
   week: TrainingWeekView | null;
   selectedWeek: string;
   today: string;
+  trainingByWeekday: TrainingByWeekday;
 }) {
   const router = useRouter();
   const { isPast } = trainingWeekNavigation(
@@ -106,7 +118,12 @@ export function TrainingWeek({
 
   return (
     <div className="space-y-6">
-      {!isPast ? <TrainingImport weekStart={selectedWeek} /> : null}
+      {!isPast ? (
+        <TrainingImport
+          weekStart={selectedWeek}
+          trainingByWeekday={trainingByWeekday}
+        />
+      ) : null}
 
       <section aria-label="Cambiar semana de entrenamiento" className="space-y-3">
         <div className="flex items-center gap-2">
@@ -259,10 +276,12 @@ export function TrainingWeek({
 
       {selectedSession && week ? (
         <SessionEditorSheet
+          key={selectedSession.id}
           open={editing}
           onOpenChange={setEditing}
           session={selectedSession}
           days={weekDates}
+          trainingByWeekday={trainingByWeekday}
           onChanged={() => router.refresh()}
         />
       ) : null}
@@ -273,15 +292,18 @@ export function TrainingWeek({
           onOpenChange={setWeekOpen}
           week={week}
           days={weekDates}
+          trainingByWeekday={trainingByWeekday}
           readOnly={isPast}
           onChanged={() => router.refresh()}
         />
       ) : null}
 
       <TrainingSessionComposer
+        key={selectedDay}
         open={adding}
         onOpenChange={setAdding}
         date={selectedDay}
+        trainingByWeekday={trainingByWeekday}
         onSaved={() => router.refresh()}
       />
     </div>
@@ -293,12 +315,14 @@ function SessionEditorSheet({
   onOpenChange,
   session,
   days,
+  trainingByWeekday,
   onChanged,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   session: TrainingWeekView["sessions"][number];
   days: string[];
+  trainingByWeekday: TrainingByWeekday;
   onChanged: () => void;
 }) {
   const [nombre, setNombre] = useState(session.nombre);
@@ -313,8 +337,17 @@ function SessionEditorSheet({
   const [duracion, setDuracion] = useState(
     session.duracionMin == null ? "" : String(session.duracionMin),
   );
-  const [assignedDate, setAssignedDate] = useState(
-    session.assignedDate ?? NONE,
+  const [assignment, setAssignment] = useState<TrainingAssignmentState>(
+    session.franja
+      ? {
+          date: session.assignedDate ?? "",
+          franja: session.franja,
+          source: "manual",
+        }
+      : createTrainingAssignment(
+          session.assignedDate ?? "",
+          trainingByWeekday,
+        ),
   );
   const [busy, setBusy] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -322,6 +355,10 @@ function SessionEditorSheet({
   const save = async () => {
     if (!nombre.trim()) {
       toast.error("La sesión necesita nombre.");
+      return;
+    }
+    if (assignment.date && !assignment.franja) {
+      toast.error("Elige mañana o tarde para esta sesión.");
       return;
     }
     setBusy(true);
@@ -333,10 +370,15 @@ function SessionEditorSheet({
         kcalMin: intOrNull(kcalMin),
         kcalMax: intOrNull(kcalMax),
         duracionMin: intOrNull(duracion),
+        franja: assignment.franja,
       });
-      const nextDate = assignedDate === NONE ? null : assignedDate;
+      const nextDate = assignment.date || null;
       if (nextDate !== session.assignedDate) {
-        await api.reassignTrainingSession(session.id, nextDate);
+        await api.reassignTrainingSession(
+          session.id,
+          nextDate,
+          assignment.franja ?? undefined,
+        );
       }
       toast.success("Sesión actualizada.");
       onOpenChange(false);
@@ -435,7 +477,18 @@ function SessionEditorSheet({
             </div>
             <label className="block">
               <span className="ui-label mb-1.5 block">Día</span>
-              <Select value={assignedDate} onValueChange={setAssignedDate}>
+              <Select
+                value={assignment.date || NONE}
+                onValueChange={(value) =>
+                  setAssignment((current) =>
+                    changeAssignmentDate(
+                      current,
+                      value === NONE ? "" : value,
+                      trainingByWeekday,
+                    ),
+                  )
+                }
+              >
                 <SelectTrigger className="min-h-11 w-full text-base">
                   <SelectValue />
                 </SelectTrigger>
@@ -449,6 +502,15 @@ function SessionEditorSheet({
                 </SelectContent>
               </Select>
             </label>
+            <FranjaSelect
+              value={assignment.franja}
+              disabled={!assignment.date}
+              onChange={(franja) =>
+                setAssignment((current) =>
+                  overrideAssignmentFranja(current, franja),
+                )
+              }
+            />
             <div className="grid grid-cols-[auto_1fr] gap-2 pt-1">
               <button
                 type="button"
@@ -488,6 +550,7 @@ function WeekManagementSheet({
   onOpenChange,
   week,
   days,
+  trainingByWeekday,
   readOnly,
   onChanged,
 }: {
@@ -495,26 +558,12 @@ function WeekManagementSheet({
   onOpenChange: (open: boolean) => void;
   week: TrainingWeekView;
   days: string[];
+  trainingByWeekday: TrainingByWeekday;
   readOnly: boolean;
   onChanged: () => void;
 }) {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
-
-  const assign = async (id: number, date: string | null) => {
-    setBusyId(id);
-    try {
-      await api.reassignTrainingSession(id, date);
-      toast.success(date ? "Sesión asignada." : "Sesión desasignada.");
-      onChanged();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "No se pudo reasignar.",
-      );
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   const removeWeek = async () => {
     setBusyId(-1);
@@ -546,45 +595,14 @@ function WeekManagementSheet({
           </SheetHeader>
           <div className="space-y-3 px-4 pb-6">
             {week.sessions.map((session) => (
-              <div
+              <WeekAssignmentEditor
                 key={session.id}
-                className="rounded-xl border border-line bg-surface-2 p-3"
-              >
-                <p className="text-[13px] font-semibold text-foreground">
-                  <span className="text-muted-foreground">{session.key}</span>{" "}
-                  {session.nombre}
-                </p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  {TRAINING_TIPO_LABELS[session.tipo]}
-                </p>
-                {!readOnly ? (
-                  <Select
-                    value={session.assignedDate ?? NONE}
-                    onValueChange={(value) =>
-                      assign(session.id, value === NONE ? null : value)
-                    }
-                    disabled={busyId === session.id}
-                  >
-                    <SelectTrigger className="mt-2 min-h-11 w-full bg-surface text-base">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Sin asignar</SelectItem>
-                      {days.map((date) => (
-                        <SelectItem key={date} value={date}>
-                          {labelForKey(date)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="mt-2 text-[12px] text-muted-foreground">
-                    {session.assignedDate
-                      ? labelForKey(session.assignedDate)
-                      : "Sin asignar"}
-                  </p>
-                )}
-              </div>
+                session={session}
+                days={days}
+                trainingByWeekday={trainingByWeekday}
+                readOnly={readOnly}
+                onChanged={onChanged}
+              />
             ))}
             {!readOnly ? (
               <button
@@ -609,6 +627,128 @@ function WeekManagementSheet({
         onConfirm={removeWeek}
       />
     </>
+  );
+}
+
+function WeekAssignmentEditor({
+  session,
+  days,
+  trainingByWeekday,
+  readOnly,
+  onChanged,
+}: {
+  session: TrainingWeekView["sessions"][number];
+  days: string[];
+  trainingByWeekday: TrainingByWeekday;
+  readOnly: boolean;
+  onChanged: () => void;
+}) {
+  const [assignment, setAssignment] = useState<TrainingAssignmentState>(
+    session.franja
+      ? {
+          date: session.assignedDate ?? "",
+          franja: session.franja,
+          source: "manual",
+        }
+      : createTrainingAssignment(
+          session.assignedDate ?? "",
+          trainingByWeekday,
+        ),
+  );
+  const [busy, setBusy] = useState(false);
+
+  const persist = async (next: TrainingAssignmentState) => {
+    setAssignment(next);
+    if (next.date && !next.franja) {
+      toast.info("Elige mañana o tarde para terminar la asignación.");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await api.reassignTrainingSession(
+        session.id,
+        next.date || null,
+        next.franja,
+      );
+      toast.success(next.date ? "Sesión asignada." : "Sesión desasignada.");
+      onChanged();
+    } catch (error) {
+      setAssignment(
+        session.franja
+          ? {
+              date: session.assignedDate ?? "",
+              franja: session.franja,
+              source: "manual",
+            }
+          : createTrainingAssignment(
+              session.assignedDate ?? "",
+              trainingByWeekday,
+            ),
+      );
+      toast.error(
+        error instanceof Error ? error.message : "No se pudo reasignar.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-line bg-surface-2 p-3">
+      <p className="text-[13px] font-semibold text-foreground">
+        <span className="text-muted-foreground">{session.key}</span>{" "}
+        {session.nombre}
+      </p>
+      <p className="mt-0.5 text-[11px] text-muted-foreground">
+        {TRAINING_TIPO_LABELS[session.tipo]}
+      </p>
+      {!readOnly ? (
+        <div className="mt-2 grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
+          <label className="block">
+            <span className="ui-label mb-1.5 block">Asignar a</span>
+            <Select
+              value={assignment.date || NONE}
+              onValueChange={(value) =>
+                persist(
+                  changeAssignmentDate(
+                    assignment,
+                    value === NONE ? "" : value,
+                    trainingByWeekday,
+                  ),
+                )
+              }
+              disabled={busy}
+            >
+              <SelectTrigger className="min-h-11 w-full bg-surface text-base">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Sin asignar</SelectItem>
+                {days.map((date) => (
+                  <SelectItem key={date} value={date}>
+                    {labelForKey(date)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <FranjaSelect
+            value={assignment.franja}
+            disabled={busy || !assignment.date}
+            onChange={(franja) =>
+              persist(overrideAssignmentFranja(assignment, franja))
+            }
+          />
+        </div>
+      ) : (
+        <p className="mt-2 text-[12px] text-muted-foreground">
+          {session.assignedDate
+            ? `${labelForKey(session.assignedDate)}${session.franja ? ` · ${session.franja}` : ""}`
+            : "Sin asignar"}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -639,6 +779,42 @@ function NumberInput({
         />
         <span className="text-[11px] text-muted-foreground">{suffix}</span>
       </span>
+    </label>
+  );
+}
+
+function FranjaSelect({
+  value,
+  disabled = false,
+  onChange,
+}: {
+  value: SessionFranja | null;
+  disabled?: boolean;
+  onChange: (value: SessionFranja) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="ui-label mb-1.5 block">Franja</span>
+      <Select
+        value={value ?? NONE}
+        onValueChange={(next) => onChange(next as SessionFranja)}
+        disabled={disabled}
+      >
+        <SelectTrigger className="min-h-11 w-full text-base">
+          <SelectValue
+            placeholder={disabled ? "Asigna primero un día" : "Elige franja"}
+          />
+        </SelectTrigger>
+        <SelectContent>
+          {!value ? (
+            <SelectItem value={NONE} disabled>
+              Elige mañana o tarde
+            </SelectItem>
+          ) : null}
+          <SelectItem value="mañana">Mañana</SelectItem>
+          <SelectItem value="tarde">Tarde</SelectItem>
+        </SelectContent>
+      </Select>
     </label>
   );
 }

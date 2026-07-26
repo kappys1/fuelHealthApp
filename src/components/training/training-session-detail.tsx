@@ -6,6 +6,7 @@ import {
   type TrainingTipo,
 } from "@/lib/training";
 import { cn } from "@/lib/utils";
+import type { SessionFranja } from "@/lib/training-slot";
 
 export interface TrainingSessionDetailData {
   key: string;
@@ -15,6 +16,7 @@ export interface TrainingSessionDetailData {
   kcalMin: number | null;
   kcalMax: number | null;
   duracionMin: number | null;
+  franja?: SessionFranja | null;
 }
 
 export interface TrainingSessionPlanMeta {
@@ -50,6 +52,7 @@ export function TrainingSessionDetail({
         <p className="num text-[12px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           {session.key}
           {session.duracionMin != null ? ` · ${session.duracionMin} min` : ""}
+          {session.franja ? ` · ${session.franja}` : ""}
         </p>
         <span className="rounded-full bg-protein/10 px-2.5 py-1 text-[10px] font-semibold text-protein">
           {TRAINING_TIPO_LABELS[session.tipo]}

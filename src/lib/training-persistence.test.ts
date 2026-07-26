@@ -13,6 +13,7 @@ const input = {
     kcalMin: 500,
     kcalMax: 700,
     duracionMin: 75,
+    franja: "mañana" as const,
   },
 };
 
@@ -42,6 +43,7 @@ describe("persistencia canónica de sesión · F17", () => {
       kcalMin: 300,
       kcalMax: 500,
       duracionMin: 60,
+      franja: null,
       sort: 1,
     };
     const write = buildCanonicalTrainingWrite(
@@ -59,6 +61,7 @@ describe("persistencia canónica de sesión · F17", () => {
 
     expect(write.kind).toBe("updated");
     expect(write.session.id).toBe(7);
+    expect(write.session.franja).toBe("mañana");
     expect(write.planToInsert).toBeNull();
     expect(write.day).toEqual({
       date: input.date,
