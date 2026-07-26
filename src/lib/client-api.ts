@@ -69,6 +69,7 @@ export interface EntryInput {
   photoUrl?: string | null;
   // Gramos como dato de primera clase (F06): base inmutable + cantidad al crear.
   grams?: number | null;
+  unit?: "g" | "ml" | "ud";
   baseG?: number | null;
   baseKcal?: number | null;
   baseProt?: number | null;
@@ -94,6 +95,7 @@ export interface PlanOptionInput {
   grp: GrpKey;
   name: string;
   baseG: number | null;
+  unit: "g" | "ml" | "ud";
   kcal: number;
   prot: number;
   carb: number;

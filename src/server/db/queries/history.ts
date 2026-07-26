@@ -86,6 +86,7 @@ export async function getHistorialData(): Promise<HistorialEntry[]> {
       grp: r.grp as GrpKey,
       name: r.name,
       baseG: r.baseG,
+      unit: r.unit,
       kcal: r.kcal,
       prot: r.prot,
       carb: r.carb,

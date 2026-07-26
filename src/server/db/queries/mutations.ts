@@ -1,8 +1,18 @@
 import { and, asc, eq } from "drizzle-orm";
-import type { BloatKey, MealKey, PhaseKey, PlanVariant } from "@/lib/macros";
+import type {
+  BloatKey,
+  MealKey,
+  PhaseKey,
+  PlanVariant,
+  ProductUnit,
+} from "@/lib/macros";
 import type { FlexibleMealKey } from "@/lib/flexible-meals";
 import { dayKey } from "@/lib/dates";
 import { db, schema } from "@/server/db";
+import {
+  copiedPlanOptionRow,
+  importedPlanOptionRow,
+} from "@/server/db/plan-options-map";
 import type { TemplateItem } from "@/server/db/schema";
 import { getVersionForDate } from "./plan";
 
@@ -50,6 +60,7 @@ export interface NewEntry {
   // Gramos como dato de primera clase (F06): base inmutable + cantidad. Opcionales
   // (entrada fija = todos null); se persisten al crear desde foto/plan.
   grams?: number | null;
+  unit?: ProductUnit;
   baseG?: number | null;
   baseKcal?: number | null;
   baseProt?: number | null;
@@ -78,6 +89,7 @@ export async function addEntries(
         source: e.source as SourceEnum,
         photoUrl: e.photoUrl ?? null,
         grams: e.grams ?? null,
+        unit: e.unit ?? "g",
         baseG: e.baseG ?? null,
         baseKcal: e.baseKcal ?? null,
         baseProt: e.baseProt ?? null,
@@ -105,6 +117,7 @@ export interface EntryPatch {
   fat?: number;
   // Cantidad editada en el editor de Hoy (F06): reescala kcal/macros desde la base.
   grams?: number | null;
+  unit?: ProductUnit;
   // Base (F14 · Parte A): el editor solo la manda al «sanar» una entrada del caso 2
   // (con gramos, sin base) o cuando ya existía; en el resto de ediciones no viaja.
   baseG?: number | null;
@@ -177,6 +190,7 @@ export async function copyEntriesFrom(fromDate: string, toDate: string) {
       photoUrl: null, // no re-vinculamos la foto al copiar
       // Conserva la base inmutable → las copias siguen siendo escalables (F06).
       grams: e.grams,
+      unit: e.unit,
       baseG: e.baseG,
       baseKcal: e.baseKcal,
       baseProt: e.baseProt,
@@ -249,6 +263,7 @@ export interface OptionInput {
   grp: string;
   name: string;
   baseG: number | null;
+  unit: ProductUnitEnum;
   kcal: number;
   prot: number;
   carb: number;
@@ -275,6 +290,7 @@ export async function addPlanOption(date: string, opt: OptionInput) {
       grp: opt.grp as GrpEnum,
       name: opt.name,
       baseG: opt.baseG,
+      unit: opt.unit,
       kcal: opt.kcal,
       prot: opt.prot,
       carb: opt.carb,
@@ -336,20 +352,7 @@ export async function createVersionWithTargets(t: TargetsInput) {
       .orderBy(asc(schema.planOptions.sort));
     if (opts.length > 0) {
       await db.insert(schema.planOptions).values(
-        opts.map((o) => ({
-          dietVersionId: version.id,
-          meal: o.meal,
-          grp: o.grp,
-          name: o.name,
-          baseG: o.baseG,
-          kcal: o.kcal,
-          prot: o.prot,
-          carb: o.carb,
-          fat: o.fat,
-          // Copiar las variantes: cambiar objetivos NO puede perderlas (principio 7).
-          variants: o.variants ?? [],
-          sort: o.sort,
-        })),
+        opts.map((o) => copiedPlanOptionRow(o, version.id)),
       );
     }
   }
@@ -388,19 +391,13 @@ export async function createDietVersionFull(v: ImportedVersion) {
   try {
     if (v.options.length > 0) {
       await db.insert(schema.planOptions).values(
-        v.options.map((o, i) => ({
-          dietVersionId: version.id,
-          meal: o.meal,
-          grp: o.grp as GrpEnum,
-          name: o.name,
-          baseG: o.baseG,
-          kcal: o.kcal,
-          prot: o.prot,
-          carb: o.carb,
-          fat: o.fat,
-          variants: o.variants ?? [],
-          sort: i,
-        })),
+        v.options.map((o, i) =>
+          importedPlanOptionRow(
+            { ...o, grp: o.grp as GrpEnum },
+            version.id,
+            i,
+          ),
+        ),
       );
     }
   } catch (error) {

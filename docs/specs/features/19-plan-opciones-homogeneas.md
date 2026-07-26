@@ -1,5 +1,5 @@
 # F19 · El editor de opciones del Plan, homogéneo con el resto
-**Estado**: Fase 1 IMPLEMENTADA y VALIDADA (26-jul) · Fase 2 aprobada y pendiente · **Tamaño**: feature (IA + UI + migración en Fase 2) · 2 fases
+**Estado**: ✅ COMPLETADA — Fases 1 y 2 IMPLEMENTADAS y VALIDADAS por Alex (26-jul) · **Tamaño**: feature (IA + UI + migración en Fase 2) · 2 fases
 **Fecha**: 2026-07-26 · **Origen**: caso real 26-jul (continuación de F18) — al crear la opción de plan «Café con leche con almendras 0%», el ✨ «Estimar macros y grupo con IA» estimó de tablas (250 g = 32 kcal · 1P/1C/3F) e ignoró el producto guardado *Bebida de almendras Lidl 0%* (250 g = 40 kcal · 1,8P/0C/3,5F). Reabre el aparcado HANDOFF §B3 item *a* («Describir/productos en las opciones del plan», Alex «lo dejo así y ya veremos», 22-jul), ahora con driver real.
 
 ## Motivación (caso real)
@@ -21,6 +21,11 @@ F18 tapó el agujero de «Mis productos» en **Describir** (registrar el día). 
 - Columna `unit` `g|ml|ud` en `plan_options` (migración aditiva, `not null default 'g'`, mismo patrón que `products.unit` de #72): rótulo de `baseG` y de los steppers, **escala 1:1** (no afecta al reescalado, F06 intacto). La unidad acompaña a la opción en todas sus superficies: listado/editor de Plan, búsqueda universal y «Del plan» en Hoy, Historial y contexto textual de Coach/Chat/Visita. Una opción `ml`/`ud` deja de mentir mostrando `g`.
 - Selector **«Mis productos»** explícito en el editor de opciones **sin variantes**: eliges un producto → se **siembra** la opción (**copia**, no vínculo) con sus macros, `unit`, `baseG` y, si existe, `grupo`; si el producto no tiene grupo, se conserva el grupo actual (en una opción nueva, «Opción única»). El nombre toma por defecto el del producto y sigue editable. Puesto una vez, se queda.
 - `unit` viaja por el ciclo completo de `plan_options`: DTO/schemas/API, alta/edición, copia al cambiar objetivos (`createVersionWithTargets`), creación de una dieta importada (`createDietVersionFull`, default `g`), Historial, export/restore, `migrate:poc` y `seed`. Round-trip conserva el valor; datos anteriores a F19 y el PoC caen a `g`. 0 pérdidas.
+- **Enmienda de uso real (26-jul, AC7):** `unit` también se persiste en
+  `meal_entries` (`0020`, default `g`) porque, después de añadir una opción `ml`, la
+  fila y el editor de Hoy volvían a rotular la cantidad como `g`. Solo transporta el
+  rótulo 1:1: fórmulas, `grams/baseG` y macros no cambian. Crear desde Plan/producto,
+  copiar, duplicar y deshacer conservan la unidad; backup/restore y PoC caen a `g`.
 
 ## NO-alcance (qué queda explícitamente fuera y por qué)
 - **Foto por-opción**: la dieta entra por **foto → import (F-IA-9, ya existe)** para el grueso; una foto para una sola opción es redundante.
@@ -28,7 +33,9 @@ F18 tapó el agujero de «Mis productos» en **Describir** (registrar el día). 
 - **Variante desde un producto** (un hueco con variantes donde una es un producto guardado): las variantes (F08) quedan **intactas**. Una opción con variantes no tiene una «base» independiente —sus campos planos son la primera variante—, por lo que **no muestra el selector «Mis productos»**; las variantes se siguen añadiendo/estimando con el editor de F08/F09 («Añadir variantes · elegir fuente al registrar» + ✨ por variante). Aparcado, medir necesidad.
 - **Vínculo vivo producto↔opción**: es **copia**, no relación persistida (coherente con #67: editar una opción no reescribe lo ya registrado; editar un producto no debe cambiar el plan por sorpresa).
 - **Escalado por nº de unidades** (2 fajitas = 2×): reabre el NO-alcance deliberado de F06 (#57). Fuera.
-- **Persistir la unidad en `meal_entries`**: F19 modela la unidad de la **opción del Plan** y corrige sus superficies hasta el momento de añadirla; no añade `unit` al registro diario ni cambia la maquinaria de cantidad de F06. Si el rótulo del registro ya horneado muerde en uso real, requiere caso y spec propia.
+- ~~**Persistir la unidad en `meal_entries`**~~: NO-alcance retirado por el caso real
+  de AC7 del 26-jul. La fila horneada mostró `250 g` tras registrar desde un stepper
+  `250 ml`; se resolvió en la misma Fase 2 con la enmienda aditiva anterior.
 
 ## Momento de uso (09 §1)
 Configuración del Plan (baja frecuencia, alta duración del efecto): se hace una vez y rinde cada día al registrar «Del plan» de un toque. No es un camino del día a día — por eso prioriza **hacerlo bien y dejarlo puesto** sobre la inmediatez.
@@ -65,11 +72,18 @@ Editor de opciones del Plan (`plan-client.tsx` · `OptionForm`), tal como está 
 café F-IA-3 ×3 = 70/70/70, `pnpm typecheck` + 427 tests verdes. Sin migración/env/backfill.
 
 **Fase 2**
-7. El editor muestra selector `g/ml/ud`; una opción `ml/ud` rotula con esa unidad (no `g`) el listado/editor de Plan y los steppers de búsqueda universal/«Del plan» en Hoy. Historial y los contextos de IA tampoco asumen `g`. Escala 1:1 (F06 intacto). 🖐
-8. En una opción sin variantes, «Mis productos» la siembra (macros, unidad, baseG y grupo si existe; nombre = producto, editable) — **copia**: editar luego el producto NO cambia la opción. Producto sin grupo conserva el grupo actual. Caso en test + 🖐.
-9. Una opción con variantes no muestra «Mis productos»; sus variantes y campos planos permanecen intactos y se siguen gestionando con F08/F09. Caso en test + 🖐.
+7. El editor muestra selector `g/ml/ud`; una opción `ml/ud` rotula con esa unidad (no `g`) el listado/editor de Plan y los steppers de búsqueda universal/«Del plan» en Hoy. La fila y el editor de la entrada ya registrada conservan la misma unidad. Historial y los contextos de IA tampoco asumen `g`. Escala 1:1 (F06 intacto). 🖐 **Validado por Alex el 26-jul tras `0020`: stepper y fila real muestran `ml`.**
+8. En una opción sin variantes, «Mis productos» la siembra (macros, unidad, baseG y grupo si existe; nombre = producto, editable) — **copia**: editar luego el producto NO cambia la opción. Producto sin grupo conserva el grupo actual. Caso en test + 🖐. **Validado por Alex el 26-jul.**
+9. Una opción con variantes no muestra «Mis productos»; sus variantes y campos planos permanecen intactos y se siguen gestionando con F08/F09. Caso en test + 🖐. **Validado por Alex el 26-jul.**
 10. Round-trip export→restore conserva una opción `ml/ud`; un export anterior a F19 y `migrate:poc` producen `unit: "g"`. Casos en `backup.test.ts`/mapeo PoC.
 11. Cambiar objetivos copia las opciones a la nueva versión conservando `unit`; una dieta nueva importada sin unidad usa `g`. Caso en test.
+
+**Cierre técnico Fase 2 (26-jul):** migración aditiva `0019` aplicada (119 opciones
+existentes backfilled a `g` por default); unidad propagada de extremo a extremo y
+«Mis productos» implementado como copia solo sin variantes. AC10/AC11 cubiertos por
+mapeos puros; AC12 automatizado verde. Tras el primer AC7 real, `0020` persiste el
+rótulo en `meal_entries` y recupera coincidencias inequívocas; AC8/AC9 aprobados,
+AC7 aprobado tras refrescar la fila real. F19 cerrada.
 
 **Ambas**
 12. `pnpm typecheck && pnpm test` en verde; AC de F-IA-3 re-validados tras tocar el prompt (+ café ×3, DECISIONS #65).

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { MarksBlock } from "@/components/marks/marks-block";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
 import type { MarkDTO } from "@/server/db/queries/marks";
+import type { ProductDTO } from "@/server/db/queries/lookups";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
 import type { TrainingWeekView } from "@/server/db/queries/training";
 import type { TrainingByWeekday } from "@/lib/training-slot";
@@ -24,6 +25,7 @@ export function PlanScreen({
   targets,
   derived,
   optionsByMeal,
+  products,
   week,
   marks,
   today,
@@ -36,6 +38,7 @@ export function PlanScreen({
   targets: EffectiveTargets | null;
   derived: DerivedTargets | null;
   optionsByMeal: Record<string, PlanOptionDTO[]>;
+  products: ProductDTO[];
   week: TrainingWeekView | null;
   marks: MarkDTO[];
   today: string;
@@ -92,6 +95,7 @@ export function PlanScreen({
           targets={targets}
           derived={derived}
           optionsByMeal={optionsByMeal}
+          products={products}
           effectiveFrom={effectiveFrom}
         />
       ) : (

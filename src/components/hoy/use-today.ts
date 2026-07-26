@@ -78,6 +78,7 @@ export function useToday(date: string, initial: TodayPayload) {
         source: e.source,
         photoUrl: e.photoUrl ?? null,
         grams: e.grams ?? null,
+        unit: e.unit ?? "g",
         baseG: e.baseG ?? null,
         baseKcal: e.baseKcal ?? null,
         baseProt: e.baseProt ?? null,
@@ -185,6 +186,7 @@ export function useToday(date: string, initial: TodayPayload) {
                 // Deshacer conserva la base inmutable (F06): la entrada restaurada
                 // sigue siendo escalable.
                 grams: entry.grams,
+                unit: entry.unit,
                 baseG: entry.baseG,
                 baseKcal: entry.baseKcal,
                 baseProt: entry.baseProt,

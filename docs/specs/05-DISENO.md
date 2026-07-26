@@ -50,7 +50,12 @@ Base: **shadcn/ui** para primitivas (Dialog, Select, Popover, Tabs, Sonner, Shee
 
 - **FuelGauge**: descrito en §1. Debajo, barra de proteína + mini-barras C/F + línea «Faltan: …» sobre `--surface-2`.
 - **MealRow** (comida registrada): ★ favorito (ámbar activo) · nombre (tap → edición en línea: descripción, comida, 4 macros, OK/Cancelar) · macros `.num` en `--muted` · papelera. Hint una sola línea sobre la lista: «Toca el nombre de una comida para editarla».
+- **Cantidad de MealRow**: si existe, se pinta con la unidad persistida de la
+  entrada (`g|ml|ud`), y el stepper de edición usa el mismo rótulo.
 - **QuickAdd bar** (cabecera de registro): [Copiar ayer (n)] [Plantilla ▾ Aplicar] [chips de Favoritos]. Los favoritos como chips píldora con kcal.
+- **Editor de opción del Plan**: selector `g|ml|ud` para la base y, solo sin
+  variantes, selector «Mis productos» que copia la ficha al formulario. Listados y
+  steppers rotulan la unidad elegida; no se crea un vínculo vivo con el catálogo.
 - **PhotoAnalyzer**: selector comida + botón cámara (label nativo envolviendo `<input type=file capture>`) + campo Aclaraciones + [Reanalizar]; resultado como lista editable de items (input gramos 54 px) + Total en negrita + veredicto con fondo verde/naranja suave + dos botones de añadir. Estado de carga con spinner en el propio botón.
 - **PhaseSelect + SessionSelect + BloatSelect** en una fila que envuelve; al elegir fase ≠ Normal, feedback inmediato en el FuelGauge.
 - **TrendCard** («Tu gasto y déficit reales · desde el peso»): tarjeta invertida (fondo `--ink`, texto claro) — es la única tarjeta invertida de la app, marcando jerarquía; tres cifras display; nota fija de que el reloj es contexto.

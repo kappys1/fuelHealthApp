@@ -34,6 +34,7 @@ export const bloatEventPatchZ = z
   })
   .refine((value) => Object.keys(value).length > 0, "No hay cambios.");
 export const sourceZ = z.enum(["plan", "foto", "manual", "ia", "fav", "plantilla"]);
+export const productUnitZ = z.enum(["g", "ml", "ud"]);
 
 // Tope del mensaje del chat: cabe un menú de comedor entero pegado. Compartido
 // para que cliente (aviso en vivo) y servidor (validación) no se desincronicen.
@@ -52,6 +53,8 @@ export const newEntryZ = z.object({
   photoUrl: z.string().min(1).max(600).nullable().optional(),
   // Gramos como dato de primera clase (F06): base inmutable + cantidad al crear.
   grams: z.number().int().min(0).max(20000).nullable().optional(),
+  // Compatibilidad: entradas de foto/manual/clientes anteriores siguen siendo g.
+  unit: productUnitZ.default("g"),
   baseG: z.number().int().min(0).max(20000).nullable().optional(),
   baseKcal: z.number().int().min(0).max(20000).nullable().optional(),
   baseProt: z.number().min(0).max(2000).nullable().optional(),
@@ -64,7 +67,6 @@ export const newEntryZ = z.object({
 export const productSourceZ = z.enum(["etiqueta", "manual", "estimado", "legacy"]);
 // Unidad de visualización (F10). Default 'g' → un cliente/import previo sin `unit`
 // no rompe (restore de export antiguo).
-export const productUnitZ = z.enum(["g", "ml", "ud"]);
 export const productCreateZ = z.object({
   name: z.string().min(1).max(200),
   baseG: z.number().int().min(0).max(5000).nullable(),
@@ -106,12 +108,23 @@ export const optionZ = z.object({
   grp: grpZ,
   name: z.string().min(1).max(200),
   baseG: z.number().int().min(0).max(5000).nullable(),
+  // Default compatible con importaciones/clientes anteriores a F19.
+  unit: productUnitZ.default("g"),
   kcal: z.number().int().min(0).max(20000),
   prot: z.number().min(0).max(2000),
   carb: z.number().min(0).max(2000),
   fat: z.number().min(0).max(2000),
   variants: z.array(planVariantZ).max(12).default([]),
 });
+
+// PATCH no debe materializar defaults: omitir `unit`/`variants` significa conservar
+// el valor persistido, no resetearlo a g/[].
+export const optionPatchZ = optionZ
+  .extend({
+    unit: productUnitZ,
+    variants: z.array(planVariantZ).max(12),
+  })
+  .partial();
 
 // Crear una versión de dieta COMPLETA desde importación (F-IA-9).
 export const dietVersionCreateZ = z.object({

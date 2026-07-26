@@ -4,6 +4,7 @@ import {
   entryToProductInput,
   resolveProductSave,
 } from "./entry-actions";
+import { formatQuantity } from "./macros";
 import type { EntryDTO } from "@/server/db/queries/day";
 import type { ProductDTO } from "@/server/db/queries/lookups";
 
@@ -19,6 +20,7 @@ function entry(over: Partial<EntryDTO> = {}): EntryDTO {
     source: "manual",
     photoUrl: null,
     grams: 150,
+    unit: "g",
     baseG: 100,
     baseKcal: 370,
     baseProt: 13,
@@ -79,6 +81,10 @@ describe("entryToProductInput · base vs. fijo (F13 §C)", () => {
     const p = entryToProductInput(entry({ name: "  Avena  " }));
     expect(p).toMatchObject({ unit: "g", grupo: null, pinned: false, name: "Avena" });
   });
+
+  it("conserva ml al promover la entrada a producto", () => {
+    expect(entryToProductInput(entry({ unit: "ml" })).unit).toBe("ml");
+  });
 });
 
 describe("entryToProductInput · mapeo de source (F13 §C)", () => {
@@ -114,7 +120,12 @@ describe("resolveProductSave · dedup por nombre exacto (F13 §C)", () => {
 
 describe("entryToDuplicateInput · copia idéntica (F13 §B)", () => {
   it("conserva macros, source, photoUrl, gramos y la base inmutable", () => {
-    const e = entry({ source: "foto", photoUrl: "/api/photos/view?p=x", grams: 150 });
+    const e = entry({
+      source: "foto",
+      photoUrl: "/api/photos/view?p=x",
+      grams: 150,
+      unit: "ml",
+    });
     expect(entryToDuplicateInput(e)).toEqual({
       meal: "cena",
       name: "Avena",
@@ -125,6 +136,7 @@ describe("entryToDuplicateInput · copia idéntica (F13 §B)", () => {
       source: "foto",
       photoUrl: "/api/photos/view?p=x",
       grams: 150,
+      unit: "ml",
       baseG: 100,
       baseKcal: 370,
       baseProt: 13,
@@ -138,5 +150,11 @@ describe("entryToDuplicateInput · copia idéntica (F13 §B)", () => {
     const dup = entryToDuplicateInput(e);
     expect(dup.baseG).toBeNull();
     expect(dup.grams).toBeNull();
+  });
+});
+
+describe("formatQuantity · F19 enmienda de unidad diaria", () => {
+  it("la fila de Hoy conserva ml en vez de asumir g", () => {
+    expect(formatQuantity(250, "ml")).toBe("250 ml");
   });
 });

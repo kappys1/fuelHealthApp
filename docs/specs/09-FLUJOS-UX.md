@@ -87,7 +87,7 @@ Listo en ≤15 segundos. Cada paso es saltable; guardar en cada paso (si lo aban
   Off-plan → analizador de WOD (F-IA-5). Elegir o guardar ancla una única
   `training_session` real del día y sincroniza nombre + gasto; Plan, Hoy, Historial y
   Coach/Chat/Visita leen esa misma referencia.
-- **Peso**: precargado con el último; **agua**: chips +250 ml / +500 ml / botella (750), no un campo de litros; **comida del sheet**: por hora; **gramos**: baseG; **fase**: Normal salvo que ayer fuera Carga/Competición (entonces sugiere la siguiente lógica: Carga→Competición→Recuperación→Normal).
+- **Peso**: precargado con el último; **agua**: chips +250 ml / +500 ml / botella (750), no un campo de litros; **comida del sheet**: por hora; **cantidad**: baseG con su unidad `g|ml|ud`; **fase**: Normal salvo que ayer fuera Carga/Competición (entonces sugiere la siguiente lógica: Carga→Competición→Recuperación→Normal).
 - Todo default es un valor propuesto visible y cambiable en un toque — nunca un valor oculto.
 
 ## 5b. Flujos exprés
@@ -96,6 +96,9 @@ Listo en ≤15 segundos. Cada paso es saltable; guardar en cada paso (si lo aban
 - **Foto desde galería**: Compartir → Fuelboard (share target) → sheet de foto ya cargado.
 - **Competición** (fase = Competición): en Hoy aparece la fila de repostaje rápido (doc 07 §4) sobre el timeline; el gauge en modo informativo.
 - **Cambio de dieta**: Plan → «Importar dieta (foto/PDF)» destacado arriba → vista previa → nueva versión.
+- **Opción recurrente del Plan**: abrir/crear opción → si no tiene variantes, elegir
+  «Mis productos» → revisar la copia (nombre, grupo, base, unidad, macros) → guardar.
+  El nombre sigue editable; con variantes el selector no aparece.
 
 ## 6. Reglas de interacción globales
 

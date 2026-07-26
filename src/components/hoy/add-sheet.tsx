@@ -166,13 +166,20 @@ export function AddSheet({
           fat: p.baseFat,
           source: "fav",
           baseG: p.baseG,
+          unit: p.unit,
         });
     for (const o of allOptions)
       if (o.name.toLowerCase().includes(q))
         hits.push({ key: `p${o.id}`, ...o, source: "plan", baseG: o.baseG });
     for (const r of corpus.recents)
       if (r.name.toLowerCase().includes(q))
-        hits.push({ key: `r${r.name}`, ...r, source: "manual", baseG: null });
+        hits.push({
+          key: `r${r.name}`,
+          ...r,
+          source: "manual",
+          baseG: null,
+          unit: "g",
+        });
     return hits.slice(0, 8);
   }, [search, corpus.products, corpus.recents, allOptions]);
 
@@ -205,7 +212,7 @@ export function AddSheet({
       return;
     }
     const f = productToEntryFields(p, 0);
-    commit([{ meal, name: p.name, ...f, source: "fav" }]);
+    commit([{ meal, name: p.name, ...f, source: "fav", unit: p.unit }]);
   };
 
   const openEditor = (
@@ -330,6 +337,7 @@ export function AddSheet({
                   carb: r.carb,
                   fat: r.fat,
                   source: r.source,
+                  unit: r.unit,
                 },
               ]);
             }}
@@ -391,6 +399,7 @@ type ResultRow = {
   fat: number;
   source: string;
   baseG: number | null;
+  unit: ProductUnit;
 };
 
 function HomeLayer({
@@ -708,7 +717,13 @@ function ScalableResult({
     <div className="rounded-lg px-2 py-2 hover:bg-surface-2">
       <div className="text-[14px]">{row.name}</div>
       <div className="mt-1.5 flex items-center gap-2">
-        <Stepper value={g} onChange={setG} step={10} suffix="g" ariaLabel="Gramos" />
+        <Stepper
+          value={g}
+          onChange={setG}
+          step={10}
+          suffix={PRODUCT_UNIT_SUFFIX[row.unit]}
+          ariaLabel={`Cantidad en ${PRODUCT_UNIT_NOUN[row.unit]}`}
+        />
         <button
           type="button"
           onClick={() =>
@@ -719,6 +734,7 @@ function ScalableResult({
                 name: row.name,
                 ...scaled,
                 source: "plan",
+                unit: row.unit,
                 ...entryBaseFields(row, grams, row.baseG),
               },
             ])
@@ -826,7 +842,13 @@ function PlanOptionRow({
       ) : null}
       <div className="mt-1.5 flex items-center gap-2">
         {!fixed ? (
-          <Stepper value={g} onChange={setG} step={10} suffix="g" ariaLabel="Gramos" />
+          <Stepper
+            value={g}
+            onChange={setG}
+            step={10}
+            suffix={PRODUCT_UNIT_SUFFIX[option.unit]}
+            ariaLabel={`Cantidad en ${PRODUCT_UNIT_NOUN[option.unit]}`}
+          />
         ) : null}
         <button
           type="button"
@@ -841,6 +863,7 @@ function PlanOptionRow({
                 // tal cual (opción fija o variante por unidad).
                 ...scaled,
                 source: "plan",
+                unit: option.unit,
                 ...entryBaseFields(base, grams, option.baseG),
               },
             ])
@@ -1465,7 +1488,11 @@ function ProductStepperLayer({
 
       <button
         type="button"
-        onClick={() => onAdd([{ meal, name: product.name, ...f, source: "fav" }])}
+        onClick={() =>
+          onAdd([
+            { meal, name: product.name, ...f, source: "fav", unit: product.unit },
+          ])
+        }
         className="w-full rounded-xl bg-primary py-3 text-[15px] font-semibold text-primary-foreground"
       >
         Añadir a {MEAL_LABELS[meal]}

@@ -27,9 +27,12 @@ import { Stepper } from "@/components/ui/stepper";
 import {
   displayMacro,
   effectiveBase,
+  formatQuantity,
   type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
+  PRODUCT_UNIT_NOUN,
+  PRODUCT_UNIT_SUFFIX,
   scaledForStore,
 } from "@/lib/macros";
 import type { EntryDTO } from "@/server/db/queries/day";
@@ -119,7 +122,7 @@ export function MealRow({
               {entry.name}
             </strong>
             <span className="mt-0.5 block truncate font-display text-[11px] tabular-nums text-muted-foreground">
-              {entry.grams != null ? `${entry.grams} g · ` : ""}
+              {entry.grams != null ? `${formatQuantity(entry.grams, entry.unit)} · ` : ""}
               {entry.kcal} kcal · {displayMacro(entry.prot)}P/{displayMacro(entry.carb)}C/
               {displayMacro(entry.fat)}F
             </span>
@@ -189,24 +192,35 @@ function EditForm({
 }) {
   const [name, setName] = useState(entry.name);
   const [meal, setMeal] = useState<MealKey>(entry.meal);
-  const [kcal, setKcal] = useState(String(entry.kcal));
-  const [prot, setProt] = useState(String(entry.prot));
-  const [carb, setCarb] = useState(String(entry.carb));
-  const [fat, setFat] = useState(String(entry.fat));
   // Base efectiva (F14·A): caso 1 = base guardada; caso 2 = macros actuales a
   // baseG=grams (derivada); caso 3 = null → solo-macros, sin stepper.
   const eff = effectiveBase(entry);
   const scalable = eff != null;
-  const [grams, setGrams] = useState(String(entry.grams ?? eff?.baseG ?? ""));
+  const [nutrition, setNutrition] = useState(() => ({
+    grams: String(entry.grams ?? eff?.baseG ?? ""),
+    kcal: String(entry.kcal),
+    prot: String(entry.prot),
+    carb: String(entry.carb),
+    fat: String(entry.fat),
+  }));
+  const { grams, kcal, prot, carb, fat } = nutrition;
   const onGrams = (value: string) => {
-    setGrams(value);
-    if (!eff) return;
+    if (!eff) {
+      setNutrition((current) => ({ ...current, grams: value }));
+      return;
+    }
     const scaled = scaledForStore(eff.base, numberFromInput(value), eff.baseG);
-    setKcal(String(scaled.kcal));
-    setProt(String(scaled.prot));
-    setCarb(String(scaled.carb));
-    setFat(String(scaled.fat));
+    setNutrition({
+      grams: value,
+      kcal: String(scaled.kcal),
+      prot: String(scaled.prot),
+      carb: String(scaled.carb),
+      fat: String(scaled.fat),
+    });
   };
+  const setNutritionField =
+    (field: "kcal" | "prot" | "carb" | "fat") => (value: string) =>
+      setNutrition((current) => ({ ...current, [field]: value }));
 
   return (
     <div className="space-y-4 px-4 pb-6">
@@ -234,14 +248,40 @@ function EditForm({
       {scalable ? (
         <label className="block">
           <span className="mb-1.5 block text-[12px] text-muted-foreground">Cantidad</span>
-          <Stepper value={grams} onChange={onGrams} step={10} suffix="g" ariaLabel="Cantidad en gramos" />
+          <Stepper
+            value={grams}
+            onChange={onGrams}
+            step={10}
+            suffix={PRODUCT_UNIT_SUFFIX[entry.unit]}
+            ariaLabel={`Cantidad en ${PRODUCT_UNIT_NOUN[entry.unit]}`}
+          />
         </label>
       ) : null}
       <div className="grid grid-cols-2 gap-3">
-        <LabeledStepper label="kcal" value={kcal} onChange={setKcal} step={10} />
-        <LabeledStepper label="Proteína" value={prot} onChange={setProt} step={1} />
-        <LabeledStepper label="Hidratos" value={carb} onChange={setCarb} step={1} />
-        <LabeledStepper label="Grasa" value={fat} onChange={setFat} step={1} />
+        <LabeledStepper
+          label="kcal"
+          value={kcal}
+          onChange={setNutritionField("kcal")}
+          step={10}
+        />
+        <LabeledStepper
+          label="Proteína"
+          value={prot}
+          onChange={setNutritionField("prot")}
+          step={1}
+        />
+        <LabeledStepper
+          label="Hidratos"
+          value={carb}
+          onChange={setNutritionField("carb")}
+          step={1}
+        />
+        <LabeledStepper
+          label="Grasa"
+          value={fat}
+          onChange={setNutritionField("fat")}
+          step={1}
+        />
       </div>
       <div className="grid grid-cols-2 gap-2 pt-1">
         <button type="button" onClick={onCancel} className="min-h-11 rounded-xl border border-line-strong text-[13px] font-medium text-foreground">
