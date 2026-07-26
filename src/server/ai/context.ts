@@ -1,5 +1,6 @@
 import { dayKey, isoWeekday } from "@/lib/dates";
 import { effectiveHealthMetric } from "@/lib/effective-health";
+import type { FlexibleMealKey } from "@/lib/flexible-meals";
 import {
   BLOAT_LABELS,
   type MealKey,
@@ -29,6 +30,7 @@ import {
 } from "@/server/analytics/dayClosure";
 import type { DeficitResult } from "@/server/analytics/deficit";
 import type { EnergyBalance } from "@/server/analytics/energyBalance";
+import type { FlexibleImpact } from "@/server/analytics/flexibleImpact";
 import type { GaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { DailyRecord } from "@/server/analytics/types";
@@ -54,6 +56,7 @@ const num = (n: number, d = 0) =>
 export function dayLine(
   r: DailyRecord,
   calendarFallback?: string | null,
+  opts?: { includePlannedFlexible?: boolean },
 ): string {
   const parts: string[] = [r.date];
   parts.push(
@@ -66,6 +69,22 @@ export function dayLine(
   else if (calendarFallback)
     parts.push(`sin sesión registrada (calendario: ${calendarFallback})`);
   parts.push(`fase ${phaseLabel(r.phase)}`);
+  if (r.phase == null) {
+    for (const meal of r.flexibleMeals.real) {
+      parts.push(
+        opts?.includePlannedFlexible
+          ? `${MEAL_LABELS[meal]} flexible real (sus kcal cuentan; contexto informativo, no fallo ni compensación)`
+          : `${MEAL_LABELS[meal]} flexible`,
+      );
+    }
+    if (opts?.includePlannedFlexible) {
+      for (const meal of r.flexibleMeals.planned) {
+        parts.push(
+          `${MEAL_LABELS[meal]} flexible prevista (decisión personal, kcal aún desconocidas; no cerrar ese momento con opciones del plan)`,
+        );
+      }
+    }
+  }
   if (r.bloat) parts.push(`hinchazón ${BLOAT_LABELS[r.bloat].toLowerCase()}`);
   if (r.waterL != null) parts.push(`agua ${num(r.waterL, 1)} L`);
   if (r.sleepH != null && r.sleepH > 0) parts.push(`sueño ${num(r.sleepH, 1)} h`);
@@ -82,7 +101,11 @@ export function dayLine(
 export function dayLines(
   records: readonly DailyRecord[],
   n: number,
-  calendar?: { sessionByWeekday: SessionByWeekday; today: string },
+  calendar?: {
+    sessionByWeekday: SessionByWeekday;
+    today: string;
+    includeCurrentPlannedFlexible?: boolean;
+  },
 ): string {
   const rows = records.slice(-n);
   if (rows.length === 0) return "Sin registros todavía.";
@@ -92,7 +115,11 @@ export function dayLines(
         calendar && r.date === calendar.today
           ? (calendar.sessionByWeekday[String(isoWeekday(r.date))] ?? "Descanso")
           : null;
-      return dayLine(r, fallback);
+      return dayLine(r, fallback, {
+        includePlannedFlexible:
+          calendar?.includeCurrentPlannedFlexible === true &&
+          r.date === calendar.today,
+      });
     })
     .join("\n");
 }
@@ -103,8 +130,20 @@ export function dayLines(
  * el coach. Agrupado por fecha, hoy primero. Vacío ("") si no hay comidas en el
  * rango → el prompt omite la sección y el guardarraíl anti-invención cubre el resto.
  */
-export function recentMealsDetail(entries: readonly DatedEntry[]): string {
+export function recentMealsDetail(
+  entries: readonly DatedEntry[],
+  records: readonly DailyRecord[] = [],
+): string {
   if (entries.length === 0) return "";
+  const flexibleReal = new Set<string>(
+    records.flatMap((record) =>
+      record.phase == null
+        ? record.flexibleMeals.real.map(
+            (meal) => `${record.date}:${meal}` as const,
+          )
+        : [],
+    ),
+  );
   const byDate = new Map<string, DatedEntry[]>();
   for (const e of entries) {
     const arr = byDate.get(e.date) ?? [];
@@ -116,8 +155,12 @@ export function recentMealsDetail(entries: readonly DatedEntry[]): string {
     .map((d) => {
       const items = (byDate.get(d) ?? [])
         .map(
-          (e) =>
-            `- [${e.meal}] ${e.name}: ${Math.round(e.kcal)} kcal (${Math.round(e.prot)}P/${Math.round(e.carb)}C/${Math.round(e.fat)}F)`,
+          (e) => {
+            const label = flexibleReal.has(`${e.date}:${e.meal}`)
+              ? `${e.meal} · Flexible`
+              : e.meal;
+            return `- [${label}] ${e.name}: ${Math.round(e.kcal)} kcal (${Math.round(e.prot)}P/${Math.round(e.carb)}C/${Math.round(e.fat)}F)`;
+          },
         )
         .join("\n");
       return `${d}:\n${items}`;
@@ -220,9 +263,34 @@ export function trendSummary(deficit: DeficitResult): string {
 export function trendAndAdherence(
   deficit: DeficitResult,
   adherence: AdherenceResult,
+  flexibleImpact?: FlexibleImpact,
 ): string {
   const a = `Adherencia (14 d): ${adherence.n} días con registro; ${adherence.enRango}/${adherence.kcalN} evaluables en rango de kcal, ${adherence.protOk}/${adherence.proteinN} evaluables con proteína suficiente y ${adherence.flexibleN} días flexibles reales fuera del juicio de kcal.`;
-  return `${trendSummary(deficit)}\n${a}`;
+  const impact = flexibleImpactLine(flexibleImpact);
+  return [trendSummary(deficit), a, impact].filter(Boolean).join("\n");
+}
+
+function signed(value: number, digits = 0): string {
+  const rounded = num(Math.abs(value), digits);
+  return `${value >= 0 ? "+" : "−"}${rounded}`;
+}
+
+/** Evidencia descriptiva ya calculada; el modelo solo puede narrarla. */
+export function flexibleImpactLine(
+  impact?: FlexibleImpact,
+): string {
+  if (
+    !impact?.enoughForComparison ||
+    impact.flexibleMeanKcal == null ||
+    impact.regularMeanKcal == null ||
+    impact.flexibleMeanTargetPct == null ||
+    impact.regularMeanTargetPct == null ||
+    impact.differenceObservedKcal == null ||
+    impact.differenceObservedPct == null
+  ) {
+    return "";
+  }
+  return `KPI flexible precalculado (${impact.windowDays} d; descriptivo, no causal): ${impact.flexibleMoments} momentos en ${impact.flexibleDays} días; flexibles ${num(impact.flexibleMeanKcal)} kcal (${num(impact.flexibleMeanTargetPct, 1)} % del objetivo, n=${impact.flexibleDays}) vs regulares ${num(impact.regularMeanKcal)} kcal (${num(impact.regularMeanTargetPct, 1)} %, n=${impact.regularDays}); diferencia observada ≈${signed(impact.differenceObservedKcal)} kcal (≈${signed(impact.differenceObservedPct, 1)} %).`;
 }
 
 /*
@@ -248,6 +316,9 @@ export function gaugeVerdictLine(
   } else if (v.phase === "special") {
     estado =
       "fase especial · superar el objetivo es esperado (no cuenta como desviación)";
+  } else if (v.flexible) {
+    estado =
+      "contexto flexible real · sus kcal cuentan en las cifras, pero no se juzga como fallo ni exige compensación";
   } else if (v.covered) {
     estado = "objetivos cubiertos ✓";
     const overs = v.notablyOver.map(
@@ -304,13 +375,37 @@ export function closureLine(args: {
   stance: Stance;
   verdict: GaugeVerdict;
   timing: TrainingTiming;
+  plannedFlexibleMeals?: readonly FlexibleMealKey[];
 }): string {
   const { stance, verdict: v, timing } = args;
+  const plannedFlexibleMeals = args.plannedFlexibleMeals ?? [];
   const cls = classifyClosure(v);
   const band = Math.round(v.targetKcal * MAINTENANCE_BAND);
   const kcalRem = v.kcalRemaining;
   const kcalOver = v.kcalOver;
   const protRem = Math.round(v.prot.remaining);
+
+  if (v.flexible) {
+    return `Directriz de cierre (juicio determinista; síguela tal cual, tú solo pones el tono): CONTEXTO FLEXIBLE REAL: ${v.consumed} kcal/${Math.round(v.prot.value)}P/${Math.round(v.carb.value)}C/${Math.round(v.fat.value)}F se mantienen y cuentan en ingesta/tendencia. No llames fallo a la comida, no atribuyas un peso puntual a ella y NO compenses ni prescribas recortes al día siguiente.`;
+  }
+
+  if (plannedFlexibleMeals.length > 0) {
+    const meals = plannedFlexibleMeals
+      .map((meal) => MEAL_LABELS[meal])
+      .join(", ");
+    const carbRem = Math.round(v.carb.remaining);
+    const h =
+      timing.hoursToStart == null
+        ? ""
+        : timing.hoursToStart < 1
+          ? "menos de 1 h"
+          : `~${num(timing.hoursToStart, 1)} h`;
+    const usefulOtherMoment =
+      timing.rel === "pre" && carbRem >= 20
+        ? ` Puedes conservar UNA recomendación útil para otro momento no marcado: entrenas en ${h} y puedes colocar hidratos (${carbRem} g pendientes) en la comida previa para llegar con gasolina.`
+        : "";
+    return `Directriz de cierre (juicio determinista; síguela tal cual, tú solo pones el tono): MOMENTO FLEXIBLE PREVISTO (${meals}): decisión personal con kcal aún desconocidas. NO intentes cerrar ese momento con opciones del plan ni rellenar todo el hueco de kcal/macros; no sugieras sus alimentos pautados.${usefulOtherMoment}`;
+  }
 
   let dir: string;
   if (cls === "exceso") {
@@ -501,6 +596,19 @@ export function dayContext(
   if (health?.sleepH != null && health.sleepH > 0)
     ctx.push(`sueño ${num(health.sleepH, 1)} h`);
   if (ctx.length) lines.push(`Contexto: ${ctx.join(" · ")}.`);
+
+  if (day?.phase == null) {
+    for (const meal of view.flexibleMeals.planned) {
+      lines.push(
+        `${MEAL_LABELS[meal]} flexible prevista: decisión personal; kcal aún desconocidas. No intentes cerrar ese momento con opciones del plan ni rellenar ese hueco.`,
+      );
+    }
+    for (const meal of view.flexibleMeals.real) {
+      lines.push(
+        `${MEAL_LABELS[meal]} flexible real: sus kcal sí cuentan en ingesta y tendencia; trátala como contexto informativo, no como fallo; no atribuyas un peso puntual a esa comida y no prescribas compensación.`,
+      );
+    }
+  }
 
   if (day?.notes?.trim()) lines.push(`Notas: "${day.notes.trim()}".`);
 

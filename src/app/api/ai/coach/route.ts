@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ensureAuth, parseBody, serverError } from "@/lib/api";
 import { dayKey, isoWeekday, shiftDayKey, timeOfDay } from "@/lib/dates";
+import { flexibleMarkers } from "@/lib/flexible-meals";
 import { MEAL_ORDER, phaseLabel } from "@/lib/macros";
 import { currentObjective } from "@/lib/profile";
 import { retry } from "@/lib/retry";
@@ -76,7 +77,12 @@ export async function POST(request: Request) {
   // modelo NO recalcula, recibe el mismo juicio determinista que el FuelGauge
   // más el gasto del reloj y el juez real (báscula). El prompt solo pone el tono.
   const totals = dayTotals(view.entries);
-  const verdict = gaugeVerdict(targets, totals, view.day?.phase ?? null);
+  const verdict = gaugeVerdict(
+    targets,
+    totals,
+    view.day?.phase ?? null,
+    view.flexibleMeals.real.length > 0,
+  );
   const sesionCalendario =
     atleta.sessionByWeekday[String(isoWeekday(targetDate))] ?? "Descanso";
   const sessionLabel = view.day?.sessionLabel
@@ -124,15 +130,26 @@ export async function POST(request: Request) {
       franja: atleta.profile.franjaEntreno,
       isTrainingDay,
     });
-    dataLines.push(closureLine({ stance, verdict, timing }));
+    dataLines.push(
+      closureLine({
+        stance,
+        verdict,
+        timing,
+        plannedFlexibleMeals: view.flexibleMeals.planned,
+      }),
+    );
   }
   const dayData = dataLines.join("\n");
 
   // Comidas del plan que aún le quedan (F01 Fase 1): en curso = las sin entrada
   // registrada; día terminado = todas (las sugerencias del coach son "para hoy").
   const loggedMeals = new Set(view.entries.map((e) => e.meal));
+  const markedFlexibleMeals = new Set(flexibleMarkers(view.flexibleMeals));
   const pendingMeals = MEAL_ORDER.filter(
-    (m) => m !== "extra" && (parsed.data.mode === "ayer" || !loggedMeals.has(m)),
+    (m) =>
+      m !== "extra" &&
+      !markedFlexibleMeals.has(m) &&
+      (parsed.data.mode === "ayer" || !loggedMeals.has(m)),
   );
   const planPendiente = plan
     ? pendingPlanOptions(plan.optionsByMeal, pendingMeals)

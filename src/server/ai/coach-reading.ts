@@ -34,6 +34,7 @@ export function coachContextHash(
     day: view.day,
     health: view.health,
     session: view.session,
+    flexibleMeals: view.flexibleMeals,
     entries: [...view.entries]
       .sort((a, b) => a.id - b.id)
       .map(({ createdAt, ...entry }) => {

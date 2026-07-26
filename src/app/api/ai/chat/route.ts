@@ -5,6 +5,7 @@ import { dayKey, shiftDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
 import { computeAdherence } from "@/server/analytics/adherence";
 import { computeDeficit } from "@/server/analytics/deficit";
+import { computeFlexibleImpact } from "@/server/analytics/flexibleImpact";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import {
   buildChatModelMessages,
@@ -204,6 +205,7 @@ export async function POST(request: Request) {
 
     const deficit = computeDeficit(trend.records);
     const adherence = computeAdherence(trend.records, today, 14);
+    const flexibleImpact = computeFlexibleImpact(trend.records, today);
     const lastWeight =
       [...trend.records].reverse().find((r) => r.weight != null)?.weight ?? null;
 
@@ -265,13 +267,14 @@ export async function POST(request: Request) {
       planSummary: plan
         ? planSummary(plan.targets, plan.optionsByMeal)
         : "Sin plan de dieta configurado.",
-      trendAdherence: trendAndAdherence(deficit, adherence),
+      trendAdherence: trendAndAdherence(deficit, adherence, flexibleImpact),
       meds: medLines(meds),
       days30: dayLines(trend.records, 30, {
         sessionByWeekday: atleta.sessionByWeekday,
         today,
+        includeCurrentPlannedFlexible: true,
       }),
-      mealsDetail: recentMealsDetail(recentEntries),
+      mealsDetail: recentMealsDetail(recentEntries, trend.records),
       marks: marksContext(marks),
       products: productsContext(products),
       justSavedProduct,
