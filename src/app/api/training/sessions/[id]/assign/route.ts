@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { badRequest, ensureAuth, parseBody, serverError } from "@/lib/api";
-import { dateZ } from "@/lib/schemas";
+import { dateZ, sessionFranjaZ } from "@/lib/schemas";
 import {
   reassignTrainingSession,
   TrainingAssignmentConflictError,
@@ -12,7 +12,10 @@ function parseId(param: string): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-const bodyZ = z.object({ date: dateZ.nullable() });
+const bodyZ = z.object({
+  date: dateZ.nullable(),
+  franja: sessionFranjaZ.optional(),
+});
 
 export async function POST(
   request: Request,
@@ -29,7 +32,7 @@ export async function POST(
   if ("error" in parsed) return parsed.error;
 
   try {
-    await reassignTrainingSession(id, parsed.data.date);
+    await reassignTrainingSession(id, parsed.data.date, parsed.data.franja);
     return Response.json({ ok: true });
   } catch (err) {
     if (err instanceof TrainingAssignmentConflictError) {

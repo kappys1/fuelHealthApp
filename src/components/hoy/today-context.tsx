@@ -63,6 +63,7 @@ import type { DayView } from "@/server/db/queries/day";
 import type { HealthSyncView } from "@/server/db/queries/health";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { TrainingSessionDTO } from "@/server/db/queries/training";
+import type { TrainingByWeekday } from "@/lib/training-slot";
 
 const NONE = "__none__";
 const BLOATS: BloatKey[] = ["ninguna", "leve", "moderada", "alta"];
@@ -312,11 +313,13 @@ export function TrainingSection({
   onPatch,
   trainingSessions,
   suggestedPhase,
+  trainingByWeekday,
 }: {
   view: DayView;
   onPatch: (patch: DayPatch) => void;
   trainingSessions: TrainingSessionDTO[];
   suggestedPhase: PhaseKey | null;
+  trainingByWeekday: TrainingByWeekday;
 }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -475,6 +478,7 @@ export function TrainingSection({
         date={view.date}
         existingName={view.session?.nombre ?? day?.sessionLabel ?? null}
         initialMode="wod"
+        trainingByWeekday={trainingByWeekday}
         onSaved={() =>
           queryClient.invalidateQueries({ queryKey: ["today", view.date] })
         }

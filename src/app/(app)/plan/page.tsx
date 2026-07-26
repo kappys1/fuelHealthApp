@@ -6,6 +6,7 @@ import { trainingWeekNavigation } from "@/lib/training";
 import { listMarksWithEntries } from "@/server/db/queries/marks";
 import { getPlanContext } from "@/server/db/queries/plan";
 import { getTrainingWeekView } from "@/server/db/queries/training";
+import { getTrainingByWeekday } from "@/server/db/queries/lookups";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +25,12 @@ export default async function PlanPage({
   if (initialSegment === "entrenos" && weekParam !== selectedWeek) {
     redirect(`/plan?tab=entrenos&week=${selectedWeek}`);
   }
-  const [ctx, week, marks] = await retry(() =>
+  const [ctx, week, marks, trainingByWeekday] = await retry(() =>
     Promise.all([
       getPlanContext(today),
       getTrainingWeekView(selectedWeek),
       listMarksWithEntries(),
+      getTrainingByWeekday(),
     ]),
   );
 
@@ -44,6 +46,7 @@ export default async function PlanPage({
       today={today}
       selectedWeek={selectedWeek}
       initialSegment={initialSegment}
+      trainingByWeekday={trainingByWeekday}
     />
   );
 }

@@ -159,8 +159,8 @@ async function main() {
       ],
     };
     const assignments = [
-      { sessionIndex: 0, date: "2099-01-05" },
-      { sessionIndex: 1, date: "2099-01-07" },
+      { sessionIndex: 0, date: "2099-01-05", franja: "mañana" as const },
+      { sessionIndex: 1, date: "2099-01-07", franja: "tarde" as const },
     ];
     const fingerprint = createHash("sha256")
       .update(JSON.stringify({ plan, assignments }))

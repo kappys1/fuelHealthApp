@@ -38,6 +38,14 @@ import {
   type TrainingTipo,
   TRAINING_TIPOS,
 } from "@/lib/training";
+import {
+  changeAssignmentDate,
+  overrideAssignmentFranja,
+} from "@/lib/training-assignment";
+import type {
+  SessionFranja,
+  TrainingByWeekday,
+} from "@/lib/training-slot";
 import { useOnline } from "@/lib/use-online";
 import { randomUUID } from "@/lib/uuid";
 import type { TrainingImportResult } from "@/server/ai/schemas";
@@ -77,6 +85,8 @@ interface SRow {
   duracionMin: string;
   /** Día asignado (clave 'YYYY-MM-DD') o "" si sin asignar. */
   date: string;
+  franja: SessionFranja | null;
+  franjaSource: "auto" | "manual";
 }
 
 let rowSeq = 0;
@@ -87,7 +97,13 @@ function mondayOf(key: string): string {
   return shiftDayKey(key, -(isoWeekday(key) - 1));
 }
 
-export function TrainingImport({ weekStart }: { weekStart: string }) {
+export function TrainingImport({
+  weekStart,
+  trainingByWeekday,
+}: {
+  weekStart: string;
+  trainingByWeekday: TrainingByWeekday;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -112,6 +128,7 @@ export function TrainingImport({ weekStart }: { weekStart: string }) {
       {open ? (
         <ImportSheet
           initialWeekStart={weekStart}
+          trainingByWeekday={trainingByWeekday}
           onClose={() => setOpen(false)}
         />
       ) : null}
@@ -121,9 +138,11 @@ export function TrainingImport({ weekStart }: { weekStart: string }) {
 
 function ImportSheet({
   initialWeekStart,
+  trainingByWeekday,
   onClose,
 }: {
   initialWeekStart: string;
+  trainingByWeekday: TrainingByWeekday;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -191,6 +210,8 @@ function ImportSheet({
       kcalMax: String(Math.round(s.kcal_max)),
       duracionMin: String(Math.round(s.duracion_min)),
       date: "",
+      franja: null,
+      franjaSource: "auto",
     }));
     setRows(next);
     if (next.length === 0) {
@@ -219,6 +240,10 @@ function ImportSheet({
       toast.error("Asigna como máximo una sesión a cada día.");
       return;
     }
+    if (valid.some((row) => row.date && !row.franja)) {
+      toast.error("Elige mañana o tarde en todas las sesiones asignadas.");
+      return;
+    }
     const source: "pdf" | "foto" | "texto" =
       mode === "text"
         ? "texto"
@@ -228,7 +253,9 @@ function ImportSheet({
 
     // assignments apuntan al índice dentro de `sessions` (== orden de `valid`).
     const assignments = valid.flatMap((r, i) =>
-      r.date ? [{ sessionIndex: i, date: r.date }] : [],
+      r.date && r.franja
+        ? [{ sessionIndex: i, date: r.date, franja: r.franja }]
+        : [],
     );
 
     setSaving(true);
@@ -377,7 +404,24 @@ function ImportSheet({
                       setRows((current) =>
                         current?.map((row) => ({
                           ...row,
-                          date: row.date ? shiftDayKey(row.date, delta) : "",
+                          ...(row.date
+                            ? (() => {
+                                const next = changeAssignmentDate(
+                                  {
+                                    date: row.date,
+                                    franja: row.franja,
+                                    source: row.franjaSource,
+                                  },
+                                  shiftDayKey(row.date, delta),
+                                  trainingByWeekday,
+                                );
+                                return {
+                                  date: next.date,
+                                  franja: next.franja,
+                                  franjaSource: next.source,
+                                };
+                              })()
+                            : {}),
                         })) ?? null,
                       );
                       setWeekStart(next);
@@ -394,6 +438,7 @@ function ImportSheet({
                   key={r.key}
                   row={r}
                   weekDates={weekDates}
+                  trainingByWeekday={trainingByWeekday}
                   onPatch={(p) => patchRow(r.key, p)}
                   onRemove={() => removeRow(r.key)}
                 />
@@ -402,7 +447,10 @@ function ImportSheet({
               <button
                 type="button"
                 onClick={save}
-                disabled={saving}
+                disabled={
+                  saving ||
+                  rows.some((row) => row.date && !row.franja)
+                }
                 className="min-h-11 w-full rounded-xl bg-primary px-4 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
               >
                 {saving ? "Creando…" : "Crear semana de entreno"}
@@ -418,11 +466,13 @@ function ImportSheet({
 function SessionEditor({
   row,
   weekDates,
+  trainingByWeekday,
   onPatch,
   onRemove,
 }: {
   row: SRow;
   weekDates: string[];
+  trainingByWeekday: TrainingByWeekday;
   onPatch: (p: Partial<SRow>) => void;
   onRemove: () => void;
 }) {
@@ -480,7 +530,22 @@ function SessionEditor({
         <Field label="Asignar a">
           <Select
             value={row.date || "none"}
-            onValueChange={(v) => onPatch({ date: v === "none" ? "" : v })}
+            onValueChange={(v) => {
+              const next = changeAssignmentDate(
+                {
+                  date: row.date,
+                  franja: row.franja,
+                  source: row.franjaSource,
+                },
+                v === "none" ? "" : v,
+                trainingByWeekday,
+              );
+              onPatch({
+                date: next.date,
+                franja: next.franja,
+                franjaSource: next.source,
+              });
+            }}
           >
             <SelectTrigger className="h-11 w-full text-base">
               <SelectValue />
@@ -492,6 +557,41 @@ function SessionEditor({
                   {labelForKey(d)}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Franja">
+          <Select
+            value={row.franja ?? "none"}
+            onValueChange={(value) => {
+              const next = overrideAssignmentFranja(
+                {
+                  date: row.date,
+                  franja: row.franja,
+                  source: row.franjaSource,
+                },
+                value as SessionFranja,
+              );
+              onPatch({
+                franja: next.franja,
+                franjaSource: next.source,
+              });
+            }}
+            disabled={!row.date}
+          >
+            <SelectTrigger className="h-11 w-full text-base">
+              <SelectValue
+                placeholder={row.date ? "Elige franja" : "Asigna un día"}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {!row.franja ? (
+                <SelectItem value="none" disabled>
+                  Elige mañana o tarde
+                </SelectItem>
+              ) : null}
+              <SelectItem value="mañana">Mañana</SelectItem>
+              <SelectItem value="tarde">Tarde</SelectItem>
             </SelectContent>
           </Select>
         </Field>

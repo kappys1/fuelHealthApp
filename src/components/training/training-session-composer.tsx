@@ -24,6 +24,11 @@ import {
   type TrainingTipo,
   TRAINING_TIPOS,
 } from "@/lib/training";
+import { createTrainingAssignment } from "@/lib/training-assignment";
+import type {
+  SessionFranja,
+  TrainingByWeekday,
+} from "@/lib/training-slot";
 
 type ComposerMode = "choose" | "manual" | "wod";
 interface ComposerState {
@@ -75,6 +80,7 @@ export function TrainingSessionComposer({
   existingName = null,
   onSaved,
   initialMode = "choose",
+  trainingByWeekday,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -82,15 +88,22 @@ export function TrainingSessionComposer({
   existingName?: string | null;
   onSaved: () => void | Promise<void>;
   initialMode?: "choose" | "wod";
+  trainingByWeekday: TrainingByWeekday;
 }) {
   const [state, dispatch] = useReducer(reducer, initialMode, initialState);
   const [busy, setBusy] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [franja, setFranja] = useState<SessionFranja | null>(
+    () => createTrainingAssignment(date, trainingByWeekday).franja,
+  );
   const patch = (next: Partial<ComposerState>) =>
     dispatch({ type: "patch", patch: next });
   const setOpen = (next: boolean) => {
     onOpenChange(next);
-    if (!next) dispatch({ type: "reset", initialMode });
+    if (!next) {
+      dispatch({ type: "reset", initialMode });
+      setFranja(createTrainingAssignment(date, trainingByWeekday).franja);
+    }
   };
 
   const analyzeWod = async () => {
@@ -123,6 +136,10 @@ export function TrainingSessionComposer({
       toast.error("La sesión necesita nombre.");
       return;
     }
+    if (!franja) {
+      toast.error("Elige mañana o tarde para esta sesión.");
+      return;
+    }
     setBusy(true);
     try {
       const result = await api.saveCanonicalTrainingSession(date, {
@@ -132,6 +149,7 @@ export function TrainingSessionComposer({
         duracionMin: intOrNull(state.duracion),
         kcalMin: intOrNull(state.kcalMin),
         kcalMax: intOrNull(state.kcalMax),
+        franja,
       });
       await onSaved();
       setOpen(false);
@@ -199,6 +217,8 @@ export function TrainingSessionComposer({
           <DraftStep
             state={state}
             busy={busy}
+            franja={franja}
+            onFranja={setFranja}
             onPatch={patch}
             onBack={() =>
               state.mode === "wod"
@@ -329,12 +349,16 @@ function WodInputStep({
 function DraftStep({
   state,
   busy,
+  franja,
+  onFranja,
   onPatch,
   onBack,
   onSave,
 }: {
   state: ComposerState;
   busy: boolean;
+  franja: SessionFranja | null;
+  onFranja: (franja: SessionFranja) => void;
   onPatch: (patch: Partial<ComposerState>) => void;
   onBack: () => void;
   onSave: () => void;
@@ -403,6 +427,26 @@ function DraftStep({
           onChange={(kcalMax) => onPatch({ kcalMax })}
         />
       </div>
+      <label className="block">
+        <span className="ui-label mb-1.5 block">Franja</span>
+        <Select
+          value={franja ?? "__none__"}
+          onValueChange={(value) => onFranja(value as SessionFranja)}
+        >
+          <SelectTrigger className="min-h-11 w-full text-base">
+            <SelectValue placeholder="Elige mañana o tarde" />
+          </SelectTrigger>
+          <SelectContent>
+            {!franja ? (
+              <SelectItem value="__none__" disabled>
+                Elige mañana o tarde
+              </SelectItem>
+            ) : null}
+            <SelectItem value="mañana">Mañana</SelectItem>
+            <SelectItem value="tarde">Tarde</SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
       <div className="grid grid-cols-[auto_1fr] gap-2 pt-1">
         <button
           type="button"
@@ -414,7 +458,7 @@ function DraftStep({
         <button
           type="button"
           onClick={onSave}
-          disabled={busy}
+          disabled={busy || !franja}
           className="min-h-12 rounded-xl bg-primary px-4 text-[14px] font-semibold text-primary-foreground disabled:opacity-60"
         >
           {busy ? "Guardando…" : "Guardar sesión"}

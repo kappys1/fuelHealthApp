@@ -6,6 +6,7 @@ import type { DerivedTargets } from "@/server/analytics/planDerived";
 import type { MarkDTO } from "@/server/db/queries/marks";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
 import type { TrainingWeekView } from "@/server/db/queries/training";
+import type { TrainingByWeekday } from "@/lib/training-slot";
 import { PlanClient } from "./plan-client";
 import { TrainingWeek } from "./training-week";
 
@@ -30,6 +31,7 @@ export function PlanScreen({
   effectiveFrom,
   versionId,
   initialSegment = "dieta",
+  trainingByWeekday,
 }: {
   targets: EffectiveTargets | null;
   derived: DerivedTargets | null;
@@ -41,6 +43,7 @@ export function PlanScreen({
   effectiveFrom: string | null;
   versionId: number | null;
   initialSegment?: Segment;
+  trainingByWeekday: TrainingByWeekday;
 }) {
   const segment = initialSegment;
 
@@ -98,6 +101,7 @@ export function PlanScreen({
             week={week}
             selectedWeek={selectedWeek}
             today={today}
+            trainingByWeekday={trainingByWeekday}
           />
           <MarksBlock initialMarks={marks} today={today} />
         </div>

@@ -4,6 +4,7 @@ import {
   trainingWeekSpan,
   type TrainingTipo,
 } from "@/lib/training";
+import type { SessionFranja } from "@/lib/training-slot";
 
 export interface CanonicalSessionFields {
   key?: string;
@@ -13,6 +14,7 @@ export interface CanonicalSessionFields {
   kcalMin: number | null;
   kcalMax: number | null;
   duracionMin: number | null;
+  franja: SessionFranja;
 }
 
 export interface CanonicalTrainingInput {
@@ -37,6 +39,7 @@ export interface CanonicalSessionState {
   kcalMin: number | null;
   kcalMax: number | null;
   duracionMin: number | null;
+  franja: SessionFranja | null;
   sort: number;
 }
 
@@ -141,6 +144,7 @@ export function buildCanonicalTrainingWrite(
     kcalMin: input.session.kcalMin,
     kcalMax: input.session.kcalMax,
     duracionMin: input.session.duracionMin,
+    franja: input.session.franja,
     sort: current?.sort ?? (state.week ? state.week.maxSort + 1 : 0),
   };
 

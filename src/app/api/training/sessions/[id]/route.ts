@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { badRequest, ensureAuth, parseBody, serverError } from "@/lib/api";
-import { trainingTipoZ } from "@/lib/schemas";
+import { sessionFranjaZ, trainingTipoZ } from "@/lib/schemas";
 import {
   deleteTrainingSession,
   updateTrainingSession,
@@ -19,6 +19,7 @@ const patchZ = z.object({
   kcalMin: z.number().int().min(0).max(20000).nullable().optional(),
   kcalMax: z.number().int().min(0).max(20000).nullable().optional(),
   duracionMin: z.number().int().min(0).max(1000).nullable().optional(),
+  franja: sessionFranjaZ.optional(),
 });
 
 export async function PATCH(

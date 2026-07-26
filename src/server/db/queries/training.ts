@@ -149,6 +149,7 @@ export interface ImportedTrainingPlan {
 export interface ImportedTrainingAssignment {
   sessionIndex: number;
   date: string;
+  franja: SessionFranja;
 }
 
 interface AtomicTrainingResult {
@@ -284,7 +285,9 @@ export async function createTrainingPlanAtomic(
           kcalMin: session.kcalMin,
           kcalMax: session.kcalMax,
           duracionMin: session.duracionMin,
-          franja: session.franja ?? null,
+          franja:
+            assignments.find((assignment) => assignment.sessionIndex === index)
+              ?.franja ?? null,
           sort: index,
         })),
       ),
@@ -422,6 +425,7 @@ export interface TrainingSessionPatch {
   kcalMin?: number | null;
   kcalMax?: number | null;
   duracionMin?: number | null;
+  franja?: SessionFranja | null;
 }
 
 export class TrainingAssignmentConflictError extends Error {
@@ -568,6 +572,7 @@ export async function saveCanonicalTrainingSession(
           kcalMin: write.session.kcalMin,
           kcalMax: write.session.kcalMax,
           duracionMin: write.session.duracionMin,
+          franja: write.session.franja,
         })
         .where(eq(schema.trainingSessions.id, write.session.id)),
     );
@@ -685,6 +690,7 @@ export async function undoCanonicalTrainingSession(
           kcalMin: undo.previousSession.kcalMin,
           kcalMax: undo.previousSession.kcalMax,
           duracionMin: undo.previousSession.duracionMin,
+          franja: undo.previousSession.franja,
           sort: undo.previousSession.sort,
         })
         .where(eq(schema.trainingSessions.id, undo.previousSession.id)),
@@ -738,12 +744,18 @@ export async function updateTrainingSession(
 export async function reassignTrainingSession(
   sessionId: number,
   newDate: string | null,
+  franja?: SessionFranja | null,
 ): Promise<void> {
   const [s] = await db
     .select()
     .from(schema.trainingSessions)
     .where(eq(schema.trainingSessions.id, sessionId));
   if (!s) return;
+  const effectiveFranja =
+    franja === undefined ? (s.franja as SessionFranja | null) : franja;
+  if (newDate && !effectiveFranja) {
+    throw new Error("Elige mañana o tarde antes de asignar la sesión.");
+  }
 
   if (newDate) {
     const [destination] = await db
@@ -759,6 +771,12 @@ export async function reassignTrainingSession(
     ) {
       throw new TrainingAssignmentConflictError();
     }
+  }
+  if (franja !== undefined && franja !== s.franja) {
+    await db
+      .update(schema.trainingSessions)
+      .set({ franja })
+      .where(eq(schema.trainingSessions.id, sessionId));
   }
 
   // Quita la asignación anterior (todas menos el día destino).
