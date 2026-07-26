@@ -3,9 +3,12 @@ import { ensureAuth, parseBody, serverError } from "@/lib/api";
 import { retry } from "@/lib/retry";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runStructured } from "@/server/ai/client";
+import { productsContext } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
+import { applyPlanOptionProductMatch } from "@/server/ai/product-match";
 import { planOptionPrompt } from "@/server/ai/prompts";
 import { planOptionAiZ } from "@/server/ai/schemas";
+import { listProducts } from "@/server/db/queries/lookups";
 
 const bodyZ = z.object({
   nombre: z.string().min(1).max(200),
@@ -20,10 +23,15 @@ export async function POST(request: Request) {
   const parsed = await parseBody(request, bodyZ);
   if ("error" in parsed) return parsed.error;
 
-  // Contexto compacto del atleta (doc 10 A2), sin sesgar la estimación de macros.
+  // Contexto compacto del atleta (doc 10 A2) + catálogo F19. Ambas lecturas llevan
+  // retry y cualquier fallo aquí es de BD (serverError), separado del error de IA.
   let atleta: Awaited<ReturnType<typeof getAthleteContexts>>;
+  let products: Awaited<ReturnType<typeof listProducts>>;
   try {
-    atleta = await retry(() => getAthleteContexts());
+    [atleta, products] = await Promise.all([
+      retry(() => getAthleteContexts()),
+      retry(() => listProducts()),
+    ]);
   } catch (err) {
     return serverError(err);
   }
@@ -36,6 +44,7 @@ export async function POST(request: Request) {
         parsed.data.nombre,
         parsed.data.gramos ?? null,
         atleta.compact,
+        productsContext(products),
       ),
       schema: planOptionAiZ,
       // El output es minúsculo (~60 tokens) pero en Gemini 3.5 los tokens de
@@ -44,7 +53,15 @@ export async function POST(request: Request) {
       // → 500. Holgura amplia; el techo no cobra tokens no generados (coste igual).
       maxOutputTokens: 2048,
     });
-    return Response.json(result);
+    // F19: el modelo reconoce el producto; el servidor valida el canónico y aplica
+    // la etiqueta guardada a los gramos del body. Sin match, conserva la estimación.
+    return Response.json(
+      applyPlanOptionProductMatch(
+        result,
+        parsed.data.gramos ?? null,
+        products,
+      ),
+    );
   } catch (err) {
     return aiErrorResponse(err);
   }

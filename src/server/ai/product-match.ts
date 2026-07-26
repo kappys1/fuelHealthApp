@@ -1,5 +1,8 @@
 import { type Macros, roundKcal, roundMacroStore, scaleMacros } from "@/lib/macros";
-import type { DayDumpItem } from "@/server/ai/schemas";
+import type {
+  DayDumpItem,
+  PlanOptionAiResult,
+} from "@/server/ai/schemas";
 import type { ProductDTO } from "@/server/db/queries/lookups";
 
 /*
@@ -23,10 +26,45 @@ import type { ProductDTO } from "@/server/db/queries/lookups";
 
 const normalize = (s: string): string => s.trim().toLowerCase();
 
+function productsByName(
+  products: readonly ProductDTO[],
+): ReadonlyMap<string, ProductDTO> {
+  // Nombres son unique en BD; ante colisión de normalización nos quedamos con el
+  // primero (listProducts: fijados primero y después por nombre).
+  const byName = new Map<string, ProductDTO>();
+  for (const p of products) {
+    const key = normalize(p.name);
+    if (!byName.has(key)) byName.set(key, p);
+  }
+  return byName;
+}
+
+/**
+ * Única aritmética producto→macros para F18/F19. Reescala siempre desde la base
+ * inmutable guardada y redondea como la persistencia (kcal entera, macros a 1
+ * decimal). `grams == null` usa la ración base; producto fijo queda sin escalar.
+ */
+function productMacros(p: ProductDTO, grams: number | null): Macros {
+  const base: Macros = {
+    kcal: p.baseKcal,
+    prot: p.baseProt,
+    carb: p.baseCarb,
+    fat: p.baseFat,
+  };
+  const amount = grams ?? p.baseG ?? 0;
+  const scaled = scaleMacros(base, amount, p.baseG);
+  return {
+    kcal: roundKcal(scaled.kcal),
+    prot: roundMacroStore(scaled.prot),
+    carb: roundMacroStore(scaled.carb),
+    fat: roundMacroStore(scaled.fat),
+  };
+}
+
 /**
  * Aplica el catálogo a los items del volcado. Para cada item con `producto` que
- * empareje por nombre exacto con un producto real, sustituye nombre→canónico y
- * recalcula macros desde la base guardada. Los demás items quedan intactos.
+ * empareje por nombre exacto con un producto real, canoniza `producto` y recalcula
+ * macros desde la base guardada. Los demás items quedan intactos.
  * Función pura y testeada; la invoca la ruta `day-dump` tras `runStructured`.
  */
 export function applyProductMatches(
@@ -34,13 +72,7 @@ export function applyProductMatches(
   products: readonly ProductDTO[],
 ): DayDumpItem[] {
   if (products.length === 0) return items.map((it) => ({ ...it }));
-  // Nombre normalizado → producto. Nombres son unique en BD; ante colisión de
-  // normalización nos quedamos con el primero (listProducts: fijados y por nombre).
-  const byName = new Map<string, ProductDTO>();
-  for (const p of products) {
-    const key = normalize(p.name);
-    if (!byName.has(key)) byName.set(key, p);
-  }
+  const byName = productsByName(products);
   return items.map((it) => {
     if (it.producto == null) return { ...it };
     const p = byName.get(normalize(it.producto));
@@ -55,35 +87,56 @@ export function applyProductMatches(
  * canónico va en `producto`.
  */
 function matchedItem(it: DayDumpItem, p: ProductDTO): DayDumpItem {
-  const base: Macros = {
-    kcal: p.baseKcal,
-    prot: p.baseProt,
-    carb: p.baseCarb,
-    fat: p.baseFat,
-  };
+  const macros = productMacros(p, it.gramos);
   // Producto fijo (baseG null): macros base tal cual, sin gramos (sin stepper) — AC4.
   if (p.baseG == null || p.baseG === 0) {
     return {
       ...it,
       producto: p.name,
       gramos: null,
-      kcal: roundKcal(base.kcal),
-      proteina_g: roundMacroStore(base.prot),
-      carbohidratos_g: roundMacroStore(base.carb),
-      grasa_g: roundMacroStore(base.fat),
+      kcal: macros.kcal,
+      proteina_g: macros.prot,
+      carbohidratos_g: macros.carb,
+      grasa_g: macros.fat,
     };
   }
   // baseG != null: reescala con la ración estimada por el modelo; si no la dio,
   // usa la ración base (gramos = baseG → macros = base).
   const gramos = it.gramos ?? p.baseG;
-  const m = scaleMacros(base, gramos, p.baseG);
   return {
     ...it,
     producto: p.name,
     gramos,
-    kcal: roundKcal(m.kcal),
-    proteina_g: roundMacroStore(m.prot),
-    carbohidratos_g: roundMacroStore(m.carb),
-    grasa_g: roundMacroStore(m.fat),
+    kcal: macros.kcal,
+    proteina_g: macros.prot,
+    carbohidratos_g: macros.carb,
+    grasa_g: macros.fat,
+  };
+}
+
+/**
+ * F19 · Aplica un único producto identificado a la salida de F-IA-3. La opción no
+ * trae gramos en el schema: se usan los del body; si faltan, la base del producto.
+ * Solo sustituye macros y, cuando existe, el grupo del catálogo. El nombre de la
+ * opción vive fuera de esta salida y nunca se toca.
+ */
+export function applyPlanOptionProductMatch(
+  option: PlanOptionAiResult,
+  grams: number | null,
+  products: readonly ProductDTO[],
+): PlanOptionAiResult {
+  if (option.producto == null || products.length === 0) return { ...option };
+  const product = productsByName(products).get(normalize(option.producto));
+  if (!product) return { ...option };
+
+  const macros = productMacros(product, grams);
+  return {
+    ...option,
+    producto: product.name,
+    kcal: macros.kcal,
+    proteina_g: macros.prot,
+    carbohidratos_g: macros.carb,
+    grasa_g: macros.fat,
+    grupo: product.grupo ?? option.grupo,
   };
 }

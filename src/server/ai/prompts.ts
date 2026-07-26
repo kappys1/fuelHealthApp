@@ -117,9 +117,14 @@ export function planOptionPrompt(
   nombre: string,
   gramos: number | null | undefined,
   contexto: string,
+  productos = "",
 ): string {
   const gramosClause = gramos != null ? ` (ración: ${gramos} g)` : "";
-  return `${contexto} Eres un nutricionista. Alimento: "${nombre}"${gramosClause}. Estima kcal, proteína, hidratos y grasa de esa ración con valores medios de tablas de composición (España), y clasifícalo en un grupo: "Hidratos", "Proteína", "Verdura", "Grasa" u "Otros". Si la descripción es ambigua (p. ej. tipo de leche o corte de carne), asume siempre la variante más común en España, de forma consistente. Responde SOLO con JSON válido, sin markdown: {"kcal": number, "proteina_g": number, "carbohidratos_g": number, "grasa_g": number, "grupo": string}`;
+  const productosSection =
+    productos !== ""
+      ? ` MIS PRODUCTOS (catálogo de Alex, sus etiquetas exactas):\n${productos}\nSi el alimento se corresponde con uno de MIS PRODUCTOS —aunque el texto lo describa de otra forma o el producto forme parte de una preparación (p. ej. una bebida de marca dentro de un café)— devuelve en "producto" el nombre EXACTO de ese producto (tal cual figura en la lista, sin cambiarlo). Si varios productos parecen posibles, mandan los rasgos MÁS ESPECÍFICOS escritos (marca, "0/0%", "sin lactosa", sabor o variante): si identifican un ingrediente dentro de la preparación, devuelve ESE ingrediente aunque exista otro producto genérico parecido a la preparación completa; no elijas un producto solo por compartir palabras generales. En el caso contrario, si el texto coincide con una preparación completa guardada y NO aporta rasgos específicos de otro producto, devuelve esa preparación. NO recalcules sus macros: solo identifícalo (el servidor usará su etiqueta guardada). Si no reconoces ninguno, devuelve "producto": null y estímalo de tablas con normalidad.`
+      : "";
+  return `${contexto} Eres un nutricionista. Alimento: "${nombre}"${gramosClause}. Estima kcal, proteína, hidratos y grasa de esa ración con valores medios de tablas de composición (España), y clasifícalo en un grupo: "Hidratos", "Proteína", "Verdura", "Grasa" u "Otros". Si la descripción es ambigua (p. ej. tipo de leche o corte de carne), asume siempre la variante más común en España, de forma consistente.${productosSection} Responde SOLO con JSON válido, sin markdown: {"kcal": number, "proteina_g": number, "carbohidratos_g": number, "grasa_g": number, "grupo": string, "producto": string|null}`;
 }
 
 // ── F-IA-4 · Volcado del día ──

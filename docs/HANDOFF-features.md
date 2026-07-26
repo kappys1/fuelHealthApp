@@ -253,7 +253,20 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
     (hoy el plan estima variantes con ✨ F09, pero no tiene el textarea «describe la opción y
     estima» — extensión pequeña, reusa F-IA-3); (b) **variantes en productos** como en el plan
     (choca con «producto = una cosa por base» — medir necesidad antes). Alex: «lo dejo así y ya
-    veremos» (22-jul).
+    veremos» (22-jul). **Reabierto 26-jul → spec F19** (ver abajo): el item (a) se **descarta**
+    (redundante con el ✨ que ahora conocerá los productos); (b) sigue aparcado.
+- 🟡 **El editor de opciones del Plan, homogéneo con el resto** (caso real 26-jul, continuación
+  de F18) — **SPEC APROBADA `docs/specs/features/19-plan-opciones-homogeneas.md`; Fase 1
+  IMPLEMENTADA y VALIDADA por Alex 🖐 (26-jul), Fase 2 pendiente.** El ✨ del Plan (F-IA-3)
+  ya consulta «Mis productos»; su editor sigue teniendo Manual+✨,
+  mientras el editor de productos ya tiene Foto·Describir·Manual+unidad (#72). Alex quiere dejar las
+  opciones recurrentes (café, merienda) **puestas una vez** en el Plan (su menú operativo, P3), sin
+  re-estimar con IA ni copiar-pegar del día. **Fase 1 cerrada** (sin migración): patrón F18,
+  modelo reconoce + servidor calcula; caso real 250 g → 40 kcal · 2P/0C/4F y café ×3 estable
+  (DECISIONS #84). **Fase 2 pendiente**: unidad `g/ml/ud` en `plan_options` (migración
+  aditiva, patrón #72) + camino «Mis productos» que siembra la opción (copia, no vínculo). Fuera: Foto
+  por-opción (la cubre el import F-IA-9), Describir por-opción (redundante con ✨), variante-desde-producto
+  (aparcada), escalado por nº de unidades (NO-alcance F06 #57). Variantes F08 intactas.
 - ✅ **Franja mañana/tarde: gasolina de sesión en el sitio correcto** (caso real Alex,
   26-jul, al revisar el mapeo ficticio «Sesión por día de la semana») — **IMPLEMENTADA (F20)
   [`docs/specs/features/20-franja-manana-tarde-por-sesion.md`](./specs/features/20-franja-manana-tarde-por-sesion.md),

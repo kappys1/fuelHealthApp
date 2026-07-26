@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { DayDumpItem } from "@/server/ai/schemas";
+import {
+  planOptionAiZ,
+  type DayDumpItem,
+  type PlanOptionAiResult,
+} from "@/server/ai/schemas";
 import type { ProductDTO } from "@/server/db/queries/lookups";
-import { applyProductMatches } from "./product-match";
+import {
+  applyPlanOptionProductMatch,
+  applyProductMatches,
+} from "./product-match";
 
 /*
   F18 · applyProductMatches: lógica pura del match de «Mis productos» sobre el
@@ -138,5 +145,109 @@ describe("F18 · applyProductMatches (caso Lidl 26-jul, AC1)", () => {
     expect(out[0]?.kcal).toBe(40);
     expect(out[1]?.nombre).toBe("plátano");
     expect(out[1]?.kcal).toBe(90);
+  });
+});
+
+const planOption = (
+  over: Partial<PlanOptionAiResult> = {},
+): PlanOptionAiResult => ({
+  producto: null,
+  kcal: 32,
+  proteina_g: 1,
+  carbohidratos_g: 1,
+  grasa_g: 3,
+  grupo: "Otros",
+  ...over,
+});
+
+describe("F19 Fase 1 · applyPlanOptionProductMatch", () => {
+  it("planOptionAiZ acepta producto y degrada a null si el modelo lo omite", () => {
+    expect(planOptionAiZ.parse(planOption()).producto).toBeNull();
+    expect(
+      planOptionAiZ.parse({
+        kcal: 32,
+        proteina_g: 1,
+        carbohidratos_g: 1,
+        grasa_g: 3,
+        grupo: "Otros",
+      }).producto,
+    ).toBeNull();
+  });
+
+  it("AC1: baseG + gramos del body → escala desde la base guardada", () => {
+    const product: ProductDTO = {
+      ...almendra,
+      baseG: 100,
+      baseKcal: 16,
+      baseProt: 0.72,
+      baseCarb: 0,
+      baseFat: 1.4,
+      grupo: "Otros",
+    };
+    const out = applyPlanOptionProductMatch(
+      planOption({ producto: "Bebida de almendras Lidl 0%" }),
+      250,
+      [product],
+    );
+
+    expect(out.producto).toBe("Bebida de almendras Lidl 0%");
+    expect(out.kcal).toBe(40);
+    expect(out.proteina_g).toBe(1.8);
+    expect(out.carbohidratos_g).toBe(0);
+    expect(out.grasa_g).toBe(3.5);
+    expect(out.grupo).toBe("Otros");
+    expect(out.kcal).not.toBe(32);
+  });
+
+  it("baseG sin gramos del body → usa la ración base", () => {
+    const out = applyPlanOptionProductMatch(
+      planOption({ producto: almendra.name }),
+      null,
+      [almendra],
+    );
+
+    expect(out.kcal).toBe(40);
+    expect(out.proteina_g).toBe(1.8);
+    expect(out.grasa_g).toBe(3.5);
+  });
+
+  it("AC4: producto fijo (baseG null) → usa sus macros base tal cual", () => {
+    const out = applyPlanOptionProductMatch(
+      planOption({ producto: huevo.name }),
+      250,
+      [huevo],
+    );
+
+    expect(out.kcal).toBe(80);
+    expect(out.proteina_g).toBe(7);
+    expect(out.carbohidratos_g).toBe(0.5);
+    expect(out.grasa_g).toBe(5.5);
+    expect(out.grupo).toBe("Proteína");
+  });
+
+  it("AC2: producto null → conserva íntegra la estimación del modelo", () => {
+    const estimated = planOption({ producto: null, grupo: "Verdura" });
+    expect(applyPlanOptionProductMatch(estimated, 250, [almendra])).toEqual(
+      estimated,
+    );
+  });
+
+  it("AC5: nombre canónico inexacto → no empareja ni sobrescribe", () => {
+    const estimated = planOption({
+      producto: "Bebida de almendras Lidl",
+      grupo: "Otros",
+    });
+    expect(applyPlanOptionProductMatch(estimated, 250, [almendra])).toEqual(
+      estimated,
+    );
+  });
+
+  it("AC6: producto con grupo null conserva el grupo estimado por el modelo", () => {
+    const out = applyPlanOptionProductMatch(
+      planOption({ producto: almendra.name, grupo: "Otros" }),
+      250,
+      [almendra],
+    );
+    expect(out.grupo).toBe("Otros");
   });
 });

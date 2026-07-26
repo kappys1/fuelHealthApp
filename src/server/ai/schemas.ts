@@ -60,6 +60,10 @@ export const planOptionAiZ = z.object({
   carbohidratos_g: num,
   grasa_g: num,
   grupo: z.string(),
+  // F19 Fase 1: identificación (no cálculo) de un producto de «Mis productos».
+  // Nombre canónico EXACTO del catálogo o null; el servidor valida el match y
+  // recalcula los macros. Ausente degrada al comportamiento anterior.
+  producto: z.string().nullable().default(null),
 });
 export type PlanOptionAiResult = z.infer<typeof planOptionAiZ>;
 
