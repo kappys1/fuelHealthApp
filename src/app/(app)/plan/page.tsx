@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { PlanScreen } from "@/components/plan/plan-screen";
 import { dayKey, isDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
-import { trainingWeekSpan } from "@/lib/training";
+import { trainingWeekNavigation } from "@/lib/training";
 import { listMarksWithEntries } from "@/server/db/queries/marks";
 import { getPlanContext } from "@/server/db/queries/plan";
 import { getTrainingWeekView } from "@/server/db/queries/training";
@@ -17,11 +17,10 @@ export default async function PlanPage({
   const today = dayKey();
   const { tab, week: weekParam } = await searchParams;
   const initialSegment = tab === "entrenos" ? "entrenos" : "dieta";
-  const requestedWeek = trainingWeekSpan(
+  const { selectedWeek } = trainingWeekNavigation(
     weekParam && isDayKey(weekParam) ? weekParam : today,
-  ).validFrom;
-  const currentWeek = trainingWeekSpan(today).validFrom;
-  const selectedWeek = requestedWeek > currentWeek ? currentWeek : requestedWeek;
+    today,
+  );
   if (initialSegment === "entrenos" && weekParam !== selectedWeek) {
     redirect(`/plan?tab=entrenos&week=${selectedWeek}`);
   }

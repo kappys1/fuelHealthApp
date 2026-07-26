@@ -402,6 +402,8 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   y permite deshacer el snapshot anterior de sesión + día, sin migración.
 - F-IA-5 conserva el WOD original y añade `tipo`; F-IA-10 exige contenido completo y
   ordenado. Consistencia real ×3 estable para WOD y running; PDF real pendiente.
+- Quick-fix de uso real: el navegador ya admite semanas futuras y el importador abre
+  preseleccionando la semana visible (caso domingo → programación del lunes siguiente).
 
 ---
 

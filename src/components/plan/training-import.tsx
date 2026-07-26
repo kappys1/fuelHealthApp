@@ -28,7 +28,6 @@ import {
 import { fileToAiFile } from "@/lib/ai-files";
 import { api } from "@/lib/client-api";
 import {
-  dayKey,
   daysBetween,
   isoWeekday,
   labelForKey,
@@ -88,7 +87,7 @@ function mondayOf(key: string): string {
   return shiftDayKey(key, -(isoWeekday(key) - 1));
 }
 
-export function TrainingImport() {
+export function TrainingImport({ weekStart }: { weekStart: string }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -110,12 +109,23 @@ export function TrainingImport() {
         </span>
         <ArrowRight className="size-[18px] shrink-0 text-primary transition-transform group-hover:translate-x-0.5" aria-hidden />
       </button>
-      {open ? <ImportSheet onClose={() => setOpen(false)} /> : null}
+      {open ? (
+        <ImportSheet
+          initialWeekStart={weekStart}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
 
-function ImportSheet({ onClose }: { onClose: () => void }) {
+function ImportSheet({
+  initialWeekStart,
+  onClose,
+}: {
+  initialWeekStart: string;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const online = useOnline();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -130,7 +140,9 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
 
   const [programa, setPrograma] = useState("");
   const [etiqueta, setEtiqueta] = useState("");
-  const [weekStart, setWeekStart] = useState(mondayOf(dayKey()));
+  const [weekStart, setWeekStart] = useState(() =>
+    mondayOf(initialWeekStart),
+  );
   const [rows, setRows] = useState<SRow[] | null>(null);
 
   const weekDates = Array.from({ length: 7 }, (_, i) => shiftDayKey(weekStart, i));
@@ -301,13 +313,18 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
               </p>
             </div>
           ) : (
-            <textarea
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              rows={6}
-              placeholder="Pega o escribe la programación de la semana (T1: … / T2: … / …)."
-              className="w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-base outline-none focus-visible:border-ring"
-            />
+            <label className="block space-y-1.5">
+              <span className="text-[12px] font-medium text-foreground">
+                Programación de la semana
+              </span>
+              <textarea
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                rows={6}
+                placeholder="Pega o escribe la programación de la semana (T1: … / T2: … / …)."
+                className="w-full rounded-xl border border-input bg-surface px-3 py-2.5 text-base outline-none focus-visible:border-ring"
+              />
+            </label>
           )}
 
           {rows == null ? (

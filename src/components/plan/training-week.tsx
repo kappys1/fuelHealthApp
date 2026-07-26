@@ -35,6 +35,7 @@ import {
   TRAINING_TIPO_LABELS,
   type TrainingTipo,
   TRAINING_TIPOS,
+  trainingWeekNavigation,
   trainingWeekSpan,
 } from "@/lib/training";
 import type { TrainingWeekView } from "@/server/db/queries/training";
@@ -76,8 +77,10 @@ export function TrainingWeek({
   today: string;
 }) {
   const router = useRouter();
-  const currentWeek = trainingWeekSpan(today).validFrom;
-  const isPast = selectedWeek < currentWeek;
+  const { isPast } = trainingWeekNavigation(
+    selectedWeek,
+    today,
+  );
   const weekDates = Array.from({ length: 7 }, (_, index) =>
     shiftDayKey(selectedWeek, index),
   );
@@ -103,7 +106,7 @@ export function TrainingWeek({
 
   return (
     <div className="space-y-6">
-      {!isPast ? <TrainingImport /> : null}
+      {!isPast ? <TrainingImport weekStart={selectedWeek} /> : null}
 
       <section aria-label="Cambiar semana de entrenamiento" className="space-y-3">
         <div className="flex items-center gap-2">
@@ -130,7 +133,6 @@ export function TrainingWeek({
             <input
               type="date"
               value={selectedWeek}
-              max={currentWeek}
               onChange={(event) =>
                 event.target.value && navigate(event.target.value)
               }
@@ -141,9 +143,8 @@ export function TrainingWeek({
 
           <button
             type="button"
-            className="app-icon-button shrink-0 disabled:opacity-35"
+            className="app-icon-button shrink-0"
             aria-label="Semana siguiente"
-            disabled={selectedWeek >= currentWeek}
             onClick={() => navigate(shiftDayKey(selectedWeek, 7))}
           >
             <ChevronRight className="size-5" aria-hidden />

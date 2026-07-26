@@ -6,6 +6,7 @@ import {
   splitTrainingContent,
   sessionKcal,
   sessionPatchFor,
+  trainingWeekNavigation,
   trainingWeekSpan,
   TRAINING_TIPO_LABELS,
   TRAINING_TIPOS,
@@ -43,6 +44,14 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
     expect(trainingWeekSpan("2026-07-19")).toEqual({
       validFrom: "2026-07-13",
       validTo: "2026-07-19",
+    });
+  });
+
+  it("trainingWeekNavigation: el domingo permite planificar la semana siguiente", () => {
+    expect(trainingWeekNavigation("2026-07-27", "2026-07-26")).toEqual({
+      selectedWeek: "2026-07-27",
+      currentWeek: "2026-07-20",
+      isPast: false,
     });
   });
 

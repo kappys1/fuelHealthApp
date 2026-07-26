@@ -116,6 +116,27 @@ export function trainingWeekSpan(date: string): {
 }
 
 /**
+ * Estado derivado del navegador semanal de Plan. La semana solicitada se conserva
+ * también si es futura; `today` solo decide si el modo es histórico/de lectura.
+ */
+export function trainingWeekNavigation(
+  requestedDate: string,
+  today: string,
+): {
+  selectedWeek: string;
+  currentWeek: string;
+  isPast: boolean;
+} {
+  const selectedWeek = trainingWeekSpan(requestedDate).validFrom;
+  const currentWeek = trainingWeekSpan(today).validFrom;
+  return {
+    selectedWeek,
+    currentWeek,
+    isPast: selectedWeek < currentWeek,
+  };
+}
+
+/**
  * Opciones del dropdown de sesión (doc 10 B3):
  * - CON semana importada → sus sesiones reales (por nombre) + Competición + Descanso.
  *   Las genéricas T1–T6 se ocultan (eran ruido cuando ya hay plan).
