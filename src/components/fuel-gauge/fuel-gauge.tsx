@@ -16,6 +16,7 @@ import {
   subtotalsByMeal,
 } from "@/server/analytics/dayTotals";
 import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
+import type { FlexibleMealState } from "@/lib/flexible-meals";
 
 interface Targets {
   kcal: number;
@@ -37,21 +38,36 @@ export function FuelGauge({
   targets,
   entries,
   phase,
+  flexibleMeals,
 }: {
   targets: Targets;
   entries: EntryLike[];
   phase: PhaseKey | null;
+  flexibleMeals: FlexibleMealState;
 }) {
   const totals = dayTotals(entries);
   const meals = subtotalsByMeal(entries);
-  const verdict = gaugeVerdict(targets, totals, phase);
+  const verdict = gaugeVerdict(
+    targets,
+    totals,
+    phase,
+    flexibleMeals.real.length > 0,
+  );
   const hasTarget = targets.kcal > 0 || targets.prot > 0;
   const special = verdict.phase !== "normal";
   const competition = verdict.phase === "competicion";
+  const flexible = verdict.flexible;
+  const planned = phase == null ? flexibleMeals.planned : [];
+  const flexibleMomentText = (moments: FlexibleMealState["real"]) =>
+    moments
+      .map((meal) => MEAL_LABELS[meal].toLocaleLowerCase("es-ES"))
+      .join(moments.length > 2 ? ", " : " y ");
 
   const headline = !hasTarget
     ? "Sin objetivo configurado"
-    : competition
+    : flexible
+      ? "Contexto flexible"
+      : competition
     ? "Repostaje de competición"
     : special
       ? `Fase ${phaseLabel(phase)}`
@@ -65,7 +81,7 @@ export function FuelGauge({
     <section
       className={cn(
         "wellness-card overflow-hidden p-[18px]",
-        special && "border-primary/35 bg-primary-soft",
+        (special || flexible) && "border-info/35 bg-info/5",
       )}
       aria-labelledby="fuel-gauge-title"
     >
@@ -82,14 +98,16 @@ export function FuelGauge({
         <span
           className={cn(
             "inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold",
-            special
-              ? "bg-primary/10 text-primary"
+            special || flexible
+              ? "bg-info/10 text-info"
               : "bg-surface-2 text-protein",
           )}
         >
           {special ? <Flag className="size-3.5" aria-hidden /> : null}
           {special
             ? phaseLabel(phase)
+            : flexible
+              ? "Flexible"
             : !hasTarget
               ? "Solo registro"
               : entries.length > 0
@@ -175,17 +193,26 @@ export function FuelGauge({
         </div>
       </div>
 
+      {planned.length > 0 ? (
+        <p className="mt-3 text-[11px] font-semibold text-info">
+          {planned.map((meal) => MEAL_LABELS[meal]).join(" y ")}{" "}
+          {planned.length === 1 ? "flexible prevista" : "flexibles previstas"}
+        </p>
+      ) : null}
+
       <div
         className={cn(
           "mt-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-[12px] leading-relaxed",
-          special ? "bg-primary-soft text-primary" : "bg-surface-2 text-muted-foreground",
+          special || flexible
+            ? "bg-info/10 text-info"
+            : "bg-surface-2 text-muted-foreground",
         )}
       >
         {!hasTarget ? (
           <span>
             Configura una dieta en Plan para comparar el registro con una pauta.
           </span>
-        ) : special ? (
+        ) : special || flexible ? (
           <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
         ) : (
           <CircleDashed className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
@@ -194,6 +221,20 @@ export function FuelGauge({
           special ? (
             <span>
               Superar el objetivo es esperado en esta fase; no cuenta como desviación.
+            </span>
+          ) : flexible ? (
+            <span>
+              Incluye {flexibleMomentText(flexibleMeals.real)}{" "}
+              {flexibleMeals.real.length === 1 ? "flexible" : "flexibles"} · total
+              estimado ·{" "}
+              <strong className="num font-semibold">
+                {verdict.over
+                  ? `+${verdict.kcalOver.toLocaleString("es-ES")}`
+                  : verdict.kcalRemaining > 0
+                    ? `−${verdict.kcalRemaining.toLocaleString("es-ES")}`
+                    : "±0"}{" "}
+                kcal
+              </strong>
             </span>
           ) : verdict.covered ? (
             <span className="font-medium text-protein">Objetivos cubiertos.</span>

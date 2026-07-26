@@ -8,7 +8,16 @@ function rec(
   weight: number | null,
   phase: AnalyticsRecord["phase"] = null,
 ): AnalyticsRecord {
-  return { date, weight, phase, logged: false, kcal: 0, prot: 0, target: T };
+  return {
+    date,
+    weight,
+    phase,
+    logged: false,
+    kcal: 0,
+    prot: 0,
+    target: T,
+    flexibleMeals: { planned: [], real: [] },
+  };
 }
 
 describe("eligibleWeightSeries — exclusiones (03 §3)", () => {
@@ -54,5 +63,21 @@ describe("ma7 — media de ventana", () => {
 
   it("ma7Series da un punto por fecha con peso elegible", () => {
     expect(ma7Series(records)).toHaveLength(7);
+  });
+
+  it("un marcador flexible real no elimina el peso de ma7", () => {
+    const withFlexible: AnalyticsRecord[] = records.map((record, index) =>
+      index === 6
+        ? {
+            ...record,
+            flexibleMeals: { planned: [], real: ["cena"] },
+          }
+        : record,
+    );
+    expect(eligibleWeightSeries(withFlexible)).toHaveLength(7);
+    expect(ma7At(eligibleWeightSeries(withFlexible), "2026-01-07")).toBeCloseTo(
+      91,
+      10,
+    );
   });
 });

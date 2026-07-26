@@ -2,9 +2,10 @@
   Adherencia de los últimos 14 días con registro (03-DATOS §3 / F6.3) — PURO.
 
     n        = días con kcal registradas (en la ventana)
-    normalN  = de esos, con phase == Normal
-    enRango  = normalN con |kcal − objetivo| / objetivo ≤ 0,10
-    protOk   = normalN con prot ≥ 0,90 × objetivoProt
+    kcalN    = Normal, objetivo kcal válido y sin flexible real
+    proteinN = Normal y objetivo de proteína válido (incluye flexibles)
+    enRango  = kcalN con |kcal − objetivo| / objetivo ≤ 0,10
+    protOk   = proteinN con prot ≥ 0,90 × objetivoProt
 
   Solo los días en fase Normal cuentan para en-rango y proteína (principio 4: en
   Carga/Competición/Recuperación pasarse NO es desviación). Cada día se evalúa
@@ -20,9 +21,13 @@ export const PROT_MIN_RATIO = 0.9;
 export interface AdherenceResult {
   windowDays: number;
   n: number;
-  normalN: number;
+  kcalN: number;
+  proteinN: number;
   enRango: number;
   protOk: number;
+  flexibleN: number;
+  flexibleMoments: number;
+  specialN: number;
 }
 
 export function computeAdherence(
@@ -35,23 +40,33 @@ export function computeAdherence(
     (r) => r.logged && r.date >= lo && r.date <= today,
   );
 
-  const normal = win.filter(
-    (r) => r.phase == null && r.target.kcal > 0 && r.target.prot > 0,
+  const normal = win.filter((r) => r.phase == null);
+  const kcalEligible = normal.filter(
+    (r) => r.target.kcal > 0 && r.flexibleMeals.real.length === 0,
   );
-  const enRango = normal.filter(
+  const proteinEligible = normal.filter((r) => r.target.prot > 0);
+  const flexible = normal.filter((r) => r.flexibleMeals.real.length > 0);
+  const enRango = kcalEligible.filter(
     (r) =>
       r.target.kcal > 0 &&
       Math.abs(r.kcal - r.target.kcal) / r.target.kcal <= KCAL_TOLERANCE,
   ).length;
-  const protOk = normal.filter(
+  const protOk = proteinEligible.filter(
     (r) => r.target.prot > 0 && r.prot >= PROT_MIN_RATIO * r.target.prot,
   ).length;
 
   return {
     windowDays,
     n: win.length,
-    normalN: normal.length,
+    kcalN: kcalEligible.length,
+    proteinN: proteinEligible.length,
     enRango,
     protOk,
+    flexibleN: flexible.length,
+    flexibleMoments: flexible.reduce(
+      (sum, record) => sum + record.flexibleMeals.real.length,
+      0,
+    ),
+    specialN: win.filter((record) => record.phase != null).length,
   };
 }

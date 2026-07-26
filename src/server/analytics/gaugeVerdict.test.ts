@@ -61,4 +61,18 @@ describe("gaugeVerdict (fuente única del veredicto del día)", () => {
     );
     expect(v.covered).toBe(true);
   });
+
+  it("pizza flexible: conserva 2.440/+640 y devuelve tono informativo sin fase", () => {
+    const v = gaugeVerdict(
+      TARGETS,
+      { kcal: 2440, prot: 119, carb: 273, fat: 94 },
+      null,
+      true,
+    );
+    expect(v.consumed).toBe(2440);
+    expect(v.kcalOver).toBe(640);
+    expect(v.phase).toBe("normal");
+    expect(v.flexible).toBe(true);
+    expect(v.tone).toBe("informative");
+  });
 });

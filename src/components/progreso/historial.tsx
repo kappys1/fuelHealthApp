@@ -277,8 +277,16 @@ function RecentDays({ records }: { records: DailyRecord[] }) {
                 </span>
                 <div className="min-w-0">
                   <div className="flex items-start justify-between gap-3">
-                    <span className="min-w-0 truncate text-[13px] font-semibold text-foreground">
-                      {record.sessionLabel ?? "Sin sesión registrada"}
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="truncate text-[13px] font-semibold text-foreground">
+                        {record.sessionLabel ?? "Sin sesión registrada"}
+                      </span>
+                      {record.phase == null &&
+                      record.flexibleMeals.real.length > 0 ? (
+                        <span className="shrink-0 rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info">
+                          Flexible
+                        </span>
+                      ) : null}
                     </span>
                     <span className="num shrink-0 text-right text-[11px] font-semibold text-foreground">
                       {record.weight != null

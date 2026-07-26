@@ -12,6 +12,8 @@ import {
   YAxis,
   type TooltipContentProps,
 } from "recharts";
+import { MEAL_LABELS } from "@/lib/macros";
+import type { FlexibleMealKey } from "@/lib/flexible-meals";
 
 export interface IntakePointVM {
   label: string;
@@ -23,6 +25,7 @@ export interface IntakePointVM {
   discrepancyKcal: number;
   targetKcal: number;
   special: boolean;
+  flexibleMeals: FlexibleMealKey[];
 }
 
 export function IntakeChart({ data }: { data: IntakePointVM[] }) {
@@ -182,6 +185,13 @@ function IntakeTooltip({
         {point.special ? (
           <span className="rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info">
             fase
+          </span>
+        ) : null}
+        {!point.special && point.flexibleMeals.length > 0 ? (
+          <span className="rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-semibold text-info">
+            {point.flexibleMeals
+              .map((meal) => `${MEAL_LABELS[meal]} flexible`)
+              .join(" · ")}
           </span>
         ) : null}
       </div>

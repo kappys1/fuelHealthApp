@@ -8,6 +8,7 @@ import { WeightChart } from "@/components/charts/weight-chart";
 import { labelForKey, shiftDayKey } from "@/lib/dates";
 import { computeAdherence } from "@/server/analytics/adherence";
 import { computeDeficit } from "@/server/analytics/deficit";
+import { computeFlexibleImpact } from "@/server/analytics/flexibleImpact";
 import { ma7Series } from "@/server/analytics/ma7";
 import {
   computeLoggingStreak,
@@ -65,6 +66,10 @@ export function Tendencia({
     [records, summaryDays, today],
   );
   const streak = useMemo(() => computeLoggingStreak(records, today), [records, today]);
+  const flexibleImpact = useMemo(
+    () => computeFlexibleImpact(records, today),
+    [records, today],
+  );
 
   const weightData = useMemo(() => {
     // La ma7 necesita los 6 días anteriores al borde visible; se calcula sobre toda
@@ -87,6 +92,8 @@ export function Tendencia({
           label: chartLabel(record.date),
           targetKcal: record.target.kcal,
           special: record.phase != null,
+          flexibleMeals:
+            record.phase == null ? record.flexibleMeals.real : [],
           ...macroEnergy(record),
         })),
     [rangeRecords],
@@ -151,11 +158,11 @@ export function Tendencia({
             iconTone="text-protein bg-protein/10"
             label="Adherencia · 14 d"
             value={
-              adherence.normalN > 0
-                ? `${Math.round((adherence.enRango / adherence.normalN) * 100)}%`
+              adherence.kcalN > 0
+                ? `${Math.round((adherence.enRango / adherence.kcalN) * 100)}%`
                 : "—"
             }
-            detail={`${adherence.enRango}/${adherence.normalN} kcal · ${adherence.protOk}/${adherence.normalN} proteína`}
+            detail={`${adherence.enRango}/${adherence.kcalN} kcal · ${adherence.protOk}/${adherence.proteinN} proteína${adherence.flexibleN > 0 ? ` · ${adherence.flexibleN} flexibles fuera de kcal` : ""}`}
           />
           <KpiCard
             Icon={Flame}
@@ -165,6 +172,9 @@ export function Tendencia({
             detail={streak === 1 ? "día seguido" : "días seguidos"}
           />
         </div>
+        {flexibleImpact.flexibleDays > 0 ? (
+          <FlexibleImpactCard impact={flexibleImpact} />
+        ) : null}
       </section>
 
       <section className="wellness-card p-5" aria-labelledby="weight-chart-title">
@@ -356,7 +366,7 @@ function SummaryCard({
         />
         <SummaryMetric
           label="En rango normal"
-          value={`${summary.kcalInRange}/${summary.normalDays}`}
+          value={`${summary.kcalInRange}/${summary.kcalDays}`}
           right
           bottom
         />
@@ -367,7 +377,7 @@ function SummaryCard({
         />
         <SummaryMetric
           label="Proteína suficiente"
-          value={`${summary.proteinOnTarget}/${summary.normalDays}`}
+          value={`${summary.proteinOnTarget}/${summary.proteinDays}`}
           right
           bottom
         />
@@ -383,6 +393,64 @@ function SummaryCard({
         )}
       </p>
     </section>
+  );
+}
+
+function FlexibleImpactCard({
+  impact,
+}: {
+  impact: ReturnType<typeof computeFlexibleImpact>;
+}) {
+  if (!impact.enoughForComparison) {
+    return (
+      <article className="wellness-card mt-3 p-5">
+        <p className="text-[11px] font-semibold text-muted-foreground">
+          Impacto flexible · 28 d
+        </p>
+        <p className="mt-2 text-[15px] font-semibold text-foreground">
+          {impact.flexibleDays}{" "}
+          {impact.flexibleDays === 1 ? "día flexible registrado" : "días flexibles registrados"}
+        </p>
+        <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+          Todavía sin datos suficientes para comparar · hacen falta 3 días flexibles
+          y 7 regulares.
+        </p>
+      </article>
+    );
+  }
+
+  const diffKcal = Math.round(impact.differenceObservedKcal ?? 0);
+  const diffPct = Math.round(impact.differenceObservedPct ?? 0);
+  const signed = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : "±"}${Math.abs(value)}`;
+  return (
+    <article className="wellness-card mt-3 p-5">
+      <p className="text-[11px] font-semibold text-muted-foreground">
+        Impacto flexible · 28 d
+      </p>
+      <div className="mt-4 space-y-2 text-[13px]">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-muted-foreground">Regular</span>
+          <span className="num text-right font-semibold text-foreground">
+            {integer(impact.regularMeanKcal ?? 0)} kcal ·{" "}
+            {Math.round(impact.regularMeanTargetPct ?? 0)} % objetivo
+          </span>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-muted-foreground">Con flexibles</span>
+          <span className="num text-right font-semibold text-foreground">
+            {integer(impact.flexibleMeanKcal ?? 0)} kcal ·{" "}
+            {Math.round(impact.flexibleMeanTargetPct ?? 0)} % objetivo
+          </span>
+        </div>
+      </div>
+      <p className="num mt-4 border-t border-line pt-3 text-[15px] font-semibold text-foreground">
+        Diferencia observada ≈ {signed(diffKcal)} kcal ({signed(diffPct)} %)
+      </p>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        {impact.flexibleMoments} momentos · {impact.flexibleDays} días flexibles ·{" "}
+        {impact.regularDays} regulares. Diferencia observada, no causal.
+      </p>
+    </article>
   );
 }
 
