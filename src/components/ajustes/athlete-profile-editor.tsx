@@ -93,7 +93,7 @@ function Chips({
   );
 }
 
-/** Deporte, nivel, programa, franja + días/semana (derivados, solo lectura). */
+/** Deporte, nivel, programa + días/semana (derivados, solo lectura). */
 function DeporteEntrenoSection({
   p,
   set,
@@ -115,15 +115,9 @@ function DeporteEntrenoSection({
         <Field label="Programa">
           <PInput value={p.programa} onChange={(e) => set("programa", e.target.value)} />
         </Field>
-        <Field label="Franja de entreno">
-          <PInput
-            value={p.franjaEntreno}
-            onChange={(e) => set("franjaEntreno", e.target.value)}
-          />
-        </Field>
       </div>
       <p className="text-[12px] text-muted-foreground">
-        Entrena {trainingDays} días/semana (derivado del mapeo de sesiones).
+        Entrena {trainingDays} días/semana (derivado del patrón habitual).
       </p>
     </Section>
   );

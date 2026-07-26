@@ -1,4 +1,4 @@
-import type { SessionByWeekday } from "@/lib/macros";
+import type { TrainingByWeekday } from "@/lib/training-slot";
 
 /*
   Perfil de atleta (doc 10 · Fase A1). Principio 9 (CLAUDE.md): «La IA habla con el
@@ -7,7 +7,7 @@ import type { SessionByWeekday } from "@/lib/macros";
 
   Puro y client-safe: la tarjeta de Ajustes usa los tipos; el servidor construye
   ATHLETE_CONTEXT desde aquí. `edad` se DERIVA de `fechaNacimiento` (nunca se
-  guarda) y `diasEntrenoSemana` se DERIVA del mapeo `sessionByWeekday` (una sola
+  guarda) y `diasEntrenoSemana` se DERIVA del mapeo `trainingByWeekday` (una sola
   fuente de verdad) — ver derivaciones abajo.
 */
 
@@ -31,8 +31,6 @@ export interface AthleteProfile {
   nivel: string;
   /** Programa (ej. "The Progrm 1"). */
   programa: string;
-  /** Franja de entreno (ej. "19:30-21:30"). */
-  franjaEntreno: string;
   /** Suplementos que toma hoy (chips en Ajustes). */
   suplementos: string[];
   /** Nota clínica informativa (ej. "le cuesta la grasa abdominal baja"). */
@@ -55,7 +53,6 @@ export const DEFAULT_ATHLETE_PROFILE: AthleteProfile = {
   deporte: "CrossFit",
   nivel: "avanzado",
   programa: "The Progrm",
-  franjaEntreno: "19:30-21:30",
   suplementos: ["creatina", "beta-alanina", "citrulina"],
   notaClinica: "Le cuesta la grasa abdominal baja",
   lesiones: [],
@@ -93,9 +90,8 @@ export function currentObjective(p: AthleteProfile): AthleteObjective | null {
 }
 
 /** Días de entreno/semana DERIVADOS del mapeo (nº de días ≠ Descanso/vacío). */
-export function trainingDaysPerWeek(map: SessionByWeekday): number {
-  return ["1", "2", "3", "4", "5", "6", "7"].filter((d) => {
-    const v = (map[d] ?? "").trim().toLowerCase();
-    return v !== "" && v !== "descanso";
-  }).length;
+export function trainingDaysPerWeek(map: TrainingByWeekday): number {
+  return ["1", "2", "3", "4", "5", "6", "7"].filter(
+    (day) => map[day] !== "descanso",
+  ).length;
 }

@@ -39,6 +39,7 @@ export function CheckinMatinal({
 }) {
   const [step, setStep] = useState(0);
   const [savingBloat, setSavingBloat] = useState(false);
+  const [freeSession, setFreeSession] = useState("");
   const [weight, setWeight] = useState(
     String(data.view.day?.weight ?? data.lastWeight ?? ""),
   );
@@ -140,7 +141,7 @@ export function CheckinMatinal({
                     }}
                     className={cn(
                       "w-full rounded-lg border px-3 py-3 text-left text-[14px]",
-                      (data.view.day?.sessionLabel ?? data.defaultSession) === s
+                      data.view.day?.sessionLabel === s
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-line bg-surface-2",
                     )}
@@ -148,6 +149,26 @@ export function CheckinMatinal({
                     {s}
                   </button>
                 ))}
+                <div className="flex gap-2 pt-1">
+                  <input
+                    value={freeSession}
+                    onChange={(event) => setFreeSession(event.target.value)}
+                    placeholder="Otra sesión…"
+                    aria-label="Nombre de otra sesión"
+                    className="h-11 min-w-0 flex-1 rounded-lg border border-line bg-surface-2 px-3 text-base text-foreground"
+                  />
+                  <button
+                    type="button"
+                    disabled={!freeSession.trim()}
+                    onClick={() => {
+                      onPatch(sessionPatchFor(freeSession.trim(), data.trainingSessions));
+                      close();
+                    }}
+                    className="h-11 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                  >
+                    Guardar
+                  </button>
+                </div>
               </div>
               <SkipLink label="Terminar" onClick={close} />
             </div>
@@ -347,21 +368,16 @@ export function WeightExpressSheet({
   );
 }
 
-/** Opciones de sesión del check-in (doc 10 B3): las reales de la semana si hay
- *  plan; si no, la sugerida por el mapeo + las genéricas. */
+/** La sesión canónica real, si existe, seguida de las genéricas. */
 function sessionChoices(data: TodayPayload): string[] {
-  const planNames = data.trainingSessions.map((s) => s.nombre);
-  if (planNames.length > 0) return orderedSessionOptions(planNames);
-  return [
-    data.defaultSession,
-    ...SESSIONS.filter((s) => s !== data.defaultSession),
-  ];
+  const current = data.view.session?.nombre;
+  return orderedSessionOptions(current ? [current, ...SESSIONS] : [...SESSIONS]);
 }
 
 function sessionSuggestion(data: TodayPayload): string {
-  return data.trainingSessions.length > 0
-    ? "(según tu semana importada)"
-    : `(sugerida: ${data.defaultSession})`;
+  return data.view.session
+    ? "(según tu sesión guardada)"
+    : `(franja habitual: ${data.defaultTrainingSlot})`;
 }
 
 function BigNext({

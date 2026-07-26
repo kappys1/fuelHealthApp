@@ -127,6 +127,13 @@
       "when": 1785091183050,
       "tag": "0017_sad_scorpion",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785091322703,
+      "tag": "0018_f20_training_weekday_cutover",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,7 @@
   Umbrales y palabras clave son DISCUTIBLES (DECISIONS 25-jul).
 */
 import type { GaugeVerdict } from "./gaugeVerdict";
+import type { TrainingSlotResolution } from "@/lib/training-slot";
 
 // ── (1) Clase del cierre ─────────────────────────────────────────────────────
 
@@ -121,55 +122,18 @@ export function objectiveStance(texto: string | null | undefined): Stance {
 
 // ── (3) Timing respecto a la franja de entreno de hoy ─────────────────────────
 
-export type TimingRel = "pre" | "post" | "durante" | "descanso" | "sin_dato";
+export type TimingRel = TrainingSlotResolution["value"];
 
 export interface TrainingTiming {
   rel: TimingRel;
-  /** Horas hasta el inicio de la franja (solo en rel "pre"; null en el resto). */
-  hoursToStart: number | null;
-}
-
-/** "HH:mm" → minutos desde medianoche; null si no parsea. */
-function parseHm(s: string | null | undefined): number | null {
-  if (!s) return null;
-  const m = /^(\d{1,2}):(\d{2})$/.exec(s.trim());
-  if (!m) return null;
-  const h = Number(m[1]);
-  const min = Number(m[2]);
-  if (h > 23 || min > 59) return null;
-  return h * 60 + min;
-}
-
-/** "19:30-21:30" (o "19:30") → {startMin, endMin}; null si no hay inicio válido. */
-function parseFranja(
-  franja: string | null | undefined,
-): { startMin: number; endMin: number } | null {
-  if (!franja?.trim()) return null;
-  const [a, b] = franja.split(/[-–—]/).map((s) => s.trim());
-  const startMin = parseHm(a);
-  if (startMin == null) return null;
-  const endMin = parseHm(b) ?? startMin;
-  return { startMin, endMin };
 }
 
 /**
- * Relación de la hora actual con la franja de entreno de HOY. Solo tiene sentido
- * el día en curso. `now` y `franja` en formato "HH:mm" / "HH:mm-HH:mm".
- * Día de descanso → "descanso" (sin urgencia de timing). Sin franja/hora
- * parseable → "sin_dato".
+ * Adaptador puro entre la resolución canónica y la directriz de cierre. No
+ * inventa horas, ni afirma si la sesión ya ocurrió.
  */
-export function trainingTiming(args: {
-  now: string;
-  franja: string | null | undefined;
-  isTrainingDay: boolean;
-}): TrainingTiming {
-  if (!args.isTrainingDay) return { rel: "descanso", hoursToStart: null };
-  const franja = parseFranja(args.franja);
-  const nowMin = parseHm(args.now);
-  if (!franja || nowMin == null) return { rel: "sin_dato", hoursToStart: null };
-  if (nowMin < franja.startMin) {
-    return { rel: "pre", hoursToStart: (franja.startMin - nowMin) / 60 };
-  }
-  if (nowMin > franja.endMin) return { rel: "post", hoursToStart: null };
-  return { rel: "durante", hoursToStart: null };
+export function trainingTiming(
+  value: TrainingSlotResolution["value"],
+): TrainingTiming {
+  return { rel: value };
 }

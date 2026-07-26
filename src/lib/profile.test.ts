@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SESSION_BY_WEEKDAY } from "@/lib/macros";
+import { DEFAULT_TRAINING_BY_WEEKDAY } from "@/lib/training-slot";
 import {
   type AthleteProfile,
   currentObjective,
@@ -35,9 +35,13 @@ describe("perfil de atleta — derivaciones (doc 10 A1)", () => {
 
   it("diasEntrenoSemana se deriva del mapeo (nº de días ≠ Descanso)", () => {
     // Default: L-S entrenan, D descanso → 6.
-    expect(trainingDaysPerWeek(DEFAULT_SESSION_BY_WEEKDAY)).toBe(6);
+    expect(trainingDaysPerWeek(DEFAULT_TRAINING_BY_WEEKDAY)).toBe(6);
     expect(
-      trainingDaysPerWeek({ "1": "T1", "2": "Descanso", "3": "T3" }),
-    ).toBe(2);
+      trainingDaysPerWeek({
+        ...DEFAULT_TRAINING_BY_WEEKDAY,
+        "2": "descanso",
+        "3": "descanso",
+      }),
+    ).toBe(4);
   });
 });

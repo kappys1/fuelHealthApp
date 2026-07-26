@@ -27,12 +27,21 @@ day_templates      id · name (unique) · items jsonb [{meal,name,kcal,prot,carb
 chat_threads       id · title · created_at · updated_at
 chat_messages      id · thread_id · role (user|assistant) · content · created_at
 settings           key · value jsonb   (lastExport, prefs de tema, etc.)
+training_plans     id · imported_at · programa · etiqueta · valid_from · valid_to ·
+                   source · import_request_id · import_fingerprint
+training_sessions  id · plan_id · key · nombre · tipo · contenido · kcal_min ·
+                   kcal_max · duracion_min · franja (null|mañana|tarde) · sort
 ```
 
 Reglas:
 - `days` y `health_metrics` separados a propósito: lo manual vs lo importado. La **vista efectiva** de un día fusiona con precedencia `health_metrics` > `days` para métricas solapadas (peso, agua, % grasa) — principio 6 del PRD.
 - Redondeo: kcal enteras; macros a entero en UI (guardar con 1 decimal está bien).
 - `diet_versions`: al editar objetivos o plan se crea versión nueva con `effective_from = hoy`; consultas históricas usan la versión vigente en cada fecha.
+- `settings.trainingByWeekday`: patrón habitual ISO 1–7 con
+  `mañana|tarde|descanso`; `trainingByWeekdayReviewed` queda `false` tras migrar
+  hasta que se guarda en Ajustes. `athleteProfile` ya no contiene una franja global.
+- `training_sessions.franja`: `null` significa «sin franja explícita» (compatibilidad
+  histórica), nunca descanso; constraint `null|mañana|tarde`.
 
 ## 2. Enumeraciones fijas
 
@@ -136,5 +145,8 @@ Entrada: `fuelboard-export-YYYY-MM-DD.json` = `{ targets, logs, med, favs, templ
 - El PoC no contiene marcadores: migra cero `flexible_meals` sin inventarlos ni borrar los
   existentes. Export/restore v3 sí los conserva y acepta exports v1/v2 sin esa tabla.
 - Script idempotente (`pnpm migrate:poc <archivo>`), con resumen: nº días, entradas, MEDs, favoritos, plantillas. *(AC: re-ejecutarlo no duplica nada.)*
+- F20 normaliza también settings antiguas/nuevas: `sessionByWeekday` se convierte
+  conservando días activos (`tarde`) y descansos, crea la revisión pendiente y una
+  re-ejecución no pisa un `trainingByWeekday` ya revisado.
 
 Contexto MED histórico que Alex meterá a mano (fechas aproximadas, confirmará): ciclo volumen sept-2025→ene-2026 (89,7→94,5 kg; grasa 7,71→10,77; músculo 51,54→52,13) y definición may→jul-2026 (96,2→91,7 kg; grasa 11,06→8,99; músculo 53,13→51,79). La app debe soportar entrada retroactiva sin fricción.

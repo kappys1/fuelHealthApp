@@ -1,10 +1,10 @@
 import { dayKey } from "@/lib/dates";
-import type { SessionByWeekday } from "@/lib/macros";
 import { type AthleteProfile, trainingDaysPerWeek } from "@/lib/profile";
+import type { TrainingByWeekday } from "@/lib/training-slot";
 import { latestWeightOnOrBefore } from "@/server/db/queries/day";
 import {
   getAthleteProfile,
-  getSessionByWeekday,
+  getTrainingByWeekday,
 } from "@/server/db/queries/lookups";
 import { athleteContext, athleteContextCompact } from "./prompts";
 
@@ -16,8 +16,8 @@ import { athleteContext, athleteContextCompact } from "./prompts";
 */
 export interface AthleteContexts {
   peso: number | null;
-  sessionByWeekday: SessionByWeekday;
-  /** Perfil vigente (para leer objetivo/franja en servidor; F-IA-6 cierre). */
+  trainingByWeekday: TrainingByWeekday;
+  /** Perfil vigente (para leer el objetivo en servidor; F-IA-6 cierre). */
   profile: AthleteProfile;
   /** Contexto completo (coach/WOD/visita/chat). */
   full: string;
@@ -31,18 +31,18 @@ export async function getAthleteContexts(
   date: string = dayKey(),
   knownPeso?: number | null,
 ): Promise<AthleteContexts> {
-  const [profile, sessionByWeekday, pesoDb] = await Promise.all([
+  const [profile, trainingByWeekday, pesoDb] = await Promise.all([
     getAthleteProfile(),
-    getSessionByWeekday(),
+    getTrainingByWeekday(),
     knownPeso != null
       ? Promise.resolve(knownPeso)
       : latestWeightOnOrBefore(date),
   ]);
   const peso = knownPeso ?? pesoDb;
-  const trainingDays = trainingDaysPerWeek(sessionByWeekday);
+  const trainingDays = trainingDaysPerWeek(trainingByWeekday);
   return {
     peso,
-    sessionByWeekday,
+    trainingByWeekday,
     profile,
     full: athleteContext(profile, peso, trainingDays, date),
     compact: athleteContextCompact(profile, peso),

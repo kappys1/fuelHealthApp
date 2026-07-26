@@ -33,7 +33,7 @@ describe("normalizeTrainingSettings — migración F20", () => {
       "7": "descanso",
     });
     expect(normalized.trainingByWeekdayReviewed).toBe(false);
-    expect(normalized.sessionByWeekday).toEqual(legacy);
+    expect(normalized.sessionByWeekday).toBeUndefined();
     expect(normalized.chatWebSearch).toBe(false);
   });
 
@@ -61,7 +61,7 @@ describe("normalizeTrainingSettings — migración F20", () => {
     expect(settingsArrayToRecord(twice).trainingByWeekday).toEqual(rows[0]!.value);
   });
 
-  it("acepta un backup F20 y sintetiza la clave legacy mientras siga activa la Fase 0", () => {
+  it("acepta un backup F20 sin reintroducir la clave legacy", () => {
     const normalized = settingsArrayToRecord(
       normalizeTrainingSettings([
         {
@@ -80,10 +80,25 @@ describe("normalizeTrainingSettings — migración F20", () => {
       ]),
     );
 
-    expect(normalized.sessionByWeekday).toMatchObject({
-      "1": expect.not.stringMatching(/^descanso$/i),
-      "6": expect.not.stringMatching(/^descanso$/i),
-      "7": "Descanso",
+    expect(normalized.sessionByWeekday).toBeUndefined();
+  });
+
+  it("retira franjaEntreno del perfil legacy sin perder el resto", () => {
+    const normalized = settingsArrayToRecord(
+      normalizeTrainingSettings([
+        {
+          key: "athleteProfile",
+          value: {
+            deporte: "CrossFit",
+            programa: "The Progrm",
+            franjaEntreno: "19:30-21:30",
+          },
+        },
+      ]),
+    );
+    expect(normalized.athleteProfile).toEqual({
+      deporte: "CrossFit",
+      programa: "The Progrm",
     });
   });
 });

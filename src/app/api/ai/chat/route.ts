@@ -270,7 +270,7 @@ export async function POST(request: Request) {
       trendAdherence: trendAndAdherence(deficit, adherence, flexibleImpact),
       meds: medLines(meds),
       days30: dayLines(trend.records, 30, {
-        sessionByWeekday: atleta.sessionByWeekday,
+        trainingByWeekday: atleta.trainingByWeekday,
         today,
         includeCurrentPlannedFlexible: true,
       }),

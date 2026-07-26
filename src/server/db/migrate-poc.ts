@@ -482,15 +482,20 @@ async function main() {
     ...existingSettings,
     ...incomingSettings,
   ]);
-  for (const setting of trainingSettings) {
-    await db
-      .insert(schema.settings)
-      .values({ key: String(setting.key), value: setting.value })
-      .onConflictDoUpdate({
-        target: schema.settings.key,
-        set: { value: setting.value },
-      });
-  }
+  await Promise.all(
+    trainingSettings.map((setting) =>
+      db
+        .insert(schema.settings)
+        .values({ key: String(setting.key), value: setting.value })
+        .onConflictDoUpdate({
+          target: schema.settings.key,
+          set: { value: setting.value },
+        }),
+    ),
+  );
+  await db
+    .delete(schema.settings)
+    .where(eq(schema.settings.key, "sessionByWeekday"));
   summary.settings = trainingSettings.length;
 
   // ── Resumen de conteos ──

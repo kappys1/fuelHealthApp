@@ -1,11 +1,12 @@
 import { z } from "zod";
 import { ensureAuth, parseBody, serverError } from "@/lib/api";
-import { dayKey, isoWeekday, shiftDayKey, timeOfDay } from "@/lib/dates";
+import { dayKey, shiftDayKey } from "@/lib/dates";
 import { flexibleMarkers } from "@/lib/flexible-meals";
 import { MEAL_ORDER, phaseLabel } from "@/lib/macros";
 import { currentObjective } from "@/lib/profile";
 import { retry } from "@/lib/retry";
 import { dateZ } from "@/lib/schemas";
+import { resolveTrainingSlot } from "@/lib/training-slot";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
 import {
@@ -84,15 +85,22 @@ export async function POST(request: Request) {
     view.day?.phase ?? null,
     view.flexibleMeals.real.length > 0,
   );
-  const sesionCalendario =
-    atleta.sessionByWeekday[String(isoWeekday(targetDate))] ?? "Descanso";
+  const hasSession =
+    !!(view.session || view.day?.sessionLabel) &&
+    view.day?.sessionLabel?.trim().toLowerCase() !== "descanso";
+  const resolvedSlot = resolveTrainingSlot({
+    date: targetDate,
+    hasSession,
+    sessionFranja: view.session?.franja ?? null,
+    trainingByWeekday: atleta.trainingByWeekday,
+  });
   const sessionLabel = view.day?.sessionLabel
     ? `día de entreno: ${view.day.sessionLabel}`
     : view.session
       ? `día de entreno: ${view.session.nombre}`
-      : sesionCalendario.toLowerCase().includes("descanso")
+      : resolvedSlot.value === "descanso"
         ? "descanso"
-        : `día de entreno según calendario: ${sesionCalendario}`;
+        : `día según patrón habitual: ${resolvedSlot.value}`;
   const dataLines = plan
     ? [
         gaugeVerdictLine(verdict, {
@@ -129,14 +137,7 @@ export async function POST(request: Request) {
     const stance = objectiveStance(
       currentObjective(atleta.profile)?.texto ?? null,
     );
-    const isTrainingDay =
-      !!(view.day?.sessionLabel || view.session) ||
-      !sesionCalendario.toLowerCase().includes("descanso");
-    const timing = trainingTiming({
-      now: timeOfDay(),
-      franja: atleta.profile.franjaEntreno,
-      isTrainingDay,
-    });
+    const timing = trainingTiming(resolvedSlot.value);
     dataLines.push(
       closureLine({
         stance,
@@ -178,7 +179,7 @@ export async function POST(request: Request) {
         carb: plan?.targets.carb ?? null,
         fat: plan?.targets.fat ?? null,
         dayContext: dayContext(view, {
-          sessionByWeekday: atleta.sessionByWeekday,
+          trainingByWeekday: atleta.trainingByWeekday,
           date: targetDate,
         }),
         planPendiente,

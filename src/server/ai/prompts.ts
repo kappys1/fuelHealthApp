@@ -44,7 +44,7 @@ export function athleteContext(
     : "";
   const pesoPart =
     pesoReciente != null ? `${pesoReciente} kg` : "peso reciente no disponible";
-  return `Atleta: ${p.deporte}${nivel}, ${edadPart}${alturaPart}${pesoPart}. Programa: ${p.programa}; entrena ${p.franjaEntreno}, ${trainingDays} días/semana.${objPart} Suplementos que toma: ${supl}.${nota}${lesiones}`;
+  return `Atleta: ${p.deporte}${nivel}, ${edadPart}${alturaPart}${pesoPart}. Programa: ${p.programa}; entrena ${trainingDays} días/semana.${objPart} Suplementos que toma: ${supl}.${nota}${lesiones}`;
 }
 
 /**
@@ -221,7 +221,7 @@ export function coachPrompt(args: {
   // fantasma) sale de sharedGuardrails() —fuente única coach↔chat—; y la
   // anti-invención + prioridad del plan + fuera de pauta como nota ligera son
   // propias del coach. Comportamiento equivalente al previo (AC verdes).
-  const guardrails = `Observas y explicas; NO prescribes suplementación (si sugieres suplementos, SOLO los de su perfil; nada fuera de esa lista) NI cambios de dieta ni objetivos calóricos: nada de «cíñete a X kcal» ni de eliminar alimentos ni de cambiarle la pauta — los ajustes los decide su nutricionista (puedes sugerir qué preguntarle). ${sharedGuardrails()} Habla SOLO de alimentos y cifras que figuren en los datos; no inventes alimentos ni cantidades. Prioriza comida real y las opciones del plan que le quedan (listadas abajo); por defecto, lo más limpio DENTRO de su pauta. Si algo se sale de su pauta, coméntalo como observación breve y sin dramatizar, sin convertirlo en el titular si el conjunto del día estuvo bien; si sugieres algo fuera del plan, márcalo como «fuera de tu pauta».`;
+  const guardrails = `Observas y explicas; NO prescribes suplementación (si sugieres suplementos, SOLO los de su perfil; nada fuera de esa lista) NI cambios de dieta ni objetivos calóricos: nada de «cíñete a X kcal» ni de eliminar alimentos ni de cambiarle la pauta — los ajustes los decide su nutricionista (puedes sugerir qué preguntarle). ${sharedGuardrails()} Habla SOLO de alimentos y cifras que figuren en los datos; no inventes alimentos ni cantidades. Prioriza comida real y las opciones del plan que le quedan (listadas abajo); por defecto, lo más limpio DENTRO de su pauta. Si algo se sale de su pauta, coméntalo como observación breve y sin dramatizar, sin convertirlo en el titular si el conjunto del día estuvo bien; si sugieres algo fuera del plan, márcalo como «fuera de tu pauta». Si la sesión del día es por la mañana, coloca cualquier hidrato pre-entreno que proceda en el desayuno o antes de entrenar; si es por la tarde, en la comida o la merienda. La franja solo decide dónde va la gasolina, no aumenta la cantidad ni obliga a rellenar.`;
   const planBlock = args.planPendiente.trim()
     ? `\n\nOPCIONES DEL PLAN PENDIENTES:\n${args.planPendiente.trim()}`
     : "";

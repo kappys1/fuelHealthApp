@@ -73,7 +73,7 @@ export async function POST() {
           .filter(Boolean)
           .join("\n"),
         filas: dayLines(visitRecords, 30, {
-          sessionByWeekday: atleta.sessionByWeekday,
+          trainingByWeekday: atleta.trainingByWeekday,
           today,
         }),
         marks: marksContext(marks),

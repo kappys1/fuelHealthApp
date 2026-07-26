@@ -2,6 +2,7 @@ import type { GrpKey, MealKey, PlanVariant } from "@/lib/macros";
 import type { FlexibleMealKey } from "@/lib/flexible-meals";
 import type { MeasureType } from "@/lib/marks";
 import type { AthleteProfile } from "@/lib/profile";
+import type { TrainingByWeekday } from "@/lib/training-slot";
 import type { MarkEntryDTO } from "@/server/db/queries/marks";
 import type {
   DayDumpResult,
@@ -400,8 +401,8 @@ export const api = {
   listMed: () => req<{ med: MedWithDelta[] }>("/api/med"),
 
   // Settings
-  saveSessionMap: (map: Record<string, string>) =>
-    req<{ map: Record<string, string> }>("/api/settings/session-map", {
+  saveSessionMap: (map: TrainingByWeekday) =>
+    req<{ map: TrainingByWeekday; reviewed: boolean }>("/api/settings/session-map", {
       method: "PATCH",
       body: JSON.stringify({ map }),
     }),

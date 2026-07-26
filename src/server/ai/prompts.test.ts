@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { weekdayName } from "@/lib/dates";
-import { DEFAULT_SESSION_BY_WEEKDAY } from "@/lib/macros";
+import { DEFAULT_TRAINING_BY_WEEKDAY } from "@/lib/training-slot";
 import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
 import type { DatedEntry, DayView } from "@/server/db/queries/day";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
@@ -124,6 +124,7 @@ describe("ATHLETE_CONTEXT dinámico (doc 10 A2)", () => {
     expect(full).toContain("175 cm");
     expect(full).toContain("92 kg");
     expect(full).toContain("6 días/semana");
+    expect(full).not.toContain("19:30");
     expect(full).toContain("creatina");
     // Cambiar el perfil cambia la respuesta: nada queda hardcodeado.
     const running: AthleteProfile = {
@@ -317,14 +318,13 @@ describe("el coach conoce el plan (F01 Fase 1)", () => {
     const directriz = closureLine({
       stance: "deficit",
       verdict,
-      timing: { rel: "pre", hoursToStart: 4.6 },
+      timing: { rel: "tarde" },
       plannedFlexibleMeals: ["cena"],
     });
 
     expect(pendiente).not.toContain("Pavo");
     expect(directriz).toContain("FLEXIBLE PREVISTO");
-    expect(directriz).toContain("comida previa");
-    expect(directriz).toContain("4,6 h");
+    expect(directriz).toContain("comida o la merienda");
     expect(directriz).toContain("NO intentes cerrar");
     expect(directriz).not.toContain("proteína magra");
   });
@@ -456,7 +456,7 @@ describe("F16 · contexto IA flexible", () => {
     const closure = closureLine({
       stance: "deficit",
       verdict,
-      timing: { rel: "post", hoursToStart: null },
+      timing: { rel: "tarde" },
     });
     expect(line).toContain("kcal +640");
     expect(line).toContain("contexto flexible real");
@@ -494,7 +494,7 @@ describe("F16 · contexto IA flexible", () => {
     const line = closureLine({
       stance: "deficit",
       verdict,
-      timing: { rel: "pre", hoursToStart: 4.6 },
+      timing: { rel: "tarde" },
     });
     expect(line).toContain("PROTEÍNA PRIORITARIA");
     expect(line).toContain("opciones del plan pendientes");
@@ -507,12 +507,12 @@ describe("F16 · contexto IA flexible", () => {
     });
     const today = record(TODAY, { planned: ["cena"], real: [] });
     const current = dayLines([yesterday, today], 30, {
-      sessionByWeekday: DEFAULT_SESSION_BY_WEEKDAY,
+      trainingByWeekday: DEFAULT_TRAINING_BY_WEEKDAY,
       today: TODAY,
       includeCurrentPlannedFlexible: true,
     });
     const visit = dayLines([yesterday, today], 30, {
-      sessionByWeekday: DEFAULT_SESSION_BY_WEEKDAY,
+      trainingByWeekday: DEFAULT_TRAINING_BY_WEEKDAY,
       today: TODAY,
     });
     expect(current).toContain("Cena flexible prevista");
@@ -521,6 +521,40 @@ describe("F16 · contexto IA flexible", () => {
 
     const real = record("2026-07-11", { planned: [], real: ["cena"] });
     expect(dayLine(real)).toContain("Cena flexible");
+  });
+
+  it("Chat usa patrón solo hoy; el histórico/Visita exige franja explícita", () => {
+    const historical = {
+      ...record("2026-07-11", { planned: [], real: [] }),
+      sessionLabel: "WOD histórico",
+      sessionFranja: null,
+    };
+    const today = {
+      ...record(TODAY, { planned: [], real: [] }),
+      sessionLabel: "WOD de hoy",
+      sessionFranja: null,
+    };
+    const lines = dayLines([historical, today], 30, {
+      trainingByWeekday: {
+        ...DEFAULT_TRAINING_BY_WEEKDAY,
+        "7": "mañana",
+      },
+      today: TODAY,
+    });
+    expect(lines).toContain("WOD de hoy · franja mañana (patrón habitual)");
+    expect(lines).toContain("WOD histórico");
+    expect(lines).not.toContain("WOD histórico · franja");
+
+    const explicit = {
+      ...historical,
+      sessionFranja: "tarde" as const,
+    };
+    expect(
+      dayLines([explicit], 30, {
+        trainingByWeekday: DEFAULT_TRAINING_BY_WEEKDAY,
+        today: TODAY,
+      }),
+    ).toContain("WOD histórico · franja tarde");
   });
 
   it("detalle histórico etiqueta solo el momento flexible real", () => {
@@ -687,11 +721,11 @@ describe("dayContext mira el calendario (doc 10 A4)", () => {
   it("sin sesión registrada emite la que toca según el calendario semanal", () => {
     // 2026-07-12 es domingo (ISO 7) → default = Descanso.
     const ctx = dayContext(emptyView, {
-      sessionByWeekday: DEFAULT_SESSION_BY_WEEKDAY,
+      trainingByWeekday: DEFAULT_TRAINING_BY_WEEKDAY,
       date: "2026-07-12",
     });
     expect(ctx).toContain("Sesión: sin registrar");
-    expect(ctx).toContain("Descanso");
+    expect(ctx).toContain("descanso");
   });
 
   it("sin calendario no inventa sesión", () => {
@@ -833,7 +867,7 @@ describe("coach: datos juzgados en servidor + tono (regresión 14-jul, DECISIONS
 
 describe("coach: directriz de cierre por dato, no por prompt (ai-tuner 25-jul, DECISIONS #76)", () => {
   const T = { kcal: 1800, prot: 110, carb: 215, fat: 55 };
-  const noTiming: TrainingTiming = { rel: "sin_dato", hoursToStart: null };
+  const noTiming: TrainingTiming = { rel: "sin_dato" };
 
   // Casos canónicos LITERALES del export real (skill §6: sin caso, no hay fix).
   it("21-jul (faltan 10 kcal, definición) → DÍA CERRADO, NO sugerir comida", () => {
@@ -887,22 +921,40 @@ describe("coach: directriz de cierre por dato, no por prompt (ai-tuner 25-jul, D
     ).toContain("EN BANDA");
   });
 
-  it("timing: hidratos pendientes a las 17:00 (pre) vs 22:30 (post) → directrices distintas", () => {
+  it("timing: mañana vs tarde coloca la gasolina en momentos distintos", () => {
     const v = gaugeVerdict(T, { kcal: 1400, prot: 110, carb: 150, fat: 40 }, null); // carb rem 65
-    const pre = closureLine({
+    const morning = closureLine({
       stance: "deficit",
       verdict: v,
-      timing: { rel: "pre", hoursToStart: 2.5 },
+      timing: { rel: "mañana" },
     });
-    const post = closureLine({
+    const afternoon = closureLine({
       stance: "deficit",
       verdict: v,
-      timing: { rel: "post", hoursToStart: null },
+      timing: { rel: "tarde" },
     });
-    expect(pre).toContain("comida previa");
-    expect(pre).toContain("2,5 h");
-    expect(post).toContain("recuperación");
-    expect(pre).not.toEqual(post);
+    expect(morning).toContain("desayuno o antes");
+    expect(morning).toContain("no los traslades por defecto a la merienda");
+    expect(afternoon).toContain("comida o la merienda");
+    expect(morning).not.toEqual(afternoon);
+  });
+
+  it("descanso no da urgencia y sin_dato no afirma colocación temporal", () => {
+    const v = gaugeVerdict(T, { kcal: 1400, prot: 110, carb: 150, fat: 40 }, null);
+    expect(
+      closureLine({
+        stance: "deficit",
+        verdict: v,
+        timing: { rel: "descanso" },
+      }),
+    ).toContain("sin urgencia de timing");
+    expect(
+      closureLine({
+        stance: "deficit",
+        verdict: v,
+        timing: { rel: "sin_dato" },
+      }),
+    ).toContain("no afirmes cuándo colocar");
   });
 
   it("el bloque «hoy» sigue la directriz y ya NO pide una sugerencia incondicional", () => {
@@ -923,6 +975,12 @@ describe("coach: directriz de cierre por dato, no por prompt (ai-tuner 25-jul, D
     // el marco que causaba la compulsión de cuadrar YA NO está
     expect(p).not.toContain(
       "una sugerencia concreta con las comidas del plan que le quedan",
+    );
+    expect(p).toContain(
+      "Si la sesión del día es por la mañana, coloca cualquier hidrato pre-entreno",
+    );
+    expect(p).toContain(
+      "La franja solo decide dónde va la gasolina, no aumenta la cantidad ni obliga a rellenar",
     );
   });
 

@@ -19,7 +19,7 @@ El PRD define QUÉ hace la app (requisitos F1-F8: todos siguen vigentes). Este d
 
 - **Progreso** tiene 3 segmentos: `Tendencia | MED | Historial`. Tendencia y MED responden «¿funciona?» (preparar visita vive en MED; «Últimos días» al final de Tendencia). **Historial (doc 10 B4)** es «cómo he llegado hasta aquí»: timeline de solo lectura (inmutable) que mezcla objetivos + dietas + entrenos + MEDs, con rango + filtros; MED/Objetivo expanden inline y Dieta/Entreno abren un sheet de detalle con «ir al actual».
 - **Salud deja de ser pestaña**: import CSV, estado del endpoint («última sync hace 2 h ✓»), export/restore y tema son **Ajustes** — operaciones de mantenimiento, no destinos diarios.
-- **Ajustes se organiza en 3 grupos** (con encabezado de sección): **Atleta** (perfil), **App** (tema, búsqueda web del chat, sync de Salud, import CSV, copia de seguridad, mapeo de sesiones) y **Cuenta** (cerrar sesión). Separa "quién soy" de "cómo se comporta la app"; un solo icono en el header (no se añade uno de perfil: destino de uso raro, no gana chrome permanente).
+- **Ajustes se organiza en grupos** (con encabezado de sección): **Atleta** (perfil), **Preferencias**, **Salud y datos**, **Entrenamiento** (patrón habitual mañana/tarde/descanso) y **Cuenta**. Separa "quién soy" de "cómo se comporta la app"; un solo icono en el header.
 - **Perfil del atleta** (doc 10 A1) vive en el grupo **Atleta** de Ajustes: sub-secciones aireadas (Deporte y entreno · Datos · Suplementos y lesiones · Objetivo), inputs a 44px (target táctil 05 §4), suplementos/lesiones como chips, y «Objetivo» (vigente destacado + «Cambiar objetivo» que añade una entrada fechada + historial plegado). Es la fuente del `ATHLETE_CONTEXT` de la IA (principio 9).
 - **Chat** es pestaña propia: es el destino conversacional de «pregúntale a tus datos».
 - **Plan en 2 segmentos (doc 10 B3b + F17)**: `Dieta | Entrenos` (mismo patrón que
@@ -66,7 +66,8 @@ El contexto del día NO se rellena en un formulario: se captura en dos micro-rit
 **Check-in matinal** (lo dispara la línea de estado por la mañana, o el shortcut «Peso de hoy»):
 1. **Peso**: stepper grande precargado con el último peso (±0,1 con botones, o teclear). Un pulgar.
 2. **¿Cómo amaneces?** → hinchazón en 4 botones grandes (Ninguna/Leve/Moderada/Alta).
-3. **Sesión de hoy** → YA precargada por día de la semana (ver defaults) — solo confirmar o cambiar.
+3. **Sesión de hoy** → si existe sesión canónica, aparece precargada; si no, ofrece
+   sesiones genéricas + texto libre, sin inventar contenido desde el patrón horario.
 Listo en ≤15 segundos. Cada paso es saltable; guardar en cada paso (si lo abandona a medias, no pierde nada).
 
 **Cierre del día** (línea de estado a partir de ~21:30, tras el entreno):
@@ -75,10 +76,12 @@ Listo en ≤15 segundos. Cada paso es saltable; guardar en cada paso (si lo aban
 3. Confirmación con el resumen del día («1.790 / 1.800 ✓ · 112 g prot ✓») y la racha. El ritual de cierre ES el generador de la racha.
 
 **Defaults inteligentes (regla: la app nunca pregunta lo que puede saber):**
-- **Sesión por día de la semana**: mapeo configurable en Ajustes (L→T1, M→T2, X→T3, J→T4, V→T5, S→T6, D→Descanso, editable — The Progrm es semanal). El check-in solo pide confirmar.
-- **Dropdown de sesión (doc 10 B3 + F17)**: si hay una semana de entreno que cubre la
-  fecha, el selector (Mi día + check-in) muestra **sus sesiones reales** +
-  Competición/Descanso (las genéricas T1–T6 se ocultan); sin semana, la lista genérica.
+- **Días de entreno**: patrón configurable en Ajustes con siete filas
+  `mañana|tarde|descanso`. Tras migrar aparece «Revisa tus franjas, sobre todo el
+  sábado» hasta guardar una vez. Deriva días/semana y aporta contexto horario, no
+  una etiqueta de contenido.
+- **Dropdown de sesión (doc 10 B3 + F17)**: el check-in precarga solo la sesión
+  canónica de esa fecha; sin ella muestra genéricas + texto libre.
   Off-plan → analizador de WOD (F-IA-5). Elegir o guardar ancla una única
   `training_session` real del día y sincroniza nombre + gasto; Plan, Hoy, Historial y
   Coach/Chat/Visita leen esa misma referencia.

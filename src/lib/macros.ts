@@ -468,8 +468,8 @@ export const PHASE_NEXT: Record<PhaseKey, PhaseKey | null> = {
   recuperacion: null,
 };
 
-// Mapeo por defecto día-de-semana (ISO 1=L…7=D) → sesión (09 §5 defaults;
-// The Progrm es semanal). Configurable en Ajustes (settings.sessionByWeekday).
+// Formato legacy día-de-semana → etiqueta de sesión. Tras F20 solo se conserva
+// para convertir backups/PoC antiguos; el patrón activo vive en training-slot.ts.
 export type SessionByWeekday = Record<string, string>;
 export const DEFAULT_SESSION_BY_WEEKDAY: SessionByWeekday = {
   "1": SESSIONS[0], // L → T1

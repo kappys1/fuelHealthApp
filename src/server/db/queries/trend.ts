@@ -8,6 +8,7 @@ import {
   type FlexibleMealKey,
 } from "@/lib/flexible-meals";
 import type { DailyRecord, DayTarget } from "@/server/analytics/types";
+import type { SessionFranja } from "@/lib/training-slot";
 import { db, schema } from "@/server/db";
 
 /*
@@ -47,7 +48,7 @@ function targetForDate(versions: VersionRow[], date: string): DayTarget {
 }
 
 export async function getTrendData(today: string = dayKey()): Promise<TrendData> {
-  const [dayRows, healthRows, entryRows, markerRows, versionRows] =
+  const [dayRows, healthRows, entryRows, markerRows, versionRows, sessionRows] =
     await Promise.all([
     db.select().from(schema.days),
     db.select().from(schema.healthMetrics),
@@ -75,10 +76,22 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
       })
       .from(schema.dietVersions)
       .orderBy(asc(schema.dietVersions.effectiveFrom), asc(schema.dietVersions.id)),
+    db
+      .select({
+        id: schema.trainingSessions.id,
+        franja: schema.trainingSessions.franja,
+      })
+      .from(schema.trainingSessions),
   ]);
 
   const daysByDate = new Map(dayRows.map((d) => [d.date, d]));
   const healthByDate = new Map(healthRows.map((h) => [h.date, h]));
+  const sessionFranjaById = new Map(
+    sessionRows.map((session) => [
+      session.id,
+      session.franja as SessionFranja | null,
+    ]),
+  );
 
   interface Agg {
     kcal: number;
@@ -152,6 +165,10 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
         bodyFatPct: effectiveHealthMetric(day?.bodyFatPct, health?.bodyFatPct),
         waterL: effectiveHealthMetric(day?.waterL, health?.waterL),
         sessionLabel: day?.sessionLabel ?? null,
+        sessionFranja:
+          day?.sessionRef != null
+            ? (sessionFranjaById.get(day.sessionRef) ?? null)
+            : null,
         bloat: (day?.bloat as BloatKey | null) ?? null,
         notes: day?.notes ?? null,
       };
