@@ -1,9 +1,10 @@
 # F17 · Sesión única: Entrenos legibles + WOD integrado con Hoy
-**Estado**: aprobada · **Tamaño**: feature
+**Estado**: completada · **Tamaño**: feature
 **Fecha**: 2026-07-26 · **Origen**: uso real de Alex en Plan · Entrenos y «Analizar WOD
 pegado». Captura en `docs/HANDOFF-features.md` §B3.
 
 **Aprobada por Alex el 2026-07-26.**
+**Completada por Alex el 2026-07-26 tras validación en uso real.**
 
 ## Motivación (caso real)
 
@@ -176,14 +177,14 @@ Sin llamadas nuevas: una llamada al analizar/importar, cero al guardar o consult
 
 ## AC
 
-1. 🖐 Plan · Entrenos reproduce la jerarquía del mockup: selector semanal, días y ficha de
+1. ✅ 🖐 Plan · Entrenos reproduce la jerarquía del mockup: selector semanal, días y ficha de
    lectura con nombre, metadatos y bloques; la edición no está desplegada permanentemente.
-2. 🖐 Tocar un día vacío → `Añadir sesión` → Manual → guardar; la ficha aparece en ese día.
-3. 🖐 Esa sesión aparece en Hoy al navegar a la misma fecha y `Ver sesión` abre el mismo
+2. ✅ 🖐 Tocar un día vacío → `Añadir sesión` → Manual → guardar; la ficha aparece en ese día.
+3. ✅ 🖐 Esa sesión aparece en Hoy al navegar a la misma fecha y `Ver sesión` abre el mismo
    detalle.
-4. 🖐 Pegar un WOD desde Plan → analizar → guardar; conserva todo el texto y muestra
+4. ✅ 🖐 Pegar un WOD desde Plan → analizar → guardar; conserva todo el texto y muestra
    nombre/tipo/duración/rango y bloques legibles.
-5. 🖐 Pegar un WOD desde Hoy cuando ya había sesión → la sustituye; Plan y Hoy muestran la
+5. ✅ 🖐 Pegar un WOD desde Hoy cuando ya había sesión → la sustituye; Plan y Hoy muestran la
    nueva y `Deshacer` restaura la anterior.
 6. Con sesión importada + WOD sustituto, `dayContext` cita la sesión nueva, nunca el nombre
    antiguo referenciado.
@@ -192,7 +193,9 @@ Sin llamadas nuevas: una llamada al analizar/importar, cero al guardar o consult
 8. El formateador de contenido preserva el 100 % del texto en casos: encabezados, párrafos,
    líneas y fallback de un bloque; tests puros antes que UI.
 9. F-IA-10 sobre `TP1_Week_29.pdf` conserva el detalle de todos los bloques y mantiene
-   estables sesiones, tipos, duración y kcal en tres ejecuciones.
+   estables sesiones, tipos, duración y kcal en tres ejecuciones. **Cierre aceptado por
+   Alex con Week 31 real y la consistencia previa de F-IA-10; el archivo Week 29 exacto no
+   estuvo disponible y no se afirma una ejecución ×3 sobre él.**
 10. Editar/reasignar/borrar sigue disponible en sheets; semanas pasadas conservan el modo de
     consulta actual.
 11. Export/restore mantiene igualdad de filas; `pnpm typecheck && pnpm test && pnpm build`
@@ -226,7 +229,7 @@ por último, cambios de prompts congelados.
 - Fase 2: `94f7cc4` — comando canónico transaccional, semana manual sin solape,
   creación/sustitución/undo y detalle compartido Plan↔Hoy↔Historial.
 - Fase 3: contratos F-IA-5/F-IA-10, schemas/tests, contexto y sync de `04-IA.md`/`09`.
-- Automatizado: AC6, AC7, AC8, AC10 y AC11 pasan (`typecheck` + 389 tests + build;
+- Automatizado: AC6, AC7, AC8, AC10 y AC11 pasan (`typecheck` + 391 tests + build;
   export/restore sigue cubierto sin cambio de schema). Consistencia real ×3 pasa en WOD y
   running.
 - Quick-fix de uso real (domingo 26-jul): Plan permite navegar a semanas futuras y el
@@ -235,5 +238,5 @@ por último, cambios de prompts congelados.
 - Quick-fix de uso real (Week 31): el formateador prioriza párrafos completos sobre saltos
   simples. La fila T1 real pasa de fragmentarse en líneas a 6 bloques coherentes y conserva
   byte a byte el contenido; F-IA-10, modelo y sesiones guardadas permanecen intactos.
-- Pendiente: AC 🖐 1–5 requieren pulgar de Alex. AC9 queda parcial hasta aportar
-  `TP1_Week_29.pdf`; no se auto-valida.
+- Cierre: Alex aprueba los AC 🖐 1–5 y da F17 por completada el 2026-07-26. Acepta la
+  sustitución de evidencia de AC9 descrita arriba; no quedan AC pendientes.

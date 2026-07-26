@@ -334,15 +334,16 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   uso real. El caso AC17 reforzó por dato la valoración flexible también en modo `ayer`
   (DECISIONS #79), sin llamadas ni coste nuevos.
 - ✅ **Entrenos legibles + WOD analizado integrado** (uso real Alex, 26-jul — **F17
-  implementada el 26-jul**, pendiente del pulgar de Alex en AC 🖐 1–5:
+  completada y aprobada por Alex el 26-jul**, AC 🖐 1–5 aprobados:
   [`docs/specs/features/17-sesion-unica-entrenos-y-wod.md`](./specs/features/17-sesion-unica-entrenos-y-wod.md)):
   ficha legible y detalle reutilizable en Plan/Hoy/Historial; gestión en sheets; creación
   Manual o WOD desde un día; comando canónico transaccional con semana manual fallback,
   sustitución + undo y sincronización del contexto. F-IA-5 conserva el texto original y
   añade tipo; F-IA-10 conserva bloques completos. Commits `d48af9f`, `94f7cc4` y el commit
-  IA/documental posterior. Consistencia ×3 pasa para WOD y running; falta revalidar
-  `TP1_Week_29.pdf` porque el archivo no está disponible en el workspace. Sin migración,
-  env ni backfill.
+  IA/documental posterior; quick-fixes `299ce76` (semanas futuras) y `2d3854b` (bloques
+  por párrafo). Consistencia ×3 pasa para WOD y running; Alex acepta el cierre de AC9 con
+  Week 31 real, sin afirmar el ×3 de `TP1_Week_29.pdf` ausente. Sin migración, env ni
+  backfill.
 - _(añadir aquí las que surjan)_
 
 ---
