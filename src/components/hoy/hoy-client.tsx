@@ -268,7 +268,12 @@ export function HoyClient({
         onClose={() => setCierreOpen(true)}
       />
 
-      <FuelGauge targets={data.targets} entries={data.view.entries} phase={phase} />
+      <FuelGauge
+        targets={data.targets}
+        entries={data.view.entries}
+        phase={phase}
+        flexibleMeals={data.view.flexibleMeals}
+      />
 
       {phase === "competicion" ? (
         <CompeticionRefuel meal={mealByHour()} onAdd={todayState.addEntries} />

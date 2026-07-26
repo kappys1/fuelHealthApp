@@ -8,6 +8,7 @@
   `server/db/queries/trend.ts`.
 */
 import type { BloatKey, PhaseKey } from "@/lib/macros";
+import type { FlexibleMealState } from "@/lib/flexible-meals";
 
 /** Objetivos vigentes para una fecha (versión de dieta efectiva ese día, F1.5). */
 export interface DayTarget {
@@ -28,6 +29,8 @@ export interface AnalyticsRecord {
   kcal: number;
   prot: number;
   target: DayTarget;
+  /** Marcadores del día: `planned` no afecta analítica; `real` sí da contexto. */
+  flexibleMeals: FlexibleMealState;
 }
 
 /** Registro diario completo para la pantalla Tendencia y la tabla «Últimos días» (F4.4). */

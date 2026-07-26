@@ -2,6 +2,11 @@ import { asc } from "drizzle-orm";
 import { dayKey } from "@/lib/dates";
 import { effectiveHealthMetric } from "@/lib/effective-health";
 import type { BloatKey, PhaseKey } from "@/lib/macros";
+import type { MealKey } from "@/lib/macros";
+import {
+  deriveFlexibleMealState,
+  type FlexibleMealKey,
+} from "@/lib/flexible-meals";
 import type { DailyRecord, DayTarget } from "@/server/analytics/types";
 import { db, schema } from "@/server/db";
 
@@ -42,7 +47,8 @@ function targetForDate(versions: VersionRow[], date: string): DayTarget {
 }
 
 export async function getTrendData(today: string = dayKey()): Promise<TrendData> {
-  const [dayRows, healthRows, entryRows, versionRows] = await Promise.all([
+  const [dayRows, healthRows, entryRows, markerRows, versionRows] =
+    await Promise.all([
     db.select().from(schema.days),
     db.select().from(schema.healthMetrics),
     db
@@ -52,8 +58,15 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
         prot: schema.mealEntries.prot,
         carb: schema.mealEntries.carb,
         fat: schema.mealEntries.fat,
+        meal: schema.mealEntries.meal,
       })
       .from(schema.mealEntries),
+    db
+      .select({
+        date: schema.flexibleMeals.date,
+        meal: schema.flexibleMeals.meal,
+      })
+      .from(schema.flexibleMeals),
     db
       .select({
         effectiveFrom: schema.dietVersions.effectiveFrom,
@@ -73,16 +86,31 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
     carb: number;
     fat: number;
     n: number;
+    meals: Set<MealKey>;
   }
   const entriesByDate = new Map<string, Agg>();
   for (const e of entryRows) {
-    const a = entriesByDate.get(e.date) ?? { kcal: 0, prot: 0, carb: 0, fat: 0, n: 0 };
+    const a = entriesByDate.get(e.date) ?? {
+      kcal: 0,
+      prot: 0,
+      carb: 0,
+      fat: 0,
+      n: 0,
+      meals: new Set<MealKey>(),
+    };
     a.kcal += e.kcal;
     a.prot += e.prot;
     a.carb += e.carb;
     a.fat += e.fat;
     a.n++;
+    a.meals.add(e.meal as MealKey);
     entriesByDate.set(e.date, a);
+  }
+  const markersByDate = new Map<string, FlexibleMealKey[]>();
+  for (const marker of markerRows) {
+    const meals = markersByDate.get(marker.date) ?? [];
+    meals.push(marker.meal as FlexibleMealKey);
+    markersByDate.set(marker.date, meals);
   }
 
   const allDates = new Set<string>([
@@ -111,6 +139,10 @@ export async function getTrendData(today: string = dayKey()): Promise<TrendData>
         carb: agg?.carb ?? 0,
         fat: agg?.fat ?? 0,
         target: targetForDate(versionRows, date),
+        flexibleMeals: deriveFlexibleMealState(
+          markersByDate.get(date) ?? [],
+          [...(agg?.meals ?? [])].map((meal) => ({ meal })),
+        ),
         steps: health?.steps ?? null,
         activeKcal: health?.activeKcal ?? null,
         basalKcal: health?.basalKcal ?? null,

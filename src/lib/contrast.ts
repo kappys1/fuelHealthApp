@@ -7,7 +7,7 @@
 
 export type TokenName =
   | "bg" | "surface" | "surface-2" | "ink" | "muted" | "line"
-  | "primary" | "primary-fg" | "protein" | "carb" | "fat" | "phase"
+  | "primary" | "primary-fg" | "protein" | "carb" | "fat" | "phase" | "info"
   | "destructive" | "destructive-fg"
   | "inverted" | "on-inverted" | "on-inverted-muted";
 
@@ -17,6 +17,7 @@ export const TOKENS: Record<"light" | "dark", Record<TokenName, string>> = {
     ink: "#142235", muted: "#566678", line: "#728397",
     primary: "#155db8", "primary-fg": "#ffffff",
     protein: "#087a55", carb: "#946200", fat: "#b84620", phase: "#6747c7",
+    info: "#2563c7",
     destructive: "#b84620", "destructive-fg": "#ffffff",
     inverted: "#142235", "on-inverted": "#ffffff", "on-inverted-muted": "#c5d0dc",
   },
@@ -25,6 +26,7 @@ export const TOKENS: Record<"light" | "dark", Record<TokenName, string>> = {
     ink: "#f3f6fa", muted: "#acb8c6", line: "#748397",
     primary: "#7eaeff", "primary-fg": "#0e1319",
     protein: "#4ad29a", carb: "#f0c45a", fat: "#ff9566", phase: "#c2a7ff",
+    info: "#7eaeff",
     destructive: "#ff9566", "destructive-fg": "#0e1319",
     inverted: "#17314d", "on-inverted": "#f3f6fa", "on-inverted-muted": "#b9cbe0",
   },
@@ -51,6 +53,8 @@ export const PAIRS: Array<[TokenName, TokenName, string, PairType]> = [
   ["carb", "surface", "hidratos texto / tarjeta", "text"],
   ["fat", "surface", "grasa texto / tarjeta", "text"],
   ["phase", "surface", "fase texto / tarjeta", "text"],
+  ["info", "surface", "flexible texto / tarjeta", "text"],
+  ["info", "surface-2", "flexible texto / superficie-2", "text"],
   ["on-inverted", "inverted", "texto / tarjeta principal invertida", "text"],
   ["on-inverted-muted", "inverted", "texto atenuado / tarjeta invertida", "text"],
   ["line", "surface", "borde / tarjeta", "ui"],

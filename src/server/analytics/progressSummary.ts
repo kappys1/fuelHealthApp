@@ -10,6 +10,8 @@ export interface ProgressSummary {
   to: string;
   loggedDays: number;
   normalDays: number;
+  kcalDays: number;
+  proteinDays: number;
   averageKcal: number | null;
   averageProtein: number | null;
   averageSteps: number | null;
@@ -35,9 +37,17 @@ export function computeProgressSummary(
 ): ProgressSummary {
   const from = shiftDayKey(today, -(days - 1));
   const logged = trailingRecords(records, today, days).filter((record) => record.logged);
-  const normal = logged.filter(
+  const normalPhase = logged.filter((record) => record.phase == null);
+  const normal = normalPhase.filter(
     (record) =>
-      record.phase == null && record.target.kcal > 0 && record.target.prot > 0,
+      record.target.kcal > 0 && record.target.prot > 0,
+  );
+  const kcalEligible = normalPhase.filter(
+    (record) =>
+      record.target.kcal > 0 && record.flexibleMeals.real.length === 0,
+  );
+  const proteinEligible = normalPhase.filter(
+    (record) => record.target.prot > 0,
   );
   const average = (values: number[]) =>
     values.length > 0
@@ -50,6 +60,8 @@ export function computeProgressSummary(
     to: today,
     loggedDays: logged.length,
     normalDays: normal.length,
+    kcalDays: kcalEligible.length,
+    proteinDays: proteinEligible.length,
     averageKcal: average(logged.map((record) => record.kcal)),
     averageProtein: average(logged.map((record) => record.prot)),
     averageSteps: average(
@@ -58,13 +70,13 @@ export function computeProgressSummary(
         .filter((value): value is number => value != null),
     ),
     contextDays: logged.filter((record) => record.phase != null).length,
-    kcalInRange: normal.filter(
+    kcalInRange: kcalEligible.filter(
       (record) =>
         record.target.kcal > 0 &&
         Math.abs(record.kcal - record.target.kcal) / record.target.kcal <=
           KCAL_TOLERANCE,
     ).length,
-    proteinOnTarget: normal.filter(
+    proteinOnTarget: proteinEligible.filter(
       (record) =>
         record.target.prot > 0 && record.prot >= record.target.prot * PROT_MIN_RATIO,
     ).length,

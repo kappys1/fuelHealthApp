@@ -16,6 +16,7 @@ function rec(
     kcal: kcal ?? 0,
     prot: 110,
     target: T,
+    flexibleMeals: { planned: [], real: [] },
   };
 }
 
@@ -61,10 +62,26 @@ describe("computeDeficit (03 §3 / F6.2)", () => {
         kcal: 4000,
         prot: 200,
         target: T,
+        flexibleMeals: { planned: [], real: [] },
       },
     ];
     const r = computeDeficit(withCarga);
     expect(r.weighins).toBe(8); // el día de carga no cuenta como pesaje elegible
     expect(r.intakeMean).toBe(1700); // ni como ingesta
+  });
+
+  it("conserva el 100 % de las kcal flexibles en intakeMean/TDEE", () => {
+    const flexible: AnalyticsRecord[] = days.map((day, index) =>
+      index === 7
+        ? {
+            ...day,
+            kcal: 2440,
+            flexibleMeals: { planned: [], real: ["cena"] },
+          }
+        : day,
+    );
+    const result = computeDeficit(flexible);
+    expect(result.intakeMean).toBe(1793); // (7×1700 + 2440) / 8
+    expect(result.tdee).toBe(2233);
   });
 });

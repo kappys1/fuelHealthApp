@@ -31,6 +31,9 @@ export interface MacroVerdict {
 
 export interface GaugeVerdict {
   phase: PhaseVerdict;
+  /** Flexible real solo si la fase Normal deja que ese contexto prevalezca. */
+  flexible: boolean;
+  tone: "standard" | "informative";
   consumed: number;
   targetKcal: number;
   kcalRemaining: number;
@@ -69,6 +72,7 @@ export function gaugeVerdict(
   targets: Targets,
   totals: Macros,
   phase: PhaseKey | null,
+  flexibleReal = false,
 ): GaugeVerdict {
   const consumed = roundKcal(totals.kcal);
   const kcalRemaining = Math.max(0, targets.kcal - consumed);
@@ -92,8 +96,12 @@ export function gaugeVerdict(
   if (carb.notablyOver) notablyOver.push("carb");
   if (fat.notablyOver) notablyOver.push("fat");
 
+  const flexible = phaseVerdict === "normal" && flexibleReal;
+
   return {
     phase: phaseVerdict,
+    flexible,
+    tone: flexible ? "informative" : "standard",
     consumed,
     targetKcal: targets.kcal,
     kcalRemaining,

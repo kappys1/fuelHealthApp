@@ -31,6 +31,7 @@ const record = (
   sessionLabel: null,
   bloat: null,
   notes: null,
+  flexibleMeals: { planned: [], real: [] },
   ...patch,
 });
 
@@ -91,6 +92,27 @@ describe("progress summary", () => {
     expect(summary.normalDays).toBe(1);
     expect(summary.kcalInRange).toBe(1);
     expect(summary.proteinOnTarget).toBe(1);
+  });
+
+  it("el resumen conserva kcal medias pero separa denominadores flexibles", () => {
+    const summary = computeProgressSummary(
+      [
+        record("2026-07-19"),
+        record("2026-07-20", {
+          kcal: 2440,
+          prot: 119,
+          flexibleMeals: { planned: [], real: ["cena"] },
+        }),
+      ],
+      "2026-07-20",
+      7,
+    );
+    expect(summary.averageKcal).toBe(2120);
+    expect(summary.normalDays).toBe(2);
+    expect(summary.kcalDays).toBe(1);
+    expect(summary.proteinDays).toBe(2);
+    expect(summary.kcalInRange).toBe(1);
+    expect(summary.proteinOnTarget).toBe(2);
   });
 
   it("mantiene la racha desde ayer cuando hoy aún no tiene registro", () => {

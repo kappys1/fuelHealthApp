@@ -221,7 +221,7 @@ export function trendAndAdherence(
   deficit: DeficitResult,
   adherence: AdherenceResult,
 ): string {
-  const a = `Adherencia (14 d): ${adherence.n} días con registro; en fase Normal ${adherence.enRango}/${adherence.normalN} en rango de kcal y ${adherence.protOk}/${adherence.normalN} con proteína suficiente.`;
+  const a = `Adherencia (14 d): ${adherence.n} días con registro; ${adherence.enRango}/${adherence.kcalN} evaluables en rango de kcal, ${adherence.protOk}/${adherence.proteinN} evaluables con proteína suficiente y ${adherence.flexibleN} días flexibles reales fuera del juicio de kcal.`;
   return `${trendSummary(deficit)}\n${a}`;
 }
 
