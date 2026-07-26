@@ -5,6 +5,7 @@ import { TRAINING_TIPOS } from "@/lib/training";
 
 // Zod compartido de los boundaries (API routes). Coincide con los enums del schema.
 export const mealZ = z.enum(["almuerzo", "comida", "merienda", "cena", "extra"]);
+export const flexibleMealZ = z.enum(["almuerzo", "comida", "merienda", "cena"]);
 export const grpZ = z.enum([
   "Verdura",
   "Hidratos",

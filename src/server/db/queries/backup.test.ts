@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bloatEventImportRow,
+  flexibleMealImportRow,
   mealEntryImportRow,
   planOptionImportRow,
 } from "./backup-map";
@@ -17,6 +18,7 @@ function emptyV2Data() {
     days: [],
     bloatEvents: [],
     mealEntries: [],
+    flexibleMeals: [],
     healthMetrics: [],
     workouts: [],
     medMeasurements: [],
@@ -197,6 +199,19 @@ describe("bloatEventImportRow — round-trip temporal", () => {
   });
 });
 
+describe("flexibleMealImportRow — round-trip F16", () => {
+  it("conserva fecha local, momento y timestamp", () => {
+    const row = flexibleMealImportRow({
+      date: "2026-07-25",
+      meal: "cena",
+      createdAt: "2026-07-25T18:30:00.000Z",
+    });
+    expect(row.date).toBe("2026-07-25");
+    expect(row.meal).toBe("cena");
+    expect(row.createdAt.toISOString()).toBe("2026-07-25T18:30:00.000Z");
+  });
+});
+
 describe("parseImport — preflight destructivo", () => {
   it("exige identidad y versión de Fuelboard", async () => {
     const parseImport = await importParser();
@@ -213,13 +228,67 @@ describe("parseImport — preflight destructivo", () => {
     ).toThrow(/export de Fuelboard válido/);
   });
 
-  it("acepta v1 completo y añade solo la tabla temporal que aún no existía", async () => {
+  it("acepta v1 completo y añade las tablas posteriores vacías", async () => {
     const parseImport = await importParser();
-    const { bloatEvents, ...v1Data } = emptyV2Data();
+    const { bloatEvents, flexibleMeals, ...v1Data } = emptyV2Data();
     void bloatEvents;
+    void flexibleMeals;
     expect(parseImport({ app: "fuelboard", version: 1, data: v1Data }).bloatEvents).toEqual(
       [],
     );
+    expect(parseImport({ app: "fuelboard", version: 1, data: v1Data }).flexibleMeals).toEqual(
+      [],
+    );
+  });
+
+  it("acepta v2 sin flexibles y restaura cero marcadores", async () => {
+    const parseImport = await importParser();
+    const { flexibleMeals, ...v2Data } = emptyV2Data();
+    void flexibleMeals;
+    expect(
+      parseImport({ app: "fuelboard", version: 2, data: v2Data }).flexibleMeals,
+    ).toEqual([]);
+  });
+
+  it("rechaza extra, duplicados y FK huérfana en marcadores flexibles", async () => {
+    const parseImport = await importParser();
+    const base = {
+      ...emptyV2Data(),
+      days: [{ date: "2026-07-25" }],
+    };
+    expect(() =>
+      parseImport({
+        app: "fuelboard",
+        version: 3,
+        data: {
+          ...base,
+          flexibleMeals: [{ date: "2026-07-25", meal: "extra" }],
+        },
+      }),
+    ).toThrow(/flexibleMeals\[0\]\.meal/);
+    expect(() =>
+      parseImport({
+        app: "fuelboard",
+        version: 3,
+        data: {
+          ...base,
+          flexibleMeals: [
+            { date: "2026-07-25", meal: "cena" },
+            { date: "2026-07-25", meal: "cena" },
+          ],
+        },
+      }),
+    ).toThrow(/flexibleMeals\[1\]\.meal/);
+    expect(() =>
+      parseImport({
+        app: "fuelboard",
+        version: 3,
+        data: {
+          ...base,
+          flexibleMeals: [{ date: "2026-07-26", meal: "cena" }],
+        },
+      }),
+    ).toThrow(/flexibleMeals\[0\]\.date/);
   });
 
   it("rechaza fechas inválidas antes de mostrar la vista previa", async () => {

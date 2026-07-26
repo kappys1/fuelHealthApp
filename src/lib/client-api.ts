@@ -1,4 +1,5 @@
 import type { GrpKey, MealKey, PlanVariant } from "@/lib/macros";
+import type { FlexibleMealKey } from "@/lib/flexible-meals";
 import type { MeasureType } from "@/lib/marks";
 import type { AthleteProfile } from "@/lib/profile";
 import type { MarkEntryDTO } from "@/server/db/queries/marks";
@@ -142,6 +143,12 @@ export const api = {
 
   deleteEntry: (id: number) =>
     req<{ entry: unknown }>(`/api/entries/${id}`, { method: "DELETE" }),
+
+  setFlexibleMeal: (date: string, meal: FlexibleMealKey, marked: boolean) =>
+    req<{ ok: true }>("/api/flexible-meals", {
+      method: marked ? "PUT" : "DELETE",
+      body: JSON.stringify({ date, meal }),
+    }),
 
   copyYesterday: (date: string) =>
     req<{ copied: number; from: string }>("/api/entries/copy-yesterday", {

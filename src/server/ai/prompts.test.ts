@@ -386,6 +386,7 @@ describe("dayContext mira el calendario (doc 10 A4)", () => {
     day: null,
     health: null,
     entries: [],
+    flexibleMeals: { planned: [], real: [] },
     session: null,
   };
 

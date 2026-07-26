@@ -94,3 +94,12 @@ export function bloatEventImportRow(r: Record<string, unknown>) {
     createdAt: dt(r.createdAt),
   };
 }
+
+/** Mapea un marcador flexible; el estado prevista/real se deriva tras restaurar. */
+export function flexibleMealImportRow(r: Record<string, unknown>) {
+  return {
+    date: String(r.date),
+    meal: r.meal as (typeof schema.mealEnum.enumValues)[number],
+    createdAt: dt(r.createdAt),
+  };
+}

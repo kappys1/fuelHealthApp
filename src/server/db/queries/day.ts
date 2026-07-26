@@ -1,5 +1,10 @@
 import { and, asc, desc, eq, gte, isNotNull, lte } from "drizzle-orm";
 import type { BloatKey, MealKey, PhaseKey } from "@/lib/macros";
+import {
+  deriveFlexibleMealState,
+  type FlexibleMealKey,
+  type FlexibleMealState,
+} from "@/lib/flexible-meals";
 import { dayKey, shiftDayKey } from "@/lib/dates";
 import type { TrainingTipo } from "@/lib/training";
 import { db, schema } from "@/server/db";
@@ -69,6 +74,8 @@ export interface DayView {
   day: DayDTO | null;
   health: HealthDTO | null;
   entries: EntryDTO[];
+  /** Marcadores derivados: vacíos en `planned`, con ≥1 entrada en `real`. */
+  flexibleMeals: FlexibleMealState;
   /** Sesión real del plan asignada al día (doc 10 B3), si `day.sessionRef` apunta a una. */
   session: DaySessionInfo | null;
 }
@@ -138,11 +145,17 @@ export async function getDayView(date: string): Promise<DayView> {
     .from(schema.healthMetrics)
     .where(eq(schema.healthMetrics.date, date));
 
-  const rows = await db
-    .select()
-    .from(schema.mealEntries)
-    .where(eq(schema.mealEntries.date, date))
-    .orderBy(asc(schema.mealEntries.createdAt), asc(schema.mealEntries.id));
+  const [rows, markerRows] = await Promise.all([
+    db
+      .select()
+      .from(schema.mealEntries)
+      .where(eq(schema.mealEntries.date, date))
+      .orderBy(asc(schema.mealEntries.createdAt), asc(schema.mealEntries.id)),
+    db
+      .select({ meal: schema.flexibleMeals.meal })
+      .from(schema.flexibleMeals)
+      .where(eq(schema.flexibleMeals.date, date)),
+  ]);
 
   const entries: EntryDTO[] = rows.map((r) => ({
     id: r.id,
@@ -186,6 +199,10 @@ export async function getDayView(date: string): Promise<DayView> {
     day: (dayRow as DayDTO) ?? null,
     health: (healthRow as HealthDTO) ?? null,
     entries,
+    flexibleMeals: deriveFlexibleMealState(
+      markerRows.map((row) => row.meal as FlexibleMealKey),
+      entries,
+    ),
     session,
   };
 }

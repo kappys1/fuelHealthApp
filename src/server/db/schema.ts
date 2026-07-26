@@ -1,17 +1,20 @@
 import {
   boolean,
+  check,
   date,
   index,
   integer,
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   real,
   text,
   time,
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import type { PlanVariant } from "@/lib/macros";
 
 /*
@@ -223,6 +226,26 @@ export const mealEntries = pgTable(
       t.clientMutationId,
       t.clientMutationIndex,
     ),
+  ],
+);
+
+// ── flexible_meals (F16) ──
+// El marcador pertenece a fecha+momento. `prevista|real` NO se guarda: se deriva
+// cruzando estas filas con meal_entries. `extra` queda fuera también a nivel BD.
+export const flexibleMeals = pgTable(
+  "flexible_meals",
+  {
+    date: date({ mode: "string" })
+      .notNull()
+      .references(() => days.date, { onDelete: "cascade" }),
+    meal: mealEnum().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.date, t.meal] }),
+    check("flexible_meals_meal_check", sql`${t.meal} <> 'extra'`),
   ],
 );
 

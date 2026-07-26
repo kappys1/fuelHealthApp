@@ -6,6 +6,7 @@ import { db, schema } from "@/server/db";
 import { productImportRow } from "../products-map";
 import {
   bloatEventImportRow,
+  flexibleMealImportRow,
   mealEntryImportRow,
   planOptionImportRow,
 } from "./backup-map";
@@ -24,7 +25,7 @@ import {
 */
 
 export const EXPORT_APP = "fuelboard";
-export const EXPORT_VERSION = 2 as const;
+export const EXPORT_VERSION = 3 as const;
 
 export interface FullExport {
   app: typeof EXPORT_APP;
@@ -40,6 +41,7 @@ export async function exportAll(): Promise<FullExport> {
     days,
     bloatEvents,
     mealEntries,
+    flexibleMeals,
     healthMetrics,
     workouts,
     medMeasurements,
@@ -59,6 +61,7 @@ export async function exportAll(): Promise<FullExport> {
     db.select().from(schema.days),
     db.select().from(schema.bloatEvents),
     db.select().from(schema.mealEntries),
+    db.select().from(schema.flexibleMeals),
     db.select().from(schema.healthMetrics),
     db.select().from(schema.workouts),
     db.select().from(schema.medMeasurements),
@@ -84,6 +87,7 @@ export async function exportAll(): Promise<FullExport> {
       days,
       bloatEvents,
       mealEntries,
+      flexibleMeals,
       healthMetrics,
       workouts,
       medMeasurements,
@@ -126,18 +130,35 @@ const v2DataShape = {
   ...v1DataShape,
   bloatEvents: z.array(anyRow),
 };
+const v3DataShape = {
+  ...v2DataShape,
+  flexibleMeals: z.array(anyRow),
+};
 const importSchema = z.discriminatedUnion("version", [
   z.object({
     app: z.literal(EXPORT_APP),
     version: z.literal(1),
     exportedAt: z.string().optional(),
-    data: z.object({ ...v1DataShape, bloatEvents: z.array(anyRow).default([]) }),
+    data: z.object({
+      ...v1DataShape,
+      bloatEvents: z.array(anyRow).default([]),
+      flexibleMeals: z.array(anyRow).default([]),
+    }),
+  }),
+  z.object({
+    app: z.literal(EXPORT_APP),
+    version: z.literal(2),
+    exportedAt: z.string().optional(),
+    data: z.object({
+      ...v2DataShape,
+      flexibleMeals: z.array(anyRow).default([]),
+    }),
   }),
   z.object({
     app: z.literal(EXPORT_APP),
     version: z.literal(EXPORT_VERSION),
     exportedAt: z.string().optional(),
-    data: z.object(v2DataShape),
+    data: z.object(v3DataShape),
   }),
 ]);
 
@@ -232,12 +253,19 @@ function assertForeignKey(
 /** Preflight completo: la vista previa nunca acepta datos que el restore rechazará. */
 function validateImportData(data: ImportData): void {
   ID_TABLES.forEach((table) => assertUniqueIds(data, table));
+  const flexibleKeys = new Set<string>();
+  data.flexibleMeals.forEach((row, index) => {
+    const key = `${String(row.date)}\u0000${String(row.meal)}`;
+    if (flexibleKeys.has(key)) importError("flexibleMeals", index, "meal");
+    flexibleKeys.add(key);
+  });
 
   const dateFields: [keyof ImportData, string][] = [
     ["dietVersions", "effectiveFrom"],
     ["days", "date"],
     ["bloatEvents", "date"],
     ["mealEntries", "date"],
+    ["flexibleMeals", "date"],
     ["healthMetrics", "date"],
     ["workouts", "date"],
     ["medMeasurements", "date"],
@@ -303,6 +331,12 @@ function validateImportData(data: ImportData): void {
   assertField(data, "days", "bloat", isNullableEnum(schema.bloatEnum.enumValues));
   assertField(data, "bloatEvents", "severity", isEnum(schema.bloatEnum.enumValues));
   assertField(data, "mealEntries", "meal", isEnum(schema.mealEnum.enumValues));
+  assertField(
+    data,
+    "flexibleMeals",
+    "meal",
+    isEnum(["almuerzo", "comida", "merienda", "cena"]),
+  );
   assertField(data, "mealEntries", "source", isEnum(schema.mealSourceEnum.enumValues));
   assertField(data, "healthMetrics", "source", isEnum(schema.healthSourceEnum.enumValues));
   assertField(data, "favorites", "meal", isEnum(schema.mealEnum.enumValues));
@@ -316,6 +350,7 @@ function validateImportData(data: ImportData): void {
   assertForeignKey(data, "planOptions", "dietVersionId", "dietVersions");
   assertForeignKey(data, "bloatEvents", "date", "days", "date");
   assertForeignKey(data, "mealEntries", "date", "days", "date");
+  assertForeignKey(data, "flexibleMeals", "date", "days", "date");
   assertForeignKey(data, "trainingSessions", "planId", "trainingPlans");
   assertForeignKey(data, "days", "sessionRef", "trainingSessions", "id", true);
   assertForeignKey(data, "chatMessages", "threadId", "chatThreads");
@@ -354,6 +389,7 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
     db.delete(schema.chatMessages),
     db.delete(schema.chatThreads),
     db.delete(schema.mealEntries),
+    db.delete(schema.flexibleMeals),
     db.delete(schema.planOptions),
     db.delete(schema.bloatEvents),
     db.delete(schema.days),
@@ -443,6 +479,13 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
     queries.push(
       db.insert(schema.bloatEvents).overridingSystemValue().values(
         data.bloatEvents.map((r) => ({ id: Number(r.id), ...bloatEventImportRow(r) })),
+      ),
+    );
+  }
+  if (data.flexibleMeals.length) {
+    queries.push(
+      db.insert(schema.flexibleMeals).values(
+        data.flexibleMeals.map(flexibleMealImportRow),
       ),
     );
   }

@@ -1,5 +1,6 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { BloatKey, MealKey, PhaseKey, PlanVariant } from "@/lib/macros";
+import type { FlexibleMealKey } from "@/lib/flexible-meals";
 import { dayKey } from "@/lib/dates";
 import { db, schema } from "@/server/db";
 import type { TemplateItem } from "@/server/db/schema";
@@ -128,6 +129,32 @@ export async function deleteEntry(id: number) {
     .where(eq(schema.mealEntries.id, id))
     .returning();
   return row ?? null;
+}
+
+// ── flexible_meals (F16) ──
+/** Marca idempotente: crea primero el día para soportar un momento aún vacío. */
+export async function markFlexibleMeal(date: string, meal: FlexibleMealKey) {
+  await ensureDay(date);
+  const [row] = await db
+    .insert(schema.flexibleMeals)
+    .values({ date, meal })
+    .onConflictDoNothing({
+      target: [schema.flexibleMeals.date, schema.flexibleMeals.meal],
+    })
+    .returning();
+  return row ?? { date, meal };
+}
+
+/** Desmarca idempotentemente; nunca toca meal_entries. */
+export async function unmarkFlexibleMeal(date: string, meal: FlexibleMealKey) {
+  await db
+    .delete(schema.flexibleMeals)
+    .where(
+      and(
+        eq(schema.flexibleMeals.date, date),
+        eq(schema.flexibleMeals.meal, meal),
+      ),
+    );
 }
 
 /** Copiar ayer (F2.5): duplica las entradas del día anterior en `date`. */

@@ -6,6 +6,7 @@ import { isRetriableRequestError } from "@/lib/request-errors";
 import { randomUUID } from "@/lib/uuid";
 import type { DayPatch } from "@/server/db/queries/mutations";
 import type { BloatKey } from "@/lib/macros";
+import type { FlexibleMealKey } from "@/lib/flexible-meals";
 
 /*
   Cola offline (07 §2 / Fase 4 PWA). Cuando no hay red, las mutaciones de registro
@@ -15,7 +16,13 @@ import type { BloatKey } from "@/lib/macros";
 */
 export interface QueuedOp {
   id?: number;
-  kind: "addEntries" | "patchDay" | "upsertBloat" | "updateBloat" | "deleteBloat";
+  kind:
+    | "addEntries"
+    | "patchDay"
+    | "setFlexibleMeal"
+    | "upsertBloat"
+    | "updateBloat"
+    | "deleteBloat";
   date: string;
   entries?: EntryInput[];
   patch?: DayPatch;
@@ -27,6 +34,8 @@ export interface QueuedOp {
   severity?: BloatKey;
   occurredAt?: string;
   bloatPatch?: { severity?: BloatKey; occurredAt?: string };
+  meal?: FlexibleMealKey;
+  marked?: boolean;
   revision?: number;
   /** Conserva la identidad local cuando un POST ya obtuvo id y queda un PATCH/DELETE. */
   createdOffline?: boolean;
@@ -302,6 +311,12 @@ async function flushQueueOnce(): Promise<number> {
         await api.addEntries(op.date, op.entries, clientMutationId);
       } else if (op.kind === "patchDay" && op.patch) {
         await api.patchDay(op.date, op.patch);
+      } else if (
+        op.kind === "setFlexibleMeal" &&
+        op.meal &&
+        op.marked != null
+      ) {
+        await api.setFlexibleMeal(op.date, op.meal, op.marked);
       } else if (op.kind === "upsertBloat" && op.severity && op.occurredAt) {
         const { event } = await api.createBloatEvent({
           date: op.date,
