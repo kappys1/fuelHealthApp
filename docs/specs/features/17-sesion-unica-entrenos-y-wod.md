@@ -232,5 +232,8 @@ por último, cambios de prompts congelados.
 - Quick-fix de uso real (domingo 26-jul): Plan permite navegar a semanas futuras y el
   importador hereda la semana visible, en vez de recortarla a la actual. Cubierto por
   regresión pura con `2026-07-26 → 2026-07-27` y Playwright sin escrituras.
+- Quick-fix de uso real (Week 31): el formateador prioriza párrafos completos sobre saltos
+  simples. La fila T1 real pasa de fragmentarse en líneas a 6 bloques coherentes y conserva
+  byte a byte el contenido; F-IA-10, modelo y sesiones guardadas permanecen intactos.
 - Pendiente: AC 🖐 1–5 requieren pulgar de Alex. AC9 queda parcial hasta aportar
   `TP1_Week_29.pdf`; no se auto-valida.

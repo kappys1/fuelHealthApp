@@ -404,6 +404,8 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   ordenado. Consistencia real ×3 estable para WOD y running; PDF real pendiente.
 - Quick-fix de uso real: el navegador ya admite semanas futuras y el importador abre
   preseleccionando la semana visible (caso domingo → programación del lunes siguiente).
+- La ficha prioriza párrafos completos sobre líneas sueltas: el T1 real de Week 31 pasa
+  de numerar cada instrucción a 6 bloques legibles, sin cambiar el texto guardado.
 
 ---
 
