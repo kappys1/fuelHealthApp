@@ -15,7 +15,7 @@ function parseId(param: string): number | null {
 const patchZ = z.object({
   nombre: z.string().min(1).max(200).optional(),
   tipo: trainingTipoZ.optional(),
-  contenido: z.string().max(4000).optional(),
+  contenido: z.string().max(20000).optional(),
   kcalMin: z.number().int().min(0).max(20000).nullable().optional(),
   kcalMax: z.number().int().min(0).max(20000).nullable().optional(),
   duracionMin: z.number().int().min(0).max(1000).nullable().optional(),

@@ -138,7 +138,7 @@ export function dayDumpPrompt(
 
 // ── F-IA-5 · Analizar sesión pegada (WOD) ──
 export function wodPrompt(textoPegado: string, contexto: string): string {
-  return `${contexto} Sesión de entrenamiento:\n\n${textoPegado}\n\nEstima la duración total típica y el gasto energético de la sesión completa (fuerza, WOD y accesorios, incluyendo descansos entre series; sin contar EPOC). Sé conservador. Responde SOLO con JSON válido, sin markdown: {"nombre": string (etiqueta corta, ej. "Halterofilia + WOD"), "duracion_min": number, "kcal_min": number, "kcal_max": number, "comentario": string breve}`;
+  return `${contexto} Sesión de entrenamiento:\n\n${textoPegado}\n\nEstima la duración total típica y el gasto energético de la sesión completa (fuerza, WOD y accesorios, incluyendo descansos entre series; sin contar EPOC). Sé conservador. Clasifica el tipo usando EXACTAMENTE uno de: fuerza, halterofilia, gimnasticos, metabolico, aerobico, mixto, descanso, otro. El texto original se conserva fuera de tu respuesta: NO lo resumas ni lo regeneres. Responde SOLO con JSON válido, sin markdown: {"nombre": string (etiqueta corta, ej. "Halterofilia + WOD"), "tipo": string, "duracion_min": number, "kcal_min": number, "kcal_max": number, "comentario": string breve}`;
 }
 
 /**
@@ -395,7 +395,7 @@ export function trainingImportPrompt(
   const fuente = texto?.trim()
     ? `Programación semanal de entrenamiento (texto):\n\n${texto.trim()}\n\n`
     : "El documento adjunto es la programación semanal de entrenamiento de este atleta. ";
-  return `${contexto} ${fuente}Extrae CADA sesión de la semana con: clave (ej. "T1"; si no hay, usa "Día 1", "Día 2"…), nombre corto, tipo (EXACTAMENTE uno de: fuerza, halterofilia, gimnasticos, metabolico, aerobico, mixto, descanso, otro), contenido resumido pero fiel (bloques principales), y estima la duración total en minutos y el gasto energético de la sesión completa como rango (kcal_min/kcal_max) para este atleta, con los criterios de una sesión típica: incluye descansos entre series, sé conservador y NO cuentes EPOC. Si una sesión es de descanso, tipo "descanso", duración 0 y gasto 0. Responde SOLO con JSON válido, sin markdown: {"programa": string|null, "etiqueta": string|null, "sesiones": [{"clave": string, "nombre": string, "tipo": string, "contenido": string, "duracion_min": number, "kcal_min": number, "kcal_max": number}]}`;
+  return `${contexto} ${fuente}Extrae CADA sesión de la semana con: clave (ej. "T1"; si no hay, usa "Día 1", "Día 2"…), nombre corto, tipo (EXACTAMENTE uno de: fuerza, halterofilia, gimnasticos, metabolico, aerobico, mixto, descanso, otro), y contenido COMPLETO, fiel y ordenado: conserva todos los bloques relevantes del documento, en su orden original, sin resumir ni omitir ejercicios, series, repeticiones, descansos o accesorios; separa los bloques con saltos de línea dentro de "contenido". Estima además la duración total en minutos y el gasto energético de la sesión completa como rango (kcal_min/kcal_max) para este atleta, con los criterios de una sesión típica: incluye descansos entre series, sé conservador y NO cuentes EPOC. Si una sesión es de descanso, tipo "descanso", duración 0 y gasto 0. Responde SOLO con JSON válido, sin markdown: {"programa": string|null, "etiqueta": string|null, "sesiones": [{"clave": string, "nombre": string, "tipo": string, "contenido": string, "duracion_min": number, "kcal_min": number, "kcal_max": number}]}`;
 }
 
 // ── F-IA-11 · Leer etiqueta nutricional (F07 · Mis productos) ──

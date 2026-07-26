@@ -10,7 +10,7 @@ import { wodPrompt } from "@/server/ai/prompts";
 import { wodZ } from "@/server/ai/schemas";
 
 const bodyZ = z.object({
-  texto: z.string().min(1).max(4000),
+  texto: z.string().min(1).max(20000),
   date: dateZ.optional(),
 });
 

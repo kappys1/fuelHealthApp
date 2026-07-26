@@ -394,6 +394,17 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 
 ---
 
+### v1.18 · Sesión única: Entrenos legibles + WOD integrado (F17)
+
+- Plan · Entrenos recupera la ficha de lectura del mockup, con contenido íntegro derivado
+  en bloques; edición, reasignación, borrado y gestión semanal viven en sheets.
+- Un comando transaccional crea o actualiza una única sesión por fecha, sincroniza Plan↔Hoy
+  y permite deshacer el snapshot anterior de sesión + día, sin migración.
+- F-IA-5 conserva el WOD original y añade `tipo`; F-IA-10 exige contenido completo y
+  ordenado. Consistencia real ×3 estable para WOD y running; PDF real pendiente.
+
+---
+
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
 
 ### Arquitectura, toolchain y build
