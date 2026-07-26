@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   ArrowDown,
@@ -14,13 +15,14 @@ import {
   Minus,
   Plus,
   Scale,
+  Sparkles,
   TriangleAlert,
   Watch,
   Waves,
 } from "lucide-react";
 import { useState } from "react";
-import { WodAnalyzer } from "@/components/hoy/mi-dia-card";
 import { TrainingSessionDetail } from "@/components/training/training-session-detail";
+import { TrainingSessionComposer } from "@/components/training/training-session-composer";
 import {
   Select,
   SelectContent,
@@ -316,8 +318,10 @@ export function TrainingSection({
   trainingSessions: TrainingSessionDTO[];
   suggestedPhase: PhaseKey | null;
 }) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [wodOpen, setWodOpen] = useState(false);
   const day = view.day;
   const session = day?.sessionLabel ?? view.session?.nombre ?? "Sin sesión registrada";
   const kcal = view.health?.activeKcal ?? day?.sessionKcal ?? null;
@@ -428,7 +432,17 @@ export function TrainingSection({
                 </button>
               ) : null}
             </label>
-            <WodAnalyzer date={view.date} onPatch={onPatch} />
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setWodOpen(true);
+              }}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary-soft px-4 text-[13px] font-semibold text-primary"
+            >
+              <Sparkles className="size-4" aria-hidden />
+              Analizar WOD pegado
+            </button>
           </div>
         </SheetContent>
       </Sheet>
@@ -454,6 +468,17 @@ export function TrainingSection({
           </SheetContent>
         </Sheet>
       ) : null}
+
+      <TrainingSessionComposer
+        open={wodOpen}
+        onOpenChange={setWodOpen}
+        date={view.date}
+        existingName={view.session?.nombre ?? day?.sessionLabel ?? null}
+        initialMode="wod"
+        onSaved={() =>
+          queryClient.invalidateQueries({ queryKey: ["today", view.date] })
+        }
+      />
     </section>
   );
 }

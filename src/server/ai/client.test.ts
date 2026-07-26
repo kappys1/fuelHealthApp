@@ -49,12 +49,26 @@ describe("schemas de IA — contrato de validación (04-IA)", () => {
   it("wodZ valida el rango de gasto de F-IA-5", () => {
     const r = wodZ.safeParse({
       nombre: "Halterofilia + WOD",
+      tipo: "mixto",
       duracion_min: 90,
       kcal_min: 500,
       kcal_max: 700,
       comentario: "Sesión dura",
     });
     expect(r.success).toBe(true);
+  });
+
+  it("wodZ rechaza un tipo fuera del enum exacto de F17", () => {
+    expect(
+      wodZ.safeParse({
+        nombre: "WOD",
+        tipo: "crossfit",
+        duracion_min: 60,
+        kcal_min: 400,
+        kcal_max: 600,
+        comentario: "Mixto",
+      }).success,
+    ).toBe(false);
   });
 });
 

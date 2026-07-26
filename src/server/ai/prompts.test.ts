@@ -38,6 +38,8 @@ import {
   photoPrompt,
   prepareVisitPrompt,
   sharedGuardrails,
+  trainingImportPrompt,
+  wodPrompt,
 } from "./prompts";
 
 /*
@@ -46,6 +48,30 @@ import {
 */
 
 const TODAY = "2026-07-12";
+
+describe("F17 · contratos congelados de entreno", () => {
+  it("F-IA-5 pide el tipo exacto y no regenera el WOD pegado", () => {
+    const wod = "Fuerza: Snatch\nCrossFit: 5 rondas";
+    const prompt = wodPrompt(wod, "Atleta dinámico.");
+    expect(prompt).toContain(wod);
+    expect(prompt).toContain(
+      "fuerza, halterofilia, gimnasticos, metabolico, aerobico, mixto, descanso, otro",
+    );
+    expect(prompt).toContain('"tipo": string');
+    expect(prompt).not.toContain('"contenido"');
+  });
+
+  it("F-IA-10 exige contenido completo, fiel, ordenado y separado por bloques", () => {
+    const prompt = trainingImportPrompt(
+      "Atleta dinámico.",
+      "Lunes: fuerza\nMartes: carrera",
+    );
+    expect(prompt).toContain("contenido COMPLETO");
+    expect(prompt).toContain("todos los bloques relevantes");
+    expect(prompt).toContain("saltos de línea");
+    expect(prompt).not.toContain("contenido resumido");
+  });
+});
 
 describe("foto sin pauta nutricional", () => {
   it("declara el objetivo ausente y exige un veredicto null", () => {

@@ -22,7 +22,11 @@ El PRD define QUÉ hace la app (requisitos F1-F8: todos siguen vigentes). Este d
 - **Ajustes se organiza en 3 grupos** (con encabezado de sección): **Atleta** (perfil), **App** (tema, búsqueda web del chat, sync de Salud, import CSV, copia de seguridad, mapeo de sesiones) y **Cuenta** (cerrar sesión). Separa "quién soy" de "cómo se comporta la app"; un solo icono en el header (no se añade uno de perfil: destino de uso raro, no gana chrome permanente).
 - **Perfil del atleta** (doc 10 A1) vive en el grupo **Atleta** de Ajustes: sub-secciones aireadas (Deporte y entreno · Datos · Suplementos y lesiones · Objetivo), inputs a 44px (target táctil 05 §4), suplementos/lesiones como chips, y «Objetivo» (vigente destacado + «Cambiar objetivo» que añade una entrada fechada + historial plegado). Es la fuente del `ATHLETE_CONTEXT` de la IA (principio 9).
 - **Chat** es pestaña propia: es el destino conversacional de «pregúntale a tus datos».
-- **Plan en 2 segmentos (doc 10 B3b)**: `Dieta | Entrenos` (mismo patrón que Progreso). *Dieta* = objetivos + opciones + importar dieta. *Entrenos* = la semana vigente (ver/editar sesiones con kcal editable, reasignar día, borrar) + importar semana.
+- **Plan en 2 segmentos (doc 10 B3b + F17)**: `Dieta | Entrenos` (mismo patrón que
+  Progreso). *Dieta* = objetivos + opciones + importar dieta. *Entrenos* = selector semanal
+  + siete días + ficha de lectura de la sesión canónica (nombre, metadatos y contenido por
+  bloques). Crear (Manual o Pegar WOD · IA), editar/reasignar/borrar sesión y gestionar la
+  semana se resuelve en sheets; un día vacío muestra `Añadir sesión`.
 
 ## 3. Pantalla Hoy (rediseñada — task-first)
 
@@ -32,7 +36,7 @@ De arriba abajo, y NADA más:
 2. **FuelGauge** con sus 4 barras y la línea «Faltan…». En su esquina, icono ✨ que abre el **Coach en sheet** (ayer / hoy) — el coach ya no es tarjeta permanente.
 3. **Línea de estado del día** (doc 07 §1): UNA acción contextual por hora («Falta el peso de hoy» → tap → sheet de peso). Desaparece cuando el día está al día.
 4. **Timeline de comidas**: sección por comida (Almuerzo → Cena + Extra) con sus entradas y subtotal kcal; cada sección tiene su «+» que abre el sheet de añadir CON esa comida preseleccionada. Entradas: tap = editar en línea, ★, miniatura de foto, swipe/papelera = borrar con undo. En el panel expandido de Almuerzo/Comida/Merienda/Cena vive la acción secundaria `Marcar como flexible` (target ≥44 px), con estado derivado `Flexible prevista` si está vacío y `Flexible` si ya contiene entradas; el chip también aparece en la fila colapsada. No crea tarjeta ni sheet. Una fase especial impide crear el marcador y prevalece sobre uno existente, que puede retirarse sin borrar comidas.
-5. **Tarjeta «Mi día» colapsada**: una línea resumen («T3 · Fuerza + Gimnásticos · Normal · 92,1 kg») que expande a: peso, agua, % grasa, sesión (+ analizador de WOD pegado), fase, hinchazón, notas, línea «Del reloj». Colapsada por defecto una vez rellena.
+5. **Tarjeta «Mi día» colapsada**: una línea resumen («T3 · Fuerza + Gimnásticos · Normal · 92,1 kg») que expande a: peso, agua, % grasa, sesión (+ analizador de WOD pegado), fase, hinchazón, notas, línea «Del reloj». Colapsada por defecto una vez rellena. **F17:** la sesión muestra nombre, tipo y duración; `Ver sesión` abre la misma ficha de Plan. Analizar guarda el WOD original como la sesión canónica del día (crea o sustituye) y ofrece undo; abrir la ficha no llama a la IA.
 
 Barra inferior de la pestaña Hoy: botón primario fijo **«+ Añadir comida»** (siempre alcanzable con el pulgar, además de los «+» por sección).
 
@@ -72,7 +76,12 @@ Listo en ≤15 segundos. Cada paso es saltable; guardar en cada paso (si lo aban
 
 **Defaults inteligentes (regla: la app nunca pregunta lo que puede saber):**
 - **Sesión por día de la semana**: mapeo configurable en Ajustes (L→T1, M→T2, X→T3, J→T4, V→T5, S→T6, D→Descanso, editable — The Progrm es semanal). El check-in solo pide confirmar.
-- **Dropdown de sesión (doc 10 B3)**: si hay una semana de entreno importada que cubre la fecha, el selector (Mi día + check-in) muestra **sus sesiones reales** + Competición/Descanso (las genéricas T1–T6 se ocultan); sin semana importada, la lista genérica. Off-plan → analizador de WOD (F-IA-5). Elegir una sesión del plan ancla la sesión real del día (nombre + gasto), que el Coach/Chat/Visita citan.
+- **Dropdown de sesión (doc 10 B3 + F17)**: si hay una semana de entreno que cubre la
+  fecha, el selector (Mi día + check-in) muestra **sus sesiones reales** +
+  Competición/Descanso (las genéricas T1–T6 se ocultan); sin semana, la lista genérica.
+  Off-plan → analizador de WOD (F-IA-5). Elegir o guardar ancla una única
+  `training_session` real del día y sincroniza nombre + gasto; Plan, Hoy, Historial y
+  Coach/Chat/Visita leen esa misma referencia.
 - **Peso**: precargado con el último; **agua**: chips +250 ml / +500 ml / botella (750), no un campo de litros; **comida del sheet**: por hora; **gramos**: baseG; **fase**: Normal salvo que ayer fuera Carga/Competición (entonces sugiere la siguiente lógica: Carga→Competición→Recuperación→Normal).
 - Todo default es un valor propuesto visible y cambiable en un toque — nunca un valor oculto.
 

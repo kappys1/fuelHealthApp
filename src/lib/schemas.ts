@@ -129,7 +129,7 @@ export const trainingSessionCreateZ = z.object({
   key: z.string().max(40),
   nombre: z.string().min(1).max(200),
   tipo: trainingTipoZ,
-  contenido: z.string().max(4000),
+  contenido: z.string().max(20000),
   kcalMin: z.number().int().min(0).max(20000).nullable(),
   kcalMax: z.number().int().min(0).max(20000).nullable(),
   duracionMin: z.number().int().min(0).max(1000).nullable(),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRAINING_TIPOS } from "@/lib/training";
 
 /*
   Schemas Zod de las respuestas de IA (formas EXACTAS de 04-IA). Los números se
@@ -84,6 +85,7 @@ export type DayDumpItem = z.infer<typeof dayDumpItemZ>;
 // ── F-IA-5 · Analizar sesión pegada (WOD) ──
 export const wodZ = z.object({
   nombre: z.string(),
+  tipo: z.enum(TRAINING_TIPOS),
   duracion_min: num,
   kcal_min: num,
   kcal_max: num,
