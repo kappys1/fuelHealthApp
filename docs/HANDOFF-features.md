@@ -283,6 +283,54 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
     otra variante como exacta, pide etiqueta), AC3 (HRV 194 → artefacto, nunca
     «recuperación extrema»), AC5 (confirmación → crea/actualiza el producto exacto como
     `etiqueta` sin tocar nada más). Resto de AC cubiertos por la suite (297 tests) + build.
+- ✅ **Comidas flexibles: contexto, adherencia e impacto** (idea Alex, 26-jul —
+  **F16 implementada; validación 🖐 pendiente**:
+  [`docs/specs/features/16-comidas-flexibles-y-impacto.md`](./specs/features/16-comidas-flexibles-y-impacto.md)):
+  no forma parte explícita de la pauta de Regenera ni tiene condiciones
+  prescritas; es el acuerdo personal de dejar flexibles normalmente la cena del sábado y
+  desayuno, comida y merienda del domingo, aunque alguna (p. ej. la merienda) puede acabar
+  encajando en el plan. Alex intenta adecuarlas todo lo posible. Planteamiento literal:
+  *«las calorías no cuentan igual… ¿cómo lo harías?»*. F16 separa el efecto fisiológico real
+  del tratamiento de producto (adherencia, incertidumbre de la estimación, FuelGauge,
+  Tendencia y contexto de Coach/Chat) sin presentarlo falsamente como pauta del nutricionista.
+  **Caso real 25-jul**: cena flexible con pizza; antes de cenar, el Coach —sin conocer esa
+  intención— vio 992 kcal/55 P/103 C pendientes y recomendó hidratos en la merienda
+  pre-T6 + 210 g de pollo/pavo en la cena. Debe conservar el consejo de repostaje que aporte,
+  pero no intentar cerrar con opciones de una cena normal cuando ese momento ya esté marcado
+  como flexible. Tras registrarla, el Gauge mostró honestamente 2.440/1.800 (+640), 119 P,
+  273 C y 94 F; el dato flexible debe contextualizar, no borrar esas cifras.
+  **Lectura actualizada del Coach**: trató el balance como adecuado para el rendimiento y
+  reconoció la proteína cubierta (conservar), pero presentó la pizza como algo a monitorizar
+  con el nutricionista por su efecto sobre un peso puntual de 91,4 kg y cerró con «prioriza
+  proteína magra y carbohidratos complejos para equilibrar la semana» (evitar: causalidad de
+  una sola comida/pesada + compensación suave). Con marcador flexible, debe contextualizarla,
+  mirar patrón/tendencia si existe y volver a la pauta normal sin compensar.
+  **Reglas refinadas tras revisión cruzada**: (1) el marcador vive por `fecha + momento`,
+  pero un día con ≥1 momento marcado que contenga ≥1 entrada queda fuera del denominador de
+  adherencia de **kcal** pero su proteína sigue contando; aparece contado explícitamente
+  como flexible; marcar una comida vacía solo crea `Flexible prevista` y NO excluye el día;
+  (2) flexible es un dato separado, NUNCA una fase: el día entero conserva todas sus kcal en
+  ingesta media/TDEE, Tendencia y peso/ma7; el Gauge conserva cifras pero usa tono
+  neutro-informativo; (3) las fases especiales tienen precedencia y no ofrecen el marcado;
+  (4) sin contador, cuota ni límite semanal; (5) `prevista` entra en v1 porque resuelve el
+  consejo previo a la cena; (6) fecha siempre Europe/Madrid vía `lib/dates`; (7) Coach y
+  Chat ven previstas+reales del día en curso; en
+  histórico, Chat/Preparar visita y la analítica reciben solo flexibles realmente
+  registradas; el hash de lectura del Coach incluye el marcador; (8) `Últimos días` muestra
+  chip Flexible; copiar/plantilla/duplicar/F-IA-4 nunca copian el marcador.
+  **KPI propuesto (26-jul)**: para que excluir de adherencia no vuelva invisibles esas kcal,
+  Progreso muestra `Impacto flexible · 28 d` tras la primera flexible real: nº de
+  momentos/días, kcal medias de días flexibles vs regulares, porcentaje de sus objetivos
+  históricos y diferencia aproximada kcal/%. Sirve como evidencia para decidir con Regenera
+  la programación futura; no prescribe cambios. Siempre con `≈` y tamaños de muestra; hasta
+  ≥3 días flexibles + ≥7 regulares muestra conteos pero no comparación. Full-width bajo
+  Consistencia, no otra tarjeta en Hoy. NO atribuir peso/HRV/hinchazón a flexibles con pocos
+  datos; futuros desgloses por momento solo tras uso real.
+  **Implementación 26-jul**: migración aditiva `0016`; commits `c958fe6` (dato/ciclo de
+  vida), `327a7c9` (analítica/UI) y `10824d1` (IA). Migración aplicada y lectura real de
+  Neon confirmada tras resolver el error inicial de tabla ausente. `typecheck` + 373 tests
+  + React Doctor 100/100 verdes; prompts congelados intactos. Pendientes del pulgar de Alex
+  los AC 1/2/3/4/6/11/14/15/16/17; el resto tiene evidencia automatizada.
 - _(añadir aquí las que surjan)_
 
 ---

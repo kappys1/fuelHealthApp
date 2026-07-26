@@ -15,6 +15,8 @@ days               date (PK, 'YYYY-MM-DD' Europe/Madrid) · weight · water_l ·
 meal_entries       id · date (FK days) · meal (…|extra) · name · kcal · prot ·
                    carb · fat · source (plan|foto|manual|ia|fav|plantilla) ·
                    photo_url (null) · created_at
+flexible_meals     date (FK days, cascade) · meal
+                   (almuerzo|comida|merienda|cena) · created_at · PK(date, meal)
 health_metrics     date (PK) · steps · active_kcal · basal_kcal · hrv_ms ·
                    sleep_h · resting_hr · vo2max · water_l · weight ·
                    body_fat_pct · source (endpoint|csv) · updated_at
@@ -52,13 +54,30 @@ ingestaMedia = media(kcal de días con registro y phase == normal)
 TDEE = ingestaMedia + deficitDía
 ```
 
+Los días con comidas flexibles reales conservan el 100 % de su ingesta en
+`ingestaMedia`/TDEE y su peso en ma7. Flexible es contexto, no una fase ni un filtro
+energético.
+
 **Adherencia (últimos 14 días con registro)**:
 ```
-n        = días con kcal registradas
-normalN  = de esos, con phase == normal
-enRango  = normalN con |kcal − objetivo| / objetivo ≤ 0.10
-protOk   = normalN con prot ≥ 0.90 × objetivoProt
+n                = días con kcal registradas
+kcalN            = phase == normal, objetivo kcal válido y sin flexible real
+proteinN         = phase == normal y objetivo proteína válido (incluye flexibles)
+flexibleN        = días normales con ≥1 momento flexible real
+flexibleMoments  = suma de momentos flexibles reales de esos días
+specialN         = días con fase especial
+enRango          = kcalN con |kcal − objetivo| / objetivo ≤ 0.10
+protOk           = proteinN con prot ≥ 0.90 × objetivoProt
 ```
+
+`Flexible prevista` (marcador sin entrada en ese momento) no afecta a analítica.
+
+**Impacto flexible (28 días naturales)**: en días con registro, fase Normal y objetivo
+válido, separar `F` (≥1 flexible real) de `R` (ninguna). Calcular media kcal y
+`media(kcal / objetivo histórico × 100)` por grupo;
+`diferenciaObservadaKcal = mediaF − mediaR` y
+`diferenciaObservadaPct = diferenciaObservadaKcal / mediaR × 100`. Solo comparar con
+`|F| ≥ 3` y `|R| ≥ 7`; es descriptivo, no causal.
 
 **Objetivos derivados del plan** (F1.4): para cada comida — Almuerzo: media de sus opciones; Merienda: suma de todas; Comida/Cena: agrupar por `grp` y sumar la media de cada grupo. Acumular también `kmin/kmax` (mín/máx kcal por grupo) para el rango del día pautado.
 
@@ -114,6 +133,8 @@ Entrada: `fuelboard-export-YYYY-MM-DD.json` = `{ targets, logs, med, favs, templ
 - `plan` (si existe) → `plan_options` de esa versión; opciones sin `carb/fat` se rellenan por `id` desde el plan semilla (misma migración que hizo el PoC); las de usuario sin match, a 0 con flag para revisar.
 - `logs` (objeto fecha→día): `meals[]` → `meal_entries`; `weight/water/bodyFat/session/sessionKcal/mode/bloat/notes` → `days` (mapear `mode` a `phase`); `steps/activeKcal/basalKcal/hrv/sleep/restingHR/vo2max` → `health_metrics` con `source='csv'`.
 - `med[]` → `med_measurements`. `favs` → `favorites`. `templates` → `day_templates`.
+- El PoC no contiene marcadores: migra cero `flexible_meals` sin inventarlos ni borrar los
+  existentes. Export/restore v3 sí los conserva y acepta exports v1/v2 sin esa tabla.
 - Script idempotente (`pnpm migrate:poc <archivo>`), con resumen: nº días, entradas, MEDs, favoritos, plantillas. *(AC: re-ejecutarlo no duplica nada.)*
 
 Contexto MED histórico que Alex meterá a mano (fechas aproximadas, confirmará): ciclo volumen sept-2025→ene-2026 (89,7→94,5 kg; grasa 7,71→10,77; músculo 51,54→52,13) y definición may→jul-2026 (96,2→91,7 kg; grasa 11,06→8,99; músculo 53,13→51,79). La app debe soportar entrada retroactiva sin fricción.
