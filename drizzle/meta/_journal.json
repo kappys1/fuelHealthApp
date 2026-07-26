@@ -134,6 +134,20 @@
       "when": 1785091322703,
       "tag": "0018_f20_training_weekday_cutover",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785094967867,
+      "tag": "0019_smart_sabretooth",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1785097602752,
+      "tag": "0020_tearful_lady_vermin",
+      "breakpoints": true
     }
   ]
 }

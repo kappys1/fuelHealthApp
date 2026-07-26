@@ -36,6 +36,7 @@ import {
   chatTitlePrompt,
   coachPrompt,
   dayDumpPrompt,
+  planOptionsList,
   planOptionPrompt,
   photoPrompt,
   prepareVisitPrompt,
@@ -274,6 +275,7 @@ describe("el coach conoce el plan (F01 Fase 1)", () => {
       grp: "Proteína",
       name: "Pavo a la plancha",
       baseG: 150,
+      unit: "g",
       kcal: 165,
       prot: 32,
       carb: 0,
@@ -307,6 +309,12 @@ describe("el coach conoce el plan (F01 Fase 1)", () => {
   it("pendingPlanOptions omite comidas ya registradas y sin opciones", () => {
     const pendiente = pendingPlanOptions({ cena: opts }, ["almuerzo"]);
     expect(pendiente).toBe(""); // 'cena' no está en pending; 'almuerzo' no tiene opciones
+  });
+
+  it("F19: planOptionsList rotula la ración con la unidad real", () => {
+    const lista = planOptionsList([{ ...opts[0]!, unit: "ml" }]);
+    expect(lista).toContain("150 ml");
+    expect(lista).not.toContain("150 g →");
   });
 
   it("F16 pre-pizza: una cena prevista no expone pavo ni fuerza cerrar el hueco", () => {
@@ -427,6 +435,7 @@ describe("F16 · contexto IA flexible", () => {
           source: "manual",
           photoUrl: null,
           grams: null,
+          unit: "g",
           baseG: null,
           baseKcal: null,
           baseProt: null,
@@ -1433,6 +1442,7 @@ describe("planSummary lleva los macros de cada opción (DECISIONS #56)", () => {
         grp: "Proteína",
         name: "Carne magra",
         baseG: 210,
+        unit: "ml",
         kcal: 231,
         prot: 46,
         carb: 0,
@@ -1443,7 +1453,7 @@ describe("planSummary lleva los macros de cada opción (DECISIONS #56)", () => {
     ];
     const s = planSummary(targets, { cena: opts });
     // Sin macros el chat no puede proyectar el día → el bug de #56. Con macros sí.
-    expect(s).toContain("Carne magra 210 g = 231 kcal · 46P/0C/5F");
+    expect(s).toContain("Carne magra 210 ml = 231 kcal · 46P/0C/5F");
     expect(s).toContain("SÍ figuran en tus datos");
   });
 });

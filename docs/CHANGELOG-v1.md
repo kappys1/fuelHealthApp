@@ -448,7 +448,21 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   preparación genérica; el péndulo contrario conserva la preparación si coincide completa.
 - AC1 validado por Alex: «Café con leche con almendras 0» a 250 g → 40 kcal · 2P/0C/4F.
   Café F-IA-3 ×3 = 70/70/70; 427 tests + typecheck verdes.
-- Sin migración, env ni backfill. **F19 Fase 2 queda aprobada y pendiente, sin adelantar.**
+- Sin migración, env ni backfill en esta fase. La Fase 2 se entrega aparte en v1.22.
+
+### v1.22 · Unidad y copia desde «Mis productos» en el Plan (F19 Fase 2)
+
+- `plan_options.unit` reutiliza `product_unit` (`g|ml|ud`) con migración aditiva
+  `0019`, default `g`; las 119 opciones existentes quedaron compatibles sin pérdida.
+- La unidad viaja por DTO/API/CRUD, cambio de objetivos, importación de dieta,
+  Historial, export/restore, PoC y seed; los datos anteriores caen a `g`.
+- Plan, búsqueda universal/«Del plan» en Hoy y los contextos IA dejan de asumir `g`.
+- El editor muestra unidad y, solo sin variantes, «Mis productos»: copia nombre,
+  base, macros, unidad y grupo si existe; queda editable y sin vínculo vivo.
+- Enmienda AC7 de uso real: `meal_entries.unit` (`0020`) conserva el rótulo al
+  registrar, duplicar/copiar/deshacer y en backup; backfill seguro recuperó la
+  entrada `ml` ya creada. La aritmética no cambia.
+- AC7/AC8/AC9 validados por Alex; F19 cerrada. 440 tests verdes.
 
 ---
 

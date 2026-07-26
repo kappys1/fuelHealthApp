@@ -25,6 +25,7 @@ const view: DayView = {
       source: "manual",
       photoUrl: null,
       grams: 100,
+      unit: "g",
       baseG: 100,
       baseKcal: 200,
       baseProt: 4,

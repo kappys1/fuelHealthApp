@@ -57,6 +57,7 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
       source: "plan",
       photoUrl: null,
       grams: 240,
+      unit: "ml",
       baseG: 150,
       baseKcal: 195,
       baseProt: 5,
@@ -69,6 +70,7 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
     const row = mealEntryImportRow(exported);
     expect(row.name).toBe("Arroz");
     expect(row.grams).toBe(240);
+    expect(row.unit).toBe("ml");
     expect(row.baseG).toBe(150);
     expect(row.baseKcal).toBe(195);
     expect(row.baseProt).toBe(5);
@@ -114,6 +116,7 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
     };
     const row = mealEntryImportRow(legacy);
     expect(row.grams).toBeNull();
+    expect(row.unit).toBe("g");
     expect(row.baseG).toBeNull();
     expect(row.baseKcal).toBeNull();
     expect(row.clientMutationId).toBeNull();
@@ -129,7 +132,7 @@ describe("mealEntryImportRow — round-trip de base+cantidad (AC6)", () => {
   previo a F08 (sin `variants`) degrada a opción normal ([]) en vez de romper.
 */
 describe("planOptionImportRow — round-trip de variantes (F08, AC5)", () => {
-  it("conserva las 4 variantes de «carne magra» y remapea la FK", () => {
+  it("conserva unidad + variantes y remapea la FK", () => {
     const exported = {
       id: 7,
       dietVersionId: 3,
@@ -137,6 +140,7 @@ describe("planOptionImportRow — round-trip de variantes (F08, AC5)", () => {
       grp: "Proteína",
       name: "Carne magra (pollo/pavo/ternera/cerdo)",
       baseG: 210,
+      unit: "ud",
       kcal: 231,
       prot: 46,
       carb: 0,
@@ -153,6 +157,7 @@ describe("planOptionImportRow — round-trip de variantes (F08, AC5)", () => {
     expect(row.dietVersionId).toBe(99);
     expect(row.name).toBe("Carne magra (pollo/pavo/ternera/cerdo)");
     expect(row.baseG).toBe(210);
+    expect(row.unit).toBe("ud");
     expect(row.sort).toBe(12);
     expect(row.variants).toHaveLength(4);
     expect(row.variants[3]).toEqual({
@@ -164,7 +169,7 @@ describe("planOptionImportRow — round-trip de variantes (F08, AC5)", () => {
     });
   });
 
-  it("un export previo a F08 (sin `variants`) → opción normal ([])", () => {
+  it("AC10: un export previo a F19 usa g y sin `variants` queda normal", () => {
     const legacy = {
       dietVersionId: 1,
       meal: "cena",
@@ -180,6 +185,7 @@ describe("planOptionImportRow — round-trip de variantes (F08, AC5)", () => {
     const row = planOptionImportRow(legacy, 1);
     expect(row.variants).toEqual([]);
     expect(row.baseG).toBeNull();
+    expect(row.unit).toBe("g");
     expect(row.kcal).toBe(60);
   });
 });

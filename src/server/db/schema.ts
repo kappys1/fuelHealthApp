@@ -140,6 +140,9 @@ export const planOptions = pgTable("plan_options", {
   grp: grpEnum().notNull(),
   name: text().notNull(),
   baseG: integer("base_g"),
+  // Unidad de visualización de la ración pautada (F19). Escala 1:1: no altera
+  // factor = cantidad/baseG ni se propaga a meal_entries.
+  unit: productUnitEnum().notNull().default("g"),
   kcal: integer().notNull(),
   prot: real().notNull(),
   carb: real().notNull(),
@@ -208,6 +211,9 @@ export const mealEntries = pgTable(
     // Gramos como dato de primera clase (F06): cantidad actual + base inmutable de
     // referencia para reescalar macros/kcal (factor = grams / baseG).
     grams: integer(),
+    // Unidad de visualización de grams/baseG (F19, enmienda de uso real). No cambia
+    // el escalado 1:1; evita que una entrada nacida en ml/ud vuelva a rotularse g.
+    unit: productUnitEnum().notNull().default("g"),
     baseG: integer("base_g"),
     baseKcal: integer("base_kcal"),
     baseProt: real("base_prot"),

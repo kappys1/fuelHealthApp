@@ -7,14 +7,16 @@ diet_versions      id · effective_from (date) · kcal_target · prot_target ·
                    carb_target · fat_target · note
 plan_options       id · diet_version_id · meal (almuerzo|comida|merienda|cena) ·
                    grp (Verdura|Hidratos|Proteína|Grasa|Otros|Opción única) ·
-                   name · base_g (int, null) · kcal · prot · carb · fat · sort
+                   name · base_g (int, null) · unit (g|ml|ud, default g) ·
+                   kcal · prot · carb · fat · sort
 days               date (PK, 'YYYY-MM-DD' Europe/Madrid) · weight · water_l ·
                    body_fat_pct · session_label · session_kcal (int, null) ·
                    phase (normal|carga|competicion|recuperacion) ·
                    bloat (null|ninguna|leve|moderada|alta) · notes
 meal_entries       id · date (FK days) · meal (…|extra) · name · kcal · prot ·
                    carb · fat · source (plan|foto|manual|ia|fav|plantilla) ·
-                   photo_url (null) · created_at
+                   photo_url (null) · grams/base_g/base_* (null) ·
+                   unit (g|ml|ud, default g) · created_at
 flexible_meals     date (FK days, cascade) · meal
                    (almuerzo|comida|merienda|cena) · created_at · PK(date, meal)
 health_metrics     date (PK) · steps · active_kcal · basal_kcal · hrv_ms ·

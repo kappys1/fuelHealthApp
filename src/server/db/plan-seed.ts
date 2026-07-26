@@ -16,6 +16,7 @@ export interface SeedOption {
   grp: Grp;
   name: string;
   baseG: number | null;
+  unit: "g";
   kcal: number;
   prot: number;
   carb: number;
@@ -32,7 +33,7 @@ const o = (
   prot: number,
   carb: number,
   fat: number,
-): SeedOption => ({ meal, grp, name, baseG, kcal, prot, carb, fat });
+): SeedOption => ({ meal, grp, name, baseG, unit: "g", kcal, prot, carb, fat });
 
 export const PLAN: SeedOption[] = [
   // ── Almuerzo (elegir 1) ──

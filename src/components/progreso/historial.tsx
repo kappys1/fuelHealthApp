@@ -542,7 +542,7 @@ function DietaSheet({ entry, onClose }: { entry: HistDieta; onClose: () => void 
                     />
                     <span className="min-w-0 flex-1 text-[13px]">{o.name}</span>
                     <span className="num shrink-0 text-[11px] text-muted-foreground">
-                      {o.baseG != null ? `${o.baseG} g · ` : ""}
+                      {o.baseG != null ? `${o.baseG} ${o.unit} · ` : ""}
                       {o.kcal} kcal
                     </span>
                   </div>

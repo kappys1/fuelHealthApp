@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gte, isNotNull, lte } from "drizzle-orm";
-import type { BloatKey, MealKey, PhaseKey } from "@/lib/macros";
+import type { BloatKey, MealKey, PhaseKey, ProductUnit } from "@/lib/macros";
 import {
   deriveFlexibleMealState,
   type FlexibleMealKey,
@@ -23,6 +23,7 @@ export interface EntryDTO {
   // Gramos como dato de primera clase (F06): cantidad actual + base inmutable.
   // baseG null = entrada fija (sin stepper de cantidad en el editor).
   grams: number | null;
+  unit: ProductUnit;
   baseG: number | null;
   baseKcal: number | null;
   baseProt: number | null;
@@ -176,6 +177,7 @@ export async function getDayView(date: string): Promise<DayView> {
     source: r.source,
     photoUrl: r.photoUrl,
     grams: r.grams,
+    unit: r.unit,
     baseG: r.baseG,
     baseKcal: r.baseKcal,
     baseProt: r.baseProt,

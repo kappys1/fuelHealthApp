@@ -40,6 +40,7 @@ export function entryToDuplicateInput(entry: EntryDTO): EntryInput {
     source: entry.source,
     photoUrl: entry.photoUrl,
     grams: entry.grams,
+    unit: entry.unit,
     baseG: entry.baseG,
     baseKcal: entry.baseKcal,
     baseProt: entry.baseProt,
@@ -54,9 +55,8 @@ export function entryToDuplicateInput(entry: EntryDTO): EntryInput {
  *   base (no los escalados de la entrada). Ej.: «avena 150 g / 555 kcal» con base
  *   100 g/370 → producto 100 g/370.
  * - SIN base → producto FIJO (`baseG:null`) con las macros actuales de la entrada.
- * `source`: ia/foto/estimado → estimado; resto → manual. `unit:"g"` (las entradas no
- * guardan unidad; g cubre el 95 %, editable en el catálogo). `grupo:null`,
- * `pinned:false`.
+ * `source`: ia/foto/estimado → estimado; resto → manual. Conserva la unidad de la
+ * entrada; `grupo:null`, `pinned:false`.
  */
 export function entryToProductInput(entry: EntryDTO): ProductInput {
   const scalable = hasFullBase(entry);
@@ -69,7 +69,7 @@ export function entryToProductInput(entry: EntryDTO): ProductInput {
     baseFat: scalable ? (entry.baseFat as number) : entry.fat,
     grupo: null,
     source: ESTIMATED_SOURCES.has(entry.source) ? "estimado" : "manual",
-    unit: "g",
+    unit: entry.unit,
     pinned: false,
   };
 }

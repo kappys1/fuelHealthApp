@@ -517,7 +517,7 @@ export function planSummary(
     if (opts.length === 0) continue;
     const items = opts
       .map((o) => {
-        const racion = o.baseG != null ? `${o.baseG} g` : "ración";
+        const racion = o.baseG != null ? `${o.baseG} ${o.unit}` : "ración";
         return `  - ${o.name} ${racion} = ${Math.round(o.kcal)} kcal · ${Math.round(o.prot)}P/${Math.round(o.carb)}C/${Math.round(o.fat)}F`;
       })
       .join("\n");

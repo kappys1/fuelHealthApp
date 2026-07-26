@@ -37,10 +37,16 @@ import {
   type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
+  PRODUCT_UNITS,
+  PRODUCT_UNIT_NOUN,
+  PRODUCT_UNIT_SUFFIX,
+  type ProductUnit,
 } from "@/lib/macros";
+import { seedPlanOptionFromProduct } from "@/lib/plan-option-product";
 import { cn } from "@/lib/utils";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
+import type { ProductDTO } from "@/server/db/queries/lookups";
 import { DietImport } from "./diet-import";
 import {
   newVariantRow,
@@ -71,11 +77,13 @@ export function PlanClient({
   targets,
   derived,
   optionsByMeal,
+  products,
   effectiveFrom,
 }: {
   targets: EffectiveTargets | null;
   derived: DerivedTargets | null;
   optionsByMeal: Record<string, PlanOptionDTO[]>;
+  products: ProductDTO[];
   effectiveFrom: string | null;
 }) {
   const router = useRouter();
@@ -270,6 +278,7 @@ export function PlanClient({
               key={meal}
               meal={meal}
               options={optionsByMeal[meal] ?? []}
+              products={products}
               open={openMeal === meal || addingMeal === meal}
               adding={addingMeal === meal}
               onToggle={() => setOpenMeal((value) => (value === meal ? null : meal))}
@@ -315,6 +324,7 @@ function MacroTarget({
 function MealPlanSection({
   meal,
   options,
+  products,
   open,
   adding,
   onToggle,
@@ -325,6 +335,7 @@ function MealPlanSection({
 }: {
   meal: MealKey;
   options: PlanOptionDTO[];
+  products: ProductDTO[];
   open: boolean;
   adding: boolean;
   onToggle: () => void;
@@ -383,10 +394,20 @@ function MealPlanSection({
       {open ? (
         <div className="divide-y divide-line border-t border-line">
           {options.map((option) => (
-            <OptionRow key={option.id} option={option} onChanged={onChanged} />
+            <OptionRow
+              key={option.id}
+              option={option}
+              products={products}
+              onChanged={onChanged}
+            />
           ))}
           {adding ? (
-            <OptionForm meal={meal} onDone={onAdded} onCancel={onCancelAdd} />
+            <OptionForm
+              meal={meal}
+              products={products}
+              onDone={onAdded}
+              onCancel={onCancelAdd}
+            />
           ) : null}
           {options.length === 0 && !adding ? (
             <p className="px-5 py-4 text-[12px] text-muted-foreground">
@@ -401,9 +422,11 @@ function MealPlanSection({
 
 function OptionRow({
   option,
+  products,
   onChanged,
 }: {
   option: PlanOptionDTO;
+  products: ProductDTO[];
   onChanged: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -429,6 +452,7 @@ function OptionRow({
       <OptionForm
         meal={option.meal}
         option={option}
+        products={products}
         onDone={() => {
           setEditing(false);
           onChanged();
@@ -452,7 +476,10 @@ function OptionRow({
           </span>
           <span className="num mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
             {option.grp}
-            {option.baseG != null ? ` · ${option.baseG} g` : ""} · {option.kcal} kcal ·{" "}
+            {option.baseG != null
+              ? ` · ${option.baseG} ${PRODUCT_UNIT_SUFFIX[option.unit]}`
+              : ""}{" "}
+            · {option.kcal} kcal ·{" "}
             {displayMacro(option.prot)}P/{displayMacro(option.carb)}C/{displayMacro(option.fat)}F
           </span>
           {option.variants.length > 0 ? (
@@ -486,17 +513,20 @@ function OptionRow({
 function OptionForm({
   meal,
   option,
+  products,
   onDone,
   onCancel,
 }: {
   meal: MealKey;
   option?: PlanOptionDTO;
+  products: ProductDTO[];
   onDone: () => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(option?.name ?? "");
   const [grp, setGrp] = useState<GrpKey>((option?.grp as GrpKey) ?? "Opción única");
   const [baseG, setBaseG] = useState(option?.baseG != null ? String(option.baseG) : "");
+  const [unit, setUnit] = useState<ProductUnit>(option?.unit ?? "g");
   const [kcal, setKcal] = useState(String(option?.kcal ?? ""));
   const [prot, setProt] = useState(String(option?.prot ?? ""));
   const [carb, setCarb] = useState(String(option?.carb ?? ""));
@@ -509,6 +539,34 @@ function OptionForm({
     (option?.variants ?? []).map(planVariantToRow),
   );
   const hasVariants = variants.length > 0;
+
+  const seedFromProduct = (productId: string) => {
+    const product = products.find((candidate) => candidate.id === Number(productId));
+    if (!product || hasVariants) return;
+    const seeded = seedPlanOptionFromProduct(
+      {
+        name,
+        grp,
+        baseG: baseG === "" ? null : Math.round(n(baseG)),
+        unit,
+        kcal: n(kcal),
+        prot: n(prot),
+        carb: n(carb),
+        fat: n(fat),
+        variants: [],
+      },
+      product,
+    );
+    setName(seeded.name);
+    setGrp(seeded.grp);
+    setBaseG(seeded.baseG == null ? "" : String(seeded.baseG));
+    setUnit(seeded.unit);
+    setKcal(String(seeded.kcal));
+    setProt(String(seeded.prot));
+    setCarb(String(seeded.carb));
+    setFat(String(seeded.fat));
+    toast("Opción copiada desde Mis productos. Puedes editarla antes de guardar.");
+  };
 
   // Convertir una opción normal en opción con variantes: siembra la 1ª con los
   // macros planos actuales y nombre vacío (inverso exacto de «Sin variantes»).
@@ -572,6 +630,7 @@ function OptionForm({
       grp,
       name: name.trim(),
       baseG: baseG === "" ? null : Math.round(n(baseG)),
+      unit,
       kcal: flat ? flat.kcal : Math.round(n(kcal)),
       prot: flat ? flat.prot : n(prot),
       carb: flat ? flat.carb : n(carb),
@@ -600,22 +659,43 @@ function OptionForm({
         aria-label="Nombre"
       />
       {!hasVariants ? (
-        <button
-          type="button"
-          onClick={estimate}
-          disabled={estimating}
-          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-3 text-[13px] font-semibold disabled:opacity-60"
-        >
-          {estimating ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Sparkles className="size-4 text-primary" aria-hidden />
-          )}
-          Estimar macros y grupo con IA
-        </button>
+        <div className="space-y-2">
+          {products.length > 0 ? (
+            <label className="block">
+              <span className="mb-1 block text-[12px] text-muted-foreground">
+                Mis productos
+              </span>
+              <Select onValueChange={seedFromProduct}>
+                <SelectTrigger className="h-11 w-full text-base">
+                  <SelectValue placeholder="Copiar un producto guardado…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((product) => (
+                    <SelectItem key={product.id} value={String(product.id)}>
+                      {product.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          ) : null}
+          <button
+            type="button"
+            onClick={estimate}
+            disabled={estimating}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-3 text-[13px] font-semibold disabled:opacity-60"
+          >
+            {estimating ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Sparkles className="size-4 text-primary" aria-hidden />
+            )}
+            Estimar macros y grupo con IA
+          </button>
+        </div>
       ) : null}
-      {/* Grupo + gramos base: gramos son los PAUTADOS del hueco, comunes a todas las
-          variantes (F08); editarlos NO reescala las variantes (editor manual). */}
+      {/* Grupo + unidad + base pautada del hueco. La unidad solo rotula; editar la
+          base no reescala las variantes (F08, editor manual). */}
       <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
         <label className="block">
           <span className="mb-1 block text-[12px] text-muted-foreground">Grupo</span>
@@ -632,8 +712,29 @@ function OptionForm({
             </SelectContent>
           </Select>
         </label>
-        <SmallField label="Gramos base (vacío = fijo)">
-          <Stepper value={baseG} onChange={setBaseG} step={10} suffix="g" ariaLabel="Gramos base" />
+        <label className="block">
+          <span className="mb-1 block text-[12px] text-muted-foreground">Unidad</span>
+          <Select value={unit} onValueChange={(value) => setUnit(value as ProductUnit)}>
+            <SelectTrigger className="h-11 w-full text-base">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PRODUCT_UNITS.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+        <SmallField label={`Base en ${PRODUCT_UNIT_NOUN[unit]} (vacío = fijo)`}>
+          <Stepper
+            value={baseG}
+            onChange={setBaseG}
+            step={10}
+            suffix={PRODUCT_UNIT_SUFFIX[unit]}
+            ariaLabel={`Base en ${PRODUCT_UNIT_NOUN[unit]}`}
+          />
         </SmallField>
       </div>
       {hasVariants ? (

@@ -416,6 +416,11 @@ export const PRODUCT_UNIT_NOUN: Record<ProductUnit, string> = {
   ud: "unidades",
 };
 
+/** Rótulo persistido de una cantidad; la unidad no interviene en el escalado. */
+export function formatQuantity(value: number, unit: ProductUnit): string {
+  return `${value} ${PRODUCT_UNIT_SUFFIX[unit]}`;
+}
+
 export const GRP_ORDER = [
   "Verdura",
   "Hidratos",

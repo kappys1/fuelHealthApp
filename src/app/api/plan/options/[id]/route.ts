@@ -1,8 +1,6 @@
 import { badRequest, ensureAuth, parseBody, serverError } from "@/lib/api";
-import { optionZ } from "@/lib/schemas";
+import { optionPatchZ } from "@/lib/schemas";
 import { deletePlanOption, updatePlanOption } from "@/server/db/queries/mutations";
-
-const patchZ = optionZ.partial();
 
 function parseId(raw: string): number | null {
   const id = Number(raw);
@@ -20,7 +18,7 @@ export async function PATCH(
   const id = parseId((await params).id);
   if (id == null) return badRequest("Id inválido.");
 
-  const parsed = await parseBody(request, patchZ);
+  const parsed = await parseBody(request, optionPatchZ);
   if ("error" in parsed) return parsed.error;
 
   try {

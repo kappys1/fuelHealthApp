@@ -15,6 +15,7 @@ export interface PlanOptionDTO {
   grp: GrpKey;
   name: string;
   baseG: number | null;
+  unit: "g" | "ml" | "ud";
   kcal: number;
   prot: number;
   carb: number;

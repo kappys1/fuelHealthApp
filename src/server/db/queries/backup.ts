@@ -329,6 +329,17 @@ function validateImportData(data: ImportData): void {
 
   assertField(data, "planOptions", "meal", isEnum(schema.mealEnum.enumValues));
   assertField(data, "planOptions", "grp", isEnum(schema.grpEnum.enumValues));
+  const quantityUnits = new Set<string>(schema.productUnitEnum.enumValues);
+  data.planOptions.forEach((row, index) => {
+    if (row.unit != null && !quantityUnits.has(String(row.unit))) {
+      importError("planOptions", index, "unit");
+    }
+  });
+  data.mealEntries.forEach((row, index) => {
+    if (row.unit != null && !quantityUnits.has(String(row.unit))) {
+      importError("mealEntries", index, "unit");
+    }
+  });
   assertField(data, "days", "phase", isNullableEnum(schema.phaseEnum.enumValues));
   assertField(data, "days", "bloat", isNullableEnum(schema.bloatEnum.enumValues));
   assertField(data, "bloatEvents", "severity", isEnum(schema.bloatEnum.enumValues));

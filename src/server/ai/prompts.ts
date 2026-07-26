@@ -71,13 +71,13 @@ export function athleteContextCompact(
   return base;
 }
 
-/** listaOpciones = opciones de esa comida «Nombre (baseG g → kcal kcal, prot g prot)» ; separadas. */
+/** Opciones de una comida con la unidad real de su ración pautada. */
 export function planOptionsList(options: PlanOptionDTO[]): string {
   if (options.length === 0) return "libre";
   return options
     .map((o) =>
       o.baseG != null
-        ? `${o.name} (${o.baseG} g → ${o.kcal} kcal, ${o.prot} g prot)`
+        ? `${o.name} (${o.baseG} ${o.unit} → ${o.kcal} kcal, ${o.prot} g prot)`
         : `${o.name} (${o.kcal} kcal, ${o.prot} g prot)`,
     )
     .join("; ");

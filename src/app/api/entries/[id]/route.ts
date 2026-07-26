@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { badRequest, ensureAuth, parseBody, serverError } from "@/lib/api";
-import { mealZ } from "@/lib/schemas";
+import { mealZ, productUnitZ } from "@/lib/schemas";
 import { deleteEntry, updateEntry } from "@/server/db/queries/mutations";
 
 const patchZ = z
@@ -13,6 +13,7 @@ const patchZ = z
     fat: z.number().min(0).max(2000),
     // Cantidad editada (F06): reescala kcal/macros desde la base inmutable.
     grams: z.number().int().min(0).max(20000).nullable(),
+    unit: productUnitZ,
     // Base (F14 · Parte A): normalmente inmutable, pero al editar una entrada del
     // caso 2 (con gramos, sin base) el editor deriva y persiste la base efectiva
     // → la entrada queda «sanada» y la próxima edición es caso 1 nativo.

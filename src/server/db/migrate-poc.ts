@@ -10,6 +10,7 @@ import { drizzle } from "drizzle-orm/neon-http";
 import { z } from "zod";
 import { backfillEntryGrams } from "../../lib/macros";
 import { favoritesToProducts } from "./products-map";
+import { pocPlanOptionValues } from "./plan-options-map";
 import { normalizeTrainingSettings } from "./settings-map";
 import * as schema from "./schema";
 
@@ -234,12 +235,7 @@ async function main() {
         dietVersionId: version.id,
         meal: asMeal(meal),
         grp: asGrp(p.g),
-        name: p.name,
-        baseG: p.baseG ?? null,
-        kcal: Math.round(p.kcal),
-        prot: p.prot,
-        carb: p.carb,
-        fat: p.fat,
+        ...pocPlanOptionValues(p),
         // El export del PoC es anterior a F08 → sin variantes (opción normal).
         variants: [],
         sort: i,
@@ -327,6 +323,8 @@ async function main() {
           source: asSource(m.src),
           photoUrl: null,
           grams: bf.grams,
+          // El PoC no persistía unidad; conserva el contrato legacy en gramos.
+          unit: "g" as const,
           baseG: bf.baseG,
           baseKcal: bf.baseKcal,
           baseProt: bf.baseProt,

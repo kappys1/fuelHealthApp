@@ -1,0 +1,1 @@
+ALTER TABLE "plan_options" ADD COLUMN "unit" "product_unit" DEFAULT 'g' NOT NULL;

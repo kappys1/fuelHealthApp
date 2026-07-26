@@ -54,6 +54,8 @@ export function planOptionImportRow(
     grp: r.grp as (typeof schema.grpEnum.enumValues)[number],
     name: String(r.name ?? ""),
     baseG: n(r.baseG),
+    // Export anterior a F19: la columna no existía y rotulaba implícitamente g.
+    unit: (r.unit ?? "g") as (typeof schema.productUnitEnum.enumValues)[number],
     kcal: Number(r.kcal ?? 0),
     prot: Number(r.prot ?? 0),
     carb: Number(r.carb ?? 0),
@@ -75,6 +77,7 @@ export function mealEntryImportRow(r: Record<string, unknown>) {
     source: r.source as (typeof schema.mealSourceEnum.enumValues)[number],
     photoUrl: s(r.photoUrl),
     grams: n(r.grams),
+    unit: (r.unit ?? "g") as (typeof schema.productUnitEnum.enumValues)[number],
     baseG: n(r.baseG),
     baseKcal: n(r.baseKcal),
     baseProt: n(r.baseProt),
