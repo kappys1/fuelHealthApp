@@ -49,8 +49,14 @@ export interface DaySessionInfo {
   key: string;
   nombre: string;
   tipo: TrainingTipo;
+  contenido: string;
   kcalMin: number | null;
   kcalMax: number | null;
+  duracionMin: number | null;
+  programa: string;
+  etiqueta: string;
+  source: "pdf" | "foto" | "texto";
+  importRequestId: string | null;
 }
 
 export interface HealthDTO {
@@ -186,10 +192,20 @@ export async function getDayView(date: string): Promise<DayView> {
         key: schema.trainingSessions.key,
         nombre: schema.trainingSessions.nombre,
         tipo: schema.trainingSessions.tipo,
+        contenido: schema.trainingSessions.contenido,
         kcalMin: schema.trainingSessions.kcalMin,
         kcalMax: schema.trainingSessions.kcalMax,
+        duracionMin: schema.trainingSessions.duracionMin,
+        programa: schema.trainingPlans.programa,
+        etiqueta: schema.trainingPlans.etiqueta,
+        source: schema.trainingPlans.source,
+        importRequestId: schema.trainingPlans.importRequestId,
       })
       .from(schema.trainingSessions)
+      .innerJoin(
+        schema.trainingPlans,
+        eq(schema.trainingPlans.id, schema.trainingSessions.planId),
+      )
       .where(eq(schema.trainingSessions.id, dayRow.sessionRef));
     session = (s as DaySessionInfo) ?? null;
   }

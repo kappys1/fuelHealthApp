@@ -14,6 +14,11 @@ import type {
   WodResult,
 } from "@/server/ai/schemas";
 import type { TrainingTipo } from "@/lib/training";
+import type {
+  CanonicalSessionFields,
+  CanonicalSessionState,
+  CanonicalTrainingUndo,
+} from "@/lib/training-persistence";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
 import type { DayPatch, MedInput } from "@/server/db/queries/mutations";
@@ -286,6 +291,23 @@ export const api = {
 
   deleteTrainingSession: (id: number) =>
     req<{ ok: true }>(`/api/training/sessions/${id}`, { method: "DELETE" }),
+
+  saveCanonicalTrainingSession: (date: string, session: CanonicalSessionFields) =>
+    req<{
+      kind: "created" | "updated";
+      session: CanonicalSessionState;
+      replacedName: string | null;
+      undo: CanonicalTrainingUndo;
+    }>("/api/training/session", {
+      method: "POST",
+      body: JSON.stringify({ date, session }),
+    }),
+
+  undoCanonicalTrainingSession: (undo: CanonicalTrainingUndo) =>
+    req<{ ok: true }>("/api/training/session", {
+      method: "PUT",
+      body: JSON.stringify(undo),
+    }),
 
   deleteTrainingPlan: (id: number) =>
     req<{ ok: true }>(`/api/training/plan/${id}`, { method: "DELETE" }),

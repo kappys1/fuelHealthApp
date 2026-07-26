@@ -671,6 +671,40 @@ describe("dayContext mira el calendario (doc 10 A4)", () => {
     const ctx = dayContext(emptyView);
     expect(ctx).not.toContain("sin registrar");
   });
+
+  it("F17: con WOD sustituto cita la sesión canónica, nunca la referencia antigua", () => {
+    const ctx = dayContext({
+      ...emptyView,
+      day: {
+        date: "2026-07-12",
+        weight: null,
+        waterL: null,
+        bodyFatPct: null,
+        sessionLabel: "Snatch + WOD",
+        sessionKcal: 650,
+        sessionRef: 7,
+        phase: null,
+        bloat: null,
+        notes: null,
+      },
+      session: {
+        id: 7,
+        key: "T2",
+        nombre: "Snatch + WOD",
+        tipo: "mixto",
+        contenido: "Fuerza: Snatch\nCrossFit: 5 rondas",
+        kcalMin: 500,
+        kcalMax: 800,
+        duracionMin: 75,
+        programa: "The Progrm",
+        etiqueta: "Week 30",
+        source: "pdf",
+        importRequestId: "request-1",
+      },
+    });
+    expect(ctx).toContain("sesión Snatch + WOD · Mixto");
+    expect(ctx).not.toContain("Training 2");
+  });
 });
 
 describe("coach: datos juzgados en servidor + tono (regresión 14-jul, DECISIONS #53)", () => {

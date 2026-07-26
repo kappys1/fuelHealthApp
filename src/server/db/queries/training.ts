@@ -14,11 +14,19 @@ import {
 import type { BatchItem } from "drizzle-orm/batch";
 import { shiftDayKey } from "@/lib/dates";
 import {
+  buildCanonicalTrainingWrite,
+  type CanonicalSessionState,
+  type CanonicalTrainingInput,
+  type CanonicalTrainingUndo,
+  type CanonicalTrainingWrite,
+} from "@/lib/training-persistence";
+import {
   sessionKcal,
   trainingWeekSpan,
   type TrainingTipo,
 } from "@/lib/training";
 import { db, schema } from "@/server/db";
+import { getAthleteProfile } from "./lookups";
 
 /*
   Queries del plan de entrenamiento (doc 10 Fase B1). Molde: plan.ts (versiones de
@@ -417,6 +425,288 @@ export class TrainingAssignmentConflictError extends Error {
     super("Ese día ya tiene una sesión. Desasígnala antes de mover otra aquí.");
     this.name = "TrainingAssignmentConflictError";
   }
+}
+
+export class CanonicalTrainingUndoConflictError extends Error {
+  constructor() {
+    super("La sesión cambió después de guardarla y ya no se puede deshacer.");
+    this.name = "CanonicalTrainingUndoConflictError";
+  }
+}
+
+export interface CanonicalTrainingResult {
+  kind: CanonicalTrainingWrite["kind"];
+  session: CanonicalSessionState;
+  replacedName: string | null;
+  undo: CanonicalTrainingUndo;
+}
+
+async function allocateIdentity(table: "training_plans" | "training_sessions") {
+  const [row] = await db
+    .select({
+      id: sql<number>`nextval(pg_get_serial_sequence(${table}, 'id'))::int`,
+    })
+    .from(sql`(select 1) as allocation`);
+  if (!row) throw new Error(`No se pudo reservar un id de ${table}.`);
+  return Number(row.id);
+}
+
+/**
+ * Fuente única Plan↔Hoy (F17): actualiza la sesión ya asignada o crea una dentro
+ * de la semana, y sincroniza los tres campos del día en un batch transaccional.
+ */
+export async function saveCanonicalTrainingSession(
+  input: CanonicalTrainingInput,
+): Promise<CanonicalTrainingResult> {
+  const [dayRow] = await db
+    .select({
+      sessionRef: schema.days.sessionRef,
+      sessionLabel: schema.days.sessionLabel,
+      sessionKcal: schema.days.sessionKcal,
+    })
+    .from(schema.days)
+    .where(eq(schema.days.date, input.date));
+  const assignedSession = dayRow?.sessionRef
+    ? ((await db
+        .select()
+        .from(schema.trainingSessions)
+        .where(eq(schema.trainingSessions.id, dayRow.sessionRef))
+        .limit(1))[0] as CanonicalSessionState | undefined) ?? null
+    : null;
+  const [weekView, profile] = await Promise.all([
+    getTrainingWeekView(input.date),
+    getAthleteProfile(),
+  ]);
+  const needSessionId = assignedSession == null;
+  const needPlanId = needSessionId && weekView == null;
+  const [allocatedSessionId, allocatedPlanId] = await Promise.all([
+    needSessionId ? allocateIdentity("training_sessions") : Promise.resolve(null),
+    needPlanId ? allocateIdentity("training_plans") : Promise.resolve(null),
+  ]);
+
+  const write = buildCanonicalTrainingWrite(input, {
+    day: dayRow
+      ? {
+          exists: true,
+          sessionRef: dayRow.sessionRef,
+          sessionLabel: dayRow.sessionLabel,
+          sessionKcal: dayRow.sessionKcal,
+        }
+      : null,
+    assignedSession,
+    week: weekView
+      ? {
+          id: weekView.plan.id,
+          programa: weekView.plan.programa,
+          etiqueta: weekView.plan.etiqueta,
+          validFrom: weekView.plan.validFrom,
+          validTo: weekView.plan.validTo,
+          source: weekView.plan.source,
+          sessionCount: weekView.sessions.length,
+          maxSort: Math.max(-1, ...weekView.sessions.map((session) => session.sort)),
+        }
+      : null,
+    allocatedPlanId,
+    allocatedSessionId,
+    athleteProgram: profile.programa,
+  });
+
+  const expectedSessionRef = dayRow?.sessionRef ?? null;
+  const queries: BatchItem<"pg">[] = [
+    db.execute(
+      sql`select pg_advisory_xact_lock(hashtext('fuelboard:canonical-training-session'))`,
+    ),
+    db.execute(sql`
+      select 1 / case when (
+        select ${schema.days.sessionRef}
+        from ${schema.days}
+        where ${schema.days.date} = ${input.date}
+      ) is not distinct from ${expectedSessionRef}
+      then 1 else 0 end
+    `),
+  ];
+
+  if (write.planToInsert) {
+    queries.push(
+      db.execute(sql`
+        select 1 / case when not exists (
+          select 1 from ${schema.trainingPlans}
+          where ${schema.trainingPlans.validFrom} <= ${write.planToInsert.validTo}
+            and (
+              ${schema.trainingPlans.validTo} is null
+              or ${schema.trainingPlans.validTo} >= ${write.planToInsert.validFrom}
+            )
+        ) then 1 else 0 end
+      `),
+      db
+        .insert(schema.trainingPlans)
+        .overridingSystemValue()
+        .values({
+          id: write.planToInsert.id,
+          programa: write.planToInsert.programa,
+          etiqueta: write.planToInsert.etiqueta,
+          source: write.planToInsert.source,
+          validFrom: write.planToInsert.validFrom,
+          validTo: write.planToInsert.validTo,
+        }),
+    );
+  }
+
+  if (write.kind === "updated") {
+    queries.push(
+      db
+        .update(schema.trainingSessions)
+        .set({
+          key: write.session.key,
+          nombre: write.session.nombre,
+          tipo: write.session.tipo,
+          contenido: write.session.contenido,
+          kcalMin: write.session.kcalMin,
+          kcalMax: write.session.kcalMax,
+          duracionMin: write.session.duracionMin,
+        })
+        .where(eq(schema.trainingSessions.id, write.session.id)),
+    );
+  } else {
+    queries.push(
+      db
+        .insert(schema.trainingSessions)
+        .overridingSystemValue()
+        .values(write.session),
+    );
+  }
+  queries.push(
+    db
+      .insert(schema.days)
+      .values(write.day)
+      .onConflictDoUpdate({
+        target: schema.days.date,
+        set: {
+          sessionRef: write.day.sessionRef,
+          sessionLabel: write.day.sessionLabel,
+          sessionKcal: write.day.sessionKcal,
+        },
+      }),
+  );
+
+  await db.batch(queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
+  return {
+    kind: write.kind,
+    session: write.session,
+    replacedName:
+      write.undo.previousSession?.nombre ??
+      write.undo.previousDay.sessionLabel,
+    undo: write.undo,
+  };
+}
+
+/** Inversa inmediata del guardado canónico; restaura sesión + día del snapshot. */
+export async function undoCanonicalTrainingSession(
+  undo: CanonicalTrainingUndo,
+): Promise<void> {
+  const [currentDay] = await db
+    .select({ sessionRef: schema.days.sessionRef })
+    .from(schema.days)
+    .where(eq(schema.days.date, undo.date));
+  if (currentDay?.sessionRef !== undo.writtenSessionId) {
+    throw new CanonicalTrainingUndoConflictError();
+  }
+
+  const queries: BatchItem<"pg">[] = [
+    db.execute(
+      sql`select pg_advisory_xact_lock(hashtext('fuelboard:canonical-training-session'))`,
+    ),
+    db.execute(sql`
+      select 1 / case when (
+        select ${schema.days.sessionRef}
+        from ${schema.days}
+        where ${schema.days.date} = ${undo.date}
+      ) = ${undo.writtenSessionId}
+      then 1 else 0 end
+    `),
+  ];
+
+  if (undo.previousDay.exists) {
+    queries.push(
+      db
+        .insert(schema.days)
+        .values({
+          date: undo.date,
+          sessionRef: undo.previousDay.sessionRef,
+          sessionLabel: undo.previousDay.sessionLabel,
+          sessionKcal: undo.previousDay.sessionKcal,
+        })
+        .onConflictDoUpdate({
+          target: schema.days.date,
+          set: {
+            sessionRef: undo.previousDay.sessionRef,
+            sessionLabel: undo.previousDay.sessionLabel,
+            sessionKcal: undo.previousDay.sessionKcal,
+          },
+        }),
+    );
+  } else {
+    queries.push(
+      db
+        .update(schema.days)
+        .set({ sessionRef: null, sessionLabel: null, sessionKcal: null })
+        .where(eq(schema.days.date, undo.date)),
+      db.delete(schema.days).where(
+        and(
+          eq(schema.days.date, undo.date),
+          isNull(schema.days.weight),
+          isNull(schema.days.waterL),
+          isNull(schema.days.bodyFatPct),
+          isNull(schema.days.sessionRef),
+          isNull(schema.days.sessionLabel),
+          isNull(schema.days.sessionKcal),
+          isNull(schema.days.phase),
+          isNull(schema.days.bloat),
+          isNull(schema.days.notes),
+        ),
+      ),
+    );
+  }
+
+  if (undo.previousSession) {
+    queries.push(
+      db
+        .update(schema.trainingSessions)
+        .set({
+          planId: undo.previousSession.planId,
+          key: undo.previousSession.key,
+          nombre: undo.previousSession.nombre,
+          tipo: undo.previousSession.tipo,
+          contenido: undo.previousSession.contenido,
+          kcalMin: undo.previousSession.kcalMin,
+          kcalMax: undo.previousSession.kcalMax,
+          duracionMin: undo.previousSession.duracionMin,
+          sort: undo.previousSession.sort,
+        })
+        .where(eq(schema.trainingSessions.id, undo.previousSession.id)),
+    );
+  } else {
+    queries.push(
+      db
+        .delete(schema.trainingSessions)
+        .where(eq(schema.trainingSessions.id, undo.writtenSessionId)),
+    );
+  }
+  if (undo.createdPlanId != null) {
+    queries.push(
+      db.delete(schema.trainingPlans).where(
+        and(
+          eq(schema.trainingPlans.id, undo.createdPlanId),
+          sql`not exists (
+            select 1 from ${schema.trainingSessions}
+            where ${schema.trainingSessions.planId} = ${undo.createdPlanId}
+          )`,
+        ),
+      ),
+    );
+  }
+
+  await db.batch(queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
 }
 
 /** Edita una sesión y refresca los campos desnormalizados del día asignado (B3b). */

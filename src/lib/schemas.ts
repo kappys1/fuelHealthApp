@@ -148,6 +148,33 @@ export const trainingPlanCreateZ = z.object({
     .max(31),
 });
 
+// F17 · Una sesión canónica por fecha (Plan↔Hoy) + snapshot reversible.
+export const canonicalTrainingSessionZ = z.object({
+  date: dateZ,
+  session: trainingSessionCreateZ.omit({ key: true }).extend({
+    key: z.string().max(40).optional(),
+  }),
+});
+const canonicalDaySnapshotZ = z.object({
+  exists: z.boolean(),
+  sessionRef: z.number().int().positive().nullable(),
+  sessionLabel: z.string().max(200).nullable(),
+  sessionKcal: z.number().int().min(0).max(20000).nullable(),
+});
+const canonicalSessionSnapshotZ = trainingSessionCreateZ.extend({
+  id: z.number().int().positive(),
+  planId: z.number().int().positive(),
+  sort: z.number().int().min(0),
+});
+export const canonicalTrainingUndoZ = z.object({
+  date: dateZ,
+  writtenSessionId: z.number().int().positive(),
+  createdSession: z.boolean(),
+  createdPlanId: z.number().int().positive().nullable(),
+  previousDay: canonicalDaySnapshotZ,
+  previousSession: canonicalSessionSnapshotZ.nullable(),
+});
+
 // Marcas / registros de rendimiento (F03). `value` en unidades guardadas (segundos
 // si el tipo es tiempo). measureType fija la dirección de "mejor" y la unidad.
 export const measureTypeZ = z.enum(MEASURE_TYPES);

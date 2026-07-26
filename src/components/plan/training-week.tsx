@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
+  Plus,
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
@@ -12,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { TrainingSessionDetail } from "@/components/training/training-session-detail";
+import { TrainingSessionComposer } from "@/components/training/training-session-composer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select,
@@ -88,6 +90,7 @@ export function TrainingWeek({
   const [selectedDay, setSelectedDay] = useState(initialDay);
   const [editing, setEditing] = useState(false);
   const [weekOpen, setWeekOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const navigate = (date: string) => {
     router.push(
@@ -228,15 +231,27 @@ export function TrainingWeek({
                 ? "Puedes asignar una sesión pendiente desde Semana."
                 : "Puedes importar la programación de esta semana."}
           </p>
-          {week ? (
-            <button
-              type="button"
-              onClick={() => setWeekOpen(true)}
-              className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line px-4 text-[13px] font-semibold text-foreground"
-            >
-              <SlidersHorizontal className="size-4" aria-hidden />
-              Semana
-            </button>
+          {!isPast ? (
+            <div className="mt-4 flex justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAdding(true)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
+              >
+                <Plus className="size-4" aria-hidden />
+                Añadir sesión
+              </button>
+              {week ? (
+                <button
+                  type="button"
+                  onClick={() => setWeekOpen(true)}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line px-4 text-[13px] font-semibold text-foreground"
+                >
+                  <SlidersHorizontal className="size-4" aria-hidden />
+                  Semana
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </section>
       )}
@@ -261,6 +276,13 @@ export function TrainingWeek({
           onChanged={() => router.refresh()}
         />
       ) : null}
+
+      <TrainingSessionComposer
+        open={adding}
+        onOpenChange={setAdding}
+        date={selectedDay}
+        onSaved={() => router.refresh()}
+      />
     </div>
   );
 }

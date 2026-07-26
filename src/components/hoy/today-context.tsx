@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { WodAnalyzer } from "@/components/hoy/mi-dia-card";
+import { TrainingSessionDetail } from "@/components/training/training-session-detail";
 import {
   Select,
   SelectContent,
@@ -43,7 +44,11 @@ import {
   type PhaseKey,
   phaseLabel,
 } from "@/lib/macros";
-import { orderedSessionOptions, sessionPatchFor } from "@/lib/training";
+import {
+  orderedSessionOptions,
+  sessionPatchFor,
+  TRAINING_TIPO_LABELS,
+} from "@/lib/training";
 import { cn } from "@/lib/utils";
 import type {
   BaselineMetricKey,
@@ -312,10 +317,21 @@ export function TrainingSection({
   suggestedPhase: PhaseKey | null;
 }) {
   const [open, setOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const day = view.day;
   const session = day?.sessionLabel ?? view.session?.nombre ?? "Sin sesión registrada";
   const kcal = view.health?.activeKcal ?? day?.sessionKcal ?? null;
   const choices = orderedSessionOptions(trainingSessions.map((item) => item.nombre));
+  const sessionMeta = view.session
+    ? [
+        TRAINING_TIPO_LABELS[view.session.tipo],
+        view.session.duracionMin != null
+          ? `${view.session.duracionMin} min`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
 
   return (
     <section aria-labelledby="training-title">
@@ -334,7 +350,11 @@ export function TrainingSection({
         <span className="min-w-0 flex-1">
           <strong className="block truncate text-[14px] font-semibold text-foreground">{session}</strong>
           <span className="mt-1 block text-[11px] text-muted-foreground">
-            {day?.phase ? `Fase ${phaseLabel(day.phase)}` : "Fase normal"}
+            {sessionMeta
+              ? `${sessionMeta} · ${day?.phase ? `Fase ${phaseLabel(day.phase)}` : "Fase normal"}`
+              : day?.phase
+                ? `Fase ${phaseLabel(day.phase)}`
+                : "Fase normal"}
           </span>
         </span>
         {kcal != null ? (
@@ -375,6 +395,15 @@ export function TrainingSection({
                 </SelectContent>
               </Select>
             </label>
+            {view.session ? (
+              <button
+                type="button"
+                onClick={() => setDetailOpen(true)}
+                className="min-h-11 w-full rounded-xl border border-line bg-surface-2 px-4 text-[13px] font-semibold text-foreground"
+              >
+                Ver sesión
+              </button>
+            ) : null}
             <label className="block">
               <span className="mb-1.5 block text-[12px] text-muted-foreground">Fase</span>
               <Select
@@ -403,6 +432,28 @@ export function TrainingSection({
           </div>
         </SheetContent>
       </Sheet>
+
+      {view.session ? (
+        <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
+          <SheetContent side="bottom" className="max-h-[92dvh] gap-0 overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Sesión del día</SheetTitle>
+              <SheetDescription>{view.date}</SheetDescription>
+            </SheetHeader>
+            <div className="px-4 pb-6">
+              <TrainingSessionDetail
+                session={view.session}
+                plan={{
+                  programa: view.session.programa,
+                  etiqueta: view.session.etiqueta,
+                  source: view.session.source,
+                  importRequestId: view.session.importRequestId,
+                }}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
     </section>
   );
 }
