@@ -31,6 +31,49 @@ export const TRAINING_TIPO_LABELS: Record<TrainingTipo, string> = {
 };
 
 /**
+ * Divide el contenido canónico en bloques de presentación sin normalizar ni
+ * descartar un solo carácter (F17). Cada bloque conserva sus propios saltos de
+ * línea, de modo que `blocks.join("") === contenido` siempre.
+ *
+ * La estructura se reconoce por párrafos, por líneas independientes o por los
+ * encabezados habituales de una programación. Un texto plano cae en un único
+ * bloque completo.
+ */
+export function splitTrainingContent(contenido: string): string[] {
+  if (contenido.length === 0) return [];
+
+  const cuts = new Set<number>();
+  const lineBreak = /\r\n|\n|\r/g;
+  for (const match of contenido.matchAll(lineBreak)) {
+    const afterBreak = (match.index ?? 0) + match[0].length;
+    if (
+      contenido.slice(0, match.index).trim() &&
+      afterBreak < contenido.length &&
+      !/[\r\n]/.test(contenido[afterBreak]!)
+    ) {
+      cuts.add(afterBreak);
+    }
+  }
+
+  const heading =
+    /\b(?:Fuerza\s*\/\s*Halterofilia|Fuerza|Halterofilia|CrossFit|Accesorios?):\s*/gi;
+  for (const match of contenido.matchAll(heading)) {
+    if (contenido.slice(0, match.index).trim()) cuts.add(match.index!);
+  }
+
+  const indexes = [...cuts].sort((a, b) => a - b);
+  if (indexes.length === 0) return [contenido];
+  const blocks: string[] = [];
+  let start = 0;
+  for (const end of indexes) {
+    if (end > start) blocks.push(contenido.slice(start, end));
+    start = end;
+  }
+  if (start < contenido.length) blocks.push(contenido.slice(start));
+  return blocks;
+}
+
+/**
  * kcal de sesión para `days.sessionKcal` a partir del rango estimado (F-IA-5):
  * media redondeada; si falta un extremo usa el otro; null si no hay datos.
  */

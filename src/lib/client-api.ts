@@ -284,6 +284,9 @@ export const api = {
       body: JSON.stringify({ date }),
     }),
 
+  deleteTrainingSession: (id: number) =>
+    req<{ ok: true }>(`/api/training/sessions/${id}`, { method: "DELETE" }),
+
   deleteTrainingPlan: (id: number) =>
     req<{ ok: true }>(`/api/training/plan/${id}`, { method: "DELETE" }),
 
