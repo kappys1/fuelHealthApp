@@ -43,15 +43,29 @@ export function splitTrainingContent(contenido: string): string[] {
   if (contenido.length === 0) return [];
 
   const cuts = new Set<number>();
-  const lineBreak = /\r\n|\n|\r/g;
-  for (const match of contenido.matchAll(lineBreak)) {
-    const afterBreak = (match.index ?? 0) + match[0].length;
-    if (
-      contenido.slice(0, match.index).trim() &&
-      afterBreak < contenido.length &&
-      !/[\r\n]/.test(contenido[afterBreak]!)
-    ) {
-      cuts.add(afterBreak);
+  const paragraphBreak = /(?:\r\n|\n|\r){2,}/g;
+  const paragraphs = [...contenido.matchAll(paragraphBreak)];
+
+  if (paragraphs.length > 0) {
+    for (const match of paragraphs) {
+      const afterBreak = (match.index ?? 0) + match[0].length;
+      if (
+        contenido.slice(0, match.index).trim() &&
+        afterBreak < contenido.length
+      ) {
+        cuts.add(afterBreak);
+      }
+    }
+  } else {
+    const lineBreak = /\r\n|\n|\r/g;
+    for (const match of contenido.matchAll(lineBreak)) {
+      const afterBreak = (match.index ?? 0) + match[0].length;
+      if (
+        contenido.slice(0, match.index).trim() &&
+        afterBreak < contenido.length
+      ) {
+        cuts.add(afterBreak);
+      }
     }
   }
 

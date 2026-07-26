@@ -123,6 +123,21 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
       expect(blocks).toHaveLength(2);
     });
 
+    it("agrupa las líneas de cada párrafo importado en un único bloque legible", () => {
+      const content =
+        "Plyometrics:\nStep Up with Jump\n3 x 5+5, rest 90 sec between sets.\nKeep the working leg on the box.\n\nWeightlifting/Strength:\nClean and Jerk\n1. Build to today's 1RM.\n2. 3 x 1 @ 80% of 1, go every 90 sec.";
+      const blocks = splitTrainingContent(content);
+
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0]).toBe(
+        "Plyometrics:\nStep Up with Jump\n3 x 5+5, rest 90 sec between sets.\nKeep the working leg on the box.\n\n",
+      );
+      expect(blocks[1]).toBe(
+        "Weightlifting/Strength:\nClean and Jerk\n1. Build to today's 1RM.\n2. 3 x 1 @ 80% of 1, go every 90 sec.",
+      );
+      expect(blocks.join("")).toBe(content);
+    });
+
     it("no inventa bloques para contenido vacío", () => {
       expect(splitTrainingContent("")).toEqual([]);
     });
