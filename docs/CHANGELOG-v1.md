@@ -401,11 +401,13 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 - Un comando transaccional crea o actualiza una única sesión por fecha, sincroniza Plan↔Hoy
   y permite deshacer el snapshot anterior de sesión + día, sin migración.
 - F-IA-5 conserva el WOD original y añade `tipo`; F-IA-10 exige contenido completo y
-  ordenado. Consistencia real ×3 estable para WOD y running; PDF real pendiente.
+  ordenado. Consistencia real ×3 estable para WOD y running; Week 31 validada en uso real.
 - Quick-fix de uso real: el navegador ya admite semanas futuras y el importador abre
   preseleccionando la semana visible (caso domingo → programación del lunes siguiente).
 - La ficha prioriza párrafos completos sobre líneas sueltas: el T1 real de Week 31 pasa
   de numerar cada instrucción a 6 bloques legibles, sin cambiar el texto guardado.
+- **Completada por Alex el 26-jul**: AC 🖐 1–5 aprobados. Alex acepta el cierre de AC9 con
+  Week 31 real; no se afirma una ejecución ×3 del archivo Week 29 ausente.
 
 ---
 
