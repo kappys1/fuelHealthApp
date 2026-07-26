@@ -6,12 +6,15 @@ import type { DatedEntry, DayView } from "@/server/db/queries/day";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
 import type { MarkDTO } from "@/server/db/queries/marks";
 import type { DeficitResult } from "@/server/analytics/deficit";
+import type { DailyRecord } from "@/server/analytics/types";
 import { energyBalance } from "@/server/analytics/energyBalance";
 import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import type { TrainingTiming } from "@/server/analytics/dayClosure";
 import {
   closureLine,
   dayContext,
+  dayLine,
+  dayLines,
   energyBalanceLine,
   gaugeVerdictLine,
   marksContext,
@@ -19,6 +22,7 @@ import {
   planSummary,
   productsContext,
   recentMealsDetail,
+  trendAndAdherence,
   trendJudgeLine,
   trendSummary,
 } from "./context";
@@ -274,6 +278,28 @@ describe("el coach conoce el plan (F01 Fase 1)", () => {
     const pendiente = pendingPlanOptions({ cena: opts }, ["almuerzo"]);
     expect(pendiente).toBe(""); // 'cena' no está en pending; 'almuerzo' no tiene opciones
   });
+
+  it("F16 pre-pizza: una cena prevista no expone pavo ni fuerza cerrar el hueco", () => {
+    const pendiente = pendingPlanOptions({ cena: opts }, []);
+    const verdict = gaugeVerdict(
+      { kcal: 1800, prot: 110, carb: 215, fat: 55 },
+      { kcal: 992, prot: 55, carb: 103, fat: 39 },
+      null,
+    );
+    const directriz = closureLine({
+      stance: "deficit",
+      verdict,
+      timing: { rel: "pre", hoursToStart: 4.6 },
+      plannedFlexibleMeals: ["cena"],
+    });
+
+    expect(pendiente).not.toContain("Pavo");
+    expect(directriz).toContain("FLEXIBLE PREVISTO");
+    expect(directriz).toContain("comida previa");
+    expect(directriz).toContain("4,6 h");
+    expect(directriz).toContain("NO intentes cerrar");
+    expect(directriz).not.toContain("proteína magra");
+  });
 });
 
 describe("el chat conoce lo que has comido (F02)", () => {
@@ -314,6 +340,225 @@ describe("el chat conoce lo que has comido (F02)", () => {
     expect(recentMealsDetail([])).toBe("");
     const p = chatSystemPrompt({ ...chatArgs, mealsDetail: "" });
     expect(p).not.toContain("COMIDAS POR ITEM");
+  });
+});
+
+describe("F16 · contexto IA flexible", () => {
+  const targets = { kcal: 1800, prot: 110, carb: 215, fat: 55 };
+  const record = (
+    date: string,
+    flexibleMeals: DailyRecord["flexibleMeals"],
+  ): DailyRecord => ({
+    date,
+    logged: true,
+    kcal: 1800,
+    prot: 110,
+    carb: 215,
+    fat: 55,
+    weight: null,
+    phase: null,
+    target: { kcal: 1800, prot: 110 },
+    flexibleMeals,
+    steps: null,
+    activeKcal: null,
+    basalKcal: null,
+    hrvMs: null,
+    sleepH: null,
+    restingHr: null,
+    bodyFatPct: null,
+    waterL: null,
+    sessionLabel: null,
+    bloat: null,
+    notes: null,
+  });
+
+  it("Coach ve prevista y real con directrices distintas", () => {
+    const planned: DayView = {
+      date: TODAY,
+      day: null,
+      health: null,
+      session: null,
+      entries: [],
+      flexibleMeals: { planned: ["cena"], real: [] },
+    };
+    expect(dayContext(planned)).toContain("Cena flexible prevista");
+    expect(dayContext(planned)).toContain("kcal aún desconocidas");
+
+    const real: DayView = {
+      ...planned,
+      entries: [
+        {
+          id: 1,
+          meal: "cena",
+          name: "Pizza",
+          kcal: 1448,
+          prot: 64,
+          carb: 170,
+          fat: 55,
+          source: "manual",
+          photoUrl: null,
+          grams: null,
+          baseG: null,
+          baseKcal: null,
+          baseProt: null,
+          baseCarb: null,
+          baseFat: null,
+          createdAt: "2026-07-12T21:00:00.000Z",
+        },
+      ],
+      flexibleMeals: { planned: [], real: ["cena"] },
+    };
+    const ctx = dayContext(real);
+    expect(ctx).toContain("Cena flexible real");
+    expect(ctx).toContain("kcal sí cuentan");
+    expect(ctx).toContain("no prescribas compensación");
+  });
+
+  it("post-pizza conserva 2440/119P/273C/94F y no ordena compensar", () => {
+    const verdict = gaugeVerdict(
+      targets,
+      { kcal: 2440, prot: 119, carb: 273, fat: 94 },
+      null,
+      true,
+    );
+    const line = gaugeVerdictLine(verdict, {
+      faseLabel: "Normal",
+      sessionLabel: "día de entreno: T6",
+    });
+    const closure = closureLine({
+      stance: "deficit",
+      verdict,
+      timing: { rel: "post", hoursToStart: null },
+    });
+    expect(line).toContain("kcal +640");
+    expect(line).toContain("contexto flexible real");
+    expect(closure).toContain("NO compenses");
+    expect(closure).not.toContain("EXCESO");
+  });
+
+  it("sin marcador conserva la directriz actual y permite opción del plan", () => {
+    const verdict = gaugeVerdict(
+      targets,
+      { kcal: 992, prot: 55, carb: 103, fat: 39 },
+      null,
+    );
+    const line = closureLine({
+      stance: "deficit",
+      verdict,
+      timing: { rel: "pre", hoursToStart: 4.6 },
+    });
+    expect(line).toContain("PROTEÍNA PRIORITARIA");
+    expect(line).toContain("opciones del plan pendientes");
+  });
+
+  it("Chat ve prevista solo hoy; histórico y Visita solo etiquetan reales", () => {
+    const yesterday = record("2026-07-11", {
+      planned: ["cena"],
+      real: [],
+    });
+    const today = record(TODAY, { planned: ["cena"], real: [] });
+    const current = dayLines([yesterday, today], 30, {
+      sessionByWeekday: DEFAULT_SESSION_BY_WEEKDAY,
+      today: TODAY,
+      includeCurrentPlannedFlexible: true,
+    });
+    const visit = dayLines([yesterday, today], 30, {
+      sessionByWeekday: DEFAULT_SESSION_BY_WEEKDAY,
+      today: TODAY,
+    });
+    expect(current).toContain("Cena flexible prevista");
+    expect(current.match(/flexible prevista/g)).toHaveLength(1);
+    expect(visit).not.toContain("flexible prevista");
+
+    const real = record("2026-07-11", { planned: [], real: ["cena"] });
+    expect(dayLine(real)).toContain("Cena flexible");
+  });
+
+  it("detalle histórico etiqueta solo el momento flexible real", () => {
+    const entries: DatedEntry[] = [
+      {
+        date: "2026-07-11",
+        meal: "cena",
+        name: "Pizza",
+        kcal: 900,
+        prot: 30,
+        carb: 100,
+        fat: 40,
+      },
+      {
+        date: TODAY,
+        meal: "comida",
+        name: "Arroz",
+        kcal: 400,
+        prot: 10,
+        carb: 80,
+        fat: 4,
+      },
+    ];
+    const detail = recentMealsDetail(entries, [
+      record("2026-07-11", { planned: [], real: ["cena"] }),
+      record(TODAY, { planned: ["comida"], real: [] }),
+    ]);
+    expect(detail).toContain("[cena · Flexible] Pizza");
+    expect(detail).toContain("[comida] Arroz");
+    expect(detail).not.toContain("[comida · Flexible]");
+  });
+
+  it("Chat recibe el KPI precalculado solo con muestra suficiente", () => {
+    const deficit: DeficitResult = {
+      enough: false,
+      weighins: 0,
+      spanDays: 0,
+      kgPerWeek: null,
+      deficitKcal: null,
+      intakeMean: null,
+      tdee: null,
+    };
+    const adherence = {
+      windowDays: 14,
+      n: 14,
+      kcalN: 11,
+      proteinN: 14,
+      flexibleN: 3,
+      flexibleMoments: 3,
+      specialN: 0,
+      enRango: 8,
+      protOk: 12,
+      kcalPct: 72.7,
+      protPct: 85.7,
+    };
+    const line = trendAndAdherence(deficit, adherence, {
+      windowDays: 28,
+      flexibleDays: 3,
+      flexibleMoments: 3,
+      regularDays: 7,
+      flexibleMeanKcal: 2200,
+      regularMeanKcal: 1800,
+      flexibleMeanTargetPct: 122.2,
+      regularMeanTargetPct: 100,
+      differenceObservedKcal: 400,
+      differenceObservedPct: 22.2,
+      enoughForComparison: true,
+    });
+    expect(line).toContain("KPI flexible precalculado");
+    expect(line).toContain("≈+400 kcal");
+    expect(line).toContain("n=3");
+    expect(line).toContain("n=7");
+    expect(
+      trendAndAdherence(deficit, adherence, {
+        windowDays: 28,
+        flexibleDays: 2,
+        flexibleMoments: 2,
+        regularDays: 7,
+        flexibleMeanKcal: 2200,
+        regularMeanKcal: 1800,
+        flexibleMeanTargetPct: 122.2,
+        regularMeanTargetPct: 100,
+        differenceObservedKcal: 400,
+        differenceObservedPct: 22.2,
+        enoughForComparison: false,
+      }),
+    ).not.toContain("KPI flexible precalculado");
   });
 });
 

@@ -2,9 +2,16 @@ import { ensureAuth, serverError } from "@/lib/api";
 import { dayKey, shiftDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
 import { computeDeficit } from "@/server/analytics/deficit";
+import { computeFlexibleImpact } from "@/server/analytics/flexibleImpact";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
-import { dayLines, marksContext, medLines, trendSummary } from "@/server/ai/context";
+import {
+  dayLines,
+  flexibleImpactLine,
+  marksContext,
+  medLines,
+  trendSummary,
+} from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
 import { prepareVisitPrompt } from "@/server/ai/prompts";
 import { listMarksWithEntries } from "@/server/db/queries/marks";
@@ -36,6 +43,7 @@ export async function POST() {
 
   const { records, currentTarget } = trend;
   const deficit = computeDeficit(records);
+  const flexibleImpact = computeFlexibleImpact(records, today);
   const lastWeight =
     [...records].reverse().find((r) => r.weight != null)?.weight ?? null;
   const visitFrom = shiftDayKey(today, -29);
@@ -61,7 +69,9 @@ export async function POST() {
         kcal: currentTarget.kcal > 0 ? currentTarget.kcal : null,
         prot: currentTarget.prot > 0 ? currentTarget.prot : null,
         meds: medLines(meds),
-        tendencia: trendSummary(deficit),
+        tendencia: [trendSummary(deficit), flexibleImpactLine(flexibleImpact)]
+          .filter(Boolean)
+          .join("\n"),
         filas: dayLines(visitRecords, 30, {
           sessionByWeekday: atleta.sessionByWeekday,
           today,

@@ -85,4 +85,26 @@ describe("coach reading cache", () => {
       )?.stale,
     ).toBe(true);
   });
+
+  it("marca la lectura obsoleta cuando cambia un marcador flexible", () => {
+    const hash = coachContextHash(view, targets);
+    expect(
+      coachContextHash(
+        {
+          ...view,
+          flexibleMeals: { planned: ["cena"], real: [] },
+        },
+        targets,
+      ),
+    ).not.toBe(hash);
+    expect(
+      coachContextHash(
+        {
+          ...view,
+          flexibleMeals: { planned: [], real: ["comida"] },
+        },
+        targets,
+      ),
+    ).not.toBe(hash);
+  });
 });
