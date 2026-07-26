@@ -10,6 +10,10 @@ import {
   MEAL_LABELS,
   roundKcal,
 } from "@/lib/macros";
+import type {
+  FlexibleMealKey,
+  FlexibleMealState,
+} from "@/lib/flexible-meals";
 import { cn } from "@/lib/utils";
 import { subtotalsByMeal } from "@/server/analytics/dayTotals";
 import type { EntryDTO } from "@/server/db/queries/day";
@@ -31,6 +35,9 @@ export function MealTimeline({
   onSaveTemplate,
   onApplyTemplate,
   onDeleteTemplate,
+  flexibleMeals,
+  phase,
+  onSetFlexibleMeal,
 }: {
   entries: EntryDTO[];
   templates: TemplateDTO[];
@@ -45,6 +52,9 @@ export function MealTimeline({
   onSaveTemplate: (name: string) => void;
   onApplyTemplate: (id: number) => void;
   onDeleteTemplate: (id: number) => void;
+  flexibleMeals: FlexibleMealState;
+  phase: string | null;
+  onSetFlexibleMeal: (meal: FlexibleMealKey, marked: boolean) => void;
 }) {
   const subtotals = subtotalsByMeal(entries);
   const extras = entries.filter((entry) => entry.meal === "extra");
@@ -91,6 +101,13 @@ export function MealTimeline({
         {sections.map((meal) => {
           const rows = entries.filter((entry) => entry.meal === meal);
           const open = expanded.has(meal);
+          const flexibleMeal =
+            meal === "extra" ? null : (meal as FlexibleMealKey);
+          const flexiblePlanned =
+            flexibleMeal != null && flexibleMeals.planned.includes(flexibleMeal);
+          const flexibleReal =
+            flexibleMeal != null && flexibleMeals.real.includes(flexibleMeal);
+          const flexibleMarked = flexiblePlanned || flexibleReal;
           return (
             <div key={meal} className="border-b border-line last:border-b-0">
               <button
@@ -120,10 +137,17 @@ export function MealTimeline({
                   <strong className="block text-[15px] font-semibold text-foreground">
                     {MEAL_LABELS[meal]}
                   </strong>
-                  <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">
-                    {rows.length > 0
-                      ? `${rows.length} ${rows.length === 1 ? "alimento registrado" : "alimentos registrados"}`
-                      : "Sin registros"}
+                  <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
+                    <span className="truncate">
+                      {rows.length > 0
+                        ? `${rows.length} ${rows.length === 1 ? "alimento registrado" : "alimentos registrados"}`
+                        : "Sin registros"}
+                    </span>
+                    {flexibleMarked ? (
+                      <span className="shrink-0 rounded-full bg-info/10 px-1.5 py-0.5 text-[10px] font-semibold text-info">
+                        {flexibleReal ? "Flexible" : "Flexible prevista"}
+                      </span>
+                    ) : null}
                   </span>
                 </span>
                 <span className="shrink-0 font-display text-[17px] font-semibold tabular-nums text-foreground">
@@ -141,6 +165,29 @@ export function MealTimeline({
 
               {open ? (
                 <div className="border-t border-line bg-surface-2/55 px-[18px] py-2">
+                  {flexibleMeal != null &&
+                  (phase == null || flexibleMarked) ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onSetFlexibleMeal(flexibleMeal, !flexibleMarked)
+                      }
+                      className="flex min-h-11 w-full items-center text-left text-[12px] font-semibold text-info"
+                      aria-label={
+                        flexibleMarked
+                          ? `Desmarcar ${MEAL_LABELS[meal]} flexible`
+                          : `Marcar ${MEAL_LABELS[meal]} como flexible`
+                      }
+                    >
+                      {flexibleMarked ? (
+                        <span className="rounded-full bg-info/10 px-2.5 py-1">
+                          {flexibleReal ? "Flexible" : "Flexible prevista"}
+                        </span>
+                      ) : (
+                        "○ Marcar como flexible"
+                      )}
+                    </button>
+                  ) : null}
                   {rows.length > 0 ? (
                     <>
                       {rows.map((entry) => (

@@ -12,6 +12,7 @@ const view: DayView = {
   day: null,
   health: null,
   session: null,
+  flexibleMeals: { planned: [], real: [] },
   entries: [
     {
       id: 2,

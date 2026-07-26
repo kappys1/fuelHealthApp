@@ -18,6 +18,7 @@ const TABLE_LABELS: Record<string, string> = {
   planOptions: "opciones de plan",
   days: "días",
   mealEntries: "entradas",
+  flexibleMeals: "momentos flexibles",
   healthMetrics: "métricas de salud",
   workouts: "entrenamientos",
   medMeasurements: "MED",

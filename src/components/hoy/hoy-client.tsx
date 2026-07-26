@@ -276,6 +276,11 @@ export function HoyClient({
 
       <MealTimeline
         entries={data.view.entries}
+        flexibleMeals={data.view.flexibleMeals}
+        phase={phase}
+        onSetFlexibleMeal={(meal, marked) =>
+          void todayState.setFlexibleMeal(meal, marked)
+        }
         templates={data.templates}
         onSaveEntry={(id, patch) => todayState.updateEntry(id, patch)}
         onDeleteEntry={todayState.deleteEntry}

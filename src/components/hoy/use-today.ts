@@ -6,6 +6,12 @@ import { toast } from "sonner";
 import { api, type EntryInput, type ProductInput } from "@/lib/client-api";
 import { resolveProductSave } from "@/lib/entry-actions";
 import type { BloatKey } from "@/lib/macros";
+import {
+  deriveFlexibleMealState,
+  flexibleMarkers,
+  setFlexibleMarker,
+  type FlexibleMealKey,
+} from "@/lib/flexible-meals";
 import type { CoachReading } from "@/server/ai/coach-reading";
 import {
   cancelQueuedBloatUpsert,
@@ -20,6 +26,20 @@ import type { EntryDTO } from "@/server/db/queries/day";
 import type { TodayPayload } from "@/server/db/queries/today";
 
 let tempId = -1;
+
+function entriesView(
+  view: TodayPayload["view"],
+  entries: EntryDTO[],
+): TodayPayload["view"] {
+  return {
+    ...view,
+    entries,
+    flexibleMeals: deriveFlexibleMealState(
+      flexibleMarkers(view.flexibleMeals),
+      entries,
+    ),
+  };
+}
 
 export function useToday(date: string, initial: TodayPayload) {
   const qc = useQueryClient();
@@ -67,7 +87,7 @@ export function useToday(date: string, initial: TodayPayload) {
       }));
       setData((p) => ({
         ...p,
-        view: { ...p.view, entries: [...p.view.entries, ...optimistic] },
+        view: entriesView(p.view, [...p.view.entries, ...optimistic]),
       }));
       // Sin conexión: encolar y conservar el optimista (07 §2 / cola offline).
       if (isOffline()) {
@@ -113,12 +133,12 @@ export function useToday(date: string, initial: TodayPayload) {
     async (id: number, patch: Partial<Omit<EntryInput, "source" | "photoUrl">>) => {
       setData((p) => ({
         ...p,
-        view: {
-          ...p.view,
-          entries: p.view.entries.map((e) =>
+        view: entriesView(
+          p.view,
+          p.view.entries.map((e) =>
             e.id === id ? { ...e, ...patch } : e,
           ),
-        },
+        ),
       }));
       try {
         await api.updateEntry(id, patch);
@@ -135,7 +155,10 @@ export function useToday(date: string, initial: TodayPayload) {
     async (entry: EntryDTO) => {
       setData((p) => ({
         ...p,
-        view: { ...p.view, entries: p.view.entries.filter((e) => e.id !== entry.id) },
+        view: entriesView(
+          p.view,
+          p.view.entries.filter((e) => e.id !== entry.id),
+        ),
       }));
       try {
         await api.deleteEntry(entry.id);
@@ -174,6 +197,76 @@ export function useToday(date: string, initial: TodayPayload) {
       });
     },
     [setData, refetch, addEntries],
+  );
+
+  // ── Marcar/desmarcar flexible (optimista + undo + cola idempotente) ──
+  const setFlexibleMeal = useCallback(
+    async (
+      meal: FlexibleMealKey,
+      marked: boolean,
+      options: { undo?: boolean } = { undo: true },
+    ) => {
+      setData((p) => ({
+        ...p,
+        view: {
+          ...p.view,
+          flexibleMeals: setFlexibleMarker(
+            p.view.flexibleMeals,
+            meal,
+            marked,
+            p.view.entries,
+          ),
+        },
+      }));
+
+      const queueChange = async () => {
+        await enqueue({
+          kind: "setFlexibleMeal",
+          date,
+          meal,
+          marked,
+          ts: Date.now(),
+        });
+      };
+
+      try {
+        if (isOffline()) {
+          await queueChange();
+          toast("Sin conexión: se guardará al reconectar", { duration: 2500 });
+        } else {
+          await api.setFlexibleMeal(date, meal, marked);
+        }
+      } catch (error) {
+        if (isOffline() || isRetriableRequestError(error)) {
+          await queueChange();
+          toast(
+            isOffline()
+              ? "Sin conexión: se guardará al reconectar"
+              : "Conexión interrumpida: pendiente de sincronizar",
+            { duration: 2500 },
+          );
+        } else {
+          toast.error(
+            error instanceof Error ? error.message : "No se pudo guardar.",
+          );
+          refetch();
+          return;
+        }
+      }
+
+      if (options.undo !== false) {
+        toast(marked ? "Marcada como flexible" : "Marcador flexible retirado", {
+          duration: 6000,
+          action: {
+            label: "Deshacer",
+            onClick: () => {
+              void setFlexibleMeal(meal, !marked, { undo: false });
+            },
+          },
+        });
+      }
+    },
+    [date, setData, refetch],
   );
 
   // ── Autosave de campos del día (optimista + debounce 600 ms — 07 §1) ──
@@ -662,6 +755,7 @@ export function useToday(date: string, initial: TodayPayload) {
     addEntries,
     updateEntry,
     deleteEntry,
+    setFlexibleMeal,
     patchDay,
     patchDayNow,
     createProduct,

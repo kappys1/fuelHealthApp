@@ -31,6 +31,8 @@ import * as schema from "./schema";
 
   NO-OP: el export del PoC no contiene marcas/registros de rendimiento (F03) — esa
   feature nace en la app real. La migración no toca performance_marks/mark_entries.
+  Tampoco contiene marcadores flexibles (F16): un PoC antiguo migra cero y esta
+  operación nunca inventa ni borra flexible_meals.
 
   Uso: pnpm migrate:poc <archivo.json>
 */
@@ -193,6 +195,7 @@ async function main() {
     favorites: 0,
     products: 0,
     templates: 0,
+    flexibleMeals: 0,
   };
 
   // ── 1) diet_version 'migrated:poc' (idempotente: borrar + reinsertar) ──
