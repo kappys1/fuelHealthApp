@@ -373,6 +373,26 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 
 ---
 
+### v1.17 · Comidas flexibles: contexto, adherencia e impacto (F16)
+
+- Marcador aditivo por `fecha + momento` con estados derivados `Flexible prevista` /
+  `Flexible`, API idempotente, mutación optimista+undo, replay offline y round-trip en
+  export/restore. Migración `0016`; `extra` queda fuera y copiar/plantillas/duplicar no
+  trasladan el marcador.
+- Adherencia con denominadores transparentes: una flexible real sale solo del juicio de
+  kcal; su proteína sigue contando. Sus kcal y peso permanecen íntegros en ingesta
+  media/TDEE, Tendencia y ma7. Gauge y gráfica conservan cifras reales con tono azul
+  informativo.
+- Nuevo KPI descriptivo `Impacto flexible · 28 d`, con objetivos históricos, medias F/R,
+  diferencia observada y mínimos de muestra 3 flexibles + 7 regulares. Historial etiqueta
+  únicamente flexibles reales.
+- Coach/Chat/Visita reciben contexto ya calculado: prevista no intenta cerrar ese momento;
+  real no se trata como fallo ni genera compensación. Sin prompt, modelo, temperatura ni
+  llamada IA nuevos. Commits `c958fe6`, `327a7c9`, `10824d1`; 373 tests verdes. Pendiente
+  validación 🖐 de los AC 1/2/3/4/6/11/14/15/16/17 en producción.
+
+---
+
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
 
 ### Arquitectura, toolchain y build

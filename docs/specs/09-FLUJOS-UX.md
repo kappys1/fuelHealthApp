@@ -31,7 +31,7 @@ De arriba abajo, y NADA más:
 1. **Header**: fecha navegable (‹ hoy ›) + racha de registro + Ajustes.
 2. **FuelGauge** con sus 4 barras y la línea «Faltan…». En su esquina, icono ✨ que abre el **Coach en sheet** (ayer / hoy) — el coach ya no es tarjeta permanente.
 3. **Línea de estado del día** (doc 07 §1): UNA acción contextual por hora («Falta el peso de hoy» → tap → sheet de peso). Desaparece cuando el día está al día.
-4. **Timeline de comidas**: sección por comida (Almuerzo → Cena + Extra) con sus entradas y subtotal kcal; cada sección tiene su «+» que abre el sheet de añadir CON esa comida preseleccionada. Entradas: tap = editar en línea, ★, miniatura de foto, swipe/papelera = borrar con undo.
+4. **Timeline de comidas**: sección por comida (Almuerzo → Cena + Extra) con sus entradas y subtotal kcal; cada sección tiene su «+» que abre el sheet de añadir CON esa comida preseleccionada. Entradas: tap = editar en línea, ★, miniatura de foto, swipe/papelera = borrar con undo. En el panel expandido de Almuerzo/Comida/Merienda/Cena vive la acción secundaria `Marcar como flexible` (target ≥44 px), con estado derivado `Flexible prevista` si está vacío y `Flexible` si ya contiene entradas; el chip también aparece en la fila colapsada. No crea tarjeta ni sheet. Una fase especial impide crear el marcador y prevalece sobre uno existente, que puede retirarse sin borrar comidas.
 5. **Tarjeta «Mi día» colapsada**: una línea resumen («T3 · Fuerza + Gimnásticos · Normal · 92,1 kg») que expande a: peso, agua, % grasa, sesión (+ analizador de WOD pegado), fase, hinchazón, notas, línea «Del reloj». Colapsada por defecto una vez rellena.
 
 Barra inferior de la pestaña Hoy: botón primario fijo **«+ Añadir comida»** (siempre alcanzable con el pulgar, además de los «+» por sección).
@@ -88,6 +88,9 @@ Listo en ≤15 segundos. Cada paso es saltable; guardar en cada paso (si lo aban
 - Bottom-sheets para TODO flujo de creación/edición (shadcn Sheet/Drawer); páginas solo para las 4 pestañas.
 - Máximo una decisión por pantalla del sheet; defaults inteligentes en todo (comida por hora, gramos = baseG, fecha = hoy).
 - Optimista + undo + autosave (doc 07) aplican en cada flujo de este documento.
+- El marcador flexible es secundario al CTA `Añadir a {momento}` y no añade ningún toque al
+  registro normal. Copiar ayer, plantillas, duplicar y el volcado IA copian comidas, nunca
+  el marcador de la fecha.
 - Cualquier feature del PRD sin sitio explícito aquí: buscarle el momento de uso y proponer ubicación en `DECISIONS.md` — nunca añadir otra tarjeta permanente a Hoy.
 
 ## 7. Criterios de aceptación del rediseño
