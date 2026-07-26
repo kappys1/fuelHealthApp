@@ -1,6 +1,7 @@
 import { asc } from "drizzle-orm";
 import type { GrpKey, MealKey } from "@/lib/macros";
 import type { TrainingTipo } from "@/lib/training";
+import type { SessionFranja } from "@/lib/training-slot";
 import type { MedDelta } from "@/server/analytics/medDeltas";
 import { db, schema } from "@/server/db";
 import { getAthleteProfile } from "./lookups";
@@ -108,6 +109,7 @@ export async function getHistorialData(): Promise<HistorialEntry[]> {
       kcalMin: r.kcalMin,
       kcalMax: r.kcalMax,
       duracionMin: r.duracionMin,
+      franja: r.franja as SessionFranja | null,
       sort: r.sort,
     });
     sessByPlan.set(r.planId, list);

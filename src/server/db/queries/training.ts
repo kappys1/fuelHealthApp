@@ -25,6 +25,7 @@ import {
   trainingWeekSpan,
   type TrainingTipo,
 } from "@/lib/training";
+import type { SessionFranja } from "@/lib/training-slot";
 import { db, schema } from "@/server/db";
 import { getAthleteProfile } from "./lookups";
 
@@ -46,6 +47,7 @@ export interface TrainingSessionDTO {
   kcalMin: number | null;
   kcalMax: number | null;
   duracionMin: number | null;
+  franja: SessionFranja | null;
   sort: number;
 }
 
@@ -132,6 +134,7 @@ export interface ImportedTrainingSession {
   kcalMin: number | null;
   kcalMax: number | null;
   duracionMin: number | null;
+  franja?: SessionFranja | null;
 }
 
 export interface ImportedTrainingPlan {
@@ -281,6 +284,7 @@ export async function createTrainingPlanAtomic(
           kcalMin: session.kcalMin,
           kcalMax: session.kcalMax,
           duracionMin: session.duracionMin,
+          franja: session.franja ?? null,
           sort: index,
         })),
       ),

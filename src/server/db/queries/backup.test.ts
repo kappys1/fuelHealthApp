@@ -4,6 +4,7 @@ import {
   flexibleMealImportRow,
   mealEntryImportRow,
   planOptionImportRow,
+  trainingSessionImportRow,
 } from "./backup-map";
 
 async function importParser() {
@@ -326,5 +327,29 @@ describe("parseImport — preflight destructivo", () => {
         },
       }),
     ).toThrow(/mealEntries\[0\]\.date/);
+  });
+});
+
+describe("trainingSessionImportRow — round-trip F20 (AC15)", () => {
+  const base = {
+    planId: 4,
+    key: "S1",
+    nombre: "Halterofilia",
+    tipo: "fuerza",
+    contenido: "Snatch",
+    kcalMin: 200,
+    kcalMax: 300,
+    duracionMin: 60,
+    sort: 0,
+  };
+
+  it("conserva una franja explícita", () => {
+    expect(trainingSessionImportRow({ ...base, franja: "mañana" }).franja).toBe(
+      "mañana",
+    );
+  });
+
+  it("restaura null cuando el export anterior no tenía franja", () => {
+    expect(trainingSessionImportRow(base).franja).toBeNull();
   });
 });

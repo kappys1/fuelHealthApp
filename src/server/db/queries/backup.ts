@@ -4,11 +4,13 @@ import { z } from "zod";
 import { dateZ } from "@/lib/schemas";
 import { db, schema } from "@/server/db";
 import { productImportRow } from "../products-map";
+import { normalizeTrainingSettings } from "../settings-map";
 import {
   bloatEventImportRow,
   flexibleMealImportRow,
   mealEntryImportRow,
   planOptionImportRow,
+  trainingSessionImportRow,
 } from "./backup-map";
 
 /*
@@ -345,6 +347,7 @@ function validateImportData(data: ImportData): void {
   assertField(data, "chatMessages", "role", isEnum(schema.chatRoleEnum.enumValues));
   assertField(data, "trainingPlans", "source", isEnum(schema.trainingSourceEnum.enumValues));
   assertField(data, "trainingSessions", "tipo", isEnum(schema.trainingTipoEnum.enumValues));
+  assertField(data, "trainingSessions", "franja", isNullableEnum(["mañana", "tarde"]));
   assertField(data, "performanceMarks", "measureType", isEnum(schema.markMeasureEnum.enumValues));
 
   assertForeignKey(data, "planOptions", "dietVersionId", "dietVersions");
@@ -363,8 +366,12 @@ export function parseImport(raw: unknown): ImportData {
   if (!parsed.success) {
     throw new Error("El archivo no es un export de Fuelboard válido.");
   }
-  validateImportData(parsed.data.data);
-  return parsed.data.data;
+  const data = {
+    ...parsed.data.data,
+    settings: normalizeTrainingSettings(parsed.data.data.settings),
+  };
+  validateImportData(data);
+  return data;
 }
 
 export async function previewImport(data: ImportData): Promise<ImportPreview> {
@@ -444,15 +451,7 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
       db.insert(schema.trainingSessions).overridingSystemValue().values(
         data.trainingSessions.map((r) => ({
           id: Number(r.id),
-          planId: Number(r.planId),
-          key: String(r.key),
-          nombre: String(r.nombre),
-          tipo: r.tipo as typeof schema.trainingTipoEnum.enumValues[number],
-          contenido: String(r.contenido),
-          kcalMin: n(r.kcalMin),
-          kcalMax: n(r.kcalMax),
-          duracionMin: n(r.duracionMin),
-          sort: Number(r.sort),
+          ...trainingSessionImportRow(r),
         })),
       ),
     );

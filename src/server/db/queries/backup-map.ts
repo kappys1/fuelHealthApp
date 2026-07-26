@@ -1,4 +1,5 @@
 import type { PlanVariant } from "@/lib/macros";
+import type { SessionFranja } from "@/lib/training-slot";
 import * as schema from "../schema";
 
 /*
@@ -101,5 +102,21 @@ export function flexibleMealImportRow(r: Record<string, unknown>) {
     date: String(r.date),
     meal: r.meal as (typeof schema.mealEnum.enumValues)[number],
     createdAt: dt(r.createdAt),
+  };
+}
+
+/** Sesión de un backup F20; los exports anteriores restauran franja desconocida. */
+export function trainingSessionImportRow(r: Record<string, unknown>) {
+  return {
+    planId: Number(r.planId),
+    key: String(r.key),
+    nombre: String(r.nombre),
+    tipo: r.tipo as (typeof schema.trainingTipoEnum.enumValues)[number],
+    contenido: String(r.contenido),
+    kcalMin: n(r.kcalMin),
+    kcalMax: n(r.kcalMax),
+    duracionMin: n(r.duracionMin),
+    franja: (r.franja ?? null) as SessionFranja | null,
+    sort: Number(r.sort),
   };
 }
