@@ -409,6 +409,22 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 - **Completada por Alex el 26-jul**: AC 🖐 1–5 aprobados. Alex acepta el cierre de AC9 con
   Week 31 real; no se afirma una ejecución ×3 del archivo Week 29 ausente.
 
+### v1.19 · Describir conoce «Mis productos» (F18)
+
+- El flujo **Describir** (`day-dump`) inyecta el catálogo «Mis productos» en el prompt
+  (mismo formato que el chat en F12): tapa en Describir el agujero que F12 cerró en el chat.
+- El modelo **identifica** el producto por nombre exacto (`producto: string|null`, sin
+  recalcular); el **servidor** hace la aritmética con la función pura `applyProductMatches`,
+  reescalando desde la base guardada (mismo escalado de F06/F07). Diseño B (P2).
+- El **nombre del item se conserva** (la preparación: «Café con leche de almendras»); el
+  canónico va en `producto`, no lo pisa (enmienda 26-jul tras validación de Alex — renombrar
+  solo al componente borraba que era un café y engañaría en un mix real).
+- Caso real 26-jul: «cafe con leche de almendra 0% lidl» conserva su nombre pero toma los
+  macros escalados de la etiqueta de *Bebida de almendras Lidl 0%*, no los 24 kcal genéricos.
+- Sin migración: el match es efímero (mejora los macros al crear; la entrada sigue editable).
+  `estimate` (F-IA-2) queda fuera por diseño. 403 tests + typecheck verdes.
+- **AC1 🖐 pendiente del pulgar de Alex** en producción (+ re-validación café ×3 del prompt).
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

@@ -219,18 +219,15 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   F06. export/restore/migrate:poc las transportan. **Fase 2** (editar variantes
   a mano en el editor del plan, sin reimportar) está hecha; quedan sus AC de edición
   manual marcados 🖐 en la spec. DECISIONS #66/#67.
-- 💡 **Describir que conoce tus productos** (idea Alex, 16-jul, durante la validación de F07) —
-  **backlog, medir primero.** Caso real: los combos legacy tipo «Pan bimbo 1 reb. + mermelada
-  s/a» no encajan en el modelo de producto (una combinación no reescala ni ajusta proporción;
-  es la «foto congelada» que F07 retira). El caso «varios alimentos, no sé cuánto de cada uno»
-  **ya lo cubre Describir (F-IA-4)** (parte en ítems con stepper por ítem). La idea nueva:
-  que **Describir empareje el texto con tus productos guardados** → usa las macros EXACTAS del
-  producto para lo conocido («pan bimbo») y solo **estima** lo desconocido («mermelada»).
-  Toca el prompt congelado de F-IA-4 (re-validar AC + café ×3) + catálogo en el contexto del
-  day-dump + lógica de matching. **Prerrequisito: F07 Fase 2** (crea el catálogo de productos
-  reales que emparejar). **Decidir tras 2 semanas de uso real** del flujo «2 productos fijados
-  + tap-tap / Describir» (regla anti-optimización-sin-medición, doc 11): si el tap-tap no
-  molesta, no se hace. Descartado ya: creador de combo «foto de una etiqueta + describe el
+- ✅ **Describir que conoce tus productos** (idea Alex, 16-jul; caso real que la disparó, 26-jul) —
+  **IMPLEMENTADA (F18, `docs/specs/features/18-describir-consulta-mis-productos.md`)**, **AC1 🖐
+  pendiente del pulgar de Alex** (+ café ×3). Caso real 26-jul: «cafe con leche de almendra 0%
+  lidl» estimaba 24 kcal genéricas e ignoraba *Bebida de almendras Lidl 0%* (250 g = 40 kcal).
+  Solución: `day-dump` inyecta el catálogo en el prompt (`productsContext`, como F12) y el modelo
+  identifica por nombre EXACTO (`producto: string|null`); el servidor recalcula con la función
+  pura `applyProductMatches` desde la base guardada (diseño B, P2). Sin migración (match efímero).
+  `estimate` (F-IA-2) queda **fuera** por diseño (macros sin gramos → reescalado ambiguo).
+  DECISIONS #82. Descartado ya: creador de combo «foto de una etiqueta + describe el
   resto + buscar» (contamina F-IA-11, que es lector puro) y búsqueda en BD externas (NO-alcance
   de F07: OFF/USDA/BEDCA = ruido, principio 2).
 - ✅ **Estimar macros de una variante con IA** (idea Alex, 17-jul, tras validar F08 Fase 2) —

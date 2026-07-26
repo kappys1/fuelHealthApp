@@ -71,6 +71,11 @@ export const dayDumpItemZ = z.object({
   // es razonable; si el item no tiene cantidad estimable ("un puñado", "sopa")
   // devuelve null → el item queda fijo (sin stepper). NUNCA inventa una cifra.
   gramos: num.nullable(),
+  // F18: identificación (no cálculo) de un producto de «Mis productos». Nombre EXACTO
+  // del catálogo si el item lo contiene; null si no. El SERVIDOR recalcula sus macros
+  // (applyProductMatches); es efímero (no se persiste). `.default(null)` defensivo: si
+  // el modelo lo omite, degrada al comportamiento de hoy (sin match).
+  producto: z.string().nullable().default(null),
   kcal: num,
   proteina_g: num,
   carbohidratos_g: num,

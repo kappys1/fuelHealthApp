@@ -4,9 +4,12 @@ import { retry } from "@/lib/retry";
 import { dateZ } from "@/lib/schemas";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runStructured } from "@/server/ai/client";
+import { productsContext } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
+import { applyProductMatches } from "@/server/ai/product-match";
 import { dayDumpPrompt } from "@/server/ai/prompts";
 import { dayDumpZ } from "@/server/ai/schemas";
+import { listProducts } from "@/server/db/queries/lookups";
 import { getPlanContext } from "@/server/db/queries/plan";
 
 const bodyZ = z.object({
@@ -24,10 +27,15 @@ export async function POST(request: Request) {
 
   let plan;
   let atleta: Awaited<ReturnType<typeof getAthleteContexts>>;
+  // F18: el catálogo «Mis productos» viaja al prompt (identificación) y a
+  // applyProductMatches (recálculo determinista). Entra en el Promise.all con retry;
+  // si falla → serverError (error-BD, separado del error-IA de más abajo).
+  let products: Awaited<ReturnType<typeof listProducts>>;
   try {
-    [plan, atleta] = await Promise.all([
+    [plan, atleta, products] = await Promise.all([
       retry(() => getPlanContext(parsed.data.date)),
       retry(() => getAthleteContexts(parsed.data.date)),
+      retry(() => listProducts()),
     ]);
   } catch (err) {
     return serverError(err);
@@ -41,13 +49,21 @@ export async function POST(request: Request) {
       // "estimate" (thinking low) por la regla de determinismo.
       kind: "vision",
       task: "estimate",
-      prompt: dayDumpPrompt(parsed.data.texto, kcal, prot, atleta.compact),
+      prompt: dayDumpPrompt(
+        parsed.data.texto,
+        kcal,
+        prot,
+        atleta.compact,
+        productsContext(products),
+      ),
       schema: dayDumpZ,
       // Un volcado del día entero puede trocearse en muchos items; con el thinking
       // de Gemini saliendo de este presupuesto, damos margen para no truncar el JSON.
       maxOutputTokens: 2500,
     });
-    return Response.json(result);
+    // F18: el modelo identifica el producto; el servidor sobrescribe sus macros con
+    // la etiqueta guardada (diseño B, determinista). Los items sin match no cambian.
+    return Response.json({ items: applyProductMatches(result.items, products) });
   } catch (err) {
     return aiErrorResponse(err);
   }

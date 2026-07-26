@@ -123,17 +123,26 @@ export function planOptionPrompt(
 }
 
 // ── F-IA-4 · Volcado del día ──
+// F18: recibe el catálogo «Mis productos» ya formateado (productsContext, misma
+// doctrina que el chat en F12). El modelo IDENTIFICA el producto (reconocimiento
+// semántico); el SERVIDOR recalcula sus macros (applyProductMatches, aritmética
+// determinista) → aquí se le pide explícitamente NO recalcular, solo identificar.
 export function dayDumpPrompt(
   texto: string,
   kcal: number | null,
   prot: number | null,
   contexto: string,
+  productos: string,
 ): string {
   const planContext =
     kcal != null && prot != null
       ? `plan de ${kcal} kcal, ${prot} g proteína`
       : "sin pauta nutricional configurada";
-  return `${contexto} Registro dictado de comidas de un día (${planContext}). Texto del usuario: "${texto}". Trocéalo en items de comida. Para cada item asigna: comida ("almuerzo","comida","merienda","cena" o "extra" si no está claro), nombre corto, gramos (la ración en gramos SOLO cuando sea razonable estimarla; si el item no tiene una cantidad estimable —p. ej. "un puñado de nueces", "una sopa"— devuelve gramos: null; NUNCA inventes una cifra por rellenar el campo), y estima kcal, proteína, hidratos y grasa con valores medios de tablas españolas (ante ambigüedad, la variante más común, de forma consistente). Responde SOLO con JSON válido, sin markdown: {"items":[{"comida":string,"nombre":string,"gramos":number|null,"proteina_g":number,"kcal":number,"carbohidratos_g":number,"grasa_g":number}]}`;
+  const productosSection =
+    productos !== ""
+      ? ` MIS PRODUCTOS (catálogo de Alex, sus etiquetas exactas):\n${productos}\nSi un item del texto se corresponde con uno de MIS PRODUCTOS —aunque el texto lo describa de otra forma o forme parte de una preparación (p. ej. una bebida de marca dentro de un café)— devuelve en "producto" el nombre EXACTO de ese producto (tal cual figura en la lista, sin cambiarlo); NO recalcules sus macros a partir de tablas: solo identifícalo (el servidor usará su etiqueta guardada). El "nombre" del item sigue describiendo lo que comió o bebió el usuario (la preparación, p. ej. "Café con leche de almendras"); NO copies ahí el nombre del producto: ese va SOLO en "producto". Si un item no coincide con ninguno, devuelve "producto": null y estímalo de tablas con normalidad.`
+      : "";
+  return `${contexto} Registro dictado de comidas de un día (${planContext}). Texto del usuario: "${texto}". Trocéalo en items de comida. Para cada item asigna: comida ("almuerzo","comida","merienda","cena" o "extra" si no está claro), nombre corto, gramos (la ración en gramos SOLO cuando sea razonable estimarla; si el item no tiene una cantidad estimable —p. ej. "un puñado de nueces", "una sopa"— devuelve gramos: null; NUNCA inventes una cifra por rellenar el campo), y estima kcal, proteína, hidratos y grasa con valores medios de tablas españolas (ante ambigüedad, la variante más común, de forma consistente).${productosSection} Responde SOLO con JSON válido, sin markdown: {"items":[{"comida":string,"nombre":string,"gramos":number|null,"producto":string|null,"proteina_g":number,"kcal":number,"carbohidratos_g":number,"grasa_g":number}]}`;
 }
 
 // ── F-IA-5 · Analizar sesión pegada (WOD) ──
