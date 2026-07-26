@@ -35,6 +35,7 @@ import {
   chatSystemPrompt,
   chatTitlePrompt,
   coachPrompt,
+  dayDumpPrompt,
   photoPrompt,
   prepareVisitPrompt,
   sharedGuardrails,
@@ -1385,5 +1386,53 @@ describe("planSummary lleva los macros de cada opción (DECISIONS #56)", () => {
     // Sin macros el chat no puede proyectar el día → el bug de #56. Con macros sí.
     expect(s).toContain("Carne magra 210 g = 231 kcal · 46P/0C/5F");
     expect(s).toContain("SÍ figuran en tus datos");
+  });
+});
+
+// ── F18 · Describir consulta «Mis productos» (prompt congelado) ──
+describe("F18 · dayDumpPrompt inyecta MIS PRODUCTOS y pide identificar, no recalcular", () => {
+  const catalogo = productsContext([
+    {
+      id: 1,
+      name: "Bebida de almendras Lidl 0%",
+      baseG: 250,
+      baseKcal: 40,
+      baseProt: 1.8,
+      baseCarb: 0,
+      baseFat: 3.5,
+      grupo: null,
+      source: "etiqueta",
+      unit: "ml",
+      pinned: false,
+    },
+  ]);
+
+  it("con catálogo: sección MIS PRODUCTOS + identificar por nombre EXACTO + no recalcular", () => {
+    const p = dayDumpPrompt("cafe con leche de almendra 0% lidl", 1800, 110, "CTX.", catalogo);
+    expect(p).toContain("MIS PRODUCTOS (catálogo de Alex");
+    expect(p).toContain("Bebida de almendras Lidl 0%: 250 ml = 40 kcal · 1,8P/0C/3,5F");
+    // Identificación por nombre exacto, con producto:null si no coincide.
+    expect(p).toContain("nombre EXACTO");
+    expect(p).toContain('"producto": null');
+    // No recalcular: solo identificar (diseño B; el servidor hace la aritmética).
+    expect(p).toContain("NO recalcules sus macros");
+    expect(p).toContain("solo identifícalo");
+    // El nombre conserva la preparación; el canónico va SOLO en `producto` (#82).
+    expect(p).toContain("NO copies ahí el nombre del producto");
+    expect(p).toContain('ese va SOLO en "producto"');
+    // El campo entra en el JSON de salida.
+    expect(p).toContain('"producto":string|null');
+  });
+
+  it("AC3: catálogo vacío → omite la sección MIS PRODUCTOS (espejo de productsContext([]))", () => {
+    const p = dayDumpPrompt("dos tostadas con aceite", 1800, 110, "CTX.", productsContext([]));
+    expect(productsContext([])).toBe("");
+    expect(p).not.toContain("MIS PRODUCTOS");
+    expect(p).not.toContain("NO recalcules sus macros");
+    // El resto del contrato F-IA-4 sigue intacto (troceo + gramos null).
+    expect(p).toContain("Trocéalo en items de comida");
+    expect(p).toContain("devuelve gramos: null");
+    // El campo producto sigue en el JSON de salida (el schema lo espera siempre).
+    expect(p).toContain('"producto":string|null');
   });
 });
