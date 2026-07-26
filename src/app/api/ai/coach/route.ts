@@ -14,6 +14,7 @@ import {
   energyBalanceLine,
   gaugeVerdictLine,
   pendingPlanOptions,
+  realFlexibleReviewLine,
   trendJudgeLine,
 } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
@@ -113,6 +114,12 @@ export async function POST(request: Request) {
     );
     if (balanceLine) dataLines.push(balanceLine);
     dataLines.push(trendJudgeLine(computeDeficit(trend.records)));
+    const flexibleReview = realFlexibleReviewLine(verdict);
+    if (flexibleReview) {
+      dataLines.push(
+        `Directriz de valoración retrospectiva (juicio determinista; síguela tal cual, tú solo pones el tono): ${flexibleReview}`,
+      );
+    }
   }
   // Directriz de cierre del día EN CURSO real (F-IA-6 · ai-tuner 25-jul): clase del
   // cierre × doctrina del objetivo vigente (techo/banda/suelo, principio 9) × timing

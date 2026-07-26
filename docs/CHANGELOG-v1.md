@@ -388,8 +388,9 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   únicamente flexibles reales.
 - Coach/Chat/Visita reciben contexto ya calculado: prevista no intenta cerrar ese momento;
   real no se trata como fallo ni genera compensación. Sin prompt, modelo, temperatura ni
-  llamada IA nuevos. Commits `c958fe6`, `327a7c9`, `10824d1`; 373 tests verdes. Pendiente
-  validación 🖐 de los AC 1/2/3/4/6/11/14/15/16/17 en producción.
+  llamada IA nuevos. El modo `ayer` también recibe la directriz retrospectiva tras el caso
+  real del 26-jul (DECISIONS #79). AC 🖐 1/2/3/4/6/11/14/15/16/17 aprobados por Alex; el
+  KPI F/R se mantiene como está para observarlo con más días.
 
 ---
 

@@ -1,5 +1,5 @@
 # F16 · Comidas flexibles: contexto, adherencia e impacto
-**Estado**: implementada (2026-07-26; validación 🖐 pendiente) · **Tamaño**: feature
+**Estado**: implementada y aprobada por Alex (2026-07-26) · **Tamaño**: feature
 **Fecha**: 2026-07-26 · **Origen**: uso real de Alex (25–26-jul) sobre
 `feat/wellness-premium-v2`.
 
@@ -329,5 +329,8 @@ sus AC antes de avanzar.
   `migrate:poc`, offline y timeline.
 - Fase 2: `327a7c9` · adherencia, regresiones TDEE/ma7, Gauge, Tendencia, Historial y KPI.
 - Fase 3: `10824d1` · contexto determinista de Coach/Chat/Visita, hash y casos canónicos.
-- Gate automatizado: `pnpm typecheck`, 373 tests, React Doctor 100/100. El cierre de
-  producción conserva pendientes los AC 🖐 1, 2, 3, 4, 6, 11, 14, 15, 16 y 17.
+- Seguimiento AC17: la conversación real del 26-jul descubrió que el modo `ayer` no recibía
+  la directriz fuerte de flexible real; se añadió por dato, sin tocar `prompts.ts`
+  (DECISIONS #79).
+- Alex aprobó el 26-jul los AC 🖐 1, 2, 3, 4, 6, 11, 14, 15, 16 y 17 y decidió mantener de
+  momento el KPI F/R tal como está para observarlo con más días de uso real.

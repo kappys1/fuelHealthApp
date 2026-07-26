@@ -22,6 +22,7 @@ import {
   planSummary,
   productsContext,
   recentMealsDetail,
+  realFlexibleReviewLine,
   trendAndAdherence,
   trendJudgeLine,
   trendSummary,
@@ -434,6 +435,27 @@ describe("F16 · contexto IA flexible", () => {
     expect(line).toContain("contexto flexible real");
     expect(closure).toContain("NO compenses");
     expect(closure).not.toContain("EXCESO");
+  });
+
+  it("post-pizza en modo ayer recibe valoración sin causalidad ni compensación", () => {
+    const flexible = gaugeVerdict(
+      targets,
+      { kcal: 2440, prot: 119, carb: 273, fat: 94 },
+      null,
+      true,
+    );
+    const regular = gaugeVerdict(
+      targets,
+      { kcal: 2440, prot: 119, carb: 273, fat: 94 },
+      null,
+      false,
+    );
+    const line = realFlexibleReviewLine(flexible);
+    expect(line).toContain("2440 kcal/119P/273C/94F");
+    expect(line).toContain("peso, HRV, hinchazón ni rendimiento puntual");
+    expect(line).toContain("NO compenses");
+    expect(line).toContain("nunca «cena libre»");
+    expect(realFlexibleReviewLine(regular)).toBe("");
   });
 
   it("sin marcador conserva la directriz actual y permite opción del plan", () => {
