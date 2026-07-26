@@ -40,7 +40,6 @@ const profileZ = z.object({
   deporte: z.string().min(1).max(80),
   nivel: z.string().max(80),
   programa: z.string().max(120),
-  franjaEntreno: z.string().max(60),
   suplementos: z.array(z.string().min(1).max(60)).max(30),
   notaClinica: z.string().max(400).nullable().optional(),
   lesiones: z.array(z.string().min(1).max(120)).max(30).optional(),

@@ -1,6 +1,9 @@
 import { asc, desc, eq } from "drizzle-orm";
-import type { GrpKey, MealKey, SessionByWeekday } from "@/lib/macros";
-import { DEFAULT_SESSION_BY_WEEKDAY } from "@/lib/macros";
+import type { GrpKey, MealKey } from "@/lib/macros";
+import {
+  DEFAULT_TRAINING_BY_WEEKDAY,
+  type TrainingByWeekday,
+} from "@/lib/training-slot";
 import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
 import { db, schema } from "@/server/db";
 import type { TemplateItem } from "@/server/db/schema";
@@ -124,11 +127,37 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
     .onConflictDoUpdate({ target: schema.settings.key, set: { value } });
 }
 
-export const SESSION_MAP_KEY = "sessionByWeekday";
+export const TRAINING_MAP_KEY = "trainingByWeekday";
+export const TRAINING_MAP_REVIEWED_KEY = "trainingByWeekdayReviewed";
 
-export async function getSessionByWeekday(): Promise<SessionByWeekday> {
-  const stored = await getSetting<SessionByWeekday>(SESSION_MAP_KEY);
-  return { ...DEFAULT_SESSION_BY_WEEKDAY, ...(stored ?? {}) };
+export async function getTrainingByWeekday(): Promise<TrainingByWeekday> {
+  const stored = await getSetting<TrainingByWeekday>(TRAINING_MAP_KEY);
+  return { ...DEFAULT_TRAINING_BY_WEEKDAY, ...(stored ?? {}) };
+}
+
+export async function getTrainingByWeekdayReviewed(): Promise<boolean> {
+  return (await getSetting<boolean>(TRAINING_MAP_REVIEWED_KEY)) ?? false;
+}
+
+export async function setTrainingByWeekday(
+  value: TrainingByWeekday,
+): Promise<void> {
+  await db.batch([
+    db
+      .insert(schema.settings)
+      .values({ key: TRAINING_MAP_KEY, value })
+      .onConflictDoUpdate({
+        target: schema.settings.key,
+        set: { value },
+      }),
+    db
+      .insert(schema.settings)
+      .values({ key: TRAINING_MAP_REVIEWED_KEY, value: true })
+      .onConflictDoUpdate({
+        target: schema.settings.key,
+        set: { value: true },
+      }),
+  ]);
 }
 
 export const CHAT_WEB_SEARCH_KEY = "chatWebSearch";
@@ -151,5 +180,8 @@ export const ATHLETE_PROFILE_KEY = "athleteProfile";
  *  añadidos en el futuro caen al default sin migración. */
 export async function getAthleteProfile(): Promise<AthleteProfile> {
   const stored = await getSetting<Partial<AthleteProfile>>(ATHLETE_PROFILE_KEY);
-  return { ...DEFAULT_ATHLETE_PROFILE, ...(stored ?? {}) };
+  const { franjaEntreno: _legacyFranja, ...current } = (stored ?? {}) as
+    Partial<AthleteProfile> & { franjaEntreno?: unknown };
+  void _legacyFranja;
+  return { ...DEFAULT_ATHLETE_PROFILE, ...current };
 }

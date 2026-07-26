@@ -26,7 +26,8 @@ import { getHealthSyncView, type HealthSyncView } from "@/server/db/queries/heal
 import {
   getAthleteProfile,
   getChatWebSearch,
-  getSessionByWeekday,
+  getTrainingByWeekday,
+  getTrainingByWeekdayReviewed,
 } from "@/server/db/queries/lookups";
 
 export const dynamic = "force-dynamic";
@@ -114,13 +115,14 @@ function SettingsCard({
 }
 
 export default async function AjustesPage() {
-  const [sessionMap, sync, profile, chatWebSearch] = await Promise.all([
-    getSessionByWeekday(),
+  const [trainingMap, trainingMapReviewed, sync, profile, chatWebSearch] = await Promise.all([
+    getTrainingByWeekday(),
+    getTrainingByWeekdayReviewed(),
     getHealthSyncView(),
     getAthleteProfile(),
     getChatWebSearch(),
   ]);
-  const trainingDays = trainingDaysPerWeek(sessionMap);
+  const trainingDays = trainingDaysPerWeek(trainingMap);
 
   return (
     <section className="space-y-8 pb-10">
@@ -243,10 +245,13 @@ export default async function AjustesPage() {
       <Group label="Entrenamiento">
         <SettingsCard
           icon={CalendarClock}
-          title="Sesión por día de la semana"
-          description="Este mapeo precarga la sesión en tu check-in matinal."
+          title="Días de entreno"
+          description="Tu franja habitual por día; las excepciones se guardan en cada sesión."
         >
-          <SessionMapEditor initial={sessionMap} />
+          <SessionMapEditor
+            initial={trainingMap}
+            reviewed={trainingMapReviewed}
+          />
         </SettingsCard>
       </Group>
 

@@ -1,4 +1,4 @@
-import { dayKey, isoWeekday } from "@/lib/dates";
+import { dayKey } from "@/lib/dates";
 import { effectiveHealthMetric } from "@/lib/effective-health";
 import type { FlexibleMealKey } from "@/lib/flexible-meals";
 import {
@@ -7,8 +7,12 @@ import {
   MEAL_LABELS,
   MEAL_ORDER,
   phaseLabel,
-  type SessionByWeekday,
 } from "@/lib/macros";
+import {
+  resolveTrainingSlot,
+  type TrainingByWeekday,
+  type TrainingSlotResolution,
+} from "@/lib/training-slot";
 import {
   bestEntry,
   formatMarkValue,
@@ -55,7 +59,7 @@ const num = (n: number, d = 0) =>
  */
 export function dayLine(
   r: DailyRecord,
-  calendarFallback?: string | null,
+  slot?: TrainingSlotResolution | null,
   opts?: { includePlannedFlexible?: boolean },
 ): string {
   const parts: string[] = [r.date];
@@ -66,8 +70,20 @@ export function dayLine(
   );
   if (r.weight != null) parts.push(`peso ${num(r.weight, 1)} kg`);
   if (r.sessionLabel) parts.push(r.sessionLabel);
-  else if (calendarFallback)
-    parts.push(`sin sesión registrada (calendario: ${calendarFallback})`);
+  else if (slot)
+    parts.push(`sin sesión registrada (patrón habitual: ${slot.value})`);
+  if (
+    r.sessionLabel &&
+    slot &&
+    slot.value !== "descanso" &&
+    slot.value !== "sin_dato"
+  ) {
+    parts.push(
+      `franja ${slot.value}${slot.origin === "patron" ? " (patrón habitual)" : ""}`,
+    );
+  } else if (r.sessionLabel && slot?.value === "sin_dato") {
+    parts.push("franja sin dato");
+  }
   parts.push(`fase ${phaseLabel(r.phase)}`);
   if (r.phase == null) {
     for (const meal of r.flexibleMeals.real) {
@@ -102,7 +118,7 @@ export function dayLines(
   records: readonly DailyRecord[],
   n: number,
   calendar?: {
-    sessionByWeekday: SessionByWeekday;
+    trainingByWeekday: TrainingByWeekday;
     today: string;
     includeCurrentPlannedFlexible?: boolean;
   },
@@ -111,11 +127,20 @@ export function dayLines(
   if (rows.length === 0) return "Sin registros todavía.";
   return rows
     .map((r) => {
-      const fallback =
+      const hasSession =
+        !!r.sessionLabel && r.sessionLabel.trim().toLowerCase() !== "descanso";
+      const slot =
         calendar && r.date === calendar.today
-          ? (calendar.sessionByWeekday[String(isoWeekday(r.date))] ?? "Descanso")
-          : null;
-      return dayLine(r, fallback, {
+          ? resolveTrainingSlot({
+              date: r.date,
+              hasSession,
+              sessionFranja: r.sessionFranja ?? null,
+              trainingByWeekday: calendar.trainingByWeekday,
+            })
+          : hasSession && r.sessionFranja
+            ? { value: r.sessionFranja, origin: "sesion" as const }
+            : null;
+      return dayLine(r, slot, {
         includePlannedFlexible:
           calendar?.includeCurrentPlannedFlexible === true &&
           r.date === calendar.today,
@@ -404,15 +429,11 @@ export function closureLine(args: {
       .map((meal) => MEAL_LABELS[meal])
       .join(", ");
     const carbRem = Math.round(v.carb.remaining);
-    const h =
-      timing.hoursToStart == null
-        ? ""
-        : timing.hoursToStart < 1
-          ? "menos de 1 h"
-          : `~${num(timing.hoursToStart, 1)} h`;
     const usefulOtherMoment =
-      timing.rel === "pre" && carbRem >= 20
-        ? ` Puedes conservar UNA recomendación útil para otro momento no marcado: entrenas en ${h} y puedes colocar hidratos (${carbRem} g pendientes) en la comida previa para llegar con gasolina.`
+      timing.rel === "mañana" && carbRem >= 20
+        ? ` Puedes conservar UNA recomendación útil para otro momento no marcado: coloca los hidratos que procedan (${carbRem} g pendientes) en el desayuno o antes de entrenar para llegar con gasolina.`
+        : timing.rel === "tarde" && carbRem >= 20
+          ? ` Puedes conservar UNA recomendación útil para otro momento no marcado: coloca los hidratos que procedan (${carbRem} g pendientes) en la comida o la merienda para llegar con gasolina.`
         : "";
     return `Directriz de cierre (juicio determinista; síguela tal cual, tú solo pones el tono): MOMENTO FLEXIBLE PREVISTO (${meals}): decisión personal con kcal aún desconocidas. NO intentes cerrar ese momento con opciones del plan ni rellenar todo el hueco de kcal/macros; no sugieras sus alimentos pautados. Llámalo Flexible, nunca «comida libre».${usefulOtherMoment}`;
   }
@@ -461,18 +482,14 @@ export function closureLine(args: {
   const anythingPending =
     cls === "proteina_prioritaria" || cls === "hueco_material" || carbMaterial;
   let timingLine = "";
-  if (timing.rel === "pre" && carbMaterial) {
-    const h =
-      timing.hoursToStart == null
-        ? ""
-        : timing.hoursToStart < 1
-          ? "menos de 1 h"
-          : `~${num(timing.hoursToStart, 1)} h`;
-    timingLine = ` TIMING: entrenas en ${h} — prioriza colocar los hidratos pendientes (${carbRem} g) en la comida previa para llegar con gasolina.`;
-  } else if (timing.rel === "post" && anythingPending) {
-    timingLine = ` TIMING: ya has entrenado — orienta lo que quede a la recuperación (proteína + algo de hidrato).`;
+  if (timing.rel === "mañana" && carbMaterial) {
+    timingLine = ` TIMING: sesión por la mañana — coloca los hidratos pendientes que procedan (${carbRem} g) en el desayuno o antes de entrenar; no los traslades por defecto a la merienda.`;
+  } else if (timing.rel === "tarde" && carbMaterial) {
+    timingLine = ` TIMING: sesión por la tarde — coloca los hidratos pendientes que procedan (${carbRem} g) en la comida o la merienda.`;
   } else if (timing.rel === "descanso" && carbMaterial) {
     timingLine = ` TIMING: día de descanso — sin urgencia de timing de nutrientes.`;
+  } else if (timing.rel === "sin_dato" && anythingPending) {
+    timingLine = " TIMING: franja desconocida — no afirmes cuándo colocar la gasolina.";
   }
 
   return `Directriz de cierre (juicio determinista; síguela tal cual, tú solo pones el tono): ${dir}${timingLine}`;
@@ -537,7 +554,7 @@ export function pendingPlanOptions(
  */
 export function dayContext(
   view: DayView,
-  calendar?: { sessionByWeekday: SessionByWeekday; date: string },
+  calendar?: { trainingByWeekday: TrainingByWeekday; date: string },
 ): string {
   const { day, health, entries } = view;
   const lines: string[] = [];
@@ -565,14 +582,21 @@ export function dayContext(
     );
   }
 
-  // Sesión sin registrar: emitir la que toca según el calendario semanal para que
-  // el coach no rellene el hueco asumiendo entreno (doc 10 A4 · bug del descanso).
-  if (!day?.sessionLabel && calendar) {
-    const label =
-      calendar.sessionByWeekday[String(isoWeekday(calendar.date))] ?? "Descanso";
-    const when = calendar.date === dayKey() ? "hoy toca" : "ese día tocaba";
+  const hasSession =
+    !!(view.session || day?.sessionLabel) &&
+    day?.sessionLabel?.trim().toLowerCase() !== "descanso";
+  const slot = calendar
+    ? resolveTrainingSlot({
+        date: calendar.date,
+        hasSession,
+        sessionFranja: view.session?.franja ?? null,
+        trainingByWeekday: calendar.trainingByWeekday,
+      })
+    : null;
+  if (!hasSession && slot) {
+    const when = calendar?.date === dayKey() ? "hoy" : "ese día";
     lines.push(
-      `Sesión: sin registrar (según tu calendario semanal, ${when}: ${label}).`,
+      `Sesión: sin registrar (patrón habitual para ${when}: ${slot.value}).`,
     );
   }
 
@@ -594,6 +618,15 @@ export function dayContext(
         ? `sesión ${day.sessionLabel} (~${day.sessionKcal} kcal, contexto ±25%)`
         : `sesión ${day.sessionLabel}`,
     );
+  }
+  if (hasSession && slot) {
+    const origin =
+      slot.origin === "sesion"
+        ? "dato de la sesión"
+        : slot.origin === "patron"
+          ? "patrón habitual"
+          : "sin dato";
+    ctx.push(`franja ${slot.value} (${origin})`);
   }
   ctx.push(`fase ${phaseLabel(day?.phase ?? null)}`);
   const waterL = effectiveHealthMetric(day?.waterL, health?.waterL);

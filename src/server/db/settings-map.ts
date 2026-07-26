@@ -53,17 +53,6 @@ export function trainingPatternFromLegacy(value: unknown): TrainingByWeekday {
   );
 }
 
-function legacyFromTrainingPattern(pattern: TrainingByWeekday): SessionByWeekday {
-  return Object.fromEntries(
-    WEEKDAYS.map((day) => [
-      day,
-      pattern[day] === "descanso"
-        ? "Descanso"
-        : DEFAULT_SESSION_BY_WEEKDAY[day]!,
-    ]),
-  );
-}
-
 export function settingsArrayToRecord(
   rows: readonly Record<string, unknown>[],
 ): Record<string, unknown> {
@@ -71,9 +60,8 @@ export function settingsArrayToRecord(
 }
 
 /**
- * Compatibilidad de transición de F20. Durante Fase 0 conserva/sintetiza la
- * clave legacy porque sigue siendo la fuente activa, y añade la canónica para
- * que el cutover posterior no pierda días.
+ * Cutover F20: acepta la clave legacy como entrada, devuelve solo la canónica y
+ * elimina también `franjaEntreno` del perfil. Restore y PoC comparten este paso.
  */
 export function normalizeTrainingSettings(
   rows: readonly Record<string, unknown>[],
@@ -90,8 +78,13 @@ export function normalizeTrainingSettings(
   if (typeof settings.get("trainingByWeekdayReviewed") !== "boolean") {
     settings.set("trainingByWeekdayReviewed", false);
   }
-  if (!settings.has("sessionByWeekday")) {
-    settings.set("sessionByWeekday", legacyFromTrainingPattern(canonical));
+  settings.delete("sessionByWeekday");
+
+  const profile = settings.get("athleteProfile");
+  if (isRecord(profile) && "franjaEntreno" in profile) {
+    const { franjaEntreno: _legacyFranja, ...currentProfile } = profile;
+    void _legacyFranja;
+    settings.set("athleteProfile", currentProfile);
   }
 
   return [...settings].map(([key, value]) => ({ key, value }));

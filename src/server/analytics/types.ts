@@ -9,6 +9,7 @@
 */
 import type { BloatKey, PhaseKey } from "@/lib/macros";
 import type { FlexibleMealState } from "@/lib/flexible-meals";
+import type { SessionFranja } from "@/lib/training-slot";
 
 /** Objetivos vigentes para una fecha (versión de dieta efectiva ese día, F1.5). */
 export interface DayTarget {
@@ -47,6 +48,8 @@ export interface DailyRecord extends AnalyticsRecord {
   bodyFatPct: number | null;
   waterL: number | null;
   sessionLabel: string | null;
+  /** Solo la franja explícita de la sesión real; nunca el patrón actual. */
+  sessionFranja?: SessionFranja | null;
   bloat: BloatKey | null;
   /** Notas del día (dictado de cierre, 09 §5) — usadas por el coach y el chat. */
   notes: string | null;

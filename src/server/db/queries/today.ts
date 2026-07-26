@@ -1,5 +1,6 @@
 import { isoWeekday, shiftDayKey } from "@/lib/dates";
-import { PHASE_NEXT, type PhaseKey, type SessionByWeekday } from "@/lib/macros";
+import { PHASE_NEXT, type PhaseKey } from "@/lib/macros";
+import type { TrainingByWeekday, TrainingSlot } from "@/lib/training-slot";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
 import {
   coachContextHash,
@@ -16,7 +17,7 @@ import {
   phaseOnDate,
 } from "./day";
 import {
-  getSessionByWeekday,
+  getTrainingByWeekday,
   listProducts,
   listTemplates,
   type ProductDTO,
@@ -52,11 +53,11 @@ export interface TodayPayload {
   recents: RecentDTO[];
   templates: TemplateDTO[];
   streak: number;
-  sessionByWeekday: SessionByWeekday;
+  trainingByWeekday: TrainingByWeekday;
   /** Sesiones reales del plan de entreno que cubre esta fecha (doc 10 B3); [] si no hay. */
   trainingSessions: TrainingSessionDTO[];
-  /** Sesión sugerida para esta fecha por el mapeo día-semana (09 §5). */
-  defaultSession: string;
+  /** Franja habitual de esta fecha; contexto, nunca nombre de sesión. */
+  defaultTrainingSlot: TrainingSlot;
   /** Último peso conocido (para precargar el check-in matinal, 09 §5). */
   lastWeight: number | null;
   /**
@@ -85,7 +86,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     recents,
     templates,
     streak,
-    sessionByWeekday,
+    trainingByWeekday,
     lastWeight,
     prevPhase,
     trainingPlan,
@@ -103,7 +104,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     recentDistinctEntries(50),
     listTemplates(),
     getStreak(date),
-    getSessionByWeekday(),
+    getTrainingByWeekday(),
     latestWeightOnOrBefore(date),
     phaseOnDate(previousDate),
     getTrainingPlanContext(date),
@@ -117,7 +118,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
   ]);
 
   const wd = String(isoWeekday(date));
-  const defaultSession = sessionByWeekday[wd] ?? "Descanso";
+  const defaultTrainingSlot = trainingByWeekday[wd] ?? "descanso";
   const trainingSessions = trainingPlan?.sessions ?? [];
   const targets = plan?.targets ?? {
     kcal: 0,
@@ -159,9 +160,9 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     recents,
     templates,
     streak,
-    sessionByWeekday,
+    trainingByWeekday,
     trainingSessions,
-    defaultSession,
+    defaultTrainingSlot,
     lastWeight,
     suggestedPhase,
     baseline,

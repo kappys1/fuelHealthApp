@@ -102,36 +102,11 @@ describe("objectiveStance · doctrina desde el texto del objetivo (principio 9)"
   });
 });
 
-describe("trainingTiming · 17:00 vs 22:30 con entreno 19:30-21:30", () => {
-  const franja = "19:30-21:30";
-
-  it("17:00 (día de entreno) → pre, ~2,5 h para el inicio", () => {
-    const t = trainingTiming({ now: "17:00", franja, isTrainingDay: true });
-    expect(t.rel).toBe("pre");
-    expect(t.hoursToStart).toBeCloseTo(2.5, 5);
-  });
-
-  it("22:30 → post (ya entrenó)", () => {
-    expect(trainingTiming({ now: "22:30", franja, isTrainingDay: true }).rel).toBe(
-      "post",
-    );
-  });
-
-  it("20:00 → durante", () => {
-    expect(trainingTiming({ now: "20:00", franja, isTrainingDay: true }).rel).toBe(
-      "durante",
-    );
-  });
-
-  it("día de descanso → descanso (sin urgencia de timing)", () => {
-    expect(
-      trainingTiming({ now: "17:00", franja, isTrainingDay: false }).rel,
-    ).toBe("descanso");
-  });
-
-  it("sin franja parseable → sin_dato", () => {
-    expect(
-      trainingTiming({ now: "17:00", franja: null, isTrainingDay: true }).rel,
-    ).toBe("sin_dato");
-  });
+describe("trainingTiming · franja determinista sin inventar hora", () => {
+  it.each(["mañana", "tarde", "descanso", "sin_dato"] as const)(
+    "conserva %s para la directriz",
+    (slot) => {
+      expect(trainingTiming(slot)).toEqual({ rel: slot });
+    },
+  );
 });
