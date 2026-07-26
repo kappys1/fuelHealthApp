@@ -438,6 +438,18 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 - 418 tests + typecheck verdes. Pendientes 🖐 en producción: Ajustes, import/override/ficha,
   check-in ≤15 s y los casos canónicos sábado-mañana/martes-tarde.
 
+### v1.21 · El ✨ del Plan conoce «Mis productos» (F19 Fase 1)
+
+- F-IA-3 carga el catálogo y el modelo devuelve el nombre canónico en `producto`; el
+  servidor valida el match y calcula macros desde la base guardada con los gramos del body.
+- La aritmética pura de F18 se comparte con `applyPlanOptionProductMatch`; sin match, nombre
+  inexacto o catálogo vacío se conserva la estimación, y `grupo:null` conserva el estimado.
+- En candidatos solapados mandan los rasgos específicos (`0%`, marca, variante) sobre una
+  preparación genérica; el péndulo contrario conserva la preparación si coincide completa.
+- AC1 validado por Alex: «Café con leche con almendras 0» a 250 g → 40 kcal · 2P/0C/4F.
+  Café F-IA-3 ×3 = 70/70/70; 427 tests + typecheck verdes.
+- Sin migración, env ni backfill. **F19 Fase 2 queda aprobada y pendiente, sin adelantar.**
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

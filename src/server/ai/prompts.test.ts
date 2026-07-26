@@ -36,6 +36,7 @@ import {
   chatTitlePrompt,
   coachPrompt,
   dayDumpPrompt,
+  planOptionPrompt,
   photoPrompt,
   prepareVisitPrompt,
   sharedGuardrails,
@@ -1492,5 +1493,69 @@ describe("F18 · dayDumpPrompt inyecta MIS PRODUCTOS y pide identificar, no reca
     expect(p).toContain("devuelve gramos: null");
     // El campo producto sigue en el JSON de salida (el schema lo espera siempre).
     expect(p).toContain('"producto":string|null');
+  });
+});
+
+// ── F19 Fase 1 · ✨ del Plan consulta «Mis productos» (prompt congelado) ──
+describe("F19 · planOptionPrompt identifica MIS PRODUCTOS y el servidor calcula", () => {
+  const catalogo = productsContext([
+    {
+      id: 1,
+      name: "Bebida de almendras Lidl 0%",
+      baseG: 100,
+      baseKcal: 16,
+      baseProt: 0.72,
+      baseCarb: 0,
+      baseFat: 1.4,
+      grupo: "Otros",
+      source: "etiqueta",
+      unit: "ml",
+      pinned: false,
+    },
+  ]);
+
+  it("AC1: reconoce semánticamente un producto dentro de una preparación y devuelve el canónico exacto", () => {
+    const p = planOptionPrompt(
+      "Café con leche con almendras 0%",
+      250,
+      "CTX.",
+      catalogo,
+    );
+
+    expect(p).toContain("MIS PRODUCTOS (catálogo de Alex");
+    expect(p).toContain(
+      "Bebida de almendras Lidl 0%: 100 ml = 16 kcal · 0,7P/0C/1,4F",
+    );
+    expect(p).toContain("aunque el texto lo describa de otra forma");
+    expect(p).toContain("forme parte de una preparación");
+    // Caso real AC1: hay dos candidatos guardados —un café genérico estimado y
+    // la bebida 0% de etiqueta—. Los rasgos específicos del ingrediente mandan.
+    expect(p).toContain("rasgos MÁS ESPECÍFICOS");
+    expect(p).toContain('marca, "0/0%"');
+    expect(p).toContain("devuelve ESE ingrediente");
+    // Péndulo contrario: sin rasgos de otro producto, la preparación completa
+    // guardada sigue siendo una coincidencia válida.
+    expect(p).toContain("NO aporta rasgos específicos de otro producto");
+    expect(p).toContain("devuelve esa preparación");
+    expect(p).toContain("nombre EXACTO");
+    expect(p).toContain("NO recalcules sus macros");
+    expect(p).toContain("solo identifícalo");
+    expect(p).toContain('"producto": null');
+    expect(p).toContain('"producto": string|null');
+  });
+
+  it("AC3: catálogo vacío omite MIS PRODUCTOS y conserva la estimación de tablas", () => {
+    const p = planOptionPrompt(
+      "Dos tostadas con aceite",
+      80,
+      "CTX.",
+      productsContext([]),
+    );
+
+    expect(productsContext([])).toBe("");
+    expect(p).not.toContain("MIS PRODUCTOS");
+    expect(p).not.toContain("NO recalcules sus macros");
+    expect(p).toContain("valores medios de tablas de composición (España)");
+    expect(p).toContain('"producto": string|null');
   });
 });
