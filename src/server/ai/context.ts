@@ -363,6 +363,16 @@ export function trendJudgeLine(deficit: DeficitResult): string {
 }
 
 /**
+ * Contexto retrospectivo de una flexible real. Vive separado de `closureLine`
+ * porque el Coach de ayer también debe recibirlo: no hay hueco que cerrar, pero
+ * sí una valoración que mantener descriptiva y libre de compensaciones.
+ */
+export function realFlexibleReviewLine(v: GaugeVerdict): string {
+  if (!v.flexible) return "";
+  return `CONTEXTO FLEXIBLE REAL: ${v.consumed} kcal/${Math.round(v.prot.value)}P/${Math.round(v.carb.value)}C/${Math.round(v.fat.value)}F se mantienen y cuentan en ingesta/tendencia. No llames fallo a la comida, no atribuyas el peso, HRV, hinchazón ni rendimiento puntual a ella y NO compenses ni prescribas recortes al día siguiente. Llámala Flexible, nunca «cena libre».`;
+}
+
+/**
  * (d · F-IA-6 · ai-tuner 25-jul) DIRECTRIZ DE CIERRE del día EN CURSO: qué
  * procede hacer con el hueco (cerrar, priorizar proteína, no tocar, comentar un
  * exceso), YA DECIDIDO en servidor. Sustituye la orden incondicional del prompt
@@ -386,7 +396,7 @@ export function closureLine(args: {
   const protRem = Math.round(v.prot.remaining);
 
   if (v.flexible) {
-    return `Directriz de cierre (juicio determinista; síguela tal cual, tú solo pones el tono): CONTEXTO FLEXIBLE REAL: ${v.consumed} kcal/${Math.round(v.prot.value)}P/${Math.round(v.carb.value)}C/${Math.round(v.fat.value)}F se mantienen y cuentan en ingesta/tendencia. No llames fallo a la comida, no atribuyas un peso puntual a ella y NO compenses ni prescribas recortes al día siguiente.`;
+    return `Directriz de cierre (juicio determinista; síguela tal cual, tú solo pones el tono): ${realFlexibleReviewLine(v)}`;
   }
 
   if (plannedFlexibleMeals.length > 0) {
@@ -404,7 +414,7 @@ export function closureLine(args: {
       timing.rel === "pre" && carbRem >= 20
         ? ` Puedes conservar UNA recomendación útil para otro momento no marcado: entrenas en ${h} y puedes colocar hidratos (${carbRem} g pendientes) en la comida previa para llegar con gasolina.`
         : "";
-    return `Directriz de cierre (juicio determinista; síguela tal cual, tú solo pones el tono): MOMENTO FLEXIBLE PREVISTO (${meals}): decisión personal con kcal aún desconocidas. NO intentes cerrar ese momento con opciones del plan ni rellenar todo el hueco de kcal/macros; no sugieras sus alimentos pautados.${usefulOtherMoment}`;
+    return `Directriz de cierre (juicio determinista; síguela tal cual, tú solo pones el tono): MOMENTO FLEXIBLE PREVISTO (${meals}): decisión personal con kcal aún desconocidas. NO intentes cerrar ese momento con opciones del plan ni rellenar todo el hueco de kcal/macros; no sugieras sus alimentos pautados. Llámalo Flexible, nunca «comida libre».${usefulOtherMoment}`;
   }
 
   let dir: string;

@@ -284,7 +284,7 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
     «recuperación extrema»), AC5 (confirmación → crea/actualiza el producto exacto como
     `etiqueta` sin tocar nada más). Resto de AC cubiertos por la suite (297 tests) + build.
 - ✅ **Comidas flexibles: contexto, adherencia e impacto** (idea Alex, 26-jul —
-  **F16 implementada; validación 🖐 pendiente**:
+  **F16 implementada y validada por Alex el 26-jul**:
   [`docs/specs/features/16-comidas-flexibles-y-impacto.md`](./specs/features/16-comidas-flexibles-y-impacto.md)):
   no forma parte explícita de la pauta de Regenera ni tiene condiciones
   prescritas; es el acuerdo personal de dejar flexibles normalmente la cena del sábado y
@@ -329,8 +329,10 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   **Implementación 26-jul**: migración aditiva `0016`; commits `c958fe6` (dato/ciclo de
   vida), `327a7c9` (analítica/UI) y `10824d1` (IA). Migración aplicada y lectura real de
   Neon confirmada tras resolver el error inicial de tabla ausente. `typecheck` + 373 tests
-  + React Doctor 100/100 verdes; prompts congelados intactos. Pendientes del pulgar de Alex
-  los AC 1/2/3/4/6/11/14/15/16/17; el resto tiene evidencia automatizada.
+  + React Doctor 100/100 verdes; prompts congelados intactos. Alex aprobó los AC
+  1/2/3/4/6/11/14/15/16/17 y decidió mantener el KPI F/R como está para observarlo con más
+  uso real. El caso AC17 reforzó por dato la valoración flexible también en modo `ayer`
+  (DECISIONS #79), sin llamadas ni coste nuevos.
 - _(añadir aquí las que surjan)_
 
 ---
