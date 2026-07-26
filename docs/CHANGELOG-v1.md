@@ -425,6 +425,19 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   `estimate` (F-IA-2) queda fuera por diseño. 403 tests + typecheck verdes.
 - **AC1 🖐 pendiente del pulgar de Alex** en producción (+ re-validación café ×3 del prompt).
 
+### v1.20 · Franja mañana/tarde por sesión (F20)
+
+- Ajustes sustituye el patrón ficticio de contenido por siete días
+  `mañana|tarde|descanso`; la migración conserva los días y pide revisar el sábado.
+- Cada sesión puede guardar su franja explícita. Importar, crear, editar y reasignar
+  precargan el patrón, conservan overrides manuales y exigen franja al asignar.
+- Coach resuelve sesión explícita → patrón → sin dato y coloca la gasolina de mañana en
+  desayuno/antes y la de tarde en comida/merienda, sin inventar horas ni aumentar macros.
+- Export/restore y `migrate:poc` aceptan datos anteriores y posteriores a F20. Migraciones
+  de deploy: `0017` (columna) y `0018` (cutover del setting/perfil).
+- 418 tests + typecheck verdes. Pendientes 🖐 en producción: Ajustes, import/override/ficha,
+  check-in ≤15 s y los casos canónicos sábado-mañana/martes-tarde.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
