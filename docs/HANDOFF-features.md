@@ -254,6 +254,17 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
     estima» — extensión pequeña, reusa F-IA-3); (b) **variantes en productos** como en el plan
     (choca con «producto = una cosa por base» — medir necesidad antes). Alex: «lo dejo así y ya
     veremos» (22-jul).
+- ✅ **Franja mañana/tarde: gasolina de sesión en el sitio correcto** (caso real Alex,
+  26-jul, al revisar el mapeo ficticio «Sesión por día de la semana») — **IMPLEMENTADA (F20)
+  [`docs/specs/features/20-franja-manana-tarde-por-sesion.md`](./specs/features/20-franja-manana-tarde-por-sesion.md),
+  3 fases; validación 🖐 pendiente.** Sustituye el patrón día→contenido por
+  día→mañana/tarde/descanso, retira la franja horaria global y resuelve la franja del día
+  desde la sesión explícita o el patrón. Corrige el caso real L–V tarde / sábado mañana sin
+  inventar horas: el servidor decide colocación de gasolina, no `~N h`/pre-durante-post.
+  Migraciones `0017`+`0018`, export/restore/`migrate:poc`, Ajustes, check-in,
+  Coach/Chat/Visita y override al importar/editar/reasignar quedan cableados. Gate:
+  418 tests + typecheck. Pendientes del pulgar de Alex: Ajustes, import/override/ficha,
+  check-in ≤15 s y casos canónicos sábado-mañana/martes-tarde.
 - 💡 **Unidades / ml / l como cantidad de primera clase** (observación Alex, 17-jul — caso: fajitas)
   — **PARCIALMENTE cubierto: F10 añadió la UNIDAD como rótulo** (`g|ml|ud`, la etiqueta ya no
   miente). Lo que sigue **PARKED** es el **escalado real por nº de unidades** (2 fajitas = 2 ×

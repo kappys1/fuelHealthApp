@@ -26,7 +26,9 @@ El PRD define QUÉ hace la app (requisitos F1-F8: todos siguen vigentes). Este d
   Progreso). *Dieta* = objetivos + opciones + importar dieta. *Entrenos* = selector semanal
   + siete días + ficha de lectura de la sesión canónica (nombre, metadatos y contenido por
   bloques). Crear (Manual o Pegar WOD · IA), editar/reasignar/borrar sesión y gestionar la
-  semana se resuelve en sheets; un día vacío muestra `Añadir sesión`.
+  semana se resuelve en sheets; un día vacío muestra `Añadir sesión`. Importar, crear,
+  editar o reasignar combina fecha + franja: precarga el patrón habitual, conserva un
+  override manual y no permite asignar sin `mañana|tarde`.
 
 ## 3. Pantalla Hoy (rediseñada — task-first)
 
