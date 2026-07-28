@@ -11,6 +11,10 @@ import {
   buildChatModelMessages,
   chatRequestSchema,
 } from "@/server/ai/chat-turn";
+import {
+  anyTrainingAdaptationIntent,
+  detectTrainingAdaptationIntent,
+} from "@/server/ai/chat-intent";
 import { runText } from "@/server/ai/client";
 import {
   dayLines,
@@ -19,6 +23,7 @@ import {
   planSummary,
   productsContext,
   recentMealsDetail,
+  trainingWeekContext,
   trendAndAdherence,
 } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
@@ -59,6 +64,7 @@ import {
 import { getChatWebSearch, listProducts } from "@/server/db/queries/lookups";
 import { listMed } from "@/server/db/queries/med";
 import { getPlanContext } from "@/server/db/queries/plan";
+import { getTrainingWeekView } from "@/server/db/queries/training";
 import { getTrendData } from "@/server/db/queries/trend";
 
 /*
@@ -218,6 +224,24 @@ export async function POST(request: Request) {
     const prior = all.slice(0, Math.max(0, all.length - CHAT_WINDOW));
     const windowMsgs = all.slice(Math.max(0, all.length - CHAT_WINDOW));
 
+    // F21: intención de entreno STICKY sobre la ventana que ve el modelo. Se lee el
+    // mensaje actual y los del usuario en la ventana (`all` ya incluye este turno):
+    // en un diálogo de adaptación los seguimientos pierden las palabras clave, pero
+    // la conversación sigue siendo de entreno → sin esto el contexto de la sesión se
+    // caía turno a turno (caso real 29-jul, rompía AC4). Solo entonces se leen las
+    // sesiones de la semana (getTrainingWeekView) y se inyecta su contenido real;
+    // turno normal → no se lee ni se añade nada → coste y prompt idénticos a hoy
+    // (AC8). Ventana = semana del plan (lun-dom): cubre leer «la de ayer» y el
+    // equilibrio entre sesiones con una sola lectura.
+    const wantsTraining =
+      detectTrainingAdaptationIntent(message) ||
+      anyTrainingAdaptationIntent(
+        windowMsgs.filter((m) => m.role === "user").map((m) => m.content),
+      );
+    const trainingWeek = wantsTraining
+      ? await retry(() => getTrainingWeekView(today))
+      : null;
+
     let priorSummary = detail.summary;
     let summaryCovers = detail.summaryMsgCount;
     let unsummarized = prior.slice(summaryCovers);
@@ -282,6 +306,10 @@ export async function POST(request: Request) {
       priorSummary: prior.length > 0 ? priorSummary : null,
       // El párrafo web y la tool `googleSearch` van atados a este mismo flag.
       webSearch,
+      // F21: contenido real de las sesiones de la semana, solo si disparó la intención.
+      trainingContext: wantsTraining
+        ? trainingWeekContext(trainingWeek, today)
+        : undefined,
     });
 
     tools = webSearch ? webSearchTools() : undefined;

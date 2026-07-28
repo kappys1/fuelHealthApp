@@ -23,10 +23,15 @@ import {
   productsContext,
   recentMealsDetail,
   realFlexibleReviewLine,
+  trainingWeekContext,
   trendAndAdherence,
   trendJudgeLine,
   trendSummary,
 } from "./context";
+import type {
+  TrainingSessionWithDay,
+  TrainingWeekView,
+} from "@/server/db/queries/training";
 import type { ProductDTO } from "@/server/db/queries/lookups";
 import {
   athleteContext,
@@ -1567,5 +1572,155 @@ describe("F19 · planOptionPrompt identifica MIS PRODUCTOS y el servidor calcula
     expect(p).not.toContain("NO recalcules sus macros");
     expect(p).toContain("valores medios de tablas de composición (España)");
     expect(p).toContain('"producto": string|null');
+  });
+});
+
+// ── F21 · El Chat lee y adapta el entreno alrededor de una limitación ──
+// Contenido REAL de las sesiones de la SEMANA + bloque de comportamiento, ambos
+// bajo intención (detectTrainingAdaptationIntent). Sin intención → prompt
+// byte-idéntico a hoy (AC8; mismo patrón que el flag `webSearch`). Los AC de
+// comportamiento (1-5) los valida Alex en vivo (🖐); estos tests del builder son la
+// red de regresión determinista.
+function sessionWithDay(
+  over: Partial<TrainingSessionWithDay> &
+    Pick<TrainingSessionWithDay, "nombre" | "contenido" | "assignedDate">,
+): TrainingSessionWithDay {
+  return {
+    id: 1,
+    planId: 1,
+    key: "T",
+    tipo: "fuerza",
+    kcalMin: 400,
+    kcalMax: 600,
+    duracionMin: 60,
+    franja: "mañana",
+    sort: 0,
+    ...over,
+  };
+}
+function weekOf(sessions: TrainingSessionWithDay[]): TrainingWeekView {
+  return { sessions } as TrainingWeekView;
+}
+
+describe("F21 · trainingWeekContext (arreglo de DATO del bug de origen)", () => {
+  // TODAY = 2026-07-12 (domingo); ayer = 2026-07-11 (sábado).
+  const week = weekOf([
+    sessionWithDay({
+      id: 2,
+      key: "T2",
+      nombre: "Training 2",
+      assignedDate: "2026-07-11",
+      contenido: "A) Snatch 5x2\nB) Metcon: 21-15-9 thrusters",
+    }),
+    sessionWithDay({
+      id: 3,
+      key: "T3",
+      nombre: "Training 3",
+      tipo: "mixto",
+      assignedDate: TODAY,
+      contenido: "A) Back Squat 5x3 @80%\nB) Strict Press 4x6\nC) 3 rondas wall balls",
+    }),
+  ]);
+
+  it("emite el CONTENIDO real de la sesión de HOY y la de AYER (mata el bug 28/29-jul)", () => {
+    const ctx = trainingWeekContext(week, TODAY);
+    // hoy
+    expect(ctx).toContain("Training 3");
+    expect(ctx).toContain("Back Squat 5x3 @80%");
+    expect(ctx).toContain("· HOY");
+    // ayer (el caso que fallaba en Fase 1)
+    expect(ctx).toContain("Training 2");
+    expect(ctx).toContain("Snatch 5x2");
+    expect(ctx).toContain("thrusters");
+    expect(ctx).toContain("· ya pasado");
+    // ordenadas por fecha (ayer antes que hoy)
+    expect(ctx.indexOf("Training 2")).toBeLessThan(ctx.indexOf("Training 3"));
+  });
+
+  it("sin semana importada → lo dice, no inventa (AC6)", () => {
+    expect(trainingWeekContext(null, TODAY)).toContain(
+      "No hay ninguna sesión de entreno importada para esta semana",
+    );
+  });
+
+  it("semana con sesiones pero sin sesión hoy → lo señala sin inventar (AC6)", () => {
+    const noToday = weekOf([
+      sessionWithDay({
+        nombre: "Training 2",
+        assignedDate: "2026-07-11",
+        contenido: "A) Snatch 5x2",
+      }),
+    ]);
+    const ctx = trainingWeekContext(noToday, TODAY);
+    expect(ctx).toContain("Training 2");
+    expect(ctx).toContain(`Hoy (${TODAY}) no tienes ninguna sesión asignada`);
+  });
+});
+
+describe("F21 · chatSystemPrompt · bloque de adaptación (bajo intención)", () => {
+  const chatArgs = {
+    atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
+    today: TODAY,
+    planSummary: "—",
+    trendAdherence: "—",
+    meds: "—",
+    days30: "—",
+  };
+  const training = trainingWeekContext(
+    weekOf([
+      sessionWithDay({
+        nombre: "Training 3",
+        assignedDate: TODAY,
+        contenido: "A) Back Squat 5x3",
+      }),
+    ]),
+    TODAY,
+  );
+
+  it("con trainingContext: añade el bloque de comportamiento y la sección de datos", () => {
+    const p = chatSystemPrompt({ ...chatArgs, trainingContext: training });
+    // AC1/AC6 · leer real + anti-invención de WOD
+    expect(p).toContain("Adaptar el entreno:");
+    expect(p).toContain("usa el CONTENIDO real");
+    expect(p).toContain("no inventes ejercicios");
+    // AC2 · sustituciones + movilidad/antagonista/escalados
+    expect(p).toContain("propón sustituciones");
+    expect(p).toContain("movilidad, estiramientos");
+    expect(p).toContain("grupo antagonista");
+    expect(p).toContain("escalados apropiados");
+    // AC3 · equilibrio entre sesiones (el alma)
+    expect(p).toContain("REPARTE la carga");
+    expect(p).toContain("no apiles el mismo grupo muscular en días consecutivos");
+    // AC4 · coach conversacional, no vuelca la semana
+    expect(p).toContain("NO vuelques la semana entera");
+    expect(p).toContain("deja que él decida");
+    // AC5 · solo lectura, nunca afirma haber guardado
+    expect(p).toContain("SOLO LECTURA");
+    expect(p).toContain("NUNCA afirmes que has modificado, guardado o registrado la sesión");
+    // AC7 · seguridad: orientativo, fisio/coach, no diagnostica
+    expect(p).toContain("ORIENTATIVA");
+    expect(p).toContain("fisio o su coach");
+    expect(p).toContain("no diagnostiques ni prescribas tratamiento");
+    // sección de datos con el contenido real
+    expect(p).toContain("TU ENTRENO (semana en curso):");
+    expect(p).toContain("Back Squat 5x3");
+  });
+
+  it("AC8: sin trainingContext, el prompt es BYTE-IDÉNTICO al de hoy (sin bloque ni sección)", () => {
+    const withUndef = chatSystemPrompt(chatArgs);
+    const withEmpty = chatSystemPrompt({ ...chatArgs, trainingContext: "" });
+    const withNull = chatSystemPrompt({ ...chatArgs, trainingContext: null });
+    expect(withEmpty).toBe(withUndef);
+    expect(withNull).toBe(withUndef);
+    expect(withUndef).not.toContain("Adaptar el entreno:");
+    expect(withUndef).not.toContain("TU ENTRENO (semana en curso):");
+  });
+
+  it("re-validación F05: el contrato del chat sigue intacto cuando no hay intención", () => {
+    const p = chatSystemPrompt(chatArgs);
+    // guardarraíles compartidos y contrato C1 siguen presentes (prompt congelado)
+    expect(p).toContain(sharedGuardrails());
+    expect(p).toContain("criterio REALISTA");
+    expect(p).toContain("de solo lectura");
   });
 });

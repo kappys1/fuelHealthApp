@@ -466,6 +466,28 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
 
 ---
 
+### v1.23 · El Chat lee y adapta tu entreno alrededor de una limitación (F21)
+
+- **Arreglo de DATO** del bug de origen (28-jul): el contexto del Chat descartaba
+  `training_sessions.contenido` (emitía solo `sesión {nombre} · {tipo}`) → «no tengo
+  tu WOD en el registro». Ahora, bajo intención, inyecta el **contenido real**.
+- **Detección de intención** `detectTrainingAdaptationIntent` (pura, testeada, recall
+  generoso): solo los turnos de entreno/lesión/adaptación leen las sesiones de la
+  **semana del plan** (`getTrainingWeekView`) y añaden el bloque de comportamiento;
+  cualquier otro turno queda **byte-idéntico** al de hoy y con el mismo coste (AC8).
+- **Bloque de comportamiento** en `chatSystemPrompt` (prompt congelado, interpolado):
+  leer real + anti-invención, sustituciones/movilidad/antagonista/escalados,
+  **equilibrio entre sesiones** (no apilar el mismo grupo en días consecutivos),
+  **coach conversacional** (no vuelca la semana), solo lectura del entreno y
+  guardarraíl de seguridad (fisio/coach; no diagnostica). Frontera dura: solo Chat.
+- Ventana = semana del plan (lun-dom): cubre leer «la de ayer» y el equilibrio con una
+  lectura (ajuste ratificado en validación en vivo, DECISIONS #88).
+- Sin migración/schema; sin impacto en export/restore ni `migrate:poc`; `temperature
+  0.3` sin cambio; sin café ×3. 484 tests verdes; F05 re-validada (byte-idéntica sin
+  intención). AC 1-5 🖐 pendientes del pulgar de Alex en producción.
+
+---
+
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)
 
 ### Arquitectura, toolchain y build
