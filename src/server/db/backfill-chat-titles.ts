@@ -6,10 +6,20 @@ config();
 import { neon } from "@neondatabase/serverless";
 import { and, asc, eq, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
+import {
+  sanitizeThreadTitle,
+  threadTitleFrom,
+  TITLE_MAX_OUTPUT_TOKENS,
+} from "../../lib/chat-title";
 import { runText } from "../ai/client";
 import { chatTitlePrompt } from "../ai/prompts";
-import { sanitizeThreadTitle, threadTitleFrom } from "./queries/chat";
 import * as schema from "./schema";
+
+// OJO: los helpers de título se importan del módulo PURO (`lib/chat-title`), NO de
+// `./queries/chat`. Ese re-exporta desde `@/server/db`, que crea el cliente Neon de
+// forma eager al cargarse; como los imports se evalúan ANTES que `config()`, el
+// cliente se crearía sin DATABASE_URL y el script petaría (igual que seed/migrate,
+// que crean su Drizzle inline y nunca tocan `@/server/db`).
 
 /*
   Backfill de títulos de hilo (F12 · §6, AC7). Regenera el título de los hilos
@@ -77,7 +87,7 @@ async function main() {
         kind: "title",
         task: "estimate",
         prompt: chatTitlePrompt(question, reply.slice(0, 500)),
-        maxOutputTokens: 32,
+        maxOutputTokens: TITLE_MAX_OUTPUT_TOKENS,
       });
       title = sanitizeThreadTitle(raw);
     } catch (err) {

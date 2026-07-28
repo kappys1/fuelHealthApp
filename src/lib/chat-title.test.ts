@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeThreadTitle, threadTitleFrom } from "./chat-title";
+import {
+  sanitizeThreadTitle,
+  threadTitleFrom,
+  TITLE_MAX_OUTPUT_TOKENS,
+} from "./chat-title";
+
+describe("TITLE_MAX_OUTPUT_TOKENS · presupuesto de la llamada IA", () => {
+  // Regresión (2026-07-27): estaba a 32 tokens y, como el thinking de Gemini 3.x
+  // sale de maxOutputTokens, el título salía cortado ("An", "Men") o vacío. La
+  // lección compartida con plan-option/estimate/wod: 500 no basta ni a thinking
+  // "low". El techo debe quedar holgado por encima de ese umbral demostrado malo.
+  it("supera con margen el umbral que ya se demostró insuficiente (500)", () => {
+    expect(TITLE_MAX_OUTPUT_TOKENS).toBeGreaterThan(500);
+  });
+});
 
 /*
   F12 · Títulos de hilo. threadTitleFrom (fallback determinista) y sanitizeThreadTitle
