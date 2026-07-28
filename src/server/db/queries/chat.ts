@@ -4,12 +4,16 @@ import {
   type ChatTurnSnapshot,
   findPendingDuplicate,
 } from "@/server/ai/chat-turn";
-import { sanitizeThreadTitle, threadTitleFrom } from "@/lib/chat-title";
+import {
+  sanitizeThreadTitle,
+  threadTitleFrom,
+  TITLE_MAX_OUTPUT_TOKENS,
+} from "@/lib/chat-title";
 import { db, schema } from "@/server/db";
 
 // Re-export de los helpers PUROS de título (viven en lib/chat-title para ser
 // testeables sin la BD). Se mantienen accesibles desde este módulo por compatibilidad.
-export { sanitizeThreadTitle, threadTitleFrom };
+export { sanitizeThreadTitle, threadTitleFrom, TITLE_MAX_OUTPUT_TOKENS };
 
 /*
   Hilos de chat (F-IA-8). Persistencia de conversaciones «pregúntale a tus datos».

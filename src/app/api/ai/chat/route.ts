@@ -53,6 +53,7 @@ import {
   saveThreadTitle,
   SUMMARY_BATCH,
   threadTitleFrom,
+  TITLE_MAX_OUTPUT_TOKENS,
   touchThread,
 } from "@/server/db/queries/chat";
 import { getChatWebSearch, listProducts } from "@/server/db/queries/lookups";
@@ -331,15 +332,17 @@ export async function POST(request: Request) {
           console.error("[chat] no se pudo actualizar el hilo:", persistError);
         });
         // F12: título IA UNA sola vez, en el primer turno del hilo. Barato
-        // (Flash-Lite, ~32 tokens). Si falla o queda vacío, el hilo conserva el
-        // título determinista que puso createThread → nunca bloquea ni rompe.
+        // (modelo Flash-Lite, salida ~10 tokens). El techo va holgado
+        // (TITLE_MAX_OUTPUT_TOKENS) porque el thinking sale de maxOutputTokens; si
+        // falla o queda vacío, el hilo conserva el título determinista que puso
+        // createThread → nunca bloquea ni rompe.
         if (createdThreadId != null && createdThreadId === threadId) {
           try {
             const raw = await runText({
               kind: "title",
               task: "estimate",
               prompt: chatTitlePrompt(message, text.slice(0, 500)),
-              maxOutputTokens: 32,
+              maxOutputTokens: TITLE_MAX_OUTPUT_TOKENS,
             });
             const title = sanitizeThreadTitle(raw);
             if (title) await saveThreadTitle(threadId, title);

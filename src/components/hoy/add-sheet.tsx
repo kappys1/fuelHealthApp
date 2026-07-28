@@ -171,10 +171,10 @@ export function AddSheet({
     for (const o of allOptions)
       if (o.name.toLowerCase().includes(q))
         hits.push({ key: `p${o.id}`, ...o, source: "plan", baseG: o.baseG });
-    for (const r of corpus.recents)
+    for (const [i, r] of corpus.recents.entries())
       if (r.name.toLowerCase().includes(q))
         hits.push({
-          key: `r${r.name}`,
+          key: `r${i}:${r.name}`,
           ...r,
           source: "manual",
           baseG: null,
