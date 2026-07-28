@@ -197,6 +197,17 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   implantes», «hoy ando solo»), esa info **muere en el hilo**: el Coach de mañana no la conoce. Debería
   poder capturarse en el día (nota / sesión = Descanso / fase) desde el propio chat, para que el
   contexto del Coach y de la Tendencia la recojan. Caso real del 15-jul (implantes → sin entreno).
+- ✅ **El Chat lee y adapta tu entreno alrededor de una limitación** (F21; caso real Alex, 28/29-jul) —
+  **IMPLEMENTADO** (Fases 1+2), spec [`docs/specs/features/21-chat-adapta-entreno-lesion.md`](./specs/features/21-chat-adapta-entreno-lesion.md),
+  CHANGELOG v1.23, DECISIONS #88. Arreglo de DATO (el contexto descartaba
+  `training_sessions.contenido`) + detección de intención (`detectTrainingAdaptationIntent`, pura y
+  testeada) que, solo bajo intención, inyecta el contenido real de las sesiones de la **semana del
+  plan** (`getTrainingWeekView`) + un bloque de comportamiento en el prompt congelado (sustituciones,
+  movilidad, antagonistas, escalados, **equilibrio entre sesiones**, coach conversacional, solo
+  lectura, seguridad). Sin intención = prompt/coste byte-idénticos a hoy. Sin migración. Ventana =
+  semana del plan (lun-dom), ajustada en validación en vivo para poder leer «la de ayer».
+  **🖐 pendiente**: Alex valida AC 1-5 en producción. Sin campo de perfil (la limitación vive en el
+  hilo → conecta con la idea 💡 de «capturar el cambio del día desde el Chat», B3 arriba).
 - ✅ **Mis productos (favoritos con etiqueta que reescalan)** (caso real Alex, 16-jul) — **IMPLEMENTADA (F07, v1.9)**,
   desplegada y **validada por Alex 🖐 (AC 6/7/8/9, 17-jul)**:
   [`docs/specs/features/07-mis-productos.md`](./specs/features/07-mis-productos.md).

@@ -1,4 +1,4 @@
-import { dayKey } from "@/lib/dates";
+import { dayKey, weekdayName } from "@/lib/dates";
 import { effectiveHealthMetric } from "@/lib/effective-health";
 import type { FlexibleMealKey } from "@/lib/flexible-meals";
 import {
@@ -39,6 +39,7 @@ import type { GaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { DailyRecord } from "@/server/analytics/types";
 import type { DatedEntry, DayView } from "@/server/db/queries/day";
+import type { TrainingWeekView } from "@/server/db/queries/training";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
 import { planOptionsList } from "./prompts";
 
@@ -191,6 +192,47 @@ export function recentMealsDetail(
       return `${d}:\n${items}`;
     })
     .join("\n");
+}
+
+/**
+ * F21 · Contenido REAL de las sesiones de la SEMANA (lun-dom del plan vigente) para
+ * el Chat, cuando el turno va de entreno/lesión/adaptación
+ * (detectTrainingAdaptationIntent). Antes el contexto emitía solo `sesión {nombre} ·
+ * {tipo}` y descartaba `contenido`, así que el Chat no podía leer los ejercicios
+ * («no tengo tu WOD en el registro», caso 28-jul): problema de DATO, no de prompt.
+ *
+ * La ventana es la SEMANA del plan (no solo hoy): un caso real de uso pedía leer «la
+ * de ayer» y adaptar «viendo todo lo que tengo de la semana» (29-jul) → una sola
+ * fuente cubre leer días pasados/futuros de la semana Y el equilibrio entre sesiones.
+ * Cada sesión con su fecha, día y contenido tal cual se importó (F-IA-10), ordenadas
+ * por fecha y marcando HOY. Si un día no tiene sesión, el prompt anti-invención lo
+ * cubre (AC6). Solo se inyecta bajo intención → coste cero cuando no aplica (AC8).
+ */
+export function trainingWeekContext(
+  weekView: TrainingWeekView | null,
+  today: string,
+): string {
+  const assigned = (weekView?.sessions ?? [])
+    .filter((s) => s.assignedDate != null)
+    .sort((a, b) => a.assignedDate!.localeCompare(b.assignedDate!));
+  if (assigned.length === 0) {
+    return "No hay ninguna sesión de entreno importada para esta semana.";
+  }
+  const blocks = assigned.map((s) => {
+    const date = s.assignedDate!;
+    const rel =
+      date === today ? " · HOY" : date < today ? " · ya pasado" : " · próximo";
+    const tipo = TRAINING_TIPO_LABELS[s.tipo];
+    const head = `${date} (${weekdayName(date)})${rel}: ${s.nombre} · ${tipo}`;
+    const contenido = s.contenido.trim();
+    return contenido
+      ? `${head}\n${contenido}`
+      : `${head} (sin contenido detallado importado)`;
+  });
+  const todayNote = assigned.some((s) => s.assignedDate === today)
+    ? ""
+    : `\n\nHoy (${today}) no tienes ninguna sesión asignada en el plan.`;
+  return `Sesiones de esta semana (contenido real; úsalo, no inventes):\n\n${blocks.join("\n\n")}${todayNote}`;
 }
 
 /**
