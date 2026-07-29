@@ -484,7 +484,7 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   lectura (ajuste ratificado en validación en vivo, DECISIONS #88).
 - Sin migración/schema; sin impacto en export/restore ni `migrate:poc`; `temperature
   0.3` sin cambio; sin café ×3. 484 tests verdes; F05 re-validada (byte-idéntica sin
-  intención). AC 1-5 🖐 pendientes del pulgar de Alex en producción.
+  intención). **AC 1-5 validados por Alex en producción (2026-07-29); F21 cerrada.**
 
 ---
 

@@ -1,5 +1,5 @@
 # F21 · El Chat lee y adapta tu entreno alrededor de una limitación (coach conversacional)
-**Estado**: implementada (Fases 1+2, 2026-07-29; AC 1-5 🖐 pendientes del pulgar de Alex en producción) · **Tamaño**: feature (sin migración, sin pantalla; toca prompt congelado + contexto IA)
+**Estado**: cerrada (Fases 1+2, 2026-07-29; AC 1-5 validados por Alex en producción ✅) · **Tamaño**: feature (sin migración, sin pantalla; toca prompt congelado + contexto IA)
 **Nota de implementación**: la ventana de la Fase 2 se fijó en la **semana del plan (lun-dom)** en vez de «hoy → fin de semana» (riesgo 2, marcado *Ajustable*): un caso real en validación pidió leer «la de ayer». Ver DECISIONS #88 y CHANGELOG v1.23.
 **Fecha**: 2026-07-29 · **Origen**: caso real Alex (28-jul): preguntó por su lesión de hombro y pidió adaptar el entreno «viendo todo lo que tengo de la semana»; el chat respondió «no tengo los ejercicios exactos de tu Training 2 en el registro».
 

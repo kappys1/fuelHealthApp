@@ -206,8 +206,9 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   movilidad, antagonistas, escalados, **equilibrio entre sesiones**, coach conversacional, solo
   lectura, seguridad). Sin intención = prompt/coste byte-idénticos a hoy. Sin migración. Ventana =
   semana del plan (lun-dom), ajustada en validación en vivo para poder leer «la de ayer».
-  **🖐 pendiente**: Alex valida AC 1-5 en producción. Sin campo de perfil (la limitación vive en el
-  hilo → conecta con la idea 💡 de «capturar el cambio del día desde el Chat», B3 arriba).
+  **✅ AC 1-5 validados por Alex en producción (2026-07-29); F21 cerrada.** Sin campo de perfil (la
+  limitación vive en el hilo → conecta con la idea 💡 de «capturar el cambio del día desde el Chat»,
+  B3 arriba, fast-follow natural).
 - ✅ **Mis productos (favoritos con etiqueta que reescalan)** (caso real Alex, 16-jul) — **IMPLEMENTADA (F07, v1.9)**,
   desplegada y **validada por Alex 🖐 (AC 6/7/8/9, 17-jul)**:
   [`docs/specs/features/07-mis-productos.md`](./specs/features/07-mis-productos.md).
