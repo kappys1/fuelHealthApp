@@ -231,3 +231,56 @@ ninguna de sus respuestas y su prompt ya es largo (presupuesto de prompt, doc 11
 
 Orden obligatorio 1 → 2 → 3 → 4: las fases 2 y 4 declaran y descomponen la cifra que la
 fase 1 estabiliza. La 3 es independiente y puede adelantarse si conviene.
+
+## Implementación
+
+Rama `feat/f22-progreso-una-sola-verdad`. Sin migración, sin cambios de schema, cero
+impacto en export/restore y `migrate:poc` (como estaba previsto).
+
+- Fase 1: `9cb95f7` · `computeDeficit(records, window)` + `computeCanonicalDeficit`,
+  `computeTrajectory`, helpers de mes en `lib/dates.ts`, etiquetas de `context.ts`,
+  las 4 llamadas, sync de `03-DATOS §3`.
+- Fase 2: `63e1171` · ventana y cobertura en cada tarjeta, trayectoria renderizada,
+  `targetSpans`, «Afecta a los gráficos».
+- Fase 3: `02603b3` · gráfico honesto.
+- Fase 4: `bef9af2` · `computeFlexibleRhythms`, ventana 28 → 30, tarjeta de ritmos,
+  sync de `03-DATOS §3` y de los AC de F16.
+- Verificación: `0c000ce` · `weightChartSeries` extraída a `server/analytics/` (la
+  serie se construía en el componente) + kg/semana con 2 decimales fijos.
+
+### AC verificados
+
+| AC | Estado |
+|---|---|
+| 1 | ✅ test `deficit.test.ts` (fixture con borde desviado; ~74 kcal/día de diferencia frente al recorte) |
+| 2 | ✅ test + las 4 superficies llaman a `computeCanonicalDeficit` |
+| 3 | ✅ verificado en la app con datos reales: `−0,20 / 220 / 2186` idéntico en 14/30/90/todo |
+| 4 | ✅ test (amplía a 90 d y lo declara; sin muestra ni en 90 d conserva el estado) |
+| 4b | ✅ test `trajectory.test.ts` (meses cerrados, gate por mes, cambio de año, fixture a caballo) |
+| 5 | ✅ en pantalla: `100 % · 9 de 14 días juzgados · 12/14 proteína · 5 flexibles fuera de kcal` |
+| 6 | ✅ test `targetSpans`; en producción hoy hay un solo objetivo, así que la rama de dos targets no se ha visto en pantalla |
+| 7 | ✅ test `ma7.test.ts` + verificado en el DOM: la línea de peso se parte en dos subpaths sobre un hueco y la ma7 sigue continua |
+| 8 | ✅ test con el fixture del 3-ago **y** con datos reales: `Real ponderado −220` = déficit `220` |
+| 9 | ✅ `typecheck`, `test` (530), `lint`, `audit:contrast` y `build` en verde |
+| 10, 10b, 11, 12, 13 | 🖐 pendientes de Alex en producción |
+
+### Dos hallazgos que corrigen la Motivación de esta spec
+
+1. **El tramo plano del 22-25 jul NO era interpolación.** La BD guarda 90,5 kg en el
+   22, el 23 **y** el 24 de julio: son tres lecturas reales idénticas. El bug de
+   `connectNulls` era real y está arreglado, pero este tramo concreto no lo causaba.
+   Ver AC11 en las notas de validación: lo que Alex verá al mirarlo es un peso que de
+   verdad no se movió (¿báscula redondeando? ¿mismo valor reintroducido?), no un
+   invento del gráfico. Posible pista para el ai-tuner/analyst, no para esta feature.
+2. **La causa primera del hueco invisible estaba antes de Recharts.** El gráfico solo
+   recibía días CON peso, así que el eje los pegaba uno detrás de otro y el hueco no
+   existía como dato: quitar `connectNulls` por sí solo no habría cambiado nada. Por
+   eso la serie ahora emite un punto por día natural.
+
+### Nota sobre la trayectoria en producción
+
+Hoy **no se muestra**, y es el comportamiento correcto: el primer pesaje de Alex es
+del 2026-07-08, así que julio es el único mes cerrado que llega al gate (1 < 2 → línea
+omitida). Aparecerá sola el 1-sep, con agosto y julio. **AC10b no se puede validar
+hasta septiembre**; hasta entonces solo se puede comprobar que la línea está ausente
+por la razón correcta.
