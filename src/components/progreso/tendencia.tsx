@@ -92,13 +92,23 @@ export function Tendencia({
     // La ma7 necesita los 6 días anteriores al borde visible; se calcula sobre toda
     // la historia y solo después se recorta el gráfico.
     const ma7 = new Map(ma7Series(records).map((point) => [point.date, point.ma7]));
-    return rangeRecords
-      .filter((record) => record.weight != null)
-      .map((record) => ({
-        label: chartLabel(record.date),
-        weight: record.weight,
-        ma7: ma7.get(record.date) ?? null,
-      }));
+    // F22 · AC7: UN PUNTO POR DÍA del rango, con `weight: null` en los días sin
+    // pesaje. Antes solo entraban los días CON peso, así que el eje los pegaba uno
+    // detrás de otro y el hueco desaparecía del gráfico antes de llegar a Recharts:
+    // quitar `connectNulls` no habría cambiado nada sin esto.
+    const byDate = new Map(rangeRecords.map((record) => [record.date, record]));
+    const first = rangeRecords[0]?.date;
+    const last = rangeRecords[rangeRecords.length - 1]?.date;
+    if (first == null || last == null) return [];
+    const points: { label: string; weight: number | null; ma7: number | null }[] = [];
+    for (let date = first; date <= last; date = shiftDayKey(date, 1)) {
+      points.push({
+        label: chartLabel(date),
+        weight: byDate.get(date)?.weight ?? null,
+        ma7: ma7.get(date) ?? null,
+      });
+    }
+    return points;
   }, [rangeRecords, records]);
 
   const intakeData = useMemo(
@@ -222,7 +232,7 @@ export function Tendencia({
           <HowCalculated
             title="Media móvil de 7 días"
             what="La línea gruesa suaviza el ruido diario del peso promediando los 7 días previos."
-            formula="ma7(día) = media de los pesos de [día−6, día]. Se excluyen las fases especiales y los 2 días tras competir."
+            formula="ma7(día) = media de los pesos de [día−6, día]. Se excluyen las fases especiales y los 2 días tras competir. La línea fina une pesajes reales y SE CORTA en los días sin pesaje: un hueco es un hueco, no un peso estable. La gruesa sí es continua porque es una media calculada, no una medición."
             action="Fíjate en la pendiente de la línea gruesa, no en saltos diarios."
           />
         </div>
