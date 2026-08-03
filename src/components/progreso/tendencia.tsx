@@ -11,7 +11,11 @@ import {
   CANONICAL_WINDOW_DAYS,
   computeCanonicalDeficit,
 } from "@/server/analytics/deficit";
-import { computeFlexibleImpact } from "@/server/analytics/flexibleImpact";
+import {
+  computeFlexibleImpact,
+  computeFlexibleRhythms,
+  FLEXIBLE_IMPACT_WINDOW,
+} from "@/server/analytics/flexibleImpact";
 import { ma7Series } from "@/server/analytics/ma7";
 import { computeTrajectory } from "@/server/analytics/trajectory";
 import {
@@ -86,6 +90,12 @@ export function Tendencia({
   const flexibleImpact = useMemo(
     () => computeFlexibleImpact(records, today),
     [records, today],
+  );
+  // F22 · AC8: el desdoble reusa el TDEE de la cifra que manda (misma ventana), así
+  // que la fila ponderada reproduce su déficit en vez de competir con él.
+  const flexibleRhythms = useMemo(
+    () => computeFlexibleRhythms(flexibleImpact, deficit.tdee),
+    [flexibleImpact, deficit.tdee],
   );
 
   const weightData = useMemo(() => {
@@ -217,7 +227,7 @@ export function Tendencia({
           />
         </div>
         {flexibleImpact.flexibleDays > 0 ? (
-          <FlexibleImpactCard impact={flexibleImpact} />
+          <FlexibleImpactCard impact={flexibleImpact} rhythms={flexibleRhythms} />
         ) : null}
       </section>
 
@@ -514,17 +524,27 @@ function SummaryCard({
   );
 }
 
+/*
+  F22 · Fase 4 — desdoble de ritmos sobre la tarjeta de F16.
+
+  Deja de comparar solo kcal y traduce cada grupo al idioma que manda: kg/semana. La
+  última fila es la cifra que manda descompuesta, no otra cifra (principio 1). Es
+  CONTABILIDAD, no atribución: nada aquí dice que las flexibles «causen» el ritmo.
+  Se conserva la doctrina de tono de F16: azul informativo, nunca rojo; sin
+  «cheat»/«trampa»/«comida libre»; la etiqueta de producto es Flexible.
+*/
 function FlexibleImpactCard({
   impact,
+  rhythms,
 }: {
   impact: ReturnType<typeof computeFlexibleImpact>;
+  rhythms: ReturnType<typeof computeFlexibleRhythms>;
 }) {
+  const windowLabel = `Impacto flexible · ${impact.windowDays} d`;
   if (!impact.enoughForComparison) {
     return (
       <article className="wellness-card mt-3 p-5">
-        <p className="text-[11px] font-semibold text-muted-foreground">
-          Impacto flexible · 28 d
-        </p>
+        <p className="text-[11px] font-semibold text-muted-foreground">{windowLabel}</p>
         <p className="mt-2 text-[15px] font-semibold text-foreground">
           {impact.flexibleDays}{" "}
           {impact.flexibleDays === 1 ? "día flexible registrado" : "días flexibles registrados"}
@@ -540,35 +560,111 @@ function FlexibleImpactCard({
   const diffKcal = Math.round(impact.differenceObservedKcal ?? 0);
   const diffPct = Math.round(impact.differenceObservedPct ?? 0);
   const signed = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : "±"}${Math.abs(value)}`;
+
   return (
     <article className="wellness-card mt-3 p-5">
-      <p className="text-[11px] font-semibold text-muted-foreground">
-        Impacto flexible · 28 d
-      </p>
-      <div className="mt-4 space-y-2 text-[13px]">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-muted-foreground">Regular</span>
-          <span className="num text-right font-semibold text-foreground">
-            {integer(impact.regularMeanKcal ?? 0)} kcal ·{" "}
-            {Math.round(impact.regularMeanTargetPct ?? 0)} % objetivo
-          </span>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold text-muted-foreground">{windowLabel}</p>
+          {rhythms ? (
+            <h3 className="mt-1 text-[15px] font-semibold text-foreground">
+              De dónde sale tu ritmo
+            </h3>
+          ) : null}
         </div>
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-muted-foreground">Con flexibles</span>
-          <span className="num text-right font-semibold text-foreground">
-            {integer(impact.flexibleMeanKcal ?? 0)} kcal ·{" "}
-            {Math.round(impact.flexibleMeanTargetPct ?? 0)} % objetivo
-          </span>
-        </div>
+        <HowCalculated
+          title="Descomposición del déficit medio"
+          what="Tus días se parten en dos grupos y cada media se compara con tu gasto real (TDEE) para traducirla a kg/semana."
+          formula={`balance/día = ingesta media − TDEE. ritmo = balance × 7 ÷ 7.700. La fila «Real ponderado» promedia los dos grupos por número de días, así que reproduce la cifra que manda. La ventana pasó de 28 a ${FLEXIBLE_IMPACT_WINDOW} días para alinearse con ella: las cifras cambian un poco respecto a antes sin que hayas hecho nada distinto.`}
+          action="Es contabilidad de lo que ya ocurrió, no una predicción ni una recomendación: llévalo a la consulta y decidid allí."
+        />
       </div>
-      <p className="num mt-4 border-t border-line pt-3 text-[15px] font-semibold text-foreground">
+
+      {rhythms ? (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full text-[12px]">
+            <caption className="sr-only">
+              Ingesta media, diferencia frente al gasto real y ritmo por grupo de días
+            </caption>
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-wide text-muted-foreground">
+                <th scope="col" className="pb-2 font-medium">
+                  Días
+                </th>
+                <th scope="col" className="pb-2 text-right font-medium">
+                  Ingesta
+                </th>
+                <th scope="col" className="pb-2 text-right font-medium">
+                  vs gasto
+                </th>
+                <th scope="col" className="pb-2 text-right font-medium">
+                  Ritmo
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <RhythmRowView label="De pauta" row={rhythms.regular} />
+              <RhythmRowView label="Flexibles" row={rhythms.flexible} />
+              <RhythmRowView label="Real ponderado" row={rhythms.weighted} total />
+            </tbody>
+          </table>
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+            La última fila es tu cifra que manda, descompuesta: ninguna es una
+            predicción. Gasto real usado:{" "}
+            <span className="num">{integer(rhythms.tdee)}</span> kcal/día.
+          </p>
+        </div>
+      ) : (
+        <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
+          El desdoble por ritmos necesita el gasto real (TDEE) de la cifra que manda;
+          aún no hay pesajes suficientes para calcularlo.
+        </p>
+      )}
+
+      <p className="num mt-4 border-t border-line pt-3 text-[13px] font-semibold text-foreground">
         Diferencia observada ≈ {signed(diffKcal)} kcal ({signed(diffPct)} %)
       </p>
       <p className="mt-1 text-[11px] text-muted-foreground">
         {impact.flexibleMoments} momentos · {impact.flexibleDays} días flexibles ·{" "}
-        {impact.regularDays} regulares. Diferencia observada, no causal.
+        {impact.regularDays} de pauta. Diferencia observada, no causal.
       </p>
     </article>
+  );
+}
+
+function RhythmRowView({
+  label,
+  row,
+  total = false,
+}: {
+  label: string;
+  row: { days: number; meanKcal: number; balanceKcal: number; kgPerWeek: number };
+  total?: boolean;
+}) {
+  return (
+    <tr className={total ? "border-t border-line" : ""}>
+      <th
+        scope="row"
+        className={`py-2 text-left font-normal ${total ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+      >
+        {label}
+        <span className="num ml-1.5 text-[10px] text-muted-foreground">
+          ×{row.days}
+        </span>
+      </th>
+      <td className="num py-2 text-right text-foreground">
+        {integer(row.meanKcal)}
+      </td>
+      <td className="num py-2 text-right text-foreground">
+        {row.balanceKcal >= 0 ? "+" : "−"}
+        {integer(Math.abs(row.balanceKcal))}
+      </td>
+      <td
+        className={`num py-2 text-right ${total ? "font-semibold text-foreground" : "text-foreground"}`}
+      >
+        {signedKg(row.kgPerWeek)}
+      </td>
+    </tr>
   );
 }
 
