@@ -65,6 +65,27 @@ ingestaMedia = media(kcal de días con registro y phase == normal)
 TDEE = ingestaMedia + deficitDía
 ```
 
+**Ventana canónica (F22)**: la fórmula se aplica SIEMPRE sobre una ventana explícita
+de **30 días naturales terminados hoy**, idéntica en pantalla, Chat, Coach y Visita —
+«una sola cifra manda» (principio 1) exige que sea una sola cifra. El selector
+14/30/90/todo de Progreso manda sobre los gráficos, no sobre ella. Si en 30 d no hay
+≥8 pesajes en ≥7 días de span, la ventana se amplía a **90 d** y el resultado lo
+declara (`widened`), para que UI e IA lo digan en vez de fingir la canónica.
+`primero`/`último` son los pesajes elegibles **dentro** de la ventana; `ingestaMedia`
+promedia solo los días de la ventana.
+
+**Borde izquierdo de la ma7 (F22)**: `ma7(primero)` se calcula sobre la serie
+COMPLETA, no sobre la recortada a la ventana. Con la serie recortada, `ma7(primero)`
+degenera en el peso crudo de una sola muestra frente a un `ma7(último)` sí suavizado,
+y un extremo desviado 0,5 kg mueve el TDEE ~7 %: error del tamaño de la señal. Los 6
+días previos al borde alimentan el suavizado; **no** cuentan como muestra de la
+ventana.
+
+**Trayectoria mensual (F22)**: la misma función aplicada a los **3 últimos meses
+naturales cerrados** (el mes en curso no aparece: ya es el titular). Mismo gate por
+mes; un mes que no llega se muestra `—`, nunca se estima; con <2 meses válidos se
+omite la línea entera. Bloques disjuntos: cada pesaje pertenece a un único mes.
+
 Los días con comidas flexibles reales conservan el 100 % de su ingesta en
 `ingestaMedia`/TDEE y su peso en ma7. Flexible es contexto, no una fase ni un filtro
 energético.

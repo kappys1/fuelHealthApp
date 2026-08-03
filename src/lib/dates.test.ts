@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { dayKey, isDayKey, selectedDay } from "./dates";
+import {
+  dayKey,
+  endOfMonthKey,
+  isDayKey,
+  monthKeyOf,
+  monthLabel,
+  selectedDay,
+  shiftMonthKey,
+  startOfMonthKey,
+} from "./dates";
 
 describe("dayKey (Europe/Madrid)", () => {
   it("invierno: 23:30 UTC ya es el día siguiente en Madrid (UTC+1)", () => {
@@ -18,6 +27,27 @@ describe("dayKey (Europe/Madrid)", () => {
     const instant = new Date("2026-07-01T22:30:00Z");
     const naive = instant.toISOString().slice(0, 10); // 2026-07-01 (mal)
     expect(dayKey(instant)).not.toBe(naive);
+  });
+});
+
+describe("meses naturales (F22 · trayectoria)", () => {
+  it("cierra el mes por su último día real, incluidos febrero y bisiestos", () => {
+    expect(endOfMonthKey("2026-02")).toBe("2026-02-28");
+    expect(endOfMonthKey("2024-02")).toBe("2024-02-29");
+    expect(endOfMonthKey("2026-07")).toBe("2026-07-31");
+    expect(endOfMonthKey("2026-06")).toBe("2026-06-30");
+  });
+
+  it("retrocede meses cruzando el cambio de año", () => {
+    expect(shiftMonthKey("2026-01", -1)).toBe("2025-12");
+    expect(shiftMonthKey("2026-01", -13)).toBe("2024-12");
+    expect(shiftMonthKey("2026-08", -3)).toBe("2026-05");
+  });
+
+  it("deriva mes, primer día y rótulo desde una clave de día", () => {
+    expect(monthKeyOf("2026-08-03")).toBe("2026-08");
+    expect(startOfMonthKey("2026-08-03")).toBe("2026-08-01");
+    expect(monthLabel("2026-07")).toBe("jul");
   });
 });
 
