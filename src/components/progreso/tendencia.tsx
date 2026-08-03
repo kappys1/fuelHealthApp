@@ -7,7 +7,10 @@ import { IntakeChart } from "@/components/charts/intake-chart";
 import { WeightChart } from "@/components/charts/weight-chart";
 import { labelForKey, shiftDayKey } from "@/lib/dates";
 import { computeAdherence } from "@/server/analytics/adherence";
-import { computeCanonicalDeficit } from "@/server/analytics/deficit";
+import {
+  CANONICAL_WINDOW_DAYS,
+  computeCanonicalDeficit,
+} from "@/server/analytics/deficit";
 import { computeFlexibleImpact } from "@/server/analytics/flexibleImpact";
 import { ma7Series } from "@/server/analytics/ma7";
 import { computeTrajectory } from "@/server/analytics/trajectory";
@@ -30,6 +33,12 @@ export type ProgressRange = (typeof RANGES)[number]["key"];
 
 const chartLabel = (date: string) => labelForKey(date).replace(/^\S+\s/, "");
 const integer = (value: number) => Math.round(value).toLocaleString("es-ES");
+/** kg/semana con signo y 2 decimales fijos (−0,20 se lee distinto que −0,2). */
+const signedKg = (value: number) =>
+  `${value >= 0 ? "+" : "−"}${Math.abs(value).toLocaleString("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 const periodLabel = (from: string, to: string) =>
   `${chartLabel(from)} – ${chartLabel(to)}`;
 const progressHref = (nextRange: ProgressRange, nextSummary: SummaryWindowDays) => {
@@ -142,6 +151,9 @@ export function Tendencia({
             </Link>
           ))}
         </div>
+        {/* F22 · AC10: el selector manda sobre los gráficos y sobre nada más. La
+            cifra que manda tiene ventana canónica fija (30 d). */}
+        <p className="text-[11px] text-muted-foreground">Afecta a los gráficos</p>
       </div>
 
       <TrendCard deficit={deficit} trajectory={trajectory} />
@@ -170,7 +182,21 @@ export function Tendencia({
                 ? `${Math.round((adherence.enRango / adherence.kcalN) * 100)}%`
                 : "—"
             }
-            detail={`${adherence.enRango}/${adherence.kcalN} kcal · ${adherence.protOk}/${adherence.proteinN} proteína${adherence.flexibleN > 0 ? ` · ${adherence.flexibleN} flexibles fuera de kcal` : ""}`}
+            /* F22 · AC5: el % no dice sobre cuántos días se calcula. Días juzgados
+               sobre días registrados, y las fases especiales (que se calculaban y
+               no se enseñaban en ninguna parte) dejan de ser invisibles. */
+            detail={[
+              `${adherence.kcalN} de ${adherence.n} días juzgados`,
+              `${adherence.protOk}/${adherence.proteinN} proteína`,
+              adherence.flexibleN > 0
+                ? `${adherence.flexibleN} flexibles fuera de kcal`
+                : null,
+              adherence.specialN > 0
+                ? `${adherence.specialN} ${adherence.specialN === 1 ? "fase especial" : "fases especiales"}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           />
           <KpiCard
             Icon={Flame}
@@ -246,7 +272,8 @@ function TrendCard({
     return (
       <section className="rounded-[22px] bg-[var(--inverted)] p-5 text-[var(--on-inverted)] shadow-card">
         <p className="text-[11px] font-semibold text-[var(--on-inverted-muted)]">
-          BALANCE REAL · DESDE EL PESO
+          BALANCE REAL · DESDE EL PESO ·{" "}
+          <span className="num">{deficit.windowDays} d</span>
         </p>
         <div className="mt-4 flex items-start gap-3">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/10">
@@ -275,8 +302,10 @@ function TrendCard({
     <section className="rounded-[22px] bg-[var(--inverted)] p-5 text-[var(--on-inverted)] shadow-card">
       <div className="flex items-start justify-between gap-3">
         <div>
+          {/* F22 · AC10: la ventana viaja en la cabecera, no en un desplegable. */}
           <p className="text-[11px] font-semibold text-[var(--on-inverted-muted)]">
-            BALANCE REAL · DESDE EL PESO
+            BALANCE REAL · DESDE EL PESO ·{" "}
+            <span className="num">{deficit.windowDays} d</span>
           </p>
           <h2 className="mt-1 text-[16px] font-semibold">La cifra que manda</h2>
         </div>
@@ -284,7 +313,7 @@ function TrendCard({
           invert
           title="Déficit y TDEE reales"
           what="El gasto real sale del cambio de tu peso medio, no del reloj."
-          formula="déficit/día = −(kg/semana × 7.700 ÷ 7). TDEE = ingesta media Normal + déficit."
+          formula={`déficit/día = −(kg/semana × 7.700 ÷ 7). TDEE = ingesta media Normal + déficit. Ventana fija de ${CANONICAL_WINDOW_DAYS} días (${periodLabel(deficit.windowFrom, deficit.windowTo)}), la misma que usan el Chat y Preparar visita; el selector de arriba solo mueve los gráficos. La media móvil del primer día incluye los 6 días anteriores, aunque queden fuera de la ventana.`}
           action="Si el déficit se aleja de la pauta, coméntalo con tu nutricionista."
         />
       </div>
@@ -301,11 +330,53 @@ function TrendCard({
           unit="kcal"
         />
       </div>
-      <p className="mt-5 border-t border-white/15 pt-3 text-[11px] leading-relaxed text-[var(--on-inverted-muted)]">
-        {deficit.weighins} pesajes en {deficit.spanDays} días · ingesta media{" "}
-        {integer(deficit.intakeMean ?? 0)} kcal · el reloj queda como contexto.
-      </p>
+      <div className="mt-5 space-y-2 border-t border-white/15 pt-3 text-[11px] leading-relaxed text-[var(--on-inverted-muted)]">
+        <p>
+          <span className="num">{deficit.weighins}</span> pesajes en la ventana de{" "}
+          <span className="num">{deficit.windowDays} d</span> ({" "}
+          {periodLabel(deficit.windowFrom, deficit.windowTo)} ) · ingesta media{" "}
+          <span className="num">{integer(deficit.intakeMean ?? 0)}</span> kcal · el
+          reloj queda como contexto.
+        </p>
+        {/* F22 · AC4: si se amplió la ventana, se dice; no se finge la canónica. */}
+        {deficit.widened ? (
+          <p>
+            Ventana ampliada a <span className="num">{deficit.windowDays} d</span> ·
+            pesajes insuficientes en {CANONICAL_WINDOW_DAYS} d.
+          </p>
+        ) : null}
+        <TrajectoryLine trajectory={trajectory} />
+      </div>
     </section>
+  );
+}
+
+/**
+ * F22 · AC10b — «¿lo estoy haciendo bien a largo plazo?». Meses naturales CERRADOS,
+ * no bloques rodantes: «julio» es un hecho fijo, se compara consigo mismo y es el
+ * idioma del nutricionista. Va visualmente subordinada al titular (principio 1: una
+ * sola cifra manda); los meses son el contexto que dice si el ritmo se mantiene,
+ * acelera o frena.
+ */
+function TrajectoryLine({
+  trajectory,
+}: {
+  trajectory: ReturnType<typeof computeTrajectory>;
+}) {
+  if (!trajectory.enough) return null;
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <span className="uppercase tracking-wide">Trayectoria</span>
+      {trajectory.months.map((month) => (
+        <span key={month.monthKey} className="inline-flex items-baseline gap-1">
+          <span>{month.label}</span>
+          <span className="num font-semibold text-[var(--on-inverted)]">
+            {month.kgPerWeek == null ? "—" : signedKg(month.kgPerWeek)}
+          </span>
+        </span>
+      ))}
+      <span className="basis-full">kg/semana por mes cerrado</span>
+    </p>
   );
 }
 
@@ -378,9 +449,11 @@ function SummaryCard({
           value={`${summary.loggedDays}/${summary.days}`}
           bottom
         />
+        {/* F22 · AC5: 3/3 no distingue «clavado» de «apenas juzgado». */}
         <SummaryMetric
           label="En rango normal"
           value={`${summary.kcalInRange}/${summary.kcalDays}`}
+          hint={`juzgados · ${summary.loggedDays} registrados`}
           right
           bottom
         />
@@ -396,12 +469,33 @@ function SummaryCard({
           bottom
         />
       </div>
-      <p className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
-        <UtensilsCrossed className="size-3.5 text-primary" aria-hidden />
-        {currentTarget.kcal > 0 ? (
-          <>
-            Objetivo vigente: <span className="num font-semibold text-foreground">{integer(currentTarget.kcal)} kcal</span>
-          </>
+      {/* F22 · AC6: con más de un objetivo en la ventana, la media de arriba no se
+          compara contra una sola pauta. Se declara el cambio en vez de callarlo. */}
+      <p className="mt-3 flex items-start gap-2 text-[11px] text-muted-foreground">
+        <UtensilsCrossed className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+        {summary.targets.length > 1 ? (
+          <span>
+            Objetivo:{" "}
+            {summary.targets.map((span, index) => (
+              <span key={span.from}>
+                {index > 0 ? " · " : ""}
+                <span className="num font-semibold text-foreground">
+                  {integer(span.kcal)} kcal
+                </span>{" "}
+                {index === summary.targets.length - 1
+                  ? `desde el ${chartLabel(span.from)}`
+                  : `hasta el ${chartLabel(span.to)}`}
+              </span>
+            ))}
+            . La pauta cambió dentro de este periodo.
+          </span>
+        ) : currentTarget.kcal > 0 ? (
+          <span>
+            Objetivo vigente:{" "}
+            <span className="num font-semibold text-foreground">
+              {integer(currentTarget.kcal)} kcal
+            </span>
+          </span>
         ) : (
           <span>Sin objetivo vigente en Plan.</span>
         )}
@@ -471,11 +565,13 @@ function FlexibleImpactCard({
 function SummaryMetric({
   label,
   value,
+  hint,
   right = false,
   bottom = false,
 }: {
   label: string;
   value: string;
+  hint?: string;
   right?: boolean;
   bottom?: boolean;
 }) {
@@ -487,6 +583,9 @@ function SummaryMetric({
     >
       <div className="text-[11px] text-muted-foreground">{label}</div>
       <div className="num mt-1 text-[18px] font-semibold text-foreground">{value}</div>
+      {hint ? (
+        <div className="num mt-0.5 text-[11px] text-muted-foreground">{hint}</div>
+      ) : null}
     </div>
   );
 }

@@ -4,6 +4,39 @@ import type { DailyRecord } from "./types";
 
 export type SummaryWindowDays = 7 | 30;
 
+/** Tramo continuo con un mismo objetivo dentro de la ventana (F22 · AC6). */
+export interface TargetSpan {
+  kcal: number;
+  prot: number;
+  from: string;
+  to: string;
+}
+
+/**
+ * Objetivos vigentes DENTRO de la ventana, en orden. Con más de uno, la pantalla
+ * puede declarar el cambio de pauta en vez de enseñar una media contra un objetivo
+ * que no estuvo vigente todo el periodo. Cada día ya viaja con su objetivo histórico
+ * (F1.5, `record.target`), así que aquí solo se agrupan tramos consecutivos iguales.
+ */
+export function targetSpans(records: readonly DailyRecord[]): TargetSpan[] {
+  const spans: TargetSpan[] = [];
+  for (const record of records) {
+    if (record.target.kcal <= 0) continue;
+    const last = spans[spans.length - 1];
+    if (last && last.kcal === record.target.kcal && last.prot === record.target.prot) {
+      last.to = record.date;
+      continue;
+    }
+    spans.push({
+      kcal: record.target.kcal,
+      prot: record.target.prot,
+      from: record.date,
+      to: record.date,
+    });
+  }
+  return spans;
+}
+
 export interface ProgressSummary {
   days: SummaryWindowDays;
   from: string;
@@ -18,6 +51,8 @@ export interface ProgressSummary {
   contextDays: number;
   kcalInRange: number;
   proteinOnTarget: number;
+  /** Objetivos vigentes en la ventana (F22 · AC6): >1 = hubo cambio de pauta. */
+  targets: TargetSpan[];
 }
 
 /** Ventana natural inclusiva: 30 días significa hoy y los 29 anteriores. */
@@ -80,6 +115,7 @@ export function computeProgressSummary(
       (record) =>
         record.target.prot > 0 && record.prot >= record.target.prot * PROT_MIN_RATIO,
     ).length,
+    targets: targetSpans(trailingRecords(records, today, days)),
   };
 }
 
