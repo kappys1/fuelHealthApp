@@ -262,7 +262,11 @@ impacto en export/restore y `migrate:poc` (como estaba previsto).
 | 7 | ✅ test `ma7.test.ts` + verificado en el DOM: la línea de peso se parte en dos subpaths sobre un hueco y la ma7 sigue continua |
 | 8 | ✅ test con el fixture del 3-ago **y** con datos reales: `Real ponderado −220` = déficit `220` |
 | 9 | ✅ `typecheck`, `test` (530), `lint`, `audit:contrast` y `build` en verde |
-| 10, 10b, 11, 12, 13 | 🖐 pendientes de Alex en producción |
+| 10 | ✅ 🖐 Alex, 3-ago — con enmienda: sobraba la línea «Diferencia observada» de F16 (`b111b49`) |
+| 11 | ✅ 🖐 Alex, 3-ago — su captura lo prueba: el pesaje del 3-ago sale como punto suelto porque el 1 y el 2 no hubo |
+| 12 | ✅ 🖐 Alex, 3-ago — con enmienda: la tabla daba los números pero no la frase (`b111b49`) |
+| 13 | ✅ 🖐 Alex, 3-ago — ver nota de la falsa alarma |
+| 10b | 🖐 BLOQUEADO hasta el 1-sep (ver nota de la trayectoria) |
 
 ### Dos hallazgos que corrigen la Motivación de esta spec
 
@@ -276,6 +280,36 @@ impacto en export/restore y `migrate:poc` (como estaba previsto).
    recibía días CON peso, así que el eje los pegaba uno detrás de otro y el hueco no
    existía como dato: quitar `connectNulls` por sí solo no habría cambiado nada. Por
    eso la serie ahora emite un punto por día natural.
+
+### Enmienda de la validación (3-ago): la tarjeta no se leía sola
+
+Alex validó los 4 AC disponibles y las dos objeciones fueron la misma causa —sobraba
+una línea y faltaba la frase—, no un error de cálculo:
+
+- **Fuera `Diferencia observada ≈ +X kcal (+Y %)`** (heredada de F16). Con la tabla de
+  ritmos delante repetía el mismo hecho en otro marco (cada grupo contra el otro, en
+  vez de contra el gasto) y con un tercer porcentaje sobre la media regular. Con ella
+  se va la coletilla «Diferencia observada, no causal», que se refería a esa línea.
+- **Nueva línea de lectura**, que es lo que responde de verdad al AC12:
+  «Tus días de pauta corren a −0,39 kg/semana; con los 6 flexibles, tu ritmo real es
+  −0,24. Los flexibles se llevan el 39 % del ritmo.» La proporción (`flexibleShare`)
+  es una razón entre **dos ritmos medidos**, no un contrafactual: no simula un Alex
+  que no existió (NO-alcance §2), divide lo que pasó entre lo que pasó. Devuelve
+  `null` cuando no significa nada y `>1` → «todo ese ritmo».
+
+Esto **modifica de nuevo la tarjeta de F16** respecto a su AC14: ya sincronizado allí.
+
+### Falsa alarma del AC13 (merece quedar escrita)
+
+En la primera comprobación el Chat dijo −0,24 kg/semana y 261 kcal/día mientras la
+pantalla mostraba −0,20 y 220: exactamente el síntoma que esta feature venía a
+eliminar. **No era divergencia**: Alex se pesó (90,5 kg el 3-ago) entre la captura de
+la pantalla y la pregunta al Chat, y la cifra se movió con el dato nuevo (19 → 20
+pesajes). Recargada la pantalla, ambas superficies dieron −0,24 / 261 / 2227.
+
+Lección para futuras validaciones de esta pantalla: **comparar pantalla y Chat siempre
+tras recargar**, y contrastar el número de pesajes de la cabecera antes de declarar un
+bug. La cifra que manda es un dato vivo: cambia con cada pesaje del día.
 
 ### Nota sobre la trayectoria en producción
 

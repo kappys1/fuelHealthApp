@@ -114,15 +114,19 @@ nutricionista y sin permitir que quede invisible en el balance energético.
   ```text
   Impacto flexible · 30 d          De dónde sale tu ritmo
   Días            Ingesta   vs gasto   Ritmo
-  De pauta   ×16    1.806      −394    −0,36
-  Flexibles  ×6     2.442      +242    +0,22
-  Real ponderado ×22 1.979     −220    −0,20     ← la cifra que manda, descompuesta
-  Diferencia observada ≈ +636 kcal (+35 %)
-  8 momentos · 6 días flexibles · 16 de pauta. Diferencia observada, no causal.
+  De pauta   ×17    1.798      −429    −0,39
+  Flexibles  ×6     2.442      +215    +0,20
+  Real ponderado ×23 1.966     −261    −0,24     ← la cifra que manda, descompuesta
+  Tus días de pauta corren a −0,39 kg/semana; con los 6 flexibles, tu ritmo real
+  es −0,24. Los flexibles se llevan el 39 % del ritmo.
+  8 momentos · 6 días flexibles · 17 de pauta.
   ```
 
   Forma de v1 (sustituida): dos filas `Regular`/`Con flexibles` con kcal y % de
-  objetivo, más la diferencia observada.
+  objetivo, más `Diferencia observada ≈ +X kcal (+Y %)`. **Esa última línea se
+  ELIMINA** en la validación del 3-ago: con la tabla de ritmos delante repetía el
+  mismo hecho en otro marco y confundía («no entiendo por qué está ahí» —Alex). Con
+  ella se va la coletilla «Diferencia observada, no causal», que se refería a ella.
 
 - La comparación solo aparece con **≥3 días flexibles y ≥7 regulares**. Antes:
   `2 días flexibles registrados · todavía sin datos suficientes para comparar`.
