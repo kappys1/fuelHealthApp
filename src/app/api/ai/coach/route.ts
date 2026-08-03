@@ -22,7 +22,7 @@ import { aiErrorResponse } from "@/server/ai/errors";
 import { coachPrompt } from "@/server/ai/prompts";
 import { objectiveStance, trainingTiming } from "@/server/analytics/dayClosure";
 import { dayTotals } from "@/server/analytics/dayTotals";
-import { computeDeficit } from "@/server/analytics/deficit";
+import { computeCanonicalDeficit } from "@/server/analytics/deficit";
 import { energyBalance } from "@/server/analytics/energyBalance";
 import { gaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import { getDayView } from "@/server/db/queries/day";
@@ -121,7 +121,11 @@ export async function POST(request: Request) {
       }),
     );
     if (balanceLine) dataLines.push(balanceLine);
-    dataLines.push(trendJudgeLine(computeDeficit(trend.records)));
+    // F22 · AC2: ventana canónica de 30 d, la misma que ve Alex en Progreso y que
+    // reciben Chat y Visita. Se ancla en el día REAL (no en el navegado) para que
+    // las cuatro superficies coincidan el mismo día. La trayectoria mensual NO entra
+    // aquí: el Coach habla de hoy y de ayer (presupuesto de prompt, doc 11).
+    dataLines.push(trendJudgeLine(computeCanonicalDeficit(trend.records, realToday)));
     const flexibleReview = realFlexibleReviewLine(verdict);
     if (flexibleReview) {
       dataLines.push(

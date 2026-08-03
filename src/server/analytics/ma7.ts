@@ -36,7 +36,13 @@ export function eligibleWeightSeries(
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** ma7 en una fecha concreta sobre una serie ya elegible. null si no hay pesos en la ventana. */
+/**
+ * ma7 en una fecha concreta sobre una serie ya elegible. null si no hay pesos en la
+ * ventana. OJO (F22): promedia [date−6, date] *dentro de la serie recibida*. Quien
+ * mida una pendiente en una ventana debe pasar la serie COMPLETA y limitar solo la
+ * elección de fechas; con la serie recortada, la ma7 del borde izquierdo degenera en
+ * un peso crudo de una sola muestra.
+ */
 export function ma7At(
   series: readonly WeightPoint[],
   date: string,

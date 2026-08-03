@@ -24,6 +24,7 @@ import {
   recentMealsDetail,
   realFlexibleReviewLine,
   trainingWeekContext,
+  trajectoryLine,
   trendAndAdherence,
   trendJudgeLine,
   trendSummary,
@@ -56,6 +57,13 @@ import {
 */
 
 const TODAY = "2026-07-12";
+/** F22: ventana canónica que todo `DeficitResult` declara ya en el propio dato. */
+const WINDOW_30 = {
+  windowDays: 30,
+  windowFrom: "2026-06-13",
+  windowTo: TODAY,
+  widened: false,
+} as const;
 
 describe("F17 · contratos congelados de entreno", () => {
   it("F-IA-5 pide el tipo exacto y no regenera el WOD pegado", () => {
@@ -175,6 +183,93 @@ describe("ATHLETE_CONTEXT dinámico (doc 10 A2)", () => {
   });
 });
 
+/*
+  F22 · Fase 1 — las etiquetas de ventana dejan de mentir. Antes `trendJudgeLine`
+  decía «(báscula, 7 d)» sobre una pendiente medida en el histórico entero y el
+  comentario de `trendAndAdherence` prometía «mismas cifras que la pantalla»
+  mientras la pantalla usaba el rango del selector.
+*/
+describe("F22 · el contexto declara la ventana REAL de la cifra que manda", () => {
+  const base: DeficitResult = {
+    enough: true,
+    weighins: 22,
+    spanDays: 29,
+    kgPerWeek: -0.2,
+    deficitKcal: 220,
+    intakeMean: 1979,
+    tdee: 2199,
+    ...WINDOW_30,
+  };
+
+  it("el juez del Coach nombra la ventana canónica, no «7 d»", () => {
+    const line = trendJudgeLine(base);
+    expect(line).toContain("30 d");
+    expect(line).toContain("2026-06-13 → 2026-07-12");
+    expect(line).toContain("22 pesajes");
+    expect(line).not.toMatch(/báscula, 7 d/);
+  });
+
+  it("declara la ampliación a 90 d en vez de fingir la canónica", () => {
+    const widened = trendJudgeLine({
+      ...base,
+      windowDays: 90,
+      windowFrom: "2026-04-14",
+      widened: true,
+    });
+    expect(widened).toContain("90 d");
+    expect(widened).toContain("ampliada desde 30 d");
+  });
+
+  it("sin tendencia fiable sigue declarando de qué ventana habla", () => {
+    const line = trendJudgeLine({
+      ...base,
+      enough: false,
+      weighins: 3,
+      kgPerWeek: null,
+      deficitKcal: null,
+    });
+    expect(line).toContain("aún sin tendencia fiable");
+    expect(line).toContain("30 d");
+  });
+
+  it("trendSummary (Visita) cierra con la misma ventana", () => {
+    expect(trendSummary(base)).toContain("ventana de 30 d");
+  });
+});
+
+describe("F22 · trayectoria mensual en Chat y Visita", () => {
+  const months = [
+    { monthKey: "2026-07", label: "jul", kgPerWeek: -0.2, deficitKcal: 220, weighins: 22 },
+    { monthKey: "2026-06", label: "jun", kgPerWeek: -0.31, deficitKcal: 341, weighins: 28 },
+    { monthKey: "2026-05", label: "may", kgPerWeek: -0.15, deficitKcal: 165, weighins: 25 },
+  ];
+
+  it("narra los meses cerrados en orden y con signo", () => {
+    const line = trajectoryLine({ months, enough: true });
+    expect(line).toContain("jul −0,20 kg/semana");
+    expect(line).toContain("jun −0,31 kg/semana");
+    expect(line).toContain("may −0,15 kg/semana");
+    expect(line).toContain("sin solape");
+  });
+
+  it("un mes sin muestra se narra como insuficiente, nunca estimado", () => {
+    const line = trajectoryLine({
+      months: [
+        months[0]!,
+        { monthKey: "2026-06", label: "jun", kgPerWeek: null, deficitKcal: null, weighins: 4 },
+        months[2]!,
+      ],
+      enough: true,
+    });
+    expect(line).toContain("jun — (solo 4 pesajes, insuficiente)");
+    expect(line).not.toContain("jun −");
+  });
+
+  it("con <2 meses válidos no viaja ninguna línea al prompt", () => {
+    expect(trajectoryLine({ months: [], enough: false })).toBe("");
+  });
+});
+
 describe("resumen de tendencia honesto", () => {
   it("nombra el déficit firmado negativo como superávit y omite TDEE ausente", () => {
     const summary = trendSummary({
@@ -185,6 +280,7 @@ describe("resumen de tendencia honesto", () => {
       deficitKcal: -403,
       intakeMean: 1821,
       tdee: null,
+      ...WINDOW_30,
     });
     expect(summary).toContain("superávit estimado ~403 kcal/día");
     expect(summary).not.toContain("déficit real ~-403");
@@ -611,6 +707,7 @@ describe("F16 · contexto IA flexible", () => {
       deficitKcal: null,
       intakeMean: null,
       tdee: null,
+      ...WINDOW_30,
     };
     const adherence = {
       windowDays: 14,
@@ -821,6 +918,7 @@ describe("coach: datos juzgados en servidor + tono (regresión 14-jul, DECISIONS
       deficitKcal: 440,
       intakeMean: 1850,
       tdee: 2290,
+      ...WINDOW_30,
     };
     expect(trendJudgeLine(enough)).toContain("ESTE es el juez");
     expect(trendJudgeLine(enough)).toContain("440 kcal/día");
@@ -832,6 +930,7 @@ describe("coach: datos juzgados en servidor + tono (regresión 14-jul, DECISIONS
       deficitKcal: null,
       intakeMean: null,
       tdee: null,
+      ...WINDOW_30,
     };
     expect(trendJudgeLine(notEnough)).toContain("aún sin tendencia fiable");
   });

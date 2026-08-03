@@ -7,9 +7,10 @@ import { IntakeChart } from "@/components/charts/intake-chart";
 import { WeightChart } from "@/components/charts/weight-chart";
 import { labelForKey, shiftDayKey } from "@/lib/dates";
 import { computeAdherence } from "@/server/analytics/adherence";
-import { computeDeficit } from "@/server/analytics/deficit";
+import { computeCanonicalDeficit } from "@/server/analytics/deficit";
 import { computeFlexibleImpact } from "@/server/analytics/flexibleImpact";
 import { ma7Series } from "@/server/analytics/ma7";
+import { computeTrajectory } from "@/server/analytics/trajectory";
 import {
   computeLoggingStreak,
   computeProgressSummary,
@@ -59,7 +60,14 @@ export function Tendencia({
     return records.filter((record) => record.date >= from && record.date <= today);
   }, [range, records, today]);
 
-  const deficit = useMemo(() => computeDeficit(rangeRecords), [rangeRecords]);
+  // F22 · AC2/AC3: la cifra que manda NO depende del selector. Ventana canónica de
+  // 30 d sobre el histórico completo, idéntica a la que reciben Chat, Coach y Visita.
+  // El selector manda sobre los gráficos (y sobre nada más).
+  const deficit = useMemo(
+    () => computeCanonicalDeficit(records, today),
+    [records, today],
+  );
+  const trajectory = useMemo(() => computeTrajectory(records, today), [records, today]);
   const adherence = useMemo(() => computeAdherence(records, today, 14), [records, today]);
   const summary = useMemo(
     () => computeProgressSummary(records, today, summaryDays),
@@ -136,7 +144,7 @@ export function Tendencia({
         </div>
       </div>
 
-      <TrendCard deficit={deficit} />
+      <TrendCard deficit={deficit} trajectory={trajectory} />
 
       <SummaryCard
         summary={summary}
@@ -227,7 +235,13 @@ export function Tendencia({
   );
 }
 
-function TrendCard({ deficit }: { deficit: ReturnType<typeof computeDeficit> }) {
+function TrendCard({
+  deficit,
+  trajectory,
+}: {
+  deficit: ReturnType<typeof computeCanonicalDeficit>;
+  trajectory: ReturnType<typeof computeTrajectory>;
+}) {
   if (!deficit.enough) {
     return (
       <section className="rounded-[22px] bg-[var(--inverted)] p-5 text-[var(--on-inverted)] shadow-card">
