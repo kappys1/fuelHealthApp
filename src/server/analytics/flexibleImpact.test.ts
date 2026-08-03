@@ -207,3 +207,56 @@ describe("F22 · desdoble de ritmos (AC8)", () => {
     expect(computeFlexibleRhythms(thin, 2200)).toBeNull();
   });
 });
+
+/*
+  F22 · AC12 — la razón entre los dos ritmos MEDIDOS (no un contrafactual: no simula
+  un Alex que no existió, divide lo que pasó entre lo que pasó).
+*/
+describe("F22 · cuánto ritmo se llevan los flexibles (AC12)", () => {
+  const impact = (patch: Partial<FlexibleImpact> = {}): FlexibleImpact => ({
+    windowDays: 30,
+    flexibleDays: 6,
+    flexibleMoments: 8,
+    regularDays: 17,
+    flexibleMeanKcal: 2442,
+    regularMeanKcal: 1798,
+    flexibleMeanTargetPct: 136,
+    regularMeanTargetPct: 100,
+    differenceObservedKcal: 644,
+    differenceObservedPct: 36,
+    enoughForComparison: true,
+    ...patch,
+  });
+
+  it("calcula la fracción del ritmo de pauta que no llega al ritmo real", () => {
+    // pauta 1798 − 2227 = −429 · ponderado (17×1798 + 6×2442)/23 − 2227 = −261
+    const r = computeFlexibleRhythms(impact(), 2227)!;
+    expect(r.regular.kgPerWeek).toBeCloseTo(-0.39, 2);
+    expect(r.weighted.kgPerWeek).toBeCloseTo(-0.24, 2);
+    expect(r.flexibleShare).toBeCloseTo((429 - 261) / 429, 1);
+    expect(Math.round(r.flexibleShare! * 100)).toBeGreaterThan(30);
+    expect(Math.round(r.flexibleShare! * 100)).toBeLessThan(50);
+  });
+
+  it("sin flexibles que resten no hay proporción que enseñar", () => {
+    // Días flexibles POR DEBAJO del gasto: no se llevan ritmo.
+    const r = computeFlexibleRhythms(impact({ flexibleMeanKcal: 1700 }), 2227)!;
+    expect(r.flexibleShare).toBeNull();
+  });
+
+  it("si los días de pauta no están en déficit, la proporción no significa nada", () => {
+    const r = computeFlexibleRhythms(impact({ regularMeanKcal: 2400 }), 2227)!;
+    expect(r.regular.balanceKcal).toBeGreaterThan(0);
+    expect(r.flexibleShare).toBeNull();
+  });
+
+  it("si los flexibles se llevan el ritmo entero, la fracción pasa de 1", () => {
+    // Ponderado en superávit pese a que los días de pauta están en déficit.
+    const r = computeFlexibleRhythms(
+      impact({ flexibleDays: 14, regularDays: 9, flexibleMeanKcal: 3200 }),
+      2227,
+    )!;
+    expect(r.weighted.balanceKcal).toBeGreaterThan(0);
+    expect(r.flexibleShare).toBeGreaterThan(1);
+  });
+});
