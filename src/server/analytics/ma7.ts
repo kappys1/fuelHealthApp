@@ -67,3 +67,41 @@ export function ma7Series(records: readonly AnalyticsRecord[]): Ma7Point[] {
     ma7: ma7At(series, p.date) as number,
   }));
 }
+
+export interface WeightChartPoint {
+  date: string;
+  weight: number | null;
+  ma7: number | null;
+}
+
+/**
+ * Serie del gráfico de peso (F22 · AC7) — PURA.
+ *
+ * UN PUNTO POR DÍA NATURAL del rango visible, con `weight: null` en los días sin
+ * pesaje. Antes el gráfico recibía SOLO los días con peso: el eje los pegaba uno
+ * detrás de otro, así que el hueco desaparecía antes de llegar a Recharts y
+ * `connectNulls` era la segunda causa, no la primera. Un día sin pesaje tiene que
+ * llegar como null para que la línea se corte ahí.
+ *
+ * La ma7 se calcula sobre `records` COMPLETO (necesita los 6 días previos al borde
+ * visible) y solo después se recorta al rango.
+ */
+export function weightChartSeries(
+  records: readonly AnalyticsRecord[],
+  from: string,
+  to: string,
+): WeightChartPoint[] {
+  const ma7 = new Map(ma7Series(records).map((point) => [point.date, point.ma7]));
+  const weightByDate = new Map(
+    records.map((record) => [record.date, record.weight ?? null]),
+  );
+  const points: WeightChartPoint[] = [];
+  for (let date = from; date <= to; date = shiftDayKey(date, 1)) {
+    points.push({
+      date,
+      weight: weightByDate.get(date) ?? null,
+      ma7: ma7.get(date) ?? null,
+    });
+  }
+  return points;
+}
