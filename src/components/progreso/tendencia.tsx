@@ -16,7 +16,7 @@ import {
   computeFlexibleRhythms,
   FLEXIBLE_IMPACT_WINDOW,
 } from "@/server/analytics/flexibleImpact";
-import { ma7Series } from "@/server/analytics/ma7";
+import { weightChartSeries } from "@/server/analytics/ma7";
 import { computeTrajectory } from "@/server/analytics/trajectory";
 import {
   computeLoggingStreak,
@@ -99,26 +99,17 @@ export function Tendencia({
   );
 
   const weightData = useMemo(() => {
-    // La ma7 necesita los 6 días anteriores al borde visible; se calcula sobre toda
-    // la historia y solo después se recorta el gráfico.
-    const ma7 = new Map(ma7Series(records).map((point) => [point.date, point.ma7]));
-    // F22 · AC7: UN PUNTO POR DÍA del rango, con `weight: null` en los días sin
-    // pesaje. Antes solo entraban los días CON peso, así que el eje los pegaba uno
-    // detrás de otro y el hueco desaparecía del gráfico antes de llegar a Recharts:
-    // quitar `connectNulls` no habría cambiado nada sin esto.
-    const byDate = new Map(rangeRecords.map((record) => [record.date, record]));
+    // F22 · AC7: la serie es pura y testeada (`weightChartSeries`): un punto por día
+    // natural del rango, con `weight: null` en los días sin pesaje, y la ma7 sobre el
+    // histórico completo para que el borde izquierdo vea sus 6 días previos.
     const first = rangeRecords[0]?.date;
     const last = rangeRecords[rangeRecords.length - 1]?.date;
     if (first == null || last == null) return [];
-    const points: { label: string; weight: number | null; ma7: number | null }[] = [];
-    for (let date = first; date <= last; date = shiftDayKey(date, 1)) {
-      points.push({
-        label: chartLabel(date),
-        weight: byDate.get(date)?.weight ?? null,
-        ma7: ma7.get(date) ?? null,
-      });
-    }
-    return points;
+    return weightChartSeries(records, first, last).map((point) => ({
+      label: chartLabel(point.date),
+      weight: point.weight,
+      ma7: point.ma7,
+    }));
   }, [rangeRecords, records]);
 
   const intakeData = useMemo(
@@ -313,10 +304,9 @@ function TrendCard({
     );
   }
 
-  const kgPerWeek = deficit.kgPerWeek ?? 0;
-  const kgValue = `${kgPerWeek > 0 ? "+" : ""}${kgPerWeek.toLocaleString("es-ES", {
-    maximumFractionDigits: 2,
-  })}`;
+  // 2 decimales fijos y signo tipográfico, igual que la trayectoria: −0,20 dice más
+  // que −0,2 cuando lo que se compara mes a mes es precisamente el segundo decimal.
+  const kgValue = signedKg(deficit.kgPerWeek ?? 0);
 
   return (
     <section className="rounded-[22px] bg-[var(--inverted)] p-5 text-[var(--on-inverted)] shadow-card">
@@ -353,8 +343,8 @@ function TrendCard({
       <div className="mt-5 space-y-2 border-t border-white/15 pt-3 text-[11px] leading-relaxed text-[var(--on-inverted-muted)]">
         <p>
           <span className="num">{deficit.weighins}</span> pesajes en la ventana de{" "}
-          <span className="num">{deficit.windowDays} d</span> ({" "}
-          {periodLabel(deficit.windowFrom, deficit.windowTo)} ) · ingesta media{" "}
+          <span className="num">{deficit.windowDays} d</span> (
+          {periodLabel(deficit.windowFrom, deficit.windowTo)}) · ingesta media{" "}
           <span className="num">{integer(deficit.intakeMean ?? 0)}</span> kcal · el
           reloj queda como contexto.
         </p>

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { eligibleWeightSeries, ma7At, ma7Series } from "./ma7";
+import {
+  eligibleWeightSeries,
+  ma7At,
+  ma7Series,
+  weightChartSeries,
+} from "./ma7";
 import type { AnalyticsRecord } from "./types";
 
 const T = { kcal: 1800, prot: 110 };
@@ -79,5 +84,76 @@ describe("ma7 — media de ventana", () => {
       91,
       10,
     );
+  });
+});
+
+/*
+  F22 · AC7 — la serie del gráfico no puede ocultar los días sin pesaje.
+
+  El bug tenía dos capas: `connectNulls` en Recharts, sí, pero antes de eso el
+  gráfico solo recibía días CON peso, así que el eje los pegaba uno detrás de otro y
+  el hueco ni existía como dato. Un hueco tiene que llegar como `weight: null`.
+*/
+describe("F22 · weightChartSeries (AC7)", () => {
+  const rows = [
+    rec("2026-07-20", 92),
+    rec("2026-07-21", 91.8),
+    // 22 y 23 SIN pesaje: el hueco que se leía como «peso estable».
+    rec("2026-07-22", null),
+    rec("2026-07-23", null),
+    rec("2026-07-24", 91.2),
+  ];
+
+  it("emite un punto por día natural, con null donde no hubo pesaje", () => {
+    const series = weightChartSeries(rows, "2026-07-20", "2026-07-24");
+    expect(series.map((p) => p.date)).toEqual([
+      "2026-07-20",
+      "2026-07-21",
+      "2026-07-22",
+      "2026-07-23",
+      "2026-07-24",
+    ]);
+    expect(series.map((p) => p.weight)).toEqual([92, 91.8, null, null, 91.2]);
+  });
+
+  it("emite el día aunque no exista fila en records (día nunca tocado)", () => {
+    const series = weightChartSeries(
+      [rec("2026-07-20", 92), rec("2026-07-24", 91.2)],
+      "2026-07-20",
+      "2026-07-24",
+    );
+    expect(series).toHaveLength(5);
+    expect(series.filter((p) => p.weight == null)).toHaveLength(3);
+  });
+
+  it("la ma7 sí es continua en el hueco: es una media calculada, no una medición", () => {
+    const series = weightChartSeries(rows, "2026-07-20", "2026-07-24");
+    // Sin pesaje no hay punto propio de ma7 (la serie elegible no lo tiene)...
+    expect(series[2]!.ma7).toBeNull();
+    // ...pero los días con pesaje sí lo llevan, y el gráfico une esa línea.
+    expect(series[0]!.ma7).not.toBeNull();
+    expect(series[4]!.ma7).not.toBeNull();
+  });
+
+  it("la ma7 del borde izquierdo visible incluye los 6 días previos al rango", () => {
+    const history = [
+      rec("2026-07-14", 93),
+      rec("2026-07-15", 93),
+      rec("2026-07-16", 93),
+      ...rows,
+    ];
+    const conHistoria = weightChartSeries(history, "2026-07-20", "2026-07-24");
+    const sinHistoria = weightChartSeries(rows, "2026-07-20", "2026-07-24");
+    expect(conHistoria[0]!.ma7).not.toBeCloseTo(sinHistoria[0]!.ma7 as number, 6);
+  });
+
+  it("un día en fase especial no aporta ma7 aunque tenga peso (regresión)", () => {
+    const withPhase = [
+      rec("2026-07-20", 92),
+      rec("2026-07-21", 95, "carga"),
+    ];
+    const series = weightChartSeries(withPhase, "2026-07-20", "2026-07-21");
+    expect(series[1]!.weight).toBe(95); // el peso crudo sigue viéndose
+    expect(series[1]!.ma7).toBeNull(); // pero no entra en la media
   });
 });
