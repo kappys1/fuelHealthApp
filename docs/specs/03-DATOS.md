@@ -104,12 +104,17 @@ protOk           = proteinN con prot ≥ 0.90 × objetivoProt
 
 `Flexible prevista` (marcador sin entrada en ese momento) no afecta a analítica.
 
-**Impacto flexible (28 días naturales)**: en días con registro, fase Normal y objetivo
+**Impacto flexible (30 días naturales, alineado con la ventana canónica; 28 hasta F22)**: en días con registro, fase Normal y objetivo
 válido, separar `F` (≥1 flexible real) de `R` (ninguna). Calcular media kcal y
 `media(kcal / objetivo histórico × 100)` por grupo;
 `diferenciaObservadaKcal = mediaF − mediaR` y
 `diferenciaObservadaPct = diferenciaObservadaKcal / mediaR × 100`. Solo comparar con
 `|F| ≥ 3` y `|R| ≥ 7`; es descriptivo, no causal.
+
+**Desdoble de ritmos (F22)**: con TDEE disponible, cada media se traduce a
+`balance/día = media − TDEE` y `ritmo = balance × 7 / 7700`. La fila ponderada por
+días reproduce el déficit de la cifra que manda (±2 kcal/día) porque comparte
+ventana con ella. Es contabilidad, no atribución.
 
 **Objetivos derivados del plan** (F1.4): para cada comida — Almuerzo: media de sus opciones; Merienda: suma de todas; Comida/Cena: agrupar por `grp` y sumar la media de cada grupo. Acumular también `kmin/kmax` (mín/máx kcal por grupo) para el rango del día pautado.
 

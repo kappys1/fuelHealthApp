@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { DailyRecord } from "./types";
-import { computeFlexibleImpact } from "./flexibleImpact";
+import { shiftDayKey } from "@/lib/dates";
+import { computeCanonicalDeficit } from "./deficit";
+import {
+  computeFlexibleImpact,
+  computeFlexibleRhythms,
+  FLEXIBLE_IMPACT_WINDOW,
+  type FlexibleImpact,
+} from "./flexibleImpact";
 
 function record(
   date: string,
@@ -34,12 +41,16 @@ function record(
   };
 }
 
-describe("computeFlexibleImpact · 28 días", () => {
+describe("computeFlexibleImpact · ventana canónica", () => {
+  it("la ventana está alineada con la cifra que manda (F22)", () => {
+    expect(FLEXIBLE_IMPACT_WINDOW).toBe(30);
+  });
+
   it("separa F/R, usa objetivos históricos y no mezcla fases especiales", () => {
     const records: DailyRecord[] = [
-      record("2026-06-28", 9000, 1800, {
+      record("2026-06-20", 9000, 1800, {
         flexibleMeals: { planned: [], real: ["cena"] },
-      }), // fuera de ventana
+      }), // fuera de ventana (30 d desde el 2026-07-26 → 2026-06-27)
       record("2026-07-01", 1980, 1800, {
         flexibleMeals: { planned: [], real: ["cena"] },
       }),
@@ -97,5 +108,102 @@ describe("computeFlexibleImpact · 28 días", () => {
       regularDays: 1,
       enoughForComparison: false,
     });
+  });
+});
+
+/*
+  F22 · AC8 — la fila «real ponderado» cuadra con la cifra que manda (±2 kcal/día).
+
+  Fixture de las capturas del 3-ago: 22 días juzgados en la ventana canónica, 16 de
+  pauta a 1.806 kcal y 6 flexibles a 2.442, TDEE real 2.200.
+    (16×394 − 6×242) / 22 = 220,5 ≈ 220 kcal/día de déficit
+  Esa cifra NO se recalcula aquí: sale de `computeCanonicalDeficit` sobre el mismo
+  fixture, y el desdoble tiene que reproducirla.
+*/
+describe("F22 · desdoble de ritmos (AC8)", () => {
+  const TODAY = "2026-08-03";
+  const FROM = shiftDayKey(TODAY, -(FLEXIBLE_IMPACT_WINDOW - 1)); // 2026-07-05
+
+  // 22 días registrados: los 6 últimos sábados/domingos como flexibles a 2.442.
+  const FLEXIBLE_DATES = new Set([
+    "2026-07-11",
+    "2026-07-12",
+    "2026-07-18",
+    "2026-07-19",
+    "2026-07-25",
+    "2026-07-26",
+  ]);
+
+  /** Peso que produce exactamente −0,20 kg/semana de pendiente en la ma7. */
+  const weightAt = (index: number) => 92 - (0.2 / 7) * index;
+
+  // 6 días ANTES de la ventana, solo con peso: alimentan la ma7 del borde izquierdo
+  // (F22 · AC1) y no entran ni en la muestra ni en la ingesta media.
+  const priorHistory: DailyRecord[] = Array.from({ length: 6 }, (_, i) => {
+    const index = i - 6;
+    return record(shiftDayKey(FROM, index), 0, 1800, {
+      logged: false,
+      kcal: 0,
+      weight: weightAt(index),
+    });
+  });
+
+  const windowRecords: DailyRecord[] = Array.from({ length: 30 }, (_, index) => {
+    const date = shiftDayKey(FROM, index);
+    const flexible = FLEXIBLE_DATES.has(date);
+    // 22 días con registro (los 8 últimos sin registrar): 16 R + 6 F.
+    const logged = index < 22 || flexible;
+    return record(date, flexible ? 2442 : 1806, 1800, {
+      logged,
+      kcal: logged ? (flexible ? 2442 : 1806) : 0,
+      weight: weightAt(index),
+      flexibleMeals: flexible
+        ? { planned: [], real: ["cena"] }
+        : { planned: [], real: [] },
+    });
+  });
+  const records = [...priorHistory, ...windowRecords];
+
+  const impact = computeFlexibleImpact(records, TODAY);
+  const deficit = computeCanonicalDeficit(records, TODAY);
+
+  it("el fixture reproduce el caso real: 16 de pauta y 6 flexibles", () => {
+    expect(impact.regularDays).toBe(16);
+    expect(impact.flexibleDays).toBe(6);
+    expect(impact.regularMeanKcal).toBe(1806);
+    expect(impact.flexibleMeanKcal).toBe(2442);
+    expect(deficit.enough).toBe(true);
+    expect(deficit.kgPerWeek).toBeCloseTo(-0.2, 6);
+  });
+
+  it("traduce cada media a su ritmo en kg/semana", () => {
+    const rhythms = computeFlexibleRhythms(impact, deficit.tdee)!;
+    expect(rhythms.tdee).toBe(deficit.tdee);
+    expect(rhythms.regular.balanceKcal).toBeCloseTo(1806 - rhythms.tdee, 6);
+    expect(rhythms.regular.kgPerWeek).toBeLessThan(0); // días de pauta = déficit
+    expect(rhythms.flexible.kgPerWeek).toBeGreaterThan(0); // flexibles = superávit
+    expect(rhythms.regular.days).toBe(16);
+    expect(rhythms.flexible.days).toBe(6);
+    expect(rhythms.weighted.days).toBe(22);
+  });
+
+  it("la fila ponderada cuadra con el déficit de la cifra que manda (±2 kcal/día)", () => {
+    const rhythms = computeFlexibleRhythms(impact, deficit.tdee)!;
+    // balance ponderado (negativo) == −déficit (positivo)
+    expect(Math.abs(rhythms.weighted.balanceKcal + (deficit.deficitKcal ?? 0))).toBeLessThanOrEqual(2);
+    expect(rhythms.weighted.kgPerWeek).toBeCloseTo(deficit.kgPerWeek ?? 0, 2);
+  });
+
+  it("la aritmética del desdoble reconstruye el déficit medio", () => {
+    const rhythms = computeFlexibleRhythms(impact, deficit.tdee)!;
+    const reconstructed =
+      (rhythms.regular.balanceKcal * 16 + rhythms.flexible.balanceKcal * 6) / 22;
+    expect(reconstructed).toBeCloseTo(rhythms.weighted.balanceKcal, 6);
+  });
+
+  it("sin muestra suficiente o sin TDEE no inventa el desdoble", () => {
+    expect(computeFlexibleRhythms(impact, null)).toBeNull();
+    const thin: FlexibleImpact = { ...impact, enoughForComparison: false };
+    expect(computeFlexibleRhythms(thin, 2200)).toBeNull();
   });
 });

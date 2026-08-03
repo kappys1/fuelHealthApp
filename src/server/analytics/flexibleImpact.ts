@@ -1,7 +1,17 @@
 import { shiftDayKey } from "@/lib/dates";
+import { KCAL_PER_KG } from "./deficit";
 import type { DailyRecord } from "./types";
 
-export const FLEXIBLE_IMPACT_WINDOW = 28;
+/**
+ * 30 d, alineada con la ventana canónica de la cifra que manda (F22).
+ *
+ * Era 28. Se mueve para que el desdoble de ritmos CUADRE con el titular: si las dos
+ * ventanas difieren, la fila «real ponderado» compara una media de 28 d contra un
+ * TDEE de 30 d y la aritmética deja de cerrar. Precio conocido y aceptado: las
+ * cifras del KPI existente cambian un poco sin que Alex haya hecho nada distinto
+ * (spec 22 · riesgo 2; se documenta en el HowCalculated de la tarjeta).
+ */
+export const FLEXIBLE_IMPACT_WINDOW = 30;
 export const MIN_FLEXIBLE_DAYS = 3;
 export const MIN_REGULAR_DAYS = 7;
 
@@ -25,8 +35,9 @@ function mean(values: readonly number[]): number | null {
 }
 
 /**
- * Comparación descriptiva F/R de 28 días. No excluye estas kcal de ninguna otra
- * fórmula: solo crea dos vistas observadas para conversar con el nutricionista.
+ * Comparación descriptiva F/R de la ventana canónica. No excluye estas kcal de
+ * ninguna otra fórmula: solo crea dos vistas observadas para conversar con el
+ * nutricionista.
  */
 export function computeFlexibleImpact(
   records: readonly DailyRecord[],
@@ -84,5 +95,72 @@ export function computeFlexibleImpact(
     enoughForComparison:
       flexible.length >= MIN_FLEXIBLE_DAYS &&
       regular.length >= MIN_REGULAR_DAYS,
+  };
+}
+
+/*
+  F22 · Fase 4 — desdoble de ritmos.
+
+  La app tenía el TDEE y las dos medias (regular / flexible) y no hacía la resta, así
+  que «¿cuánto me cuestan las salidas?» no tenía respuesta en pantalla. Esto la da
+  traduciendo cada media al único idioma que manda (principio 1): kg/semana.
+
+  Es CONTABILIDAD, no atribución: descompone el déficit medio ya medido en los dos
+  grupos que lo componen. No dice que las flexibles «causen» nada, y la fila
+  ponderada tiene que cuadrar con el titular por construcción — de ahí que la ventana
+  sea la misma.
+*/
+
+export interface RhythmRow {
+  days: number;
+  meanKcal: number;
+  /** media − TDEE. Negativo = déficit; positivo = superávit. */
+  balanceKcal: number;
+  /** El mismo balance en kg/semana (misma constante que el déficit real). */
+  kgPerWeek: number;
+}
+
+export interface FlexibleRhythms {
+  tdee: number;
+  regular: RhythmRow;
+  flexible: RhythmRow;
+  /** Media ponderada por días: debe cuadrar con el déficit de la cifra que manda. */
+  weighted: RhythmRow;
+}
+
+function rhythm(days: number, meanKcal: number, tdee: number): RhythmRow {
+  const balanceKcal = meanKcal - tdee;
+  return {
+    days,
+    meanKcal,
+    balanceKcal,
+    kgPerWeek: (balanceKcal * 7) / KCAL_PER_KG,
+  };
+}
+
+/**
+ * Traduce la comparación F/R a ritmos usando el TDEE de la cifra que manda. null si
+ * falta muestra o TDEE: sin las dos cosas la descomposición no es contabilidad, es
+ * invención.
+ */
+export function computeFlexibleRhythms(
+  impact: FlexibleImpact,
+  tdee: number | null,
+): FlexibleRhythms | null {
+  if (!impact.enoughForComparison || tdee == null) return null;
+  if (impact.regularMeanKcal == null || impact.flexibleMeanKcal == null) return null;
+
+  const totalDays = impact.regularDays + impact.flexibleDays;
+  if (totalDays === 0) return null;
+  const weightedMean =
+    (impact.regularMeanKcal * impact.regularDays +
+      impact.flexibleMeanKcal * impact.flexibleDays) /
+    totalDays;
+
+  return {
+    tdee,
+    regular: rhythm(impact.regularDays, impact.regularMeanKcal, tdee),
+    flexible: rhythm(impact.flexibleDays, impact.flexibleMeanKcal, tdee),
+    weighted: rhythm(totalDays, weightedMean, tdee),
   };
 }
