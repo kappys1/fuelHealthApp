@@ -14,10 +14,16 @@ export function ChartTooltip({
   unit,
 }: Partial<TooltipContentProps<number, string>> & { unit?: string }) {
   if (!active || !payload || payload.length === 0) return null;
+  // F22 · AC7: en un día sin pesaje la serie vale null. Se dice que no hay dato en
+  // vez de enseñar una fila vacía (o, peor, un valor interpolado).
+  const known = payload.filter((p) => p.value != null);
   return (
     <div className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[12px] shadow-sm">
       <div className="mb-0.5 font-medium text-foreground">{label}</div>
-      {payload.map((p) => (
+      {known.length === 0 ? (
+        <div className="text-muted-foreground">Sin dato ese día</div>
+      ) : null}
+      {known.map((p) => (
         <div key={String(p.dataKey)} className="flex items-center gap-1.5">
           <span
             className="inline-block size-2 rounded-full"
