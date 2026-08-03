@@ -547,10 +547,6 @@ function FlexibleImpactCard({
     );
   }
 
-  const diffKcal = Math.round(impact.differenceObservedKcal ?? 0);
-  const diffPct = Math.round(impact.differenceObservedPct ?? 0);
-  const signed = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : "±"}${Math.abs(value)}`;
-
   return (
     <article className="wellness-card mt-3 p-5">
       <div className="flex items-start justify-between gap-3">
@@ -598,7 +594,43 @@ function FlexibleImpactCard({
               <RhythmRowView label="Real ponderado" row={rhythms.weighted} total />
             </tbody>
           </table>
-          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+          {/* F22 · AC12: la tabla daba los números pero no la frase, así que «¿cuánto
+              me cuestan las salidas?» seguía necesitando una resta de cabeza. Esta es
+              la lectura, y sigue siendo contabilidad: dos ritmos medidos y su razón,
+              sin contrafactual ni atribución. */}
+          <p className="mt-3 text-[12px] leading-relaxed text-foreground">
+            Tus días de pauta corren a{" "}
+            <span className="num font-semibold">
+              {signedKg(rhythms.regular.kgPerWeek)}
+            </span>{" "}
+            kg/semana; con los{" "}
+            <span className="num">{rhythms.flexible.days}</span> flexibles, tu ritmo
+            real es{" "}
+            <span className="num font-semibold">
+              {signedKg(rhythms.weighted.kgPerWeek)}
+            </span>
+            .
+            {rhythms.flexibleShare != null ? (
+              <>
+                {" "}
+                Los flexibles se llevan{" "}
+                {rhythms.flexibleShare >= 1 ? (
+                  <span className="font-semibold">todo ese ritmo</span>
+                ) : (
+                  <>
+                    el{" "}
+                    {/* NBSP: «39 %» no debe partirse al final de línea. */}
+                    <span className="num font-semibold">
+                      {`${Math.round(rhythms.flexibleShare * 100)} %`}
+                    </span>{" "}
+                    del ritmo
+                  </>
+                )}
+                .
+              </>
+            ) : null}
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
             La última fila es tu cifra que manda, descompuesta: ninguna es una
             predicción. Gasto real usado:{" "}
             <span className="num">{integer(rhythms.tdee)}</span> kcal/día.
@@ -611,12 +643,15 @@ function FlexibleImpactCard({
         </p>
       )}
 
-      <p className="num mt-4 border-t border-line pt-3 text-[13px] font-semibold text-foreground">
-        Diferencia observada ≈ {signed(diffKcal)} kcal ({signed(diffPct)} %)
-      </p>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        {impact.flexibleMoments} momentos · {impact.flexibleDays} días flexibles ·{" "}
-        {impact.regularDays} de pauta. Diferencia observada, no causal.
+      {/* F22: fuera «Diferencia observada ≈ +X kcal (+Y %)» (F16). Repetía lo que la
+          tabla ya dice (flexible − regular) en un marco distinto —cada grupo contra el
+          otro, en vez de contra el gasto— y con un tercer porcentaje sobre la media
+          regular. Con la tabla delante era ruido. La coletilla «no causal» se va con
+          ella: lo que queda no afirma causalidad y el ⓘ lo explica. */}
+      <p className="mt-4 border-t border-line pt-3 text-[11px] text-muted-foreground">
+        <span className="num">{impact.flexibleMoments}</span> momentos ·{" "}
+        <span className="num">{impact.flexibleDays}</span> días flexibles ·{" "}
+        <span className="num">{impact.regularDays}</span> de pauta.
       </p>
     </article>
   );

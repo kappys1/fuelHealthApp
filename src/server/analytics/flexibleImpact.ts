@@ -126,6 +126,23 @@ export interface FlexibleRhythms {
   flexible: RhythmRow;
   /** Media ponderada por días: debe cuadrar con el déficit de la cifra que manda. */
   weighted: RhythmRow;
+  /**
+   * Fracción del ritmo de los días de pauta que NO llega al ritmo real (0–1, o >1 si
+   * los flexibles se lo llevan entero). null cuando la proporción no significa nada:
+   * los días de pauta no están en déficit, o los flexibles no restan.
+   *
+   * Es una razón entre dos ritmos MEDIDOS, no un contrafactual: no simula un Alex que
+   * no existió, divide lo que pasó entre lo que pasó.
+   */
+  flexibleShare: number | null;
+}
+
+function shareLostToFlexible(regular: RhythmRow, weighted: RhythmRow): number | null {
+  const regularDeficit = -regular.balanceKcal;
+  const weightedDeficit = -weighted.balanceKcal;
+  if (regularDeficit <= 0) return null; // los días de pauta no están en déficit
+  const share = (regularDeficit - weightedDeficit) / regularDeficit;
+  return share > 0 ? share : null; // los flexibles no restan ritmo
 }
 
 function rhythm(days: number, meanKcal: number, tdee: number): RhythmRow {
@@ -157,10 +174,13 @@ export function computeFlexibleRhythms(
       impact.flexibleMeanKcal * impact.flexibleDays) /
     totalDays;
 
+  const regular = rhythm(impact.regularDays, impact.regularMeanKcal, tdee);
+  const weighted = rhythm(totalDays, weightedMean, tdee);
   return {
     tdee,
-    regular: rhythm(impact.regularDays, impact.regularMeanKcal, tdee),
+    regular,
     flexible: rhythm(impact.flexibleDays, impact.flexibleMeanKcal, tdee),
-    weighted: rhythm(totalDays, weightedMean, tdee),
+    weighted,
+    flexibleShare: shareLostToFlexible(regular, weighted),
   };
 }
