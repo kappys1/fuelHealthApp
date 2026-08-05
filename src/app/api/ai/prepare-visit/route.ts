@@ -1,8 +1,9 @@
 import { ensureAuth, serverError } from "@/lib/api";
 import { dayKey, shiftDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
-import { computeDeficit } from "@/server/analytics/deficit";
+import { computeCanonicalDeficit } from "@/server/analytics/deficit";
 import { computeFlexibleImpact } from "@/server/analytics/flexibleImpact";
+import { computeTrajectory } from "@/server/analytics/trajectory";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
 import {
@@ -10,6 +11,7 @@ import {
   flexibleImpactLine,
   marksContext,
   medLines,
+  trajectoryLine,
   trendSummary,
 } from "@/server/ai/context";
 import { aiErrorResponse } from "@/server/ai/errors";
@@ -42,7 +44,9 @@ export async function POST() {
   }
 
   const { records, currentTarget } = trend;
-  const deficit = computeDeficit(records);
+  // F22 · AC2: misma ventana canónica (30 d) que la pantalla, Chat y Coach.
+  const deficit = computeCanonicalDeficit(records, today);
+  const trajectory = computeTrajectory(records, today);
   const flexibleImpact = computeFlexibleImpact(records, today);
   const lastWeight =
     [...records].reverse().find((r) => r.weight != null)?.weight ?? null;
@@ -69,7 +73,11 @@ export async function POST() {
         kcal: currentTarget.kcal > 0 ? currentTarget.kcal : null,
         prot: currentTarget.prot > 0 ? currentTarget.prot : null,
         meds: medLines(meds),
-        tendencia: [trendSummary(deficit), flexibleImpactLine(flexibleImpact)]
+        tendencia: [
+          trendSummary(deficit),
+          trajectoryLine(trajectory),
+          flexibleImpactLine(flexibleImpact),
+        ]
           .filter(Boolean)
           .join("\n"),
         filas: dayLines(visitRecords, 30, {

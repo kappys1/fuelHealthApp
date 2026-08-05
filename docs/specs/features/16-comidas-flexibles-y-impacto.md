@@ -79,7 +79,15 @@ nutricionista y sin permitir que quede invisible en el balance energético.
   `9/10 kcal · 12/12 proteína · 2 flexibles fuera de kcal`.
 - Una flexible no cuenta como éxito ni fallo de kcal; su proteína sí cuenta.
 
-### 5. KPI «Impacto flexible · 28 d»
+### 5. KPI «Impacto flexible» (28 d en v1 → **30 d desde F22**)
+
+> **Actualizado por F22 (2026-08-03).** La ventana pasa de 28 a 30 días para
+> alinearse con la ventana canónica de la cifra que manda, y la tarjeta añade el
+> **desdoble de ritmos** (ingesta media → vs gasto real → kg/semana por grupo, con
+> una fila «Real ponderado» que reproduce el déficit del titular). El propósito, los
+> conjuntos F/R, los umbrales 3/7, la naturaleza descriptiva y la doctrina de tono
+> (azul informativo, nunca rojo; `cheat`/`trampa` prohibidos) NO cambian. Ver
+> `docs/specs/features/22-progreso-una-sola-verdad.md` §Fase 4.
 - Vive en **Progreso · Tendencia**, como tarjeta informativa a ancho completo bajo
   `Consistencia`; nunca en Hoy.
 - Propósito: comparar la ingesta media regular con la ingesta media en días flexibles para
@@ -89,7 +97,8 @@ nutricionista y sin permitir que quede invisible en el balance energético.
   frecuencia o cómo incorporarla a la pauta. Fuelboard **muestra evidencia**, no toma esa
   decisión ni prescribe el ajuste.
 - Solo aparece tras la primera flexible real.
-- Ventana fija: hoy y los 27 días naturales anteriores.
+- Ventana fija: hoy y los 27 días naturales anteriores. **F22: hoy y los 29
+  anteriores (30 d)**, para que la aritmética del desdoble cuadre con el titular.
 - Conjuntos comparables:
   - `F`: días con registro, fase Normal, objetivo kcal válido y ≥1 flexible real.
   - `R`: días con registro, fase Normal, objetivo kcal válido y ninguna flexible real.
@@ -100,15 +109,24 @@ nutricionista y sin permitir que quede invisible en el balance energético.
     (`mean(kcal / objetivoVigente × 100)`);
   - `diferenciaObservadaKcal = flexibleMeanKcal − regularMeanKcal`;
   - `diferenciaObservadaPct = diferenciaObservadaKcal / regularMeanKcal × 100`.
-- La UI principal muestra, siempre con `≈` y signo:
+- La UI principal muestra, siempre con `≈` y signo. **Forma vigente (F22)**:
 
   ```text
-  Impacto flexible · 28 d
-  Regular       1.780 kcal · 99 % objetivo
-  Con flexibles 1.940 kcal · 108 % objetivo
-  Diferencia observada ≈ +160 kcal (+9 %)
-  8 momentos · 4 días flexibles
+  Impacto flexible · 30 d          De dónde sale tu ritmo
+  Días            Ingesta   vs gasto   Ritmo
+  De pauta   ×17    1.798      −429    −0,39
+  Flexibles  ×6     2.442      +215    +0,20
+  Real ponderado ×23 1.966     −261    −0,24     ← la cifra que manda, descompuesta
+  Tus días de pauta corren a −0,39 kg/semana; con los 6 flexibles, tu ritmo real
+  es −0,24. Los flexibles se llevan el 39 % del ritmo.
+  8 momentos · 6 días flexibles · 17 de pauta.
   ```
+
+  Forma de v1 (sustituida): dos filas `Regular`/`Con flexibles` con kcal y % de
+  objetivo, más `Diferencia observada ≈ +X kcal (+Y %)`. **Esa última línea se
+  ELIMINA** en la validación del 3-ago: con la tabla de ritmos delante repetía el
+  mismo hecho en otro marco y confundía («no entiendo por qué está ahí» —Alex). Con
+  ella se va la coletilla «Diferencia observada, no causal», que se refería a ella.
 
 - La comparación solo aparece con **≥3 días flexibles y ≥7 regulares**. Antes:
   `2 días flexibles registrados · todavía sin datos suficientes para comparar`.
@@ -268,6 +286,9 @@ Arreglo en jerarquía **dato > diseño > prompt > modelo**:
 14. 🖐 Con <3 días flexibles o <7 regulares, el KPI enseña conteos sin comparación; al llegar
     al umbral muestra las dos medias, porcentaje de objetivo y diferencia kcal/% con `≈`,
     signo y tamaños de muestra; no muestra el antiguo `impacto del periodo`.
+    **F22: además del desdoble de ritmos, cuya fila ponderada cuadra con la cifra que
+    manda (±2 kcal/día) — `FLEXIBLE_IMPACT_WINDOW` = 30. Sin TDEE disponible la tabla
+    no se dibuja y se dice por qué, en vez de estimarlo.**
 15. 🖐 En Progreso · Historial → Últimos días, una flexible real pasada muestra el chip
     `Flexible`; una prevista vacía no aparece.
 

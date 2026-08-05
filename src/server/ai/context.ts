@@ -37,6 +37,7 @@ import type { EnergyBalance } from "@/server/analytics/energyBalance";
 import type { FlexibleImpact } from "@/server/analytics/flexibleImpact";
 import type { GaugeVerdict } from "@/server/analytics/gaugeVerdict";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
+import type { Trajectory } from "@/server/analytics/trajectory";
 import type { DailyRecord } from "@/server/analytics/types";
 import type { DatedEntry, DayView } from "@/server/db/queries/day";
 import type { TrainingWeekView } from "@/server/db/queries/training";
@@ -305,10 +306,30 @@ export function medLines(meds: readonly MedWithDelta[]): string {
     .join("\n");
 }
 
+/**
+ * Ventana REAL de la cifra que manda, para que ninguna línea de contexto tenga que
+ * inventarse un rótulo (F22 · Fase 1). `deficit.windowDays` viene de la propia
+ * función, no de una constante repetida aquí.
+ */
+/** kg/semana con signo y 2 decimales fijos: −0,20 no es lo mismo que −0,2 al leerlo. */
+function signedKg(value: number): string {
+  return `${value >= 0 ? "+" : "−"}${Math.abs(value).toLocaleString("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function deficitWindowLabel(deficit: DeficitResult): string {
+  const widened = deficit.widened
+    ? ", ampliada desde 30 d por pesajes insuficientes"
+    : "";
+  return `ventana de ${deficit.windowDays} d (${deficit.windowFrom} → ${deficit.windowTo}${widened}), ${deficit.weighins} pesajes`;
+}
+
 /** Resumen de tendencia para F-IA-7 (o «Aún sin tendencia fiable»). */
 export function trendSummary(deficit: DeficitResult): string {
   if (!deficit.enough || deficit.kgPerWeek == null) {
-    return "Aún sin tendencia fiable.";
+    return `Aún sin tendencia fiable (${deficitWindowLabel(deficit)}).`;
   }
   const kg = deficit.kgPerWeek;
   const kgStr = `${kg > 0 ? "+" : ""}${num(kg, 2)} kg/semana`;
@@ -323,18 +344,42 @@ export function trendSummary(deficit: DeficitResult): string {
   if (deficit.tdee != null) {
     parts.push(`gasto real estimado ${num(deficit.tdee)} kcal/día`);
   }
-  return `${parts.join(", ")}.`;
+  return `${parts.join(", ")} (${deficitWindowLabel(deficit)}).`;
 }
 
-/** Tendencia + adherencia para el chat (F-IA-8 §3): mismas cifras que la pantalla. */
+/**
+ * Trayectoria de meses naturales cerrados (F22). Solo para Chat y Preparar visita:
+ * el Coach diario habla de hoy y de ayer, y tres meses de pendiente no cambian
+ * ninguna de sus respuestas (presupuesto de prompt).
+ */
+export function trajectoryLine(trajectory: Trajectory): string {
+  if (!trajectory.enough) return "";
+  const months = trajectory.months
+    .map((month) => {
+      if (month.kgPerWeek == null) {
+        return `${month.label} — (solo ${month.weighins} pesajes, insuficiente)`;
+      }
+      return `${month.label} ${signedKg(month.kgPerWeek)} kg/semana`;
+    })
+    .join(" · ");
+  return `Trayectoria por meses naturales cerrados (misma metodología que la cifra que manda, un bloque por mes, sin solape): ${months}. Sirve para decir si el ritmo se mantiene, acelera o frena; no la mezcles con la cifra del mes en curso.`;
+}
+
+/**
+ * Tendencia + adherencia para el chat (F-IA-8 §3). Desde F22 las cifras SON las de
+ * la pantalla: las cuatro superficies llaman a `computeCanonicalDeficit`, que fija
+ * la ventana en 30 d y la declara en el propio resultado.
+ */
 export function trendAndAdherence(
   deficit: DeficitResult,
   adherence: AdherenceResult,
   flexibleImpact?: FlexibleImpact,
+  trajectory?: Trajectory,
 ): string {
   const a = `Adherencia (14 d): ${adherence.n} días con registro; ${adherence.enRango}/${adherence.kcalN} evaluables en rango de kcal, ${adherence.protOk}/${adherence.proteinN} evaluables con proteína suficiente y ${adherence.flexibleN} días flexibles reales fuera del juicio de kcal.`;
   const impact = flexibleImpactLine(flexibleImpact);
-  return [trendSummary(deficit), a, impact].filter(Boolean).join("\n");
+  const path = trajectory ? trajectoryLine(trajectory) : "";
+  return [trendSummary(deficit), a, impact, path].filter(Boolean).join("\n");
 }
 
 function signed(value: number, digits = 0): string {
@@ -419,14 +464,20 @@ export function energyBalanceLine(b: EnergyBalance): string {
   return `Balance estimado del día (orientativo ±25 %, NO es el juez): ingesta ${Math.round(b.intakeKcal)} kcal − gasto estimado ~${Math.round(b.expenditureKcal)} kcal (${b.breakdown}) ≈ ${signo} kcal.`;
 }
 
-/** (c) Déficit real de la báscula (media 7 d) = EL juez del déficit (principio 1). */
+/**
+ * (c) Déficit real de la báscula = EL juez del déficit (principio 1).
+ *
+ * F22: el rótulo decía «7 d» y era falso —la ma7 es de 7 días, pero la pendiente se
+ * medía sobre el histórico entero—. Ahora dice la ventana canónica real (30 d) leída
+ * del propio resultado, la misma que ve Alex en pantalla.
+ */
 export function trendJudgeLine(deficit: DeficitResult): string {
   if (!deficit.enough || deficit.kgPerWeek == null) {
-    return "Déficit real (báscula, 7 d) — ESTE es el juez (principio 1): aún sin tendencia fiable; no afirmes que «se pasó» basándote solo en las kcal del día.";
+    return `Déficit real (báscula, ${deficitWindowLabel(deficit)}) — ESTE es el juez (principio 1): aún sin tendencia fiable; no afirmes que «se pasó» basándote solo en las kcal del día.`;
   }
   const kg = deficit.kgPerWeek;
   const kgStr = `${kg > 0 ? "+" : ""}${num(kg, 2)} kg/semana`;
-  return `Déficit real (báscula, media 7 d) — ESTE es el juez (principio 1): ~${num(deficit.deficitKcal ?? 0)} kcal/día (${kgStr}).`;
+  return `Déficit real (báscula, pendiente de la media móvil de 7 d sobre ${deficitWindowLabel(deficit)}) — ESTE es el juez (principio 1): ~${num(deficit.deficitKcal ?? 0)} kcal/día (${kgStr}).`;
 }
 
 /**
