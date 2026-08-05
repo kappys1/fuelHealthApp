@@ -93,6 +93,20 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
 
 > Espacio para que Alex vaya añadiendo. Candidatas mencionadas hasta ahora:
 
+- 🔵 **El gasto manual de sesión se descarta siempre** (2026-08-05, sale de validar F22).
+  `energyBalance` aplica una regla anti-doble-conteo que asume «si hay `activeKcal`, el
+  reloj iba puesto y ya incluye el entreno». Pero el iPhone registra kcal activas solo con
+  andar, así que un entreno SIN reloj deja `activeKcal` pequeño-pero-no-nulo y la sesión
+  que Alex escribe a mano se ignora. Medido: **17 de 17 días con `sessionKcal` la
+  descartan** (1-ago: 1.400 escritas vs 461 del reloj; 3-ago: 650 vs 110). Contradice la
+  doctrina de la app, donde el valor manual manda sobre Health para peso, agua y % de
+  grasa (principio 6). **NO afecta a la cifra que manda** (TDEE sale de báscula + ingesta),
+  solo al *Balance estimado del día* de Hoy y al contexto del Coach en modo «ayer».
+  Regla candidata: «si la escribes tú, manda la tuya»; el compromiso a decidir es qué pasa
+  el día que lleve reloj Y escriba sesión (hoy se sumarían dos veces).
+  Visto de paso: basales anómalos el 1-ago (1.171) y el 4-ago (959) frente a sus ~2.000
+  habituales — huele a sincronización parcial de Health, mirar aparte.
+
 - ✅ **Histórico unificado** de entrenos + dietas + objetivos + MEDs — **HECHO** (v1.2, segmento
   Historial en Progreso).
 - ✅ **Coach fiable + puente al Chat** (2026-07-13) — **HECHO** (v1.3), desplegado; pendiente
