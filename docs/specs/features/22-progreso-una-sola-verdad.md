@@ -1,6 +1,8 @@
 # F22 · Progreso: una sola verdad (ventana canónica, cobertura declarada y gráfico honesto)
 
-**Estado**: aprobada (Alex, 2026-08-03) · **Tamaño**: feature (4 fases)
+**Estado**: **cerrada** — implementada y validada por Alex (2026-08-05). AC 10, 11, 12
+y 13 aprobados con el pulgar; 10b queda pendiente hasta el 1-sep por falta de meses
+cerrados, no por falta de implementación. · **Tamaño**: feature (4 fases)
 **Fecha**: 2026-08-03 · **Origen**: conversación del 2026-08-03 — Alex vuelve de un fin de
 semana comiendo libre y pregunta «¿me ha ensuciado las estadísticas? ¿falta ver algo?».
 El diagnóstico destapó 3 bugs verificados en código, no un problema de redacción.
@@ -266,7 +268,7 @@ impacto en export/restore y `migrate:poc` (como estaba previsto).
 | 11 | ✅ 🖐 Alex, 3-ago — su captura lo prueba: el pesaje del 3-ago sale como punto suelto porque el 1 y el 2 no hubo |
 | 12 | ✅ 🖐 Alex, 3-ago — con enmienda: la tabla daba los números pero no la frase (`b111b49`) |
 | 13 | ✅ 🖐 Alex, 3-ago — ver nota de la falsa alarma |
-| 10b | 🖐 BLOQUEADO hasta el 1-sep (ver nota de la trayectoria) |
+| 10b | 🖐 BLOQUEADO hasta el 1-sep (ver nota de la trayectoria) — único AC sin validar |
 
 ### Dos hallazgos que corrigen la Motivación de esta spec
 
@@ -310,6 +312,24 @@ pesajes). Recargada la pantalla, ambas superficies dieron −0,24 / 261 / 2227.
 Lección para futuras validaciones de esta pantalla: **comparar pantalla y Chat siempre
 tras recargar**, y contrastar el número de pesajes de la cabecera antes de declarar un
 bug. La cifra que manda es un dato vivo: cambia con cada pesaje del día.
+
+### Cierre (2026-08-05)
+
+Alex validó la tarjeta final y dio la feature por cerrada. Cifras del día del cierre:
+`−0,25 kg/semana · 279 kcal/día · TDEE 2.235` con 21 pesajes, y la tarjeta cuadrando
+sola (`Real ponderado −279` = el déficit del titular).
+
+**Observación de uso que sale de aquí y NO es de esta feature.** Al leer el TDEE, Alex
+preguntó si el 2.235 usa el basal y el ejercicio del reloj. No: sale de
+`ingesta media + déficit`, y el déficit solo de la báscula (principio 1). Pero la
+pregunta destapó un defecto real en **otro** número, el *Balance estimado del día*
+(`energyBalance`): la regla anti-doble-conteo asume que si hay `activeKcal` el reloj
+iba puesto, cuando el iPhone registra activas solo con andar. Resultado: **17 de 17
+días con `sessionKcal` manual la descartan** (1-ago: 1.400 escritas vs 461 del reloj).
+Contradice la doctrina de la propia app, donde el valor manual manda sobre Health para
+peso, agua y % de grasa. → `HANDOFF §B3`, candidato de regla: «si la escribes tú,
+manda la tuya». Visto de paso: basales anómalos el 1-ago (1.171) y el 4-ago (959),
+probable sincronización parcial de Health.
 
 ### Nota sobre la trayectoria en producción
 
