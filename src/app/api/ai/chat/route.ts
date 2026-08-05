@@ -4,8 +4,9 @@ import { persistedChatUserText } from "@/lib/chat-turn";
 import { dayKey, shiftDayKey } from "@/lib/dates";
 import { retry } from "@/lib/retry";
 import { computeAdherence } from "@/server/analytics/adherence";
-import { computeDeficit } from "@/server/analytics/deficit";
+import { computeCanonicalDeficit } from "@/server/analytics/deficit";
 import { computeFlexibleImpact } from "@/server/analytics/flexibleImpact";
+import { computeTrajectory } from "@/server/analytics/trajectory";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import {
   buildChatModelMessages,
@@ -210,7 +211,9 @@ export async function POST(request: Request) {
       ]);
     if (!detail) throw new Error("Hilo no encontrado.");
 
-    const deficit = computeDeficit(trend.records);
+    // F22 · AC2/AC13: misma ventana canónica (30 d) que la pantalla de Progreso.
+    const deficit = computeCanonicalDeficit(trend.records, today);
+    const trajectory = computeTrajectory(trend.records, today);
     const adherence = computeAdherence(trend.records, today, 14);
     const flexibleImpact = computeFlexibleImpact(trend.records, today);
     const lastWeight =
@@ -292,7 +295,12 @@ export async function POST(request: Request) {
       planSummary: plan
         ? planSummary(plan.targets, plan.optionsByMeal)
         : "Sin plan de dieta configurado.",
-      trendAdherence: trendAndAdherence(deficit, adherence, flexibleImpact),
+      trendAdherence: trendAndAdherence(
+        deficit,
+        adherence,
+        flexibleImpact,
+        trajectory,
+      ),
       meds: medLines(meds),
       days30: dayLines(trend.records, 30, {
         trainingByWeekday: atleta.trainingByWeekday,

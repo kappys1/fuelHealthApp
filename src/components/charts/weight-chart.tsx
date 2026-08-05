@@ -22,16 +22,18 @@ export interface WeightPointVM {
 }
 
 export function WeightChart({ data }: { data: WeightPointVM[] }) {
-  if (data.length === 0) {
+  const weights = data.flatMap((d) =>
+    [d.weight, d.ma7].filter((v): v is number => v != null),
+  );
+  // F22: la serie trae un punto por día del rango, incluidos los días sin pesaje
+  // (`weight: null`). Vacío ya no es `data.length === 0`, sino «ningún valor real».
+  if (weights.length === 0) {
     return (
       <p className="py-8 text-center text-[13px] text-muted-foreground">
         Sin pesos en este rango.
       </p>
     );
   }
-  const weights = data.flatMap((d) =>
-    [d.weight, d.ma7].filter((v): v is number => v != null),
-  );
   const min = Math.floor(Math.min(...weights) - 0.5);
   const max = Math.ceil(Math.max(...weights) + 0.5);
 
@@ -56,16 +58,28 @@ export function WeightChart({ data }: { data: WeightPointVM[] }) {
             allowDecimals={false}
           />
           <Tooltip content={<ChartTooltip unit="kg" />} />
+          {/*
+            F22 · AC7 — el peso diario deja de inventar. Antes `connectNulls` +
+            `monotone` + `dot={false}` puenteaban los días sin pesaje con una recta
+            indistinguible de un dato real: con 19 pesajes en 23 días, cuatro huecos
+            se leían como «peso estable». Ahora: sin `connectNulls` (el hueco se ve
+            como hueco), `linear` (una medición no se curva) y punto visible en cada
+            pesaje real.
+          */}
           <Line
-            type="monotone"
+            type="linear"
             dataKey="weight"
             name="Peso"
             stroke="var(--muted-foreground)"
             strokeWidth={1}
-            dot={false}
-            connectNulls
+            dot={{ r: 2, fill: "var(--muted-foreground)", strokeWidth: 0 }}
+            activeDot={{ r: 3.5 }}
             isAnimationActive={false}
           />
+          {/*
+            La ma7 SÍ conserva `connectNulls` y `monotone`: es una media calculada,
+            no una medición, y existe en cualquier día con pesaje en su ventana.
+          */}
           <Line
             type="monotone"
             dataKey="ma7"

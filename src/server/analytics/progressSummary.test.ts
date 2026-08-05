@@ -4,6 +4,7 @@ import {
   computeProgressSummary,
   macroEnergy,
   trailingRecords,
+  targetSpans,
 } from "./progressSummary";
 import type { DailyRecord } from "./types";
 
@@ -130,5 +131,52 @@ describe("progress summary", () => {
       recordedKcal: 1900,
       discrepancyKcal: 160,
     });
+  });
+});
+
+/*
+  F22 · AC6 — el Resumen declara el cambio de pauta cuando la ventana contiene más
+  de un objetivo. Cada día ya lleva su objetivo histórico (F1.5): sin esto, la media
+  de la ventana se compara contra un objetivo que no estuvo vigente todo el periodo.
+*/
+describe("F22 · objetivos vigentes en la ventana (AC6)", () => {
+  it("un solo objetivo produce un solo tramo", () => {
+    const rows = [record("2026-07-01"), record("2026-07-02"), record("2026-07-03")];
+    const spans = targetSpans(rows);
+    expect(spans).toHaveLength(1);
+    expect(spans[0]).toMatchObject({ kcal: 1800, from: "2026-07-01", to: "2026-07-03" });
+  });
+
+  it("agrupa tramos consecutivos y marca dónde cambia la pauta", () => {
+    const rows = [
+      record("2026-08-10"),
+      record("2026-08-11"),
+      record("2026-08-12", { target: { kcal: 1900, prot: 115 } }),
+      record("2026-08-13", { target: { kcal: 1900, prot: 115 } }),
+    ];
+    const spans = targetSpans(rows);
+    expect(spans).toHaveLength(2);
+    expect(spans[0]).toMatchObject({ kcal: 1800, to: "2026-08-11" });
+    expect(spans[1]).toMatchObject({ kcal: 1900, from: "2026-08-12", to: "2026-08-13" });
+  });
+
+  it("ignora los días sin objetivo válido en vez de abrir un tramo a 0", () => {
+    const rows = [
+      record("2026-07-01", { target: { kcal: 0, prot: 0 } }),
+      record("2026-07-02"),
+    ];
+    expect(targetSpans(rows)).toHaveLength(1);
+    expect(targetSpans(rows)[0]).toMatchObject({ kcal: 1800, from: "2026-07-02" });
+  });
+
+  it("el resumen transporta los tramos de SU ventana, no del histórico", () => {
+    const rows = [
+      record("2026-06-01", { target: { kcal: 1700, prot: 105 } }),
+      record("2026-07-15"),
+      record("2026-07-20"),
+    ];
+    const summary = computeProgressSummary(rows, "2026-07-20", 7);
+    expect(summary.targets).toHaveLength(1);
+    expect(summary.targets[0]!.kcal).toBe(1800);
   });
 });
