@@ -138,6 +138,57 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
       expect(blocks.join("")).toBe(content);
     });
 
+    // Regresión de uso real (semana del 3-ago): una sesión importada por IA llega
+    // con saltos SIMPLES y sin línea en blanco. Antes se desmenuzaba en una fila
+    // por línea (21 bloques); ahora manda el encabezado de sección.
+    it("agrupa por encabezado cuando el texto llega sin líneas en blanco", () => {
+      const content =
+        "Plyometrics:\n3 Rounds for quality:\n6 Seated Box Jumps to 24/20in (step down)\n12 Banded KB Swings 24/16kg + black band\nRest at least 2 min between rounds.\nWeightlifting/Strength:\nDeadlift\n1. Build to a quick heavy single.\nNo grinding, the barbell has to move fast.\nCrossFit (Optional):\n3 x 3 min on / 2 min off\n500/450m Row\nAccessory:\n3 Rounds for quality:\n1-3 Skin the cat\n5+5 KB Windmills";
+      const blocks = splitTrainingContent(content);
+
+      expect(blocks).toHaveLength(4);
+      expect(blocks[0]).toMatch(/^Plyometrics:/);
+      expect(blocks[1]).toMatch(/^Weightlifting\/Strength:/);
+      expect(blocks[2]).toMatch(/^CrossFit \(Optional\):/);
+      expect(blocks[3]).toMatch(/^Accessory:/);
+      expect(blocks.join("")).toBe(content);
+    });
+
+    it("reconoce los encabezados en mayúsculas y sin dos puntos de la hoja del box", () => {
+      const content =
+        "WARM UP\n1 RONDA\n10 SUPINE SCORPION ALT\nSTRENGTH\nDURANTE 6' REALIZA POR CALIDAD\nSTRICT PULL UP\nWOD\n5 RONDAS POR TIEMPO\n15 FRONT SQUAT";
+      const blocks = splitTrainingContent(content);
+
+      expect(blocks).toHaveLength(3);
+      expect(blocks[1]).toMatch(/^STRENGTH\n/);
+      expect(blocks[2]).toMatch(/^WOD\n/);
+      expect(blocks.join("")).toBe(content);
+    });
+
+    it("no corta un encabezado que va a mitad de línea dentro de un bloque", () => {
+      const content =
+        "Gymnastics:\nGymnastics Strength:\nChin-Ups\n4 x 8-12\n\nRope Rows\n4 x 10-15";
+      const blocks = splitTrainingContent(content);
+
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0]).toBe("Gymnastics:\nGymnastics Strength:\nChin-Ups\n4 x 8-12\n\n");
+      expect(blocks.join("")).toBe(content);
+    });
+
+    // Regresión de uso real (Día 4): texto copiado de un PDF, con los saltos del
+    // ajuste visual. Cortar por línea partía las frases por la mitad.
+    it("no parte una frase envuelta al cortar por líneas", () => {
+      const content =
+        "Run, Bike or Row\n30-90 minutes of continuous work at RPE 5-6\nRun: Running involves a lot of eccentric loading which can increase\nrecovery demands even when going\nslow. If you're new to longer runs, start with shorter durations and\ngradually build up.";
+      const blocks = splitTrainingContent(content);
+
+      expect(blocks).toHaveLength(3);
+      expect(blocks[0]).toBe("Run, Bike or Row\n");
+      expect(blocks[1]).toBe("30-90 minutes of continuous work at RPE 5-6\n");
+      expect(blocks[2]).toMatch(/^Run: Running involves/);
+      expect(blocks.join("")).toBe(content);
+    });
+
     it("no inventa bloques para contenido vacío", () => {
       expect(splitTrainingContent("")).toEqual([]);
     });

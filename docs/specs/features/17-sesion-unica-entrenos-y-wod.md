@@ -238,5 +238,18 @@ por último, cambios de prompts congelados.
 - Quick-fix de uso real (Week 31): el formateador prioriza párrafos completos sobre saltos
   simples. La fila T1 real pasa de fragmentarse en líneas a 6 bloques coherentes y conserva
   byte a byte el contenido; F-IA-10, modelo y sesiones guardadas permanecen intactos.
+- Quick-fix de uso real (semana del 3-ago, sesión importada por IA): el texto de la IA
+  llegaba con saltos SIMPLES y sin línea en blanco, así que el formateador caía en el
+  corte por línea y la sesión se desmenuzaba en 21 filas de una línea. Ahora la prioridad
+  es párrafos > encabezados de sección > líneas, el corte por línea es el último recurso
+  y el vocabulario de encabezados cubre también los de The Progrm y los de la hoja del box
+  (`Plyometrics`, `Weightlifting/Strength`, `Conditioning`, `Gymnastics`, `Accessory`,
+  `WOD`…). Además, al cortar por línea ya no se parte una frase envuelta: si la línea
+  siguiente arranca en minúscula es la continuación visual de la anterior (texto copiado
+  de un PDF con los saltos del ajuste de página) y se queda en el mismo bloque.
+  F-IA-10 pasa a exigir una LÍNEA EN BLANCO entre bloques y a unir las frases que el
+  documento de origen partió en varios renglones. Verificado contra las filas reales: la
+  sesión rota pasa de 21 a 4 bloques, el `Día 4` de 6 a 3, y las 6 sesiones del PDF de la
+  Week 31 conservan exactamente los bloques que ya tenían.
 - Cierre: Alex aprueba los AC 🖐 1–5 y da F17 por completada el 2026-07-26. Acepta la
   sustitución de evidencia de AC9 descrita arriba; no quedan AC pendientes.
