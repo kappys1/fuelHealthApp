@@ -30,49 +30,105 @@ export const TRAINING_TIPO_LABELS: Record<TrainingTipo, string> = {
   otro: "Otro",
 };
 
+/*
+  Encabezados de sección de una programación, en el orden de alternancia que exige
+  el regex (la variante larga ANTES que la corta: "Weightlifting/Strength" tiene que
+  ganarle a "Strength"). Se reconocen en español y en inglés porque conviven las dos
+  fuentes reales: la hoja del box y The Progrm.
+*/
+const SECTION_HEADINGS = [
+  "Fuerza\\s*/\\s*Halterofilia",
+  "Halterofilia",
+  "Fuerza",
+  "Acondicionamiento",
+  "Calentamiento",
+  "Enfriamiento",
+  "Vuelta a la calma",
+  "Movilidad",
+  "T[eé]cnica",
+  "Gimn[aá]sticos",
+  "Accesorios?",
+  "Plyometrics",
+  "Weightlifting\\s*/\\s*Strength",
+  "Weightlifting",
+  "Strength",
+  "Conditioning",
+  "Gymnastics",
+  "Accessor(?:y|ies)",
+  "CrossFit",
+  "Metcon",
+  "WOD",
+].join("|");
+
+/*
+  Dos formas de encabezado, deliberadamente distintas:
+  - LEGACY: en cualquier posición de la línea, pero SIEMPRE con ":" y solo con el
+    vocabulario original. Es el que parte "…squat clean. CrossFit: 5 rondas" en una
+    programación escrita a línea corrida.
+  - LINE: a principio de línea, con el vocabulario ampliado y con ":" opcional
+    (la hoja del box escribe "STRENGTH" / "WOD" a pelo). Solo entra cuando el texto
+    NO trae párrafos: donde hay línea en blanco manda la línea en blanco, y así una
+    programación de PDF que ya se agrupaba bien no cambia ni un bloque. Exigir el
+    inicio de línea evita además cortar "Gymnastics Strength:" dentro de un bloque.
+*/
+const legacyHeadingRe = () =>
+  /\b(?:Fuerza\s*\/\s*Halterofilia|Fuerza|Halterofilia|CrossFit|Accesorios?):\s*/gi;
+const lineHeadingRe = () =>
+  new RegExp(
+    `(?<=^|\\r\\n|\\n|\\r)(?:${SECTION_HEADINGS})(?:\\s*\\([^)\\n]{0,40}\\))?[ \\t]*(?::|(?=\\r?\\n|$))`,
+    "gi",
+  );
+
 /**
  * Divide el contenido canónico en bloques de presentación sin normalizar ni
  * descartar un solo carácter (F17). Cada bloque conserva sus propios saltos de
  * línea, de modo que `blocks.join("") === contenido` siempre.
  *
- * La estructura se reconoce por párrafos, por líneas independientes o por los
- * encabezados habituales de una programación. Un texto plano cae en un único
- * bloque completo.
+ * Prioridad de estructura: párrafos > encabezados de sección > líneas sueltas.
+ * El corte por línea suelta es el ÚLTIMO recurso y solo entra cuando el texto no
+ * tiene ni párrafos ni encabezados: si entrara antes, una sesión importada por IA
+ * (que llega con saltos simples) se desmenuzaría en una fila por línea. Un texto
+ * plano sin ninguna estructura cae en un único bloque completo.
+ *
+ * Al cortar por línea NUNCA se parte una frase envuelta: si la línea siguiente
+ * arranca en minúscula es la continuación visual de la anterior (el texto copiado
+ * de un PDF trae los saltos del ajuste de página) y se queda en el mismo bloque.
  */
 export function splitTrainingContent(contenido: string): string[] {
   if (contenido.length === 0) return [];
 
   const cuts = new Set<number>();
-  const paragraphBreak = /(?:\r\n|\n|\r){2,}/g;
-  const paragraphs = [...contenido.matchAll(paragraphBreak)];
-
-  if (paragraphs.length > 0) {
-    for (const match of paragraphs) {
-      const afterBreak = (match.index ?? 0) + match[0].length;
-      if (
-        contenido.slice(0, match.index).trim() &&
-        afterBreak < contenido.length
-      ) {
-        cuts.add(afterBreak);
-      }
+  const addHeadingCuts = (re: RegExp) => {
+    for (const match of contenido.matchAll(re)) {
+      if (contenido.slice(0, match.index).trim()) cuts.add(match.index!);
     }
-  } else {
-    const lineBreak = /\r\n|\n|\r/g;
-    for (const match of contenido.matchAll(lineBreak)) {
-      const afterBreak = (match.index ?? 0) + match[0].length;
-      if (
-        contenido.slice(0, match.index).trim() &&
-        afterBreak < contenido.length
-      ) {
-        cuts.add(afterBreak);
-      }
-    }
-  }
+  };
+  addHeadingCuts(legacyHeadingRe());
 
-  const heading =
-    /\b(?:Fuerza\s*\/\s*Halterofilia|Fuerza|Halterofilia|CrossFit|Accesorios?):\s*/gi;
-  for (const match of contenido.matchAll(heading)) {
-    if (contenido.slice(0, match.index).trim()) cuts.add(match.index!);
+  const paragraphs = [...contenido.matchAll(/(?:\r\n|\n|\r){2,}/g)];
+  if (paragraphs.length === 0) addHeadingCuts(lineHeadingRe());
+
+  // Las líneas sueltas solo cortan si no hay NINGUNA otra estructura.
+  const lineBreaks =
+    paragraphs.length === 0 && cuts.size === 0
+      ? [...contenido.matchAll(/\r\n|\n|\r/g)]
+      : [];
+  const breaks = paragraphs.length > 0 ? paragraphs : lineBreaks;
+  const isWrappedContinuation = (afterBreak: number) => {
+    const next = contenido.slice(afterBreak).match(/^[^\r\n]*/)?.[0].trimStart() ?? "";
+    const first = next.charAt(0);
+    return first !== "" && first !== first.toUpperCase();
+  };
+
+  for (const match of breaks) {
+    const afterBreak = (match.index ?? 0) + match[0].length;
+    if (
+      contenido.slice(0, match.index).trim() &&
+      afterBreak < contenido.length &&
+      !(breaks === lineBreaks && isWrappedContinuation(afterBreak))
+    ) {
+      cuts.add(afterBreak);
+    }
   }
 
   const indexes = [...cuts].sort((a, b) => a - b);
