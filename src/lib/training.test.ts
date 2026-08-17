@@ -6,6 +6,7 @@ import {
   splitTrainingContent,
   sessionKcal,
   sessionPatchFor,
+  trainingBlockText,
   trainingWeekNavigation,
   trainingWeekSpan,
   TRAINING_TIPO_LABELS,
@@ -191,6 +192,67 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
 
     it("no inventa bloques para contenido vacío", () => {
       expect(splitTrainingContent("")).toEqual([]);
+    });
+
+    // Regresión de uso real (semana del 17-ago, sesión "Halterofilia + WOD + Rehab"):
+    // texto pegado con DOBLE ESPACIADO. Cada línea era su propio bloque numerado —
+    // ocho filas para una sesión de dos secciones. Manda el encabezado.
+    it("el encabezado gana a las líneas en blanco de un texto doble-espaciado", () => {
+      const content = [
+        "Training 1",
+        "Weightlifting / Strength",
+        "Power Clean + Power Jerk",
+        "Power Clean",
+        "Mantener normal.",
+        "Puedes buscar carga técnica pesada si el hombro no molesta.",
+        "Power Jerk",
+        "No buscar technical heavy.",
+      ].join("\n\n");
+      const blocks = splitTrainingContent(content);
+
+      expect(blocks).toHaveLength(2);
+      expect(blocks[0]).toBe("Training 1\n\n");
+      expect(blocks[1]).toMatch(/^Weightlifting \/ Strength\n\n/);
+      expect(blocks[1]).toMatch(/No buscar technical heavy\.$/);
+      expect(blocks.join("")).toBe(content);
+    });
+
+    // La otra cara de la misma moneda: sin encabezado que mande, tres párrafos de
+    // una línea SIGUEN siendo tres bloques. Doble espaciado y bloques cortos se
+    // escriben igual; sin señal de estructura no se adivina (ver también "párrafos").
+    it("sin encabezado, los párrafos de una línea siguen siendo bloques", () => {
+      const content = "Rehab hombro\n\n3 x 10 face pulls\n\nBandas rojas";
+      expect(splitTrainingContent(content)).toHaveLength(3);
+    });
+
+    it("reconoce Rehab como encabezado de sección", () => {
+      const content = "Halterofilia\n\nPower Clean 5 x 2\n\nRehab\n\nFace pulls 3 x 12";
+      const blocks = splitTrainingContent(content);
+
+      expect(blocks).toHaveLength(2);
+      expect(blocks[1]).toMatch(/^Rehab\n\n/);
+      expect(blocks.join("")).toBe(content);
+    });
+  });
+
+  describe("trainingBlockText · presentación", () => {
+    it("colapsa el aire interior del doble espaciado y recorta el cierre", () => {
+      expect(trainingBlockText("Power Clean\n\nMantener normal.\n\n")).toBe(
+        "Power Clean\nMantener normal.",
+      );
+    });
+
+    it("respeta los saltos simples de un bloque bien formado", () => {
+      const block = "Plyometrics:\nStep Up with Jump\n3 x 5+5, rest 90 sec.\n\n";
+      expect(trainingBlockText(block)).toBe(
+        "Plyometrics:\nStep Up with Jump\n3 x 5+5, rest 90 sec.",
+      );
+    });
+
+    it("limpia CRLF y líneas de solo espacios", () => {
+      expect(trainingBlockText("\r\nFuerza: sentadilla\r\n \r\nWOD: remo")).toBe(
+        "Fuerza: sentadilla\nWOD: remo",
+      );
     });
   });
 });
