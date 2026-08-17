@@ -55,7 +55,23 @@ export function TrainingSessionDetail({
   actions?: ReactNode;
   className?: string;
 }) {
-  const blocks = splitTrainingContent(session.contenido);
+  /*
+    Cada bloque se pinta como una fila numerada (el look de siempre). Dentro, si la
+    primera línea es un rótulo de sección se separa del cuerpo: un bloque real puede
+    traer 27 líneas y sin el rótulo destacado es un muro. Si no hay rótulo, el bloque
+    se pinta entero como antes — no se inventa una cabecera que el texto no tiene.
+  */
+  const blocks = splitTrainingContent(session.contenido).map((block) => {
+    const text = trainingBlockText(block);
+    const cut = text.indexOf("\n");
+    const firstLine = cut === -1 ? text : text.slice(0, cut);
+    const hasHeading = cut !== -1 && isTrainingHeadingLine(firstLine);
+    return {
+      key: `${block.length}-${text.length}`,
+      heading: hasHeading ? firstLine : null,
+      body: hasHeading ? text.slice(cut + 1) : text,
+    };
+  });
 
   return (
     <article className={cn("wellness-card overflow-hidden p-5", className)}>
@@ -88,31 +104,25 @@ export function TrainingSessionDetail({
       ) : null}
 
       {blocks.length > 0 ? (
-        <div className="mt-5 space-y-4" aria-label="Contenido de la sesión">
+        <ol className="mt-5 divide-y divide-line" aria-label="Bloques de la sesión">
           {blocks.map((block, index) => (
-            <div key={`${index}-${block.length}`} className="space-y-1">
-              {trainingBlockText(block)
-                .split("\n")
-                .map((line, lineIndex) =>
-                  isTrainingHeadingLine(line) ? (
-                    <p
-                      key={lineIndex}
-                      className="text-[13px] font-semibold leading-relaxed text-primary"
-                    >
-                      {line}
-                    </p>
-                  ) : (
-                    <p
-                      key={lineIndex}
-                      className="text-[13px] font-medium leading-relaxed text-foreground"
-                    >
-                      {line}
-                    </p>
-                  ),
-                )}
-            </div>
+            <li key={`${index}-${block.key}`} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+              <span className="num grid size-8 shrink-0 place-items-center rounded-full bg-primary/12 text-[15px] font-semibold text-primary">
+                {index + 1}
+              </span>
+              <div className="min-w-0 pt-1">
+                {block.heading ? (
+                  <p className="text-[13px] font-semibold leading-relaxed text-primary">
+                    {block.heading}
+                  </p>
+                ) : null}
+                <p className="whitespace-pre-wrap text-[13px] font-medium leading-relaxed text-foreground">
+                  {block.body}
+                </p>
+              </div>
+            </li>
           ))}
-        </div>
+        </ol>
       ) : (
         <p className="mt-5 text-[12px] text-muted-foreground">
           Sin contenido detallado.
