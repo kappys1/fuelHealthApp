@@ -270,5 +270,15 @@ por último, cambios de prompts congelados.
   Se cierra además el hueco que dejó el quick-fix anterior: `prompts.test.ts` ancla ya
   el contrato de LÍNEA EN BLANCO y de unir renglones envueltos (antes, revertir la
   redacción a la anterior pasaba en verde).
+- Continuación (mismo día, elegido por Alex al ver el resultado contra su texto real):
+  **la ficha deja de numerar bloques**. Los 3 bloques que salían eran correctos pero
+  enormes (27 y 18 líneas), porque la sesión trae secciones que ningún formateador
+  puede reconocer (`Strict Press`, `4 rounds`, `Accessory → Rehab A`). La numeración
+  era el problema de fondo: afirma una estructura que el documento de origen no tiene.
+  El `<ol>` pasa a grupos separados por aire y `isTrainingHeadingLine()` destaca la
+  línea que es ella entera un rótulo de sección. Se descarta que la IA normalice el
+  pegado (arreglaría lo futuro, no lo guardado, y F-IA-5 conserva el input original
+  por diseño); queda como opción viva. Sin migración ni cambio de dato; AA verificado.
+  Detalle y motivo en DECISIONS #93.
 - Cierre: Alex aprueba los AC 🖐 1–5 y da F17 por completada el 2026-07-26. Acepta la
   sustitución de evidencia de AC9 descrita arriba; no quedan AC pendientes.

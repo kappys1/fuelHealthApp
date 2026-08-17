@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SESSIONS } from "@/lib/macros";
 import {
+  isTrainingHeadingLine,
   orderedSessionOptions,
   planSpanFromAssignments,
   splitTrainingContent,
@@ -253,6 +254,34 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
       expect(trainingBlockText("\r\nFuerza: sentadilla\r\n \r\nWOD: remo")).toBe(
         "Fuerza: sentadilla\nWOD: remo",
       );
+    });
+  });
+
+  describe("isTrainingHeadingLine · rótulos de la ficha", () => {
+    it.each([
+      "Weightlifting / Strength",
+      "Plyometrics:",
+      "CrossFit (Optional):",
+      "STRENGTH",
+      "WOD",
+      "  Rehab  ",
+      "Fuerza/Halterofilia:",
+    ])("destaca %j", (line) => {
+      expect(isTrainingHeadingLine(line)).toBe(true);
+    });
+
+    // La línea entera tiene que ser el rótulo: si lleva contenido propio, destacarla
+    // prometería una sección que no empieza ahí (misma doctrina que el corte).
+    it.each([
+      "Gymnastics Strength:",
+      "Accessory → Rehab A",
+      "Rehab A — 18–20 min",
+      "Fuerza: sentadilla",
+      "5 Power cleans",
+      "Strict Press",
+      "",
+    ])("no destaca %j", (line) => {
+      expect(isTrainingHeadingLine(line)).toBe(false);
     });
   });
 });

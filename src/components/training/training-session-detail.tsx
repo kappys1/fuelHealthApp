@@ -1,6 +1,7 @@
 import { Clock3 } from "lucide-react";
 import type { ReactNode } from "react";
 import {
+  isTrainingHeadingLine,
   splitTrainingContent,
   trainingBlockText,
   TRAINING_TIPO_LABELS,
@@ -87,18 +88,31 @@ export function TrainingSessionDetail({
       ) : null}
 
       {blocks.length > 0 ? (
-        <ol className="mt-5 divide-y divide-line" aria-label="Bloques de la sesión">
+        <div className="mt-5 space-y-4" aria-label="Contenido de la sesión">
           {blocks.map((block, index) => (
-            <li key={`${index}-${block.length}`} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-              <span className="num grid size-8 shrink-0 place-items-center rounded-full bg-primary/12 text-[15px] font-semibold text-primary">
-                {index + 1}
-              </span>
-              <p className="min-w-0 whitespace-pre-wrap pt-1 text-[13px] font-medium leading-relaxed text-foreground">
-                {trainingBlockText(block)}
-              </p>
-            </li>
+            <div key={`${index}-${block.length}`} className="space-y-1">
+              {trainingBlockText(block)
+                .split("\n")
+                .map((line, lineIndex) =>
+                  isTrainingHeadingLine(line) ? (
+                    <p
+                      key={lineIndex}
+                      className="text-[13px] font-semibold leading-relaxed text-primary"
+                    >
+                      {line}
+                    </p>
+                  ) : (
+                    <p
+                      key={lineIndex}
+                      className="text-[13px] font-medium leading-relaxed text-foreground"
+                    >
+                      {line}
+                    </p>
+                  ),
+                )}
+            </div>
           ))}
-        </ol>
+        </div>
       ) : (
         <p className="mt-5 text-[12px] text-muted-foreground">
           Sin contenido detallado.

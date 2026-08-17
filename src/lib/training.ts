@@ -181,6 +181,24 @@ export function trainingBlockText(block: string): string {
   return block.replace(/(?:[ \t]*(?:\r\n|\n|\r)){2,}/g, "\n").trim();
 }
 
+/*
+  Una línea que es ELLA ENTERA un encabezado de sección, con ":" opcional (la hoja
+  del box escribe "STRENGTH" a pelo) y con el mismo paréntesis aclaratorio que
+  admite el corte ("CrossFit (Optional):"). Exigir la línea completa es lo que deja
+  fuera "Gymnastics Strength:" y "Accessory → Rehab A": son líneas con contenido
+  propio, no rótulos, y destacarlas sería prometer una sección que no empieza ahí.
+*/
+const headingLineRe = () =>
+  new RegExp(`^(?:${SECTION_HEADINGS})(?:\\s*\\([^)\\n]{0,40}\\))?[ \\t]*:?[ \\t]*$`, "i");
+
+/**
+ * ¿Esta línea es un rótulo de sección? Se usa SOLO para pintarla distinta en la
+ * ficha. No decide cortes: eso es `splitTrainingContent`.
+ */
+export function isTrainingHeadingLine(line: string): boolean {
+  return headingLineRe().test(line.trim());
+}
+
 /**
  * kcal de sesión para `days.sessionKcal` a partir del rango estimado (F-IA-5):
  * media redondeada; si falta un extremo usa el otro; null si no hay datos.
