@@ -251,5 +251,24 @@ por último, cambios de prompts congelados.
   documento de origen partió en varios renglones. Verificado contra las filas reales: la
   sesión rota pasa de 21 a 4 bloques, el `Día 4` de 6 a 3, y las 6 sesiones del PDF de la
   Week 31 conservan exactamente los bloques que ya tenían.
+- Quick-fix de uso real (semana del 17-ago, «Halterofilia + WOD + Rehab» pegada con
+  F-IA-5): el mismo destrozo por la puerta contraria. El texto pegado venía
+  DOBLE-ESPACIADO (línea en blanco entre cada línea), y como el quick-fix del 3-ago
+  hizo del párrafo la señal más fuerte, cada línea se convirtió en su propia fila
+  numerada — ocho filas, incluidas las notas del coach («Mantener normal.»). F-IA-5
+  guarda el pegado *tal cual* por diseño, así que el aire del origen llegaba entero.
+  La prioridad pasa a ser **párrafos de varias líneas > encabezados > párrafos de una
+  línea > líneas sueltas**: cuando TODOS los párrafos son de una línea y además hay
+  encabezados, mandan los encabezados. Sin encabezados no se toca nada — tres párrafos
+  de una línea sí son tres bloques legítimos y distinguirlos del doble espaciado sin
+  señal de estructura sería adivinar. `Rehab`/`Rehabilitación`/`Prehab` entran al
+  vocabulario. Se añade `trainingBlockText()`, **solo presentación**: colapsa las
+  líneas en blanco interiores (solo existen en este caso) y recorta el salto de cierre,
+  para que un bloque de ocho líneas no ocupe quince renglones. La invariante
+  `blocks.join("") === contenido` sigue entera en `splitTrainingContent`. La sesión real
+  pasa de 8 filas a 2 y los 10 casos previos del formateador siguen idénticos.
+  Se cierra además el hueco que dejó el quick-fix anterior: `prompts.test.ts` ancla ya
+  el contrato de LÍNEA EN BLANCO y de unir renglones envueltos (antes, revertir la
+  redacción a la anterior pasaba en verde).
 - Cierre: Alex aprueba los AC 🖐 1–5 y da F17 por completada el 2026-07-26. Acepta la
   sustitución de evidencia de AC9 descrita arriba; no quedan AC pendientes.

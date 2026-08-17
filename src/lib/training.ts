@@ -45,6 +45,9 @@ const SECTION_HEADINGS = [
   "Enfriamiento",
   "Vuelta a la calma",
   "Movilidad",
+  "Rehabilitaci[oó]n",
+  "Rehab",
+  "Prehab",
   "T[eé]cnica",
   "Gimn[aá]sticos",
   "Accesorios?",
@@ -84,11 +87,12 @@ const lineHeadingRe = () =>
  * descartar un solo carácter (F17). Cada bloque conserva sus propios saltos de
  * línea, de modo que `blocks.join("") === contenido` siempre.
  *
- * Prioridad de estructura: párrafos > encabezados de sección > líneas sueltas.
- * El corte por línea suelta es el ÚLTIMO recurso y solo entra cuando el texto no
- * tiene ni párrafos ni encabezados: si entrara antes, una sesión importada por IA
- * (que llega con saltos simples) se desmenuzaría en una fila por línea. Un texto
- * plano sin ninguna estructura cae en un único bloque completo.
+ * Prioridad de estructura: párrafos de varias líneas > encabezados de sección >
+ * párrafos de una línea > líneas sueltas. El corte por línea suelta es el ÚLTIMO
+ * recurso y solo entra cuando el texto no tiene ni párrafos ni encabezados: si
+ * entrara antes, una sesión importada por IA (que llega con saltos simples) se
+ * desmenuzaría en una fila por línea. Un texto plano sin ninguna estructura cae
+ * en un único bloque completo.
  *
  * Al cortar por línea NUNCA se parte una frase envuelta: si la línea siguiente
  * arranca en minúscula es la continuación visual de la anterior (el texto copiado
@@ -106,14 +110,33 @@ export function splitTrainingContent(contenido: string): string[] {
   addHeadingCuts(legacyHeadingRe());
 
   const paragraphs = [...contenido.matchAll(/(?:\r\n|\n|\r){2,}/g)];
-  if (paragraphs.length === 0) addHeadingCuts(lineHeadingRe());
+
+  /*
+    Un texto DOBLE-ESPACIADO (línea en blanco entre CADA línea) no tiene párrafos:
+    tiene una línea repetida. Copiar de la app del box, de un PDF o de una respuesta
+    de chat lo produce a diario. Si mandara el párrafo, cada línea sería su propia
+    fila numerada — el destrozo que arregló el quick-fix del 7-ago, entrando por la
+    puerta contraria. Cuando TODOS los párrafos son de una línea Y hay encabezados
+    de sección, mandan los encabezados.
+    Sin encabezados NO se toca nada: tres párrafos de una línea sí son tres bloques
+    legítimos ("Bloque de fuerza. / Metcon por tiempo. / Vuelta a la calma."), y
+    distinguirlos del doble espaciado sin una señal de estructura sería adivinar.
+  */
+  const paragraphsAreOneLiners =
+    paragraphs.length > 0 &&
+    contenido
+      .split(/(?:\r\n|\n|\r){2,}/)
+      .every((paragraph) => !/\r\n|\n|\r/.test(paragraph.trim()));
+  if (paragraphs.length === 0 || paragraphsAreOneLiners) addHeadingCuts(lineHeadingRe());
+  const headingsBeatBlankLines = paragraphsAreOneLiners && cuts.size > 0;
 
   // Las líneas sueltas solo cortan si no hay NINGUNA otra estructura.
   const lineBreaks =
     paragraphs.length === 0 && cuts.size === 0
       ? [...contenido.matchAll(/\r\n|\n|\r/g)]
       : [];
-  const breaks = paragraphs.length > 0 ? paragraphs : lineBreaks;
+  const breaks =
+    paragraphs.length > 0 && !headingsBeatBlankLines ? paragraphs : lineBreaks;
   const isWrappedContinuation = (afterBreak: number) => {
     const next = contenido.slice(afterBreak).match(/^[^\r\n]*/)?.[0].trimStart() ?? "";
     const first = next.charAt(0);
@@ -141,6 +164,21 @@ export function splitTrainingContent(contenido: string): string[] {
   }
   if (start < contenido.length) blocks.push(contenido.slice(start));
   return blocks;
+}
+
+/**
+ * Texto de un bloque listo para pintar. Es SOLO presentación: no toca el dato
+ * guardado, y la invariante F17 (`blocks.join("") === contenido`) sigue viviendo
+ * entera en `splitTrainingContent`.
+ *
+ * Hace dos cosas, las dos por lo mismo — que el aire del documento de origen no
+ * se cuele en la ficha: colapsa las líneas en blanco INTERIORES (solo aparecen
+ * cuando el texto venía doble-espaciado y mandó el encabezado; un corte por
+ * párrafo nunca las deja dentro) y recorta el salto de cierre que ese corte deja
+ * pegado al final. Sin esto, ocho líneas ocupan quince renglones.
+ */
+export function trainingBlockText(block: string): string {
+  return block.replace(/(?:[ \t]*(?:\r\n|\n|\r)){2,}/g, "\n").trim();
 }
 
 /**

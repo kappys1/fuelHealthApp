@@ -2,6 +2,7 @@ import { Clock3 } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   splitTrainingContent,
+  trainingBlockText,
   TRAINING_TIPO_LABELS,
   type TrainingTipo,
 } from "@/lib/training";
@@ -26,11 +27,20 @@ export interface TrainingSessionPlanMeta {
   importRequestId?: string | null;
 }
 
+/*
+  El origen es de la SEMANA, no de la sesión: `import_request_id` vive en
+  `training_plans` y una semana mezcla sesiones importadas con sesiones que Alex
+  pega después. En masculino ("creado manualmente") se leía como si hablara de la
+  sesión abierta, y eso era falso en el caso más común: un WOD pegado con IA
+  (F-IA-5) dentro de una semana propia se anunciaba como creado a mano.
+  En femenino concuerda con "Semana del …", que es justo lo que describe.
+  El origen POR SESIÓN necesitaría una columna nueva; no se inventa aquí.
+*/
 function originLabel(plan: TrainingSessionPlanMeta): string {
-  if (!plan.importRequestId) return "creado manualmente";
-  if (plan.source === "pdf") return "importado desde PDF";
-  if (plan.source === "foto") return "importado desde foto";
-  return "importado desde texto";
+  if (!plan.importRequestId) return "creada a mano";
+  if (plan.source === "pdf") return "importada desde PDF";
+  if (plan.source === "foto") return "importada desde foto";
+  return "importada desde texto";
 }
 
 export function TrainingSessionDetail({
@@ -84,7 +94,7 @@ export function TrainingSessionDetail({
                 {index + 1}
               </span>
               <p className="min-w-0 whitespace-pre-wrap pt-1 text-[13px] font-medium leading-relaxed text-foreground">
-                {block}
+                {trainingBlockText(block)}
               </p>
             </li>
           ))}

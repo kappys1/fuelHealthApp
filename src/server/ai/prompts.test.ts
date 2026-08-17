@@ -87,6 +87,19 @@ describe("F17 · contratos congelados de entreno", () => {
     expect(prompt).toContain("saltos de línea");
     expect(prompt).not.toContain("contenido resumido");
   });
+
+  // El quick-fix del 7-ago identificó el contrato de separación como la causa raíz
+  // y cambió la redacción, pero no la ancló aquí: revertir a "separa los bloques con
+  // saltos de línea" pasaba en verde. La spec 17 pide `prompts.ts` + `prompts.test.ts`.
+  it("F-IA-10 exige LÍNEA EN BLANCO entre bloques y unir los renglones envueltos", () => {
+    const prompt = trainingImportPrompt("Atleta dinámico.", "Lunes: fuerza");
+
+    expect(prompt).toContain("separa CADA bloque del siguiente con una LÍNEA EN BLANCO");
+    expect(prompt).toContain("dos saltos de línea seguidos");
+    expect(prompt).toContain("saltos de línea simples solo para las líneas de un mismo bloque");
+    expect(prompt).toContain("ÚNELA en una sola línea");
+    expect(prompt).toContain("nunca el final de un renglón");
+  });
 });
 
 describe("foto sin pauta nutricional", () => {
