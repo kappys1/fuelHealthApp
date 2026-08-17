@@ -280,5 +280,11 @@ por último, cambios de prompts congelados.
   pegado (arreglaría lo futuro, no lo guardado, y F-IA-5 conserva el input original
   por diseño); queda como opción viva. Sin migración ni cambio de dato; AA verificado.
   Detalle y motivo en DECISIONS #93.
+- **Revertido lo anterior el mismo día (DECISIONS #94)**: visto en producción, el
+  documento sin numerar resultó ilegible — 46 párrafos con aire, sin jerarquía y sin
+  los divisores. Vuelven los bloques numerados tal cual estaban. Se conserva una sola
+  pieza: dentro del bloque, si la primera línea es un rótulo de sección se pinta
+  aparte y destacada, porque «Weightlifting / Strength» son 27 líneas planas sin ella.
+  Sigue en pie todo #92 (agrupación, `trainingBlockText`, vocabulario, origen).
 - Cierre: Alex aprueba los AC 🖐 1–5 y da F17 por completada el 2026-07-26. Acepta la
   sustitución de evidencia de AC9 descrita arriba; no quedan AC pendientes.
