@@ -1,7 +1,9 @@
+import { dayKey } from "@/lib/dates";
 import {
   DEFAULT_SESSION_BY_WEEKDAY,
   type SessionByWeekday,
 } from "@/lib/macros";
+import { normalizeLesiones } from "@/lib/profile";
 import {
   TRAINING_SLOTS,
   type TrainingByWeekday,
@@ -61,9 +63,14 @@ export function settingsArrayToRecord(
 /**
  * Cutover F20: acepta la clave legacy como entrada, devuelve solo la canónica y
  * elimina también `franjaEntreno` del perfil. Restore y PoC comparten este paso.
+ *
+ * F26 Fase 1: aquí también viajan los **chips de lesión** viejos (`string[]`) a
+ * episodios, sin pérdida (`normalizeLesiones`). Un backup anterior a F26 se
+ * restaura con sus lesiones intactas y vencidas para revisión.
  */
 export function normalizeTrainingSettings(
   rows: readonly Record<string, unknown>[],
+  today: string = dayKey(),
 ): Record<string, unknown>[] {
   const settings = new Map(
     rows.map((row) => [String(row.key), row.value] as const),
@@ -80,10 +87,18 @@ export function normalizeTrainingSettings(
   settings.delete("sessionByWeekday");
 
   const profile = settings.get("athleteProfile");
-  if (isRecord(profile) && "franjaEntreno" in profile) {
+  if (isRecord(profile)) {
     const { franjaEntreno: _legacyFranja, ...currentProfile } = profile;
     void _legacyFranja;
-    settings.set("athleteProfile", currentProfile);
+    settings.set(
+      "athleteProfile",
+      "lesiones" in currentProfile
+        ? {
+            ...currentProfile,
+            lesiones: normalizeLesiones(currentProfile.lesiones, today),
+          }
+        : currentProfile,
+    );
   }
 
   return [...settings].map(([key, value]) => ({ key, value }));

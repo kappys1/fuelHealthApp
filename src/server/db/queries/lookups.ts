@@ -1,10 +1,15 @@
 import { asc, desc, eq } from "drizzle-orm";
+import { dayKey } from "@/lib/dates";
 import type { GrpKey, MealKey } from "@/lib/macros";
 import {
   DEFAULT_TRAINING_BY_WEEKDAY,
   type TrainingByWeekday,
 } from "@/lib/training-slot";
-import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
+import {
+  type AthleteProfile,
+  DEFAULT_ATHLETE_PROFILE,
+  normalizeLesiones,
+} from "@/lib/profile";
 import { db, schema } from "@/server/db";
 import type { TemplateItem } from "@/server/db/schema";
 
@@ -177,11 +182,14 @@ export async function getChatWebSearch(): Promise<boolean> {
 export const ATHLETE_PROFILE_KEY = "athleteProfile";
 
 /** Perfil de atleta (doc 10 A1). Merge superficial sobre defaults: campos nuevos
- *  añadidos en el futuro caen al default sin migración. */
+ *  añadidos en el futuro caen al default sin migración.
+ *  F26: `lesiones` se normaliza EN LA LECTURA — la fila que hay en la BD hoy
+ *  guarda chips (`string[]`) y nadie la ha reescrito todavía. */
 export async function getAthleteProfile(): Promise<AthleteProfile> {
   const stored = await getSetting<Partial<AthleteProfile>>(ATHLETE_PROFILE_KEY);
   const { franjaEntreno: _legacyFranja, ...current } = (stored ?? {}) as
     Partial<AthleteProfile> & { franjaEntreno?: unknown };
   void _legacyFranja;
-  return { ...DEFAULT_ATHLETE_PROFILE, ...current };
+  const profile = { ...DEFAULT_ATHLETE_PROFILE, ...current };
+  return { ...profile, lesiones: normalizeLesiones(profile.lesiones, dayKey()) };
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Lesion } from "@/lib/profile";
 import {
   normalizeTrainingSettings,
   settingsArrayToRecord,
@@ -100,5 +101,73 @@ describe("normalizeTrainingSettings — migración F20", () => {
       deporte: "CrossFit",
       programa: "The Progrm",
     });
+  });
+});
+
+describe("normalizeTrainingSettings — chips de lesión a episodios (F26 · AC4)", () => {
+  const TODAY = "2026-08-18";
+
+  const profileFrom = (rows: Record<string, unknown>[]) =>
+    settingsArrayToRecord(normalizeTrainingSettings(rows, TODAY))
+      .athleteProfile as { lesiones: Lesion[] } & Record<string, unknown>;
+
+  it("un backup pre-F26 restaura sus lesiones SIN pérdida y para revisión", () => {
+    const profile = profileFrom([
+      {
+        key: "athleteProfile",
+        value: {
+          deporte: "CrossFit",
+          suplementos: ["creatina"],
+          lesiones: ["hombro derecho", "fascitis plantar"],
+        },
+      },
+    ]);
+
+    expect(profile.suplementos).toEqual(["creatina"]); // los chips de suplemento NO se tocan
+    expect(profile.lesiones.map((l) => l.zona)).toEqual([
+      "hombro derecho",
+      "fascitis plantar",
+    ]);
+    for (const l of profile.lesiones) {
+      expect(l.capacidad).toBe("");
+      expect(l.desde).toBeNull();
+      expect(l.revisarEl).toBe(TODAY);
+      expect(l.cerradaEl).toBeNull();
+    }
+  });
+
+  it("no toca un perfil que ya trae episodios (idempotente) ni pierde las cerradas", () => {
+    const lesiones: Lesion[] = [
+      {
+        id: "l1",
+        zona: "hombro derecho",
+        descripcion: null,
+        capacidad: "NO por encima de cabeza; SÍ pierna.",
+        desde: "2026-07-28",
+        revisarEl: "2026-08-11",
+        cerradaEl: null,
+        cierreAproximado: false,
+      },
+      {
+        id: "l0",
+        zona: "codo",
+        descripcion: null,
+        capacidad: "",
+        desde: "2026-03-01",
+        revisarEl: "2026-03-15",
+        cerradaEl: "2026-04-02",
+        cierreAproximado: true,
+      },
+    ];
+    const rows = [{ key: "athleteProfile", value: { lesiones } }];
+    expect(profileFrom(rows).lesiones).toEqual(lesiones);
+    expect(profileFrom(rows).lesiones).toEqual(
+      profileFrom([{ key: "athleteProfile", value: profileFrom(rows) }]).lesiones,
+    );
+  });
+
+  it("un perfil sin la clave `lesiones` se queda sin ella (no la inventa)", () => {
+    expect(profileFrom([{ key: "athleteProfile", value: { deporte: "CrossFit" } }]))
+      .toEqual({ deporte: "CrossFit" });
   });
 });
