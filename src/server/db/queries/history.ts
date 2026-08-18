@@ -15,7 +15,7 @@ import { listAllTrainingPlans, type TrainingSessionDTO } from "./training";
   actual). Cada entrada trae su detalle: la dieta sus opciones, el entreno sus
   sesiones (datos pequeños para un usuario único → se incluyen, sin lazy-load).
 */
-export type HistorialKind = "objetivo" | "dieta" | "entreno" | "med";
+export type HistorialKind = "objetivo" | "dieta" | "entreno" | "med" | "lesion";
 
 interface HistBase {
   /** 'YYYY-MM-DD' — fecha del hito (para ordenar y mostrar). */
@@ -54,11 +54,23 @@ export interface HistEntreno extends HistBase {
   importRequestId: string | null;
   sessions: TrainingSessionDTO[];
 }
+/**
+ * F26 Fase 1: cerrar una lesión no la borra — la saca del contexto de IA y la
+ * deja aquí (AC2). Las vigentes también aparecen, sin fecha de cierre.
+ */
+export interface HistLesion extends HistBase {
+  kind: "lesion";
+  zona: string;
+  capacidad: string;
+  cerradaEl: string | null;
+  cierreAproximado: boolean;
+}
 export type HistorialEntry =
   | HistObjetivo
   | HistDieta
   | HistMed
-  | HistEntreno;
+  | HistEntreno
+  | HistLesion;
 
 export async function getHistorialData(): Promise<HistorialEntry[]> {
   const [meds, versions, plans, profile, optionRows, sessionRows] =
@@ -123,6 +135,23 @@ export async function getHistorialData(): Promise<HistorialEntry[]> {
       date: o.desde,
       texto: o.texto,
       pesoObjetivo: o.pesoObjetivo ?? null,
+    });
+  }
+  /*
+    El timeline se ordena por fecha: una lesión sin `desde` conocido (chip
+    migrado) no se puede colocar sin inventarle una, así que se queda fuera hasta
+    que Alex le ponga fecha en Ajustes. Sigue viva en el perfil y en el contexto
+    de IA — no se pierde nada.
+  */
+  for (const l of profile.lesiones ?? []) {
+    if (!l.desde) continue;
+    entries.push({
+      kind: "lesion",
+      date: l.desde,
+      zona: l.zona,
+      capacidad: l.capacidad,
+      cerradaEl: l.cerradaEl ?? null,
+      cierreAproximado: l.cierreAproximado === true,
     });
   }
   for (const v of versions) {

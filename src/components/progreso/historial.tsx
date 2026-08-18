@@ -2,6 +2,7 @@
 
 import {
   ArrowRight,
+  Bandage,
   CalendarDays,
   ChevronDown,
   ChevronUp,
@@ -49,6 +50,7 @@ const TYPE: Record<
   dieta: { color: "var(--carb)", label: "DIETA", Icon: UtensilsCrossed },
   entreno: { color: "var(--protein)", label: "ENTRENO", Icon: Dumbbell },
   med: { color: "var(--med-accent)", label: "MED", Icon: Ruler },
+  lesion: { color: "var(--fat)", label: "LESIÓN", Icon: Bandage },
 };
 
 const GRP_COLOR: Record<GrpKey, string> = {
@@ -73,6 +75,7 @@ const TYPE_FILTERS: { key: HistorialKind | "all"; label: string }[] = [
   { key: "dieta", label: "Dieta" },
   { key: "entreno", label: "Entreno" },
   { key: "med", label: "MED" },
+  { key: "lesion", label: "Lesiones" },
 ];
 
 export function Historial({
@@ -363,7 +366,8 @@ function TimelineItem({
 }) {
   const [open, setOpen] = useState(false);
   const t = TYPE[entry.kind];
-  const expandable = entry.kind === "objetivo" || entry.kind === "med";
+  const expandable =
+    entry.kind === "objetivo" || entry.kind === "med" || entry.kind === "lesion";
   const hasSheet = entry.kind === "dieta" || entry.kind === "entreno";
 
   return (
@@ -414,6 +418,23 @@ function TimelineItem({
         </div>
 
         {open && entry.kind === "med" ? <MedDetail entry={entry} /> : null}
+        {open && entry.kind === "lesion" ? (
+          <div className="mt-2 border-t border-line pt-2 text-[12px] text-muted-foreground">
+            {entry.capacidad.trim() ? (
+              <p className="whitespace-pre-line text-foreground">{entry.capacidad}</p>
+            ) : (
+              <p>Sin capacidad declarada.</p>
+            )}
+            <div className="num mt-1">
+              Desde {labelForKey(entry.date)}
+              {entry.cerradaEl
+                ? ` · cerrada el ${labelForKey(entry.cerradaEl)}${
+                    entry.cierreAproximado ? " (fecha aproximada)" : ""
+                  }`
+                : " · vigente"}
+            </div>
+          </div>
+        ) : null}
         {open && entry.kind === "objetivo" ? (
           <div className="mt-2 border-t border-line pt-2 text-[12px] text-muted-foreground">
             {entry.pesoObjetivo != null ? (
@@ -449,6 +470,15 @@ function summaryOf(e: HistorialEntry): React.ReactNode {
         <>
           Pliegues — grasa <b>{e.fatKg == null ? "—" : `${num(e.fatKg, 1)} kg`}</b> · músculo{" "}
           <b>{e.muscleKg == null ? "—" : `${num(e.muscleKg, 1)} kg`}</b>
+        </>
+      );
+    case "lesion":
+      return (
+        <>
+          Lesión — <b>{e.zona}</b>
+          {e.cerradaEl
+            ? ` · cerrada el ${labelForKey(e.cerradaEl)}${e.cierreAproximado ? " (aprox.)" : ""}`
+            : " · vigente"}
         </>
       );
   }
