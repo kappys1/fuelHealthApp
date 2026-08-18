@@ -2160,7 +2160,7 @@ describe("F21 · chatSystemPrompt · bloque de adaptación (bajo intención)", (
     */
     expect(p).toContain("SOLO LECTURA");
     expect(p).toContain("NUNCA afirmes que has modificado, guardado o registrado la sesión");
-    expect(p).toContain("la app le ofrece la acción para guardarla y la pulsa él");
+    expect(p).toContain("la app ya se lo ofrece por su cuenta");
     expect(p).not.toContain("dile que la meta él por el flujo normal");
     // AC7 · seguridad: orientativo, fisio/coach, no diagnostica
     expect(p).toContain("ORIENTATIVA");
@@ -2208,10 +2208,16 @@ describe("F21 · chatSystemPrompt · bloque de adaptación (bajo intención)", (
     expect(p).toContain("adaptar es una decisión suya");
   });
 
-  it("F26: existe una acción de la app y el modelo NO dice haber guardado", () => {
+  /*
+    Enmienda #101: el modelo NO menciona el botón. Le dio por rematar con
+    «puedes guardarla con el botón de la app», y ese botón además cambió de
+    significado (ahora abre el generador). Basta con que no mande copiarla.
+  */
+  it("F26: no afirma haber guardado, no manda copiarla y NO habla de botones", () => {
     const p = chatSystemPrompt({ ...chatArgs, trainingContext: training });
-    expect(p).toContain("la app le ofrecerá un botón para conservarla");
     expect(p).toContain("NO afirmes haberla guardado");
+    expect(p).toContain("ni le hables de botones ni de la interfaz");
+    expect(p).not.toContain("le ofrecerá un botón");
   });
 
   it("AC16: las reglas de F26 no existen fuera del bloque de intención", () => {
