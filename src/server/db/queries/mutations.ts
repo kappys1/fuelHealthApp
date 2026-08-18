@@ -47,6 +47,99 @@ export async function upsertDayFields(date: string, patch: DayPatch): Promise<vo
     .onConflictDoUpdate({ target: schema.days.date, set: patch });
 }
 
+/*
+  Sesión adaptada del día (F26 Fase 2). Escribe SOLO en `days`: la sesión del
+  plan (`training_sessions.contenido`) no se toca nunca — es lo que permite
+  distinguir «cambió el programa» de «cambié yo por el hombro» (AC9).
+  Regenerar PISA la anterior y devuelve su foto para el «Deshacer» del toast.
+*/
+export interface AdaptedSessionSnapshot {
+  date: string;
+  /** Estado ANTERIOR (null = no había adaptada). */
+  session: string | null;
+  reason: string | null;
+  /** ISO; null si no había. */
+  at: string | null;
+  /** ISO de la escritura que este undo revierte (guarda anti-pisotón). */
+  writtenAt: string;
+}
+
+export class AdaptedSessionUndoConflictError extends Error {
+  constructor() {
+    super("La sesión adaptada cambió después; no se deshace para no pisarla.");
+    this.name = "AdaptedSessionUndoConflictError";
+  }
+}
+
+async function readAdapted(date: string) {
+  const [row] = await db
+    .select({
+      session: schema.days.adaptedSession,
+      reason: schema.days.adaptedReason,
+      at: schema.days.adaptedAt,
+    })
+    .from(schema.days)
+    .where(eq(schema.days.date, date));
+  return row ?? null;
+}
+
+const isoOrNull = (value: Date | string | null | undefined): string | null =>
+  value instanceof Date ? value.toISOString() : (value ?? null);
+
+/**
+ * Guarda (o pisa) la adaptada del día. Contenido vacío = **quitarla**: sin esta
+ * salida, un guardado por error sería irreversible en cuanto el toast se va.
+ */
+export async function saveAdaptedSession(input: {
+  date: string;
+  session: string;
+  reason: string;
+}): Promise<{ undo: AdaptedSessionSnapshot; kind: "saved" | "cleared" }> {
+  const previous = await readAdapted(input.date);
+  const contenido = input.session.trim();
+  const cleared = contenido === "";
+  const writtenAt = new Date();
+  const fields = {
+    adaptedSession: cleared ? null : contenido,
+    adaptedReason: cleared ? null : input.reason.trim() || null,
+    adaptedAt: cleared ? null : writtenAt,
+  };
+
+  await db
+    .insert(schema.days)
+    .values({ date: input.date, ...fields })
+    .onConflictDoUpdate({ target: schema.days.date, set: fields });
+
+  return {
+    kind: cleared ? "cleared" : "saved",
+    undo: {
+      date: input.date,
+      session: previous?.session ?? null,
+      reason: previous?.reason ?? null,
+      at: isoOrNull(previous?.at),
+      writtenAt: cleared ? "" : writtenAt.toISOString(),
+    },
+  };
+}
+
+/** Restaura la foto anterior. Se niega si alguien escribió otra cosa en medio. */
+export async function undoAdaptedSession(
+  snapshot: AdaptedSessionSnapshot,
+): Promise<void> {
+  const current = await readAdapted(snapshot.date);
+  if (isoOrNull(current?.at) !== (snapshot.writtenAt || null)) {
+    throw new AdaptedSessionUndoConflictError();
+  }
+  await db
+    .update(schema.days)
+    .set({
+      adaptedSession: snapshot.session,
+      adaptedReason: snapshot.reason,
+      adaptedAt: snapshot.at ? new Date(snapshot.at) : null,
+    })
+    .where(eq(schema.days.date, snapshot.date));
+}
+
 // ── meal_entries ──
 export interface NewEntry {
   meal: MealKey;

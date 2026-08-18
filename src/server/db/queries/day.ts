@@ -43,6 +43,13 @@ export interface DayDTO {
   phase: PhaseKey | null;
   bloat: BloatKey | null;
   notes: string | null;
+  /*
+    Sesión adaptada del día (F26 Fase 2). La planificada NO se toca: `session`
+    sigue siendo la del plan. `adaptedAt` viaja como ISO (cruza el cable a JSON).
+  */
+  adaptedSession: string | null;
+  adaptedReason: string | null;
+  adaptedAt: string | null;
 }
 
 /** Detalle de la sesión real del plan asignada al día (doc 10 B3). */
@@ -217,7 +224,15 @@ export async function getDayView(date: string): Promise<DayView> {
 
   return {
     date,
-    day: (dayRow as DayDTO) ?? null,
+    day: dayRow
+      ? ({
+          ...dayRow,
+          adaptedAt:
+            dayRow.adaptedAt instanceof Date
+              ? dayRow.adaptedAt.toISOString()
+              : (dayRow.adaptedAt ?? null),
+        } as DayDTO)
+      : null,
     health: (healthRow as HealthDTO) ?? null,
     entries,
     flexibleMeals: deriveFlexibleMealState(

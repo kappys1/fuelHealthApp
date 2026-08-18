@@ -13,6 +13,8 @@ const n = (v: unknown): number | null =>
 const s = (v: unknown): string | null => (v == null ? null : String(v));
 const dt = (v: unknown): Date =>
   v instanceof Date ? new Date(v.getTime()) : v ? new Date(String(v)) : new Date();
+/** Como `dt` pero conserva el null (un día puede no tener sesión adaptada). */
+const dtOrNull = (v: unknown): Date | null => (v == null ? null : dt(v));
 
 /**
  * Mapea una fila de meal_entries del archivo de export a la fila de inserción,
@@ -105,6 +107,29 @@ export function flexibleMealImportRow(r: Record<string, unknown>) {
     date: String(r.date),
     meal: r.meal as (typeof schema.mealEnum.enumValues)[number],
     createdAt: dt(r.createdAt),
+  };
+}
+
+/**
+ * Fila de `days` del export a fila de inserción. Los tres campos de la **sesión
+ * adaptada** (F26 Fase 2) son aditivos: un backup anterior no los trae y quedan
+ * null — el día se restaura igual que siempre, sin adaptada (AC11).
+ */
+export function dayImportRow(r: Record<string, unknown>) {
+  return {
+    date: String(r.date),
+    weight: n(r.weight),
+    waterL: n(r.waterL),
+    bodyFatPct: n(r.bodyFatPct),
+    sessionLabel: s(r.sessionLabel),
+    sessionKcal: n(r.sessionKcal),
+    sessionRef: n(r.sessionRef),
+    phase: (r.phase ?? null) as (typeof schema.phaseEnum.enumValues)[number] | null,
+    bloat: (r.bloat ?? null) as (typeof schema.bloatEnum.enumValues)[number] | null,
+    notes: s(r.notes),
+    adaptedSession: s(r.adaptedSession),
+    adaptedReason: s(r.adaptedReason),
+    adaptedAt: dtOrNull(r.adaptedAt),
   };
 }
 
