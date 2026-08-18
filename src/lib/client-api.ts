@@ -25,7 +25,11 @@ import type {
 } from "@/lib/training-persistence";
 import type { MedWithDelta } from "@/server/analytics/medDeltas";
 import type { MessageDTO, ThreadDTO } from "@/server/db/queries/chat";
-import type { DayPatch, MedInput } from "@/server/db/queries/mutations";
+import type {
+  AdaptedSessionSnapshot as AdaptedSessionUndo,
+  DayPatch,
+  MedInput,
+} from "@/server/db/queries/mutations";
 import type { TodayPayload } from "@/server/db/queries/today";
 import type { BloatEventDTO } from "@/server/db/queries/bloat";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
@@ -322,6 +326,30 @@ export const api = {
     req<{ ok: true }>("/api/training/session", {
       method: "PUT",
       body: JSON.stringify(undo),
+    }),
+
+  /*
+    F26 Fase 2 · sesión adaptada del día. Tres orígenes (botón de la ficha, Chat,
+    edición a mano) y un solo destino: `days.adapted_*`. Guardar con `session`
+    vacía la quita. `undo` deshace el pisotón del toast (AC10).
+  */
+  saveAdaptedSession: (input: { date: string; session: string; reason: string }) =>
+    req<{ kind: "saved" | "cleared"; undo: AdaptedSessionUndo }>(
+      "/api/day/adapted-session",
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+
+  undoAdaptedSession: (undo: AdaptedSessionUndo) =>
+    req<{ ok: true }>("/api/day/adapted-session", {
+      method: "PUT",
+      body: JSON.stringify(undo),
+    }),
+
+  /** Genera la adaptada (no guarda: la UI la abre para revisar). */
+  adaptSession: (input: { date: string; motivo: string }) =>
+    req<{ contenido: string }>("/api/ai/adapt-session", {
+      method: "POST",
+      body: JSON.stringify(input),
     }),
 
   deleteTrainingPlan: (id: number) =>

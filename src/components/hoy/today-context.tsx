@@ -21,6 +21,8 @@ import {
   Waves,
 } from "lucide-react";
 import { useState } from "react";
+import { AdaptedSessionCard } from "@/components/training/adapted-session-card";
+import { AdaptedSessionSheet } from "@/components/training/adapted-session-sheet";
 import { TrainingSessionDetail } from "@/components/training/training-session-detail";
 import { TrainingSessionComposer } from "@/components/training/training-session-composer";
 import {
@@ -58,6 +60,7 @@ import type {
 } from "@/server/analytics/healthBaseline";
 import { dayTotals } from "@/server/analytics/dayTotals";
 import { energyBalance } from "@/server/analytics/energyBalance";
+import type { Lesion } from "@/lib/profile";
 import type { BloatEventDTO } from "@/server/db/queries/bloat";
 import type { DayView } from "@/server/db/queries/day";
 import type { HealthSyncView } from "@/server/db/queries/health";
@@ -314,18 +317,31 @@ export function TrainingSection({
   trainingSessions,
   suggestedPhase,
   trainingByWeekday,
+  lesionesVigentes,
 }: {
   view: DayView;
   onPatch: (patch: DayPatch) => void;
   trainingSessions: TrainingSessionDTO[];
   suggestedPhase: PhaseKey | null;
   trainingByWeekday: TrainingByWeekday;
+  lesionesVigentes: Lesion[];
 }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [wodOpen, setWodOpen] = useState(false);
+  const [adaptOpen, setAdaptOpen] = useState(false);
   const day = view.day;
+  // F26 Fase 2 · la adaptada del día, si la hay. Vive en `days`, no en el plan.
+  const adapted = day?.adaptedSession?.trim() ? day : null;
+  /*
+    El motivo se prerrellena con la ZONA de la lesión vigente, no con su
+    capacidad: es un campo de una línea y la capacidad son dos frases. La
+    capacidad sí viaja al prompt, pero desde el servidor (el perfil), no desde
+    aquí — el motivo puede ser cualquier cosa («sobrecarga», «solo 40 min»).
+  */
+  const adaptSuggestedReason =
+    lesionesVigentes.map((l) => l.zona).join(" y ") || null;
   const session = day?.sessionLabel ?? view.session?.nombre ?? "Sin sesión registrada";
   const kcal = view.health?.activeKcal ?? day?.sessionKcal ?? null;
   const choices = orderedSessionOptions(trainingSessions.map((item) => item.nombre));
@@ -402,13 +418,13 @@ export function TrainingSection({
                 </SelectContent>
               </Select>
             </label>
-            {view.session ? (
+            {view.session || adapted ? (
               <button
                 type="button"
                 onClick={() => setDetailOpen(true)}
                 className="min-h-11 w-full rounded-xl border border-line bg-surface-2 px-4 text-[13px] font-semibold text-foreground"
               >
-                Ver sesión
+                {adapted ? "Ver sesión (adaptada)" : "Ver sesión"}
               </button>
             ) : null}
             <label className="block">
@@ -450,27 +466,80 @@ export function TrainingSection({
         </SheetContent>
       </Sheet>
 
-      {view.session ? (
+      {view.session || adapted ? (
         <Sheet open={detailOpen} onOpenChange={setDetailOpen}>
           <SheetContent side="bottom" className="max-h-[92dvh] gap-0 overflow-y-auto">
             <SheetHeader>
               <SheetTitle>Sesión del día</SheetTitle>
               <SheetDescription>{view.date}</SheetDescription>
             </SheetHeader>
-            <div className="px-4 pb-6">
-              <TrainingSessionDetail
-                session={view.session}
-                plan={{
-                  programa: view.session.programa,
-                  etiqueta: view.session.etiqueta,
-                  source: view.session.source,
-                  importRequestId: view.session.importRequestId,
-                }}
-              />
+            {/*
+              F26 AC8 · las DOS, y en este orden: la adaptada primero porque es
+              la que va a hacer hoy; la planificada debajo, marcada «DEL PLAN»
+              para que se lea de un vistazo cuál es cuál.
+            */}
+            <div className="space-y-3 px-4 pb-6">
+              {adapted ? (
+                <AdaptedSessionCard
+                  contenido={adapted.adaptedSession ?? ""}
+                  motivo={adapted.adaptedReason}
+                  adaptedAt={adapted.adaptedAt}
+                  onEdit={() => {
+                    setDetailOpen(false);
+                    setAdaptOpen(true);
+                  }}
+                />
+              ) : null}
+              {view.session ? (
+                <TrainingSessionDetail
+                  session={view.session}
+                  badge={adapted ? "DEL PLAN" : null}
+                  plan={{
+                    programa: view.session.programa,
+                    etiqueta: view.session.etiqueta,
+                    source: view.session.source,
+                    importRequestId: view.session.importRequestId,
+                  }}
+                  className={adapted ? "bg-surface-2 shadow-none" : undefined}
+                />
+              ) : null}
+              {adapted ? null : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDetailOpen(false);
+                    setAdaptOpen(true);
+                  }}
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary-soft px-4 text-[13px] font-semibold text-primary"
+                >
+                  <Sparkles className="size-4" aria-hidden />
+                  Adaptar sesión
+                </button>
+              )}
             </div>
           </SheetContent>
         </Sheet>
       ) : null}
+
+      <AdaptedSessionSheet
+        key={`adapt-${view.date}-${adaptOpen ? "open" : "closed"}`}
+        open={adaptOpen}
+        onOpenChange={setAdaptOpen}
+        date={view.date}
+        suggestedReason={adaptSuggestedReason}
+        current={
+          adapted
+            ? {
+                session: adapted.adaptedSession ?? "",
+                reason: adapted.adaptedReason,
+              }
+            : null
+        }
+        canGenerate={Boolean(view.session?.contenido?.trim())}
+        onSaved={() =>
+          queryClient.invalidateQueries({ queryKey: ["today", view.date] })
+        }
+      />
 
       <TrainingSessionComposer
         open={wodOpen}
