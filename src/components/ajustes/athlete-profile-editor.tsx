@@ -8,9 +8,14 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import {
   type AthleteProfile,
+  closeLesion,
   currentObjective,
   deriveAge,
+  type Lesion,
+  lesionesVigentes,
+  lesionReviewDate,
 } from "@/lib/profile";
+import { randomUUID } from "@/lib/uuid";
 import { cn } from "@/lib/utils";
 
 /** Actualiza un campo del perfil conservando el resto (patch inmutable). */
@@ -217,28 +222,20 @@ function ChipEditor({
   );
 }
 
-/** Suplementos y lesiones como chips (input local en cada ChipEditor). */
-function SuplementosLesionesSection({
-  p,
-  set,
-}: {
-  p: AthleteProfile;
-  set: SetProfile;
-}) {
-  const lesiones = p.lesiones ?? [];
-  const addUnique = (key: "suplementos" | "lesiones", list: string[], value: string) => {
-    const v = value.trim();
-    if (!v || list.includes(v)) return;
-    set(key, [...list, v]);
-  };
+/** Suplementos: siguen siendo chips (una palabra por cosa). */
+function SuplementosSection({ p, set }: { p: AthleteProfile; set: SetProfile }) {
   return (
-    <Section title="Suplementos y lesiones">
+    <Section title="Suplementos">
       <ChipEditor
         label="Suplementos"
         items={p.suplementos}
         emptyLabel="Ninguno."
         placeholder="Añadir suplemento…"
-        onAdd={(v) => addUnique("suplementos", p.suplementos, v)}
+        onAdd={(v) => {
+          const value = v.trim();
+          if (!value || p.suplementos.includes(value)) return;
+          set("suplementos", [...p.suplementos, value]);
+        }}
         onRemove={(v) =>
           set(
             "suplementos",
@@ -246,19 +243,262 @@ function SuplementosLesionesSection({
           )
         }
       />
-      <ChipEditor
-        label="Lesiones"
-        items={lesiones}
-        emptyLabel="Ninguna."
-        placeholder="Añadir lesión…"
-        onAdd={(v) => addUnique("lesiones", lesiones, v)}
-        onRemove={(v) =>
-          set(
-            "lesiones",
-            lesiones.filter((x) => x !== v),
-          )
-        }
-      />
+    </Section>
+  );
+}
+
+/** Área de texto del perfil (capacidad: dos líneas de "qué SÍ y qué NO"). */
+function PTextarea(props: React.ComponentProps<"textarea">) {
+  return (
+    <textarea
+      rows={3}
+      {...props}
+      className={cn(
+        "w-full rounded-lg border border-input bg-surface-2 px-3 py-2 text-base outline-none focus-visible:border-ring",
+        props.className,
+      )}
+    />
+  );
+}
+
+const CAPACIDAD_PLACEHOLDER =
+  "NO: nada por encima de cabeza, press, kipping. SÍ: tirón horizontal, peso muerto, pierna, cardio sin brazos.";
+
+/*
+  Lesiones (F26 Fase 1): NO son chips, son EPISODIOS fechados con capacidad. Se
+  cierran poniendo fecha, nunca borrando — mismo trato que `objetivos[]`. Las
+  vigentes van arriba (son las que entran en el contexto de IA); las cerradas,
+  plegadas debajo y en solo lectura.
+*/
+function LesionesSection({
+  p,
+  set,
+  today,
+}: {
+  p: AthleteProfile;
+  set: SetProfile;
+  today: string;
+}) {
+  const lesiones = useMemo(() => p.lesiones ?? [], [p.lesiones]);
+  const vigentes = useMemo(() => lesionesVigentes(p), [p]);
+  const cerradas = useMemo(
+    () =>
+      lesiones
+        .filter((l) => l.cerradaEl)
+        .sort((a, b) => (b.cerradaEl ?? "").localeCompare(a.cerradaEl ?? "")),
+    [lesiones],
+  );
+
+  const [adding, setAdding] = useState(false);
+  const [zona, setZona] = useState("");
+  const [capacidad, setCapacidad] = useState("");
+  const [desde, setDesde] = useState(today);
+  const [closing, setClosing] = useState<string | null>(null);
+  const [closeDate, setCloseDate] = useState(today);
+
+  const patch = (id: string, fields: Partial<Lesion>) =>
+    set(
+      "lesiones",
+      lesiones.map((l) => (l.id === id ? { ...l, ...fields } : l)),
+    );
+
+  const add = () => {
+    const z = zona.trim();
+    if (!z) {
+      toast.error("Escribe la zona (ej. hombro derecho).");
+      return;
+    }
+    set("lesiones", [
+      ...lesiones,
+      {
+        id: randomUUID(),
+        zona: z,
+        capacidad: capacidad.trim(),
+        desde: desde || null,
+        revisarEl: lesionReviewDate(desde || today),
+      },
+    ]);
+    setAdding(false);
+    setZona("");
+    setCapacidad("");
+    setDesde(today);
+    toast.success("Lesión añadida — guarda el perfil para aplicarla.");
+  };
+
+  return (
+    <Section title="Lesiones">
+      <p className="text-[12px] text-muted-foreground">
+        Lo que la IA necesita no es la zona, es la <b>capacidad</b>: qué puedes y
+        qué no. Cerrar una lesión no la borra — pasa al historial.
+      </p>
+
+      {vigentes.length === 0 ? (
+        <p className="text-[13px] text-muted-foreground">Ninguna vigente.</p>
+      ) : (
+        <div className="space-y-3">
+          {vigentes.map((l) => (
+            <div
+              key={l.id}
+              className="space-y-3 rounded-2xl border border-line bg-surface-2 p-3"
+            >
+              <Field label="Zona">
+                <PInput
+                  value={l.zona}
+                  onChange={(e) => patch(l.id, { zona: e.target.value })}
+                />
+              </Field>
+              <Field
+                label="Capacidad"
+                hint={
+                  l.capacidad.trim()
+                    ? undefined
+                    : "Sin capacidad: la IA tendrá que suponer (y supondrá de más)."
+                }
+              >
+                <PTextarea
+                  value={l.capacidad}
+                  onChange={(e) => patch(l.id, { capacidad: e.target.value })}
+                  placeholder={CAPACIDAD_PLACEHOLDER}
+                />
+              </Field>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Desde" hint={l.desde ? undefined : "sin fecha conocida"}>
+                  <PInput
+                    type="date"
+                    value={l.desde ?? ""}
+                    max={today}
+                    onChange={(e) => patch(l.id, { desde: e.target.value || null })}
+                  />
+                </Field>
+                <Field label="Revisar el">
+                  <PInput
+                    type="date"
+                    value={l.revisarEl}
+                    onChange={(e) =>
+                      patch(l.id, { revisarEl: e.target.value || l.revisarEl })
+                    }
+                  />
+                </Field>
+              </div>
+
+              {closing === l.id ? (
+                <div className="space-y-2 border-t border-line pt-3">
+                  <Field
+                    label="¿Desde cuándo está bien?"
+                    hint="Si no es de hoy, se guarda marcada como aproximada."
+                  >
+                    <PInput
+                      type="date"
+                      value={closeDate}
+                      max={today}
+                      onChange={(e) => setCloseDate(e.target.value)}
+                    />
+                  </Field>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        patch(l.id, closeLesion(l, closeDate || today, today));
+                        setClosing(null);
+                        toast.success("Lesión cerrada — guarda el perfil para aplicarlo.");
+                      }}
+                      className="min-h-11 flex-1 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+                    >
+                      Cerrar lesión
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClosing(null)}
+                      className="min-h-11 rounded-xl border border-line px-3 text-sm text-muted-foreground"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClosing(l.id);
+                    setCloseDate(today);
+                  }}
+                  className="min-h-11 w-full rounded-xl border border-line text-[13px] font-semibold text-foreground"
+                >
+                  Ya está — cerrar lesión
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {adding ? (
+        <div className="space-y-3 rounded-2xl border border-dashed border-line p-3">
+          <Field label="Zona">
+            <PInput
+              value={zona}
+              onChange={(e) => setZona(e.target.value)}
+              placeholder="ej. hombro derecho"
+            />
+          </Field>
+          <Field label="Capacidad">
+            <PTextarea
+              value={capacidad}
+              onChange={(e) => setCapacidad(e.target.value)}
+              placeholder={CAPACIDAD_PLACEHOLDER}
+            />
+          </Field>
+          <Field
+            label="Desde"
+            hint={`Se revisará el ${lesionReviewDate(desde || today)}.`}
+          >
+            <PInput
+              type="date"
+              value={desde}
+              max={today}
+              onChange={(e) => setDesde(e.target.value)}
+            />
+          </Field>
+          <button
+            type="button"
+            onClick={add}
+            className="min-h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+          >
+            Añadir lesión
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="min-h-11 w-full rounded-xl border border-line bg-surface-2 px-4 text-sm font-semibold text-foreground"
+        >
+          + Declarar una lesión
+        </button>
+      )}
+
+      {cerradas.length > 0 ? (
+        <details className="text-sm">
+          <summary className="flex min-h-11 cursor-pointer items-center text-[13px] font-medium text-muted-foreground">
+            Cerradas ({cerradas.length})
+          </summary>
+          <ul className="mt-2 space-y-2">
+            {cerradas.map((l) => (
+              <li key={l.id} className="text-[13px] text-foreground">
+                <span className="font-medium">{l.zona}</span>
+                <span className="num text-muted-foreground">
+                  {" · "}
+                  {l.desde ?? "?"} → {l.cerradaEl}
+                  {l.cierreAproximado ? " (aprox.)" : ""}
+                </span>
+                {l.capacidad.trim() ? (
+                  <p className="text-[12px] text-muted-foreground">{l.capacidad}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </Section>
   );
 }
@@ -435,7 +675,8 @@ export function AthleteProfileEditor({
     <div className="space-y-5">
       <DeporteEntrenoSection p={p} set={set} trainingDays={trainingDays} />
       <DatosSection p={p} set={set} edad={edad} />
-      <SuplementosLesionesSection p={p} set={set} />
+      <SuplementosSection p={p} set={set} />
+      <LesionesSection p={p} set={set} today={today} />
       <ObjetivoSection p={p} set={set} today={today} />
 
       <button

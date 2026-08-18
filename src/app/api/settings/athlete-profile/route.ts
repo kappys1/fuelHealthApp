@@ -33,6 +33,21 @@ const objectiveZ = z.object({
   pesoObjetivo: z.number().min(0).max(500).nullable().optional(),
 });
 
+/*
+  F26 Fase 1 · episodio de lesión. `desde` admite null: los chips migrados no
+  traen fecha de inicio y no se inventa (GLOSARIO, cierre/fecha aproximada).
+*/
+const lesionZ = z.object({
+  id: z.string().min(1).max(64),
+  zona: z.string().min(1).max(120),
+  descripcion: z.string().max(400).nullable().optional(),
+  capacidad: z.string().max(1000),
+  desde: dayKeyZ.nullable(),
+  revisarEl: dayKeyZ,
+  cerradaEl: dayKeyZ.nullable().optional(),
+  cierreAproximado: z.boolean().optional(),
+});
+
 const profileZ = z.object({
   fechaNacimiento: dayKeyZ.nullable(),
   alturaCm: z.number().int().min(0).max(260).nullable(),
@@ -42,7 +57,7 @@ const profileZ = z.object({
   programa: z.string().max(120),
   suplementos: z.array(z.string().min(1).max(60)).max(30),
   notaClinica: z.string().max(400).nullable().optional(),
-  lesiones: z.array(z.string().min(1).max(120)).max(30).optional(),
+  lesiones: z.array(lesionZ).max(50).optional(),
   objetivos: z.array(objectiveZ).min(1).max(100),
 });
 
