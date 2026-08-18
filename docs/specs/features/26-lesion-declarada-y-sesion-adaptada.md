@@ -243,11 +243,19 @@ de prompt):
 5. El cierre se marca como **aproximado** cuando no es del día.
 
 **Fase 2**
-6. 🖐 «Adaptar sesión» con el motivo prerrellenado por la lesión vigente → me da una sesión
-   coherente con mi capacidad, y **la puedo editar antes de guardar**.
-7. 🖐 Puedo escribir un motivo que **no** sea una lesión («sobrecarga», «solo 40 min») y funciona
-   igual.
+6. 🖐 **VALIDADO (18-ago, 2ª pasada)**. «Adaptar sesión» con el motivo prerrellenado por la lesión
+   vigente → me da una sesión coherente con mi capacidad, y **la puedo editar antes de guardar**.
+   *La 1ª pasada FALLÓ por sobre-frenado (DECISIONS #100); con la regla incondicional «ante la
+   duda, mantén» y un motivo operativo, Alex lo da por bueno y confirma que además edita a mano
+   lo que quiere añadir.*
+7. 🖐 **VALIDADO**. Puedo escribir un motivo que **no** sea una lesión («sobrecarga»,
+   «solo 40 min») y funciona igual.
 8. 🖐 La ficha del día muestra **las dos**, y la planificada se ve claramente como la del plan.
+   **Ampliado en implementación (18-ago, lo pilló Alex en 10 segundos)**: la ficha del día no es
+   solo la de Hoy — **Plan · Entrenos también es una vista por día** (tiene selector de día), y
+   allí la adaptada no aparecía: la app contaba **dos verdades según la pestaña**, justo lo que
+   F22 vino a matar. Ahora sale en las dos, con la misma tarjeta. En Plan es **solo lectura**
+   («Ver en Hoy»): se adapta y se edita donde vive el día.
 9. `training_sessions.contenido` **no cambia** tras adaptar (test).
 10. Regenerar **pisa** con toast de deshacer; deshacer restaura la anterior.
 11. Export/restore y `migrate:poc` transportan `adapted_session/reason/at` (test).
@@ -289,3 +297,10 @@ de prompt):
 - **Fase 3 · El Chat consciente.** Contexto de la adaptada, pregunta condicionada, acción de
   guardado, equilibrio sobre lo realizado. Cubre AC 12-17. **Es la que tiene el riesgo de
   prompt**; llega con las otras dos ya en producción.
+  **Evidencia de uso real que la justifica (18-ago)**: Alex escribió *«…el HSW por qué lo
+  cambio?»* **dentro del campo de motivo**. El botón devuelve una sesión, no una conversación, así
+  que la pregunta se quedó sin responder y la sustitución sin justificar. No es un fallo de la
+  Fase 2 —esa superficie es de un solo tiro a propósito—, es exactamente el hueco que llena el
+  Chat. Cuando se implemente, mirar si la acción «Guardar como sesión adaptada» debe poder
+  llegar también **desde una pregunta sobre una adaptada ya guardada** («¿por qué me quitaste
+  X?» → responde y ofrece regenerar), y no solo desde una propuesta nueva.

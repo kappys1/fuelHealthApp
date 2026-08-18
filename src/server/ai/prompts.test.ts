@@ -1925,6 +1925,10 @@ function sessionWithDay(
     duracionMin: 60,
     franja: "mañana",
     sort: 0,
+    // F26 Fase 2: el día puede traer adaptada; por defecto, no (F21 no la mira).
+    adaptedSession: null,
+    adaptedReason: null,
+    adaptedAt: null,
     ...over,
   };
 }
