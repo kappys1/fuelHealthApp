@@ -208,10 +208,20 @@ export function recentMealsDetail(
  * Cada sesión con su fecha, día y contenido tal cual se importó (F-IA-10), ordenadas
  * por fecha y marcando HOY. Si un día no tiene sesión, el prompt anti-invención lo
  * cubre (AC6). Solo se inyecta bajo intención → coste cero cuando no aplica (AC8).
+ *
+ * F26 Fase 3 · **cada día vale por lo REALIZADO**: si ese día tiene sesión adaptada,
+ * es ESA la que viaja, marcada como tal, y la del plan se cita por su nombre sin su
+ * contenido (sustituye, no suma: el coste no cambia). Es lo que hace honesto el
+ * equilibrio entre sesiones de F21 —el alma de aquella feature—: si el lunes cambió
+ * hombros por pierna, el martes no puede repartir como si hubiera hecho hombros.
+ * El **flag de lesión vigente sin adaptar** viene como DATO y no se deduce: si fuera
+ * un ruego del prompt se olvidaría en el turno 12 (lección 4 · presupuesto de prompt).
  */
 export function trainingWeekContext(
   weekView: TrainingWeekView | null,
   today: string,
+  /** Zonas de las lesiones vigentes (F26); [] si no hay ninguna declarada. */
+  lesionesVigentes: readonly string[] = [],
 ): string {
   const assigned = (weekView?.sessions ?? [])
     .filter((s) => s.assignedDate != null)
@@ -224,22 +234,41 @@ export function trainingWeekContext(
     const rel =
       date === today ? " · HOY" : date < today ? " · ya pasado" : " · próximo";
     const tipo = TRAINING_TIPO_LABELS[s.tipo];
-    const head = `${date} (${weekdayName(date)})${rel}: ${s.nombre} · ${tipo}`;
     /*
       F25: los marcadores de grupo (`**Etiqueta**`) son PINTURA de la ficha, no
       dato. El Chat tiene que recibir exactamente el mismo texto que recibía
       antes de que existieran, para que el comportamiento de F21 (adaptar el
       entreno ante una limitación) no cambie ni haya que re-validarlo.
     */
+    const adaptada = stripTrainingGroupMarkers(s.adaptedSession ?? "").trim();
+    if (adaptada) {
+      const motivo = s.adaptedReason?.trim();
+      const head = `${date} (${weekdayName(date)})${rel}: SESIÓN ADAPTADA${
+        motivo ? ` (motivo: ${motivo})` : ""
+      } — es la que ${date <= today ? "hizo" : "va a hacer"} ese día. La del plan era «${s.nombre}» y queda solo como referencia (no la tienes aquí)`;
+      return `${head}\n${adaptada}`;
+    }
+    const head = `${date} (${weekdayName(date)})${rel}: ${s.nombre} · ${tipo}`;
     const contenido = stripTrainingGroupMarkers(s.contenido).trim();
     return contenido
       ? `${head}\n${contenido}`
       : `${head} (sin contenido detallado importado)`;
   });
-  const todayNote = assigned.some((s) => s.assignedDate === today)
+  const todaySession = assigned.find((s) => s.assignedDate === today);
+  const todayNote = todaySession
     ? ""
     : `\n\nHoy (${today}) no tienes ninguna sesión asignada en el plan.`;
-  return `Sesiones de esta semana (contenido real; úsalo, no inventes):\n\n${blocks.join("\n\n")}${todayNote}`;
+  /*
+    Condición de la pregunta como DATO. Solo cuando hay algo que adaptar (sesión
+    hoy) y no está adaptada: si no hay sesión, preguntar no lleva a ninguna parte.
+  */
+  const lesionFlag =
+    lesionesVigentes.length > 0 &&
+    todaySession &&
+    !todaySession.adaptedSession?.trim()
+      ? `\n\nAlex tiene declarada una lesión vigente (${lesionesVigentes.join(", ")}) y la sesión de HOY no está adaptada.`
+      : "";
+  return `Sesiones de esta semana (contenido real; úsalo, no inventes):\n\n${blocks.join("\n\n")}${todayNote}${lesionFlag}`;
 }
 
 /**

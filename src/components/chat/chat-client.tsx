@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleCheck,
   Copy,
+  Dumbbell,
   Gauge,
   Loader2,
   MessageCircle,
@@ -34,7 +35,10 @@ import {
   type ChatImagePayload,
   persistedChatUserText,
 } from "@/lib/chat-turn";
+import { AdaptedSessionSheet } from "@/components/training/adapted-session-sheet";
+import { shouldOfferAdaptedSave } from "@/lib/chat-adapt-action";
 import { api } from "@/lib/client-api";
+import { dayKey } from "@/lib/dates";
 import { processImage } from "@/lib/image";
 import { CHAT_MAX_CHARS } from "@/lib/schemas";
 import { relativeDate } from "@/lib/relative-time";
@@ -131,6 +135,12 @@ export function ChatClient({
       initialThreads.find((thread) => thread.id === initialThreadId)?.title ?? null,
   );
   const [sendError, setSendError] = useState<SendErrorState | null>(null);
+  /*
+    F26 Fase 3 · texto de la respuesta que Alex quiere conservar como sesión
+    adaptada de hoy. Abre el MISMO editor que el botón de la ficha: una sola
+    puerta de guardado, tres orígenes. null = cerrado.
+  */
+  const [adaptDraft, setAdaptDraft] = useState<string | null>(null);
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
   const [processingImage, setProcessingImage] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ThreadDTO | null>(null);
@@ -562,6 +572,7 @@ export function ChatClient({
           if (activeId != null) void openThread(activeId);
         }}
         onBack={backToList}
+        onSaveAsAdapted={(text) => setAdaptDraft(text)}
       />
 
       <Composer
@@ -576,6 +587,20 @@ export function ChatClient({
         onRemoveImage={removeImage}
         onSend={send}
       />
+
+      {adaptDraft != null ? (
+        <AdaptedSessionSheet
+          open
+          onOpenChange={(open) => {
+            if (!open) setAdaptDraft(null);
+          }}
+          date={dayKey()}
+          initialContent={adaptDraft}
+          suggestedReason="adaptada en el chat"
+          canGenerate={false}
+          onSaved={() => setAdaptDraft(null)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -795,6 +820,7 @@ function MessageArea({
   loadError,
   onRetryLoad,
   onBack,
+  onSaveAsAdapted,
 }: {
   scrollRef: RefObject<HTMLDivElement | null>;
   onScroll: () => void;
@@ -809,6 +835,8 @@ function MessageArea({
   loadError: string | null;
   onRetryLoad: () => void;
   onBack: () => void;
+  /** F26 · abre el editor de sesión adaptada con el texto de la respuesta. */
+  onSaveAsAdapted?: (text: string) => void;
 }) {
   const empty =
     messages.length === 0 &&
@@ -888,6 +916,24 @@ function MessageArea({
       ))}
       {streaming != null ? (
         <Bubble role="assistant" content={streaming} streaming />
+      ) : null}
+
+      {/*
+        F26 Fase 3 · la acción la pinta la APP, no la emite el modelo (patrón
+        F14·B): el texto del Chat sigue siendo el de siempre y el «no guarda ni
+        afirma haber guardado» se cumple por construcción. Abre el mismo editor
+        de siempre, prerrelleno y editable — nada se guarda sin verlo.
+      */}
+      {onSaveAsAdapted &&
+      shouldOfferAdaptedSave(messages, { streaming: streaming != null }) ? (
+        <button
+          type="button"
+          onClick={() => onSaveAsAdapted(messages.at(-1)?.content ?? "")}
+          className="inline-flex min-h-11 items-center gap-1.5 self-start rounded-xl border border-primary/25 bg-primary-soft px-3 text-[13px] font-semibold text-primary"
+        >
+          <Dumbbell className="size-4" aria-hidden />
+          Guardar como sesión adaptada de hoy
+        </button>
       ) : null}
       {error ? (
         <div className="wellness-card flex items-start gap-3 p-4 ring-1 ring-destructive/30" role="alert">

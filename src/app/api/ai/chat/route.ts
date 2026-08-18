@@ -2,6 +2,7 @@ import { type ModelMessage, streamText } from "ai";
 import { badRequest, ensureAuth, parseBody, serverError } from "@/lib/api";
 import { persistedChatUserText } from "@/lib/chat-turn";
 import { dayKey, shiftDayKey } from "@/lib/dates";
+import { lesionesVigentes } from "@/lib/profile";
 import { retry } from "@/lib/retry";
 import { computeAdherence } from "@/server/analytics/adherence";
 import { computeCanonicalDeficit } from "@/server/analytics/deficit";
@@ -314,9 +315,18 @@ export async function POST(request: Request) {
       priorSummary: prior.length > 0 ? priorSummary : null,
       // El párrafo web y la tool `googleSearch` van atados a este mismo flag.
       webSearch,
-      // F21: contenido real de las sesiones de la semana, solo si disparó la intención.
+      /*
+        F21: contenido real de las sesiones de la semana, solo si disparó la
+        intención. F26 Fase 3: cada día vale por su ADAPTADA si la tiene, y la
+        condición de «pregunta una vez por la lesión» viaja como dato, no como
+        ruego del prompt — por eso van aquí las zonas vigentes.
+      */
       trainingContext: wantsTraining
-        ? trainingWeekContext(trainingWeek, today)
+        ? trainingWeekContext(
+            trainingWeek,
+            today,
+            lesionesVigentes(atleta.profile).map((l) => l.zona),
+          )
         : undefined,
     });
 
