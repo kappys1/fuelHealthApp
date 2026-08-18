@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AdaptedSessionCard } from "@/components/training/adapted-session-card";
+import { AdaptedSessionSheet } from "@/components/training/adapted-session-sheet";
 import { TrainingSessionDetail } from "@/components/training/training-session-detail";
 import { TrainingSessionComposer } from "@/components/training/training-session-composer";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,7 @@ export function TrainingWeek({
   const [editing, setEditing] = useState(false);
   const [weekOpen, setWeekOpen] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [adaptOpen, setAdaptOpen] = useState(false);
 
   const navigate = (date: string) => {
     router.push(
@@ -209,19 +211,37 @@ export function TrainingWeek({
       </section>
 
       {/*
-        F26 · si ese día tiene sesión adaptada, va primero: es la que hizo (o
-        va a hacer). Sin esto, Hoy y Plan contaban dos verdades distintas del
-        mismo día. Aquí es SOLO lectura: se adapta y se edita desde Hoy, que es
-        donde vive el día — esta pestaña es la del plan.
+        F26 · si ese día tiene sesión adaptada, va primero: es la que hizo (o va
+        a hacer). Sin esto, Hoy y Plan contaban dos verdades distintas del mismo
+        día. Se edita AQUÍ mismo, sobre la fecha seleccionada: mandar a Hoy para
+        tocarla era una restricción arbitraria (esta vista ya es de un día) y
+        obligaba a un viaje de ida y vuelta.
       */}
       {selectedSession?.adaptedSession?.trim() ? (
         <AdaptedSessionCard
           contenido={selectedSession.adaptedSession}
           motivo={selectedSession.adaptedReason}
           adaptedAt={selectedSession.adaptedAt}
-          onEdit={() => router.push("/hoy")}
-          editLabel="Ver en Hoy"
+          onEdit={() => setAdaptOpen(true)}
           className="mb-3"
+        />
+      ) : null}
+
+      {selectedSession?.assignedDate ? (
+        <AdaptedSessionSheet
+          key={`adapt-${selectedSession.assignedDate}-${adaptOpen ? "open" : "closed"}`}
+          open={adaptOpen}
+          onOpenChange={setAdaptOpen}
+          date={selectedSession.assignedDate}
+          current={
+            selectedSession.adaptedSession?.trim()
+              ? {
+                  session: selectedSession.adaptedSession,
+                  reason: selectedSession.adaptedReason,
+                }
+              : null
+          }
+          onSaved={() => router.refresh()}
         />
       ) : null}
 
