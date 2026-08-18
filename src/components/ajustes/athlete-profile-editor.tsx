@@ -348,13 +348,14 @@ function LesionesSection({
                   onChange={(e) => patch(l.id, { zona: e.target.value })}
                 />
               </Field>
+              {/*
+                El hint es SIEMPRE visible y dice el fallo concreto: escribir el
+                diagnóstico en vez de la capacidad hizo que la IA quitara ski,
+                remo y GHD que Alex sí podía hacer (DECISIONS #100).
+              */}
               <Field
                 label="Capacidad"
-                hint={
-                  l.capacidad.trim()
-                    ? undefined
-                    : "Sin capacidad: la IA tendrá que suponer (y supondrá de más)."
-                }
+                hint="Qué SÍ puedes y qué NO. Un diagnóstico («supraespinoso», «bajar la intensidad») no basta: la IA supone y te quita de más."
               >
                 <PTextarea
                   value={l.capacidad}

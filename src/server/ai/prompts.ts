@@ -486,17 +486,41 @@ Responde SOLO con JSON válido, sin markdown: {"contenido": string}`;
   `formatOrKeep` (F25). Sin esquema a propósito.
 
   Doctrina, por orden de riesgo real:
-  1. **No sobre-frenar** es el motivo de existir de la feature (spec 26 §1): la
-     capacidad dice lo que SÍ puede, y quitar de más es tan malo como no adaptar.
-     De ahí «no recortes lo que la capacidad permite».
-  2. **Mismo estímulo y misma duración**: adaptar no es rebajar el día.
-  3. **No diagnostica ni trata** (guardarraíl heredado de F21).
-  4. Devuelve SOLO la sesión: el texto entra tal cual en un textarea que Alex
+  1. **No sobre-frenar** es el motivo de existir de la feature (spec 26 §1).
+     Primera redacción (18-ago) decía «no recortes lo que la capacidad permite
+     EXPLÍCITAMENTE» y falló en el primer uso real (DECISIONS #100): la capacidad
+     de Alex es descriptiva («resonancia… bajar la intensidad»), no autoriza nada
+     explícitamente, así que la cláusula se quedó sin efecto y el modelo cayó en
+     su default —ante la duda, quitar— y borró ski, remo, GHD y vertical, que
+     Alex hizo sin dolor. La regla ya NO depende del dato: **ante la duda se
+     MANTIENE**, y el argumento se le da al modelo (Alex revisa antes de guardar;
+     quitar de más cuesta más caro que dejar de más).
+  2. **Ejercicio por ejercicio, no rediseño**: el bloque conserva su objetivo. El
+     mismo fallo convirtió un bloque de «Rope Climb» en «Core & Lower Body».
+  3. **Mismo estímulo y misma duración**: adaptar no es rebajar el día.
+  4. **No diagnostica ni trata** (guardarraíl heredado de F21) — y un nombre
+     clínico en el motivo no le autoriza a deducir qué movimientos son peligrosos.
+  5. **Notas en español**, nombres de ejercicio en su idioma original: son el
+     nombre del movimiento y así los reconoce Alex.
+  6. Devuelve SOLO la sesión: el texto entra tal cual en un textarea que Alex
      revisa; un preámbulo del tipo «Aquí tienes…» acabaría guardado en la BD.
 
   El motivo NO implica lesión: puede ser «sobrecarga», «dormí fatal» o «solo
   tengo 40 minutos», y el prompt lo trata igual (AC7).
 */
+/**
+ * Techo de salida de la llamada, aquí porque es una propiedad del TAMAÑO de lo
+ * que este prompt pide: una sesión entera reescrita. Cuarta vez que la casa
+ * tropieza con lo mismo (#48/#52/#59, ahora #100): en Gemini los tokens de
+ * *thinking* salen de `maxOutputTokens`. Con 4096 la adaptación salía TRUNCADA a
+ * media frase en cuanto el motivo era largo (caso real 18-ago: 613 caracteres,
+ * corte en «4 Rounds for time: 5») y con un motivo corto cabía — un fallo
+ * intermitente que parecía funcionar. Se iguala al importador de entrenos, que
+ * hace un trabajo del mismo tamaño. El coste no cambia: se facturan los tokens
+ * generados, no el techo.
+ */
+export const ADAPT_SESSION_MAX_OUTPUT_TOKENS = 8192;
+
 export function adaptSessionPrompt(args: {
   atleta: string;
   fecha: string;
@@ -520,12 +544,15 @@ ${args.planificada}
 Necesita adaptarla por este motivo: ${args.motivo}.${capacidadPart}
 
 Reescribe la sesión para que pueda hacerla hoy. Reglas:
-- Conserva el estímulo y la duración aproximada de la original: adaptar no es rebajar el día. Sustituye SOLO lo que el motivo impide, y deja intacto todo lo demás, tal como está escrito.
-- NO recortes lo que la capacidad permite explícitamente: quitar de más es tan malo como no adaptar nada. Si algo no está limitado, se mantiene.
+- Trabajas ejercicio por ejercicio, NO rediseñas la sesión. Cada bloque conserva su objetivo y su nombre: si el bloque era de tirón, sigue siendo de tirón; si era de gimnásticos, sigue siendo de gimnásticos. Cambiar el propósito de un bloque es un error, aunque el resultado te parezca más seguro.
+- Sustituye un ejercicio SOLO si aquello que el motivo limita interviene claramente en ese ejercicio. Todo lo demás se queda EXACTAMENTE como está: mismos movimientos, mismas series, repeticiones, cargas, distancias y tiempos, sin tocar una cifra. Una limitación en una zona NO se extiende a lo que no la carga.
+- **Ante la duda, MANTÉN el ejercicio.** Alex lee y edita esta sesión antes de guardarla: si dejas algo que hoy no puede hacer, lo quita él en dos segundos; si se lo quitas tú, pierde trabajo que sí podía hacer y ni se entera. Quitar de más es el fallo más caro de los dos, y el más frecuente. No hace falta que la capacidad te autorice algo para que se mantenga: se mantiene por defecto.
+- Conserva el estímulo y la duración aproximada de la original: adaptar no es rebajar el día. Si el motivo no permite mantener un ejercicio de ninguna forma razonable, sustitúyelo por trabajo equivalente y del mismo tipo; no lo elimines dejando el día más corto.
 - Mantén la MISMA forma que el original: mismos bloques, separados por una línea en blanco, mismo estilo de notación (series, repeticiones, cargas, tiempos).
 - Donde cambies algo, que se entienda qué has puesto en su lugar; no expliques por qué al final del texto.
-- NO diagnostiques, no interpretes la lesión ni des consejo médico: trabajas con la capacidad que te ha dado, no con un juicio clínico propio.
-- Si el motivo no permite mantener un bloque de ninguna forma razonable, sustitúyelo por trabajo equivalente que sí pueda hacer; no lo elimines dejando el día más corto.
+- NO diagnostiques, no interpretes la lesión ni des consejo médico: trabajas con la capacidad que te ha dado, no con un juicio clínico propio. Un nombre clínico en el motivo (un músculo, una estructura) no te autoriza a deducir por tu cuenta qué movimientos son peligrosos.
+- Escribe en ESPAÑOL **todas** las notas, indicaciones y comentarios de la sesión: también las que no cambies, que vienen en otro idioma y hay que traducir. Esto manda sobre la regla anterior — el texto que no se toca son los movimientos y sus cifras, no las notas. Los NOMBRES de los ejercicios se dejan tal cual están escritos en el original: son el nombre del movimiento y así los reconoce.
+- Las notas van como líneas normales de texto. NO uses asteriscos, negritas ni ningún markdown: los asteriscos están reservados y se verían tal cual en pantalla.
 
 Responde SOLO con el texto de la sesión adaptada. Sin saludos, sin explicaciones, sin markdown de encabezados, sin comillas envolventes.`;
 }
