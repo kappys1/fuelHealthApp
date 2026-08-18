@@ -413,7 +413,7 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   escritura confirmada, patrón F12). **Cero correlaciones** (no-alcance explícito). Migración
   aditiva: `bloat_events.aproximado`. Términos fijados en [`docs/GLOSARIO.md`](./GLOSARIO.md).
 - 🟡 **Lesión declarada y sesión adaptada del día (F26)** (sesión 2026-08-18; hombro derecho vivo
-  desde el 28-jul, el mismo que originó F21) — **FASE 1 IMPLEMENTADA**, fases 2 y 3 pendientes:
+  desde el 28-jul, el mismo que originó F21) — **FASES 1 y 2 HECHAS**, fase 3 pendiente:
   [`docs/specs/features/26-lesion-declarada-y-sesion-adaptada.md`](./specs/features/26-lesion-declarada-y-sesion-adaptada.md).
   Es el fast-follow que el NO-alcance de F21 predijo el 29-jul («estoy tocado hasta ~fecha y el
   Coach lo recuerda»). Hallazgos de origen: el campo `athleteProfile.lesiones` **ya existe y ya
@@ -445,6 +445,15 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   capacidad escrita es **descriptiva, no operativa** («bajar la intensidad» deja al modelo
   suponiendo, que es justo lo que la feature quería evitar) — si el Chat sobre-frena, mirar el
   dato antes que el prompt.
+  **Fase 2 (18-ago, en `main`, SIN desplegar — requiere `pnpm db:migrate`, migración 0021
+  aditiva `days.adapted_session/reason/at`).** Botón «Adaptar sesión» en la ficha del día →
+  hoja con motivo (prerrellenado con la zona de la lesión vigente) → ✨ `F-IA-12`
+  (`adaptSessionPrompt`, texto plano, `AI_MODEL_COACH`) → textarea editable con el formateador
+  de F25 → guardar. La ficha muestra **adaptada arriba + planificada abajo marcada «DEL PLAN»**.
+  Pisar la anterior deja toast de deshacer con guarda anti-pisotón; guardar vacío la quita.
+  **Desviación aprobada (DECISIONS #99)**: no se reutiliza `TrainingSessionComposer` — escribe en
+  `training_sessions`, justo lo que la feature prohíbe. AC9-AC11 con tests; **AC6, AC7 y AC8 🖐**.
+  Ojo al desplegar: **la migración va ANTES que el código** (sin las columnas, Hoy revienta).
 - 🔴 **Nota de contexto en la MED** (DECISIONS #91) — **única pieza con fecha límite: 16-sep**.
   `med_measurements` no tiene columna de contexto (`schema.ts:294-300`), así que el asterisco de
   la MED del 16-sep no puede viajar con el dato: *Preparar visita* la presentaría como una MED
