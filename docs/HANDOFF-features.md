@@ -394,6 +394,55 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   por párrafo). Consistencia ×3 pasa para WOD y running; Alex acepta el cierre de AC9 con
   Week 31 real, sin afirmar el ×3 de `TP1_Week_29.pdf` ausente. Sin migración, env ni
   backfill.
+- 📋 **Plan mira al futuro** (sesión 2026-08-09, competición 11-13-sep) — **SPEC APROBADA**,
+  pendiente de implementar: [`docs/specs/features/23-plan-mira-al-futuro.md`](./specs/features/23-plan-mira-al-futuro.md).
+  Fase 1 vista previa **solo-lectura** de versiones de dieta futuras en Plan · Dieta (hoy
+  `plan/page.tsx:29` fija `getPlanContext(today)` y una pauta importada es invisible hasta que
+  rige); Fase 2 bloque **«Días especiales»** en Plan · Dieta para marcar fase de días futuros
+  (Hoy no navega al futuro por diseño, 09 §6). El servidor ya lo soporta entero; falta pantalla.
+  Radio de impacto verificado: un día futuro con solo fase es invisible para adherencia, racha,
+  ma7 y déficit. Sin migración.
+- 📋 **Hinchazón: captura sin momento + descriptivo** (sesión 2026-08-09) — **SPEC APROBADA**,
+  pendiente: [`docs/specs/features/24-hinchazon-captura-y-descriptivo.md`](./specs/features/24-hinchazon-captura-y-descriptivo.md).
+  Hallazgo de origen: el dato se recoge a diario (`bloat_events` con hora y severidad) y **no
+  se analiza en ningún sitio** — cero en `server/analytics/`, cero en Progreso, solo dos líneas
+  de prompt. Es uno de los 3 objetivos declarados de la app y ninguna feature lo tocaba. Sube a
+  requisito del nutricionista: el criterio de Regenera (#90) pide *«cosas que me sienten bien»*
+  y la app no sabe contestarlo. 3 fases: red matinal por AYER (Alex «no tengo un momento»),
+  descriptivo honesto con denominador de **días evaluados**, y captura desde el Chat (2ª
+  escritura confirmada, patrón F12). **Cero correlaciones** (no-alcance explícito). Migración
+  aditiva: `bloat_events.aproximado`. Términos fijados en [`docs/GLOSARIO.md`](./GLOSARIO.md).
+- 🔴 **Nota de contexto en la MED** (DECISIONS #91) — **única pieza con fecha límite: 16-sep**.
+  `med_measurements` no tiene columna de contexto (`schema.ts:294-300`), así que el asterisco de
+  la MED del 16-sep no puede viajar con el dato: *Preparar visita* la presentaría como una MED
+  normal y comparable delante de Regenera. Migración aditiva `med_measurements.note text`
+  (nullable) + export/restore + CRUD de MED en Progreso + emitida por `medLines()` al contexto
+  de IA. Pequeña, pero bloquea el requisito de #91.
+- 🔵 **Hora actual al contexto del Chat** (candidato barato, 2026-08-09). Verificado:
+  `chatSystemPrompt` recibe `today` (`dayKey()`) y **no la hora**; el Coach sí la tiene
+  (`trainingTiming`, `coach/route.ts:144`). Consecuencia real: el criterio de repostaje de
+  Regenera es puramente temporal («1-2 h de hueco» vs «más margen») y el Chat no puede aplicarlo
+  sin que Alex le dé las dos horas. Mitigación en septiembre: preguntar con el hueco explícito
+  («tengo 3,5 h hasta el siguiente heat»). Si el experimento notas+chat del 5-sep y del 11-13
+  va bien salvo por esto, meter la hora es ~una línea. **Medir antes de construir.**
+- 🔵 **Criterio de repostaje en competición como `setting` gated** (DECISIONS #90). Para
+  septiembre vive en `days.notes` de los días 11-13 (cero código, verificado: `context.ts:749`).
+  Si el Chat lo ignora teniéndolo delante, ese dato justifica un `setting` propio leído **solo**
+  con `phase='competicion'`, patrón gated de F21. Descartados: hardcodear (principio 9) y
+  `athleteProfile` (entra en todos los prompts, presupuesto de prompt).
+- 🔵 **Workouts de Apple Health por HAE** (Alex, 2026-08-09 — feature aparte, la pasa él). HAE
+  exporta los entrenos (tipo/duración/kcal) y hoy no se ingieren (`workouts: [0]`). Resolvería
+  de raíz el ítem del gasto manual de sesión: sesión auto-asignada casando con el calendario,
+  el campo manual solo para días sin reloj, y el doble conteo por precedencia (reloj si hay
+  workout; manual si no). **Sustituye** al ítem 🔵 anterior sobre `energyBalance`.
+- 🔵 **Informe compartible para la visita** (Alex, 2026-08-09 — feature aparte, la pasa él).
+  Reancla el «balance total desde el 5-may» aparcado en F22: no como tarjeta suelta sino dentro
+  de un informe que se le pueda enseñar a Regenera. Destino natural: *Preparar visita*.
+  Ventana: visita post-competición (~16-sep, con el asterisco de #91).
+- ✅ **Regresión lineal en vez de secante** — **CERRADO SIN IMPLEMENTAR** (DECISIONS #89,
+  2026-08-09). La MED del 5-ago validó el método (ratio báscula/pliegues **1,11**); el criterio
+  de reapertura escrito por adelantado no se cumplió. Ratio anotado como línea base; la MED del
+  16-sep **no computa** contra el gate por condiciones no estándar (#91).
 - _(añadir aquí las que surjan)_
 
 ---
