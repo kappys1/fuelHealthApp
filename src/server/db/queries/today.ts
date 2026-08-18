@@ -1,5 +1,9 @@
 import { dayKey, isoWeekday, shiftDayKey } from "@/lib/dates";
-import { type Lesion, lesionPorRevisar } from "@/lib/profile";
+import {
+  type Lesion,
+  lesionesVigentes,
+  lesionPorRevisar,
+} from "@/lib/profile";
 import { PHASE_NEXT, type PhaseKey } from "@/lib/macros";
 import type { TrainingByWeekday, TrainingSlot } from "@/lib/training-slot";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
@@ -83,6 +87,8 @@ export interface TodayPayload {
    * se rellena en el día de hoy: revisar desde un día pasado no tiene sentido.
    */
   lesionPorRevisar: Lesion | null;
+  /** Lesiones vigentes (F26 Fase 2): prerrellenan el motivo de «Adaptar sesión». */
+  lesionesVigentes: Lesion[];
 }
 
 export async function getTodayPayload(date: string): Promise<TodayPayload> {
@@ -182,5 +188,6 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     bloatEvents,
     lesionPorRevisar:
       date === dayKey() ? lesionPorRevisar(athleteProfile, date) : null,
+    lesionesVigentes: lesionesVigentes(athleteProfile),
   };
 }

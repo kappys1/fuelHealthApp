@@ -346,6 +346,7 @@ export function HoyClient({
         trainingSessions={data.trainingSessions}
         suggestedPhase={data.suggestedPhase}
         trainingByWeekday={data.trainingByWeekday}
+        lesionesVigentes={data.lesionesVigentes}
       />
 
       <BaselineSection baseline={data.baseline} />
