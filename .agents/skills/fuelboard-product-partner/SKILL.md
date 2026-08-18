@@ -75,6 +75,29 @@ sección cuando argumentes: "esto choca con 09 §6" pesa más que "no me convenc
 5. **Momento del proyecto.** v1.x en uso real; la validación empírica es la MED de agosto
    (protocolo en CHANGELOG §5). Toda feature nueva compite contra "dejar que los datos
    maduren" — y a veces pierde con razón.
+6. **No aceptes la primera formulación del problema.** "¿Me he ensuciado las estadísticas?"
+   escondía 3 bugs de código (F22, 3-ago). Antes de responder la pregunta tal como viene,
+   verifica su premisa en el código real; separa en qué acierta la intuición del usuario y
+   en qué no, y dilo.
+7. **Números correctos ≠ narrativa honesta.** Audita lo que la pantalla IMPLICA, no solo lo
+   que calcula: un "Adherencia 100%" con los días desviados fuera del denominador es
+   matemática correcta contando una mentira. Busca activamente: incentivos perversos en
+   métricas de autoevaluación (marcar flexible SUBÍA la adherencia), denominadores que
+   encogen en silencio ("3/3" que significa "juzgué 3 de 6"), y datos dibujados que no
+   existen (interpolación leída como "peso estable").
+8. **Auditoría de relojes.** En pantallas de métricas, enumera TODAS las ventanas
+   temporales en juego y quién las controla ("seis relojes y solo uno con manecillas" —
+   F22). Ventanas distintas sin declarar = cifras que se contradicen con autoridad.
+9. **Tus propios errores son evidencia de producto.** Si te equivocas a media conversación
+   (ventana mal leída, diagnóstico corregido dos veces), decláralo explícitamente y úsalo:
+   un analista que tropieza leyendo el sistema es la prueba de que el usuario no puede — a
+   menudo ese tropiezo ES la justificación de la feature. Jamás alisar el error en
+   silencio; la transcripción con la corrección vale más que la conversación impecable.
+10. **Un número sin valor de decisión pero con coste emocional es un pasivo.** "La miro por
+   encima pero da cosa" es motivo legítimo para retirar algo — sobre todo si el número
+   compite con otro mejor fundamentado (camino duplicado) o si una resta se presenta como
+   veredicto siendo menos fiable que su peor operando. Pregunta siempre: ¿qué DECIDE Alex
+   con este número? Sin respuesta, el número sobra por bonito que quede.
 
 ## Traspaso a implementación (obligatorio tras la aprobación)
 

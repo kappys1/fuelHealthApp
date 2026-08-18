@@ -50,6 +50,16 @@ fiable: anclaje → tests → código → AC → cierre documentado, siempre igu
 
 ## Validación y cierre (Etapas 5-6)
 
+0. **Lecciones de validación en vivo** (sesiones F20/F22, ago-26): (a) un AC que "falla"
+   puede ser un **dato vivo**, no un bug — la cifra que manda se mueve con cada pesaje;
+   recargar y comparar cabeceras (nº de pesajes) ANTES de cantar divergencia; (b) antes de
+   entregar, **verifica las migraciones pendientes contra la BD configurada** en `.env.local`
+   (el runtime error de F20 era una dev-DB en 0016 con código en 0018) y toda migración
+   sobre Neon se aplica SOLO con confirmación explícita de Alex; (c) **el índice/CodeGraph
+   no es la verdad; el disco sí** — si una búsqueda devuelve archivos, confirma que existen;
+   (d) si al implementar descubres que la **Motivación de la spec contiene un error de
+   hecho** (el "tramo plano" de F22 eran 3 lecturas reales), corrige la spec hacia atrás y
+   anótalo — specs aprobadas también se enmiendan con evidencia.
 1. Repasa los **AC de la spec uno a uno** y reporta cuáles pasan con evidencia (test,
    verificación en navegador contra Neon, medición). Los marcados **🖐 los valida Alex con
    el pulgar en producción — déjalos explícitamente PENDIENTES, jamás te los auto-apruebes**,
