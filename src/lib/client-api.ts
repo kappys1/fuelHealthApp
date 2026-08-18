@@ -1,7 +1,7 @@
 import type { GrpKey, MealKey, PlanVariant } from "@/lib/macros";
 import type { FlexibleMealKey } from "@/lib/flexible-meals";
 import type { MeasureType } from "@/lib/marks";
-import type { AthleteProfile } from "@/lib/profile";
+import type { AthleteProfile, LesionReview } from "@/lib/profile";
 import type {
   SessionFranja,
   TrainingByWeekday,
@@ -425,6 +425,17 @@ export const api = {
     req<{ profile: AthleteProfile }>("/api/settings/athlete-profile", {
       method: "PATCH",
       body: JSON.stringify({ profile }),
+    }),
+
+  // F26 Fase 1 · respuesta a la revisión de una lesión vencida (check-in matinal).
+  reviewLesion: (input: {
+    id: string;
+    review: LesionReview;
+    capacidad?: string;
+  }) =>
+    req<{ profile: AthleteProfile }>("/api/settings/lesion-review", {
+      method: "POST",
+      body: JSON.stringify(input),
     }),
 
   // F05 Fase 1 · interruptor global de búsqueda web del chat (default ON).

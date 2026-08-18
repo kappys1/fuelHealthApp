@@ -759,6 +759,7 @@ export function useToday(date: string, initial: TodayPayload) {
   return {
     data: query.data,
     isFetching: query.isFetching,
+    refetch,
     addEntries,
     updateEntry,
     deleteEntry,
