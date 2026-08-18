@@ -412,8 +412,8 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   descriptivo honesto con denominador de **días evaluados**, y captura desde el Chat (2ª
   escritura confirmada, patrón F12). **Cero correlaciones** (no-alcance explícito). Migración
   aditiva: `bloat_events.aproximado`. Términos fijados en [`docs/GLOSARIO.md`](./GLOSARIO.md).
-- 🟡 **Lesión declarada y sesión adaptada del día (F26)** (sesión 2026-08-18; hombro derecho vivo
-  desde el 28-jul, el mismo que originó F21) — **FASES 1 y 2 HECHAS**, fase 3 pendiente:
+- ✅ **Lesión declarada y sesión adaptada del día (F26)** (sesión 2026-08-18; hombro derecho vivo
+  desde el 28-jul, el mismo que originó F21) — **LAS TRES FASES HECHAS**:
   [`docs/specs/features/26-lesion-declarada-y-sesion-adaptada.md`](./specs/features/26-lesion-declarada-y-sesion-adaptada.md).
   Es el fast-follow que el NO-alcance de F21 predijo el 29-jul («estoy tocado hasta ~fecha y el
   Coach lo recuerda»). Hallazgos de origen: el campo `athleteProfile.lesiones` **ya existe y ya
@@ -460,8 +460,22 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   dependía de que la capacidad estuviera bien escrita, y la capacidad de Alex es un diagnóstico.
   **(b)** la adaptada no salía en **Plan · Entrenos**, que también es una vista por día → la app
   contaba dos verdades según la pestaña. Ya sale en las dos (en Plan, solo lectura → «Ver en Hoy»).
-  **Pendiente que se lleva la Fase 3**: Alex preguntó *«el HSW por qué lo cambio?»* **dentro del
-  campo de motivo** — el botón devuelve una sesión, no una conversación. Ese es el hueco del Chat.
+  **Fase 3 (18-ago, en `main`).** El contexto del Chat pasa a contar **lo realizado**: si un día
+  tiene adaptada, viaja esa y la del plan se cita solo por su nombre (sustituye, no suma → coste
+  igual). El flag «lesión vigente y hoy sin adaptar» va como **dato**, no como ruego del prompt.
+  Botón **«Guardar como sesión adaptada de hoy»** bajo la última respuesta, pintado por la app
+  (patrón F14·B) con intención sticky de ventana corta (`lib/chat-adapt-action.ts`, puro y
+  testeado); abre el mismo editor. **Se reescribe el AC5 de F21** (riesgo 1 de la spec): se retira
+  «dile que la meta él por el flujo normal», que era falso desde la Fase 2; el «no guarda ni
+  afirma haber guardado» queda intacto. **Verificado en vivo contra Neon**: AC12 (hilo nuevo →
+  habla de la adaptada), AC13 (sin adaptar → pregunta una vez y no adapta solo), AC14 (da la
+  adaptación, no afirma guardar, aparece el botón y prerrellena el editor). **AC15 (equilibrio
+  entre días) es el único sin verificar en vivo**: necesita dos días de la semana con uno
+  adaptado; el mecanismo está cubierto por tests del contexto.
+  **Anotado para quien siga**: Alex preguntó *«el HSW por qué lo cambio?»* **dentro del campo de
+  motivo** de la Fase 2. Ahora eso se pregunta en el Chat; si se retoma, mirar si el botón debe
+  poder salir también de una pregunta **sobre una adaptada ya guardada** («¿por qué me quitaste
+  X?» → responde y ofrece regenerar), y no solo de una propuesta nueva.
 - 🔴 **Nota de contexto en la MED** (DECISIONS #91) — **única pieza con fecha límite: 16-sep**.
   `med_measurements` no tiene columna de contexto (`schema.ts:294-300`), así que el asterisco de
   la MED del 16-sep no puede viajar con el dato: *Preparar visita* la presentaría como una MED
