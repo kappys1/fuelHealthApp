@@ -327,9 +327,21 @@ describe("F26 · adaptSessionPrompt", () => {
     expect(prompt).not.toContain("Lo que hoy PUEDE y NO PUEDE hacer");
   });
 
-  it("pide texto plano con la misma forma: es lo que entra en el composer", () => {
+  /*
+    Los saltos de línea NO son cosmética: `splitTrainingContent` los usa para
+    partir bloques. La primera redacción decía «mismos bloques, separados por una
+    línea en blanco» y el modelo metía 6 en una sesión que no tenía NINGUNA → la
+    ficha la partía en más bloques y los de abajo perdían su rótulo de sección.
+  */
+  it("exige respetar los saltos de línea del original, no inventarlos", () => {
     const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "" });
-    expect(prompt).toContain("separados por una línea en blanco");
+    expect(prompt).toContain("Respeta EXACTAMENTE los saltos de línea del original");
+    expect(prompt).toContain("la adaptada tampoco lleva ninguna");
+    expect(prompt).not.toContain("separados por una línea en blanco");
+  });
+
+  it("pide texto plano: es lo que entra en el editor, sin esquema", () => {
+    const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "" });
     expect(prompt).toContain("Responde SOLO con el texto de la sesión adaptada");
     expect(prompt).not.toContain("JSON");
   });
