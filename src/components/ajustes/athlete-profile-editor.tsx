@@ -182,7 +182,7 @@ function ChipEditor({
   onAdd,
   onRemove,
 }: {
-  label: string;
+  label?: string;
   items: string[];
   emptyLabel: string;
   placeholder: string;
@@ -196,7 +196,9 @@ function ChipEditor({
   };
   return (
     <div className="space-y-1.5">
-      <span className="text-[13px] font-medium text-foreground">{label}</span>
+      {label ? (
+        <span className="text-[13px] font-medium text-foreground">{label}</span>
+      ) : null}
       <Chips items={items} onRemove={onRemove} empty={emptyLabel} />
       <div className="flex gap-2">
         <PInput
@@ -227,7 +229,6 @@ function SuplementosSection({ p, set }: { p: AthleteProfile; set: SetProfile }) 
   return (
     <Section title="Suplementos">
       <ChipEditor
-        label="Suplementos"
         items={p.suplementos}
         emptyLabel="Ninguno."
         placeholder="Añadir suplemento…"
@@ -362,7 +363,14 @@ function LesionesSection({
                 />
               </Field>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Desde" hint={l.desde ? undefined : "sin fecha conocida"}>
+                <Field
+                  label="Desde"
+                  hint={
+                    l.desde
+                      ? undefined
+                      : "Sin fecha: no puede ordenarse en el Historial."
+                  }
+                >
                   <PInput
                     type="date"
                     value={l.desde ?? ""}
