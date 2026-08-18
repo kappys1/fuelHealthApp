@@ -27,14 +27,10 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
 
 ## Estado actual
 
-- **Desarrollo activo: `feat/wellness-premium-v2` (release candidate en uso real,
-  todavía no integrado en `main`).**
-  La matriz de paridad quedó congelada en `965e992`; después se añadieron F10, F11
-  y el fix de ingesta `363fa61`. El Gate 4 automatizado está verde sobre el HEAD
-  actual y Alex aprobó el Gate 5 el 2026-07-24 tras dos días de uso real sin
-  incidencias. Neon ya tiene aplicadas `0000–0015`. Solo queda Gate 6:
-  sincronización con `main`, verificación final, merge y observación en producción.
-  Fuente operativa: `docs/REDESIGN-MIGRATION-WORKFLOW.md`.
+- **`main` es la verdad desplegada.** Wellness v2 se integró (Gate 6 cerrado); la rama
+  `feat/wellness-premium-v2` ya no aporta nada sobre `main`. `docs/REDESIGN-*.md` pasa a
+  ser histórico. **Rama de trabajo actual: `main`**; las features se hacen en ramas
+  `feat/fNN-*` y se mergean.
 - **Fases 0–5 completas, desplegadas y en uso** (Vercel `fuelboard`, región `fra1`) —
   **v1 completa** (resumen en `docs/CHANGELOG-v1.md`):
   - **F0**: Next 16 + Tailwind4/shadcn tematizado (tokens 05 §2, AA verificado),
@@ -72,9 +68,29 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
     vivo; antes se ignoraba en Hobby → `iad1`); **LCP real ~0,5 s** (el 4,2 s de
     Lighthouse es lab, slow-4G simulado, documentado); **coste IA ~€1,6–1,9/mes** (< 5 €;
     `AI_MODEL_COACH` = Gemini 3.5 Flash).
-- **v1 completa.** Siguiente: cerrar y publicar Wellness v2; después, **uso real**
-  hasta la MED de agosto (validar la predicción de Tendencia contra los pliegues
-  del nutri) y backlog (`docs/HANDOFF-features.md`).
+- **Sobre la v1 hay 22 features de uso real (F01–F22), todas en `main`.** El detalle
+  vive en `docs/HANDOFF-features.md` (§B3, una entrada por feature con su spec en
+  `docs/specs/features/NN-*.md`) y en `docs/CHANGELOG-v1.md`. Titulares: Coach fiable +
+  puente al Chat, Chat con detalle de comidas y grounding web, **Mis productos**,
+  gramos como dato de primera clase, variantes de opción, **Marcas** (PRs), comidas
+  flexibles, sesión única de entrenos + WOD, franja mañana/tarde, el Chat que adapta el
+  entreno ante una limitación, y **F22 · Progreso: una sola verdad** (ventana canónica de
+  30 d, cobertura declarada, gráfico honesto, trayectoria por meses).
+- **Validación del método, hecha (DECISIONS #89, 2026-08-09).** La MED del 5-ago contrastó
+  la predicción de la báscula contra los pliegues: **ratio 1,11**, recomposición confirmada,
+  Regenera «no tocar nada». El gate de sustituir la secante por regresión lineal queda
+  **cerrado sin implementar**; el ratio es la línea base de la serie.
+- **Contexto vivo (sep-2026):** pauta nueva de Regenera **2.000 kcal desde el 21-ago**;
+  **competición por equipos el 11-13-sep** (fases `10 carga · 11-13 competición · 14-15 sin
+  marcar · 16 recuperación`, ver #91); **MED el 16-sep con asterisco** — condiciones no
+  estándar, **no computa** contra el gate de #89.
+- **Siguiente trabajo** (`docs/HANDOFF-features.md` §B3):
+  **(1) nota de contexto en la MED** — única pieza con fecha límite (**16-sep**), migración
+  aditiva `med_measurements.note`; **(2) F23 · Plan mira al futuro**; **(3) F24 · Hinchazón:
+  captura y descriptivo**. Specs aprobadas en `docs/specs/features/23-*` y `24-*`.
+- **`docs/GLOSARIO.md`** fija los términos que se pueden leer de dos maneras (episodio de
+  hinchazón, día registrado, la cifra que manda, comida flexible, criterio ≠ pauta).
+  Consultarlo antes de nombrar o mostrar una cifra nueva.
 - Se trabaja **fase a fase**. **Nunca adelantar trabajo de fases futuras.** Cada
   fase termina con sus tests de aceptación en verde y deploy a Vercel funcionando.
 
