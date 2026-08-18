@@ -231,6 +231,35 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
       expect(splitTrainingContent(content)).toHaveLength(3);
     });
 
+    /*
+      Regresión de uso real (Día 2 del 17-ago, importado con IA y ya formateado).
+      Texto sin NI UNA línea en blanco cuyas secciones llevan calificador
+      ("Gymnastics Conditioning:"): el vocabulario no las veía, no había ningún
+      corte y caía al último recurso → 28 filas, que además borraban los grupos
+      que la IA sí había marcado bien.
+    */
+    it("corta por la sección con calificador y respeta los grupos marcados", () => {
+      const content =
+        "Gymnastics:\nGymnastics Skill Development: Rope Climb\n1. 3 x 4-6 Rope anchors\nAim to make it to the top with as few pulls as possible and practice\nyour leg kicks.\nGymnastics Conditioning:\n**4 Rounds for time:**\n500m Row\nRest 5 min\nGymnastics Strength:\n**Inverted Rows**\n3 x 15-20, rest 1 min between sets.";
+      const blocks = splitTrainingContent(content);
+
+      expect(blocks).toHaveLength(3);
+      expect(blocks[0]).toMatch(/^Gymnastics:/);
+      expect(blocks[1]).toMatch(/^Gymnastics Conditioning:/);
+      expect(blocks[2]).toMatch(/^Gymnastics Strength:/);
+      expect(blocks.join("")).toBe(content);
+    });
+
+    // Red de seguridad: aunque el vocabulario fallara del todo, un texto que
+    // DECLARA sus grupos no se desmenuza — lo declarado gana a lo adivinado.
+    it("no parte por líneas un texto que declara sus grupos", () => {
+      const content = "Rope Climb\n**4 Rounds for time:**\n500m Row\nRest 5 min";
+      const blocks = splitTrainingContent(content);
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks.join("")).toBe(content);
+    });
+
     it("reconoce Rehab como encabezado de sección", () => {
       const content = "Halterofilia\n\nPower Clean 5 x 2\n\nRehab\n\nFace pulls 3 x 12";
       const blocks = splitTrainingContent(content);
@@ -271,6 +300,10 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
       "WOD",
       "  Rehab  ",
       "Fuerza/Halterofilia:",
+      // Secciones reales de The Progrm (Día 2 del 17-ago): palabra del
+      // vocabulario + calificador + dos puntos AL FINAL de la línea.
+      "Gymnastics Conditioning:",
+      "Gymnastics Strength:",
     ])("destaca %j", (line) => {
       expect(isTrainingHeadingLine(line)).toBe(true);
     });
@@ -278,7 +311,9 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
     // La línea entera tiene que ser el rótulo: si lleva contenido propio, destacarla
     // prometería una sección que no empieza ahí (misma doctrina que el corte).
     it.each([
-      "Gymnastics Strength:",
+      // Los dos puntos NO cierran la línea: es contenido con título, no rótulo.
+      "Gymnastics Skill Development: Rope Climb",
+      "2. 3 x 1 Rope climb complex:",
       "Accessory → Rehab A",
       "Rehab A — 18–20 min",
       "Fuerza: sentadilla",

@@ -76,9 +76,23 @@ const SECTION_HEADINGS = [
 */
 const legacyHeadingRe = () =>
   /\b(?:Fuerza\s*\/\s*Halterofilia|Fuerza|Halterofilia|CrossFit|Accesorios?):\s*/gi;
+/*
+  La segunda rama es el calificador SIN paréntesis: "Gymnastics Conditioning:",
+  "Gymnastics Strength:". Son secciones reales de The Progrm que el vocabulario
+  no veía, porque exigía la palabra conocida pegada a los dos puntos. Se pide a
+  cambio una condición dura —los dos puntos al FINAL de la línea— y un máximo de
+  tres palabras: eso deja fuera "Gymnastics Skill Development: Rope Climb" (la
+  línea sigue después de los dos puntos: es contenido con título, no un rótulo).
+  No es ampliar el vocabulario con nombres de ejercicio, que es el treadmill que
+  prohíbe F25: es reconocer una FORMA, y la palabra de anclaje sigue siendo del
+  vocabulario de siempre.
+*/
 const lineHeadingRe = () =>
   new RegExp(
-    `(?<=^|\\r\\n|\\n|\\r)(?:${SECTION_HEADINGS})(?:\\s*\\([^)\\n]{0,40}\\))?[ \\t]*(?::|(?=\\r?\\n|$))`,
+    `(?<=^|\\r\\n|\\n|\\r)(?:${SECTION_HEADINGS})(?:` +
+      `(?:\\s*\\([^)\\n]{0,40}\\))?[ \\t]*(?::|(?=\\r?\\n|$))` +
+      `|(?:[ \\t]+[^\\s:]{1,20}){1,3}[ \\t]*:(?=[ \\t]*(?:\\r?\\n|$))` +
+      `)`,
     "gi",
   );
 
@@ -130,9 +144,19 @@ export function splitTrainingContent(contenido: string): string[] {
   if (paragraphs.length === 0 || paragraphsAreOneLiners) addHeadingCuts(lineHeadingRe());
   const headingsBeatBlankLines = paragraphsAreOneLiners && cuts.size > 0;
 
-  // Las líneas sueltas solo cortan si no hay NINGUNA otra estructura.
+  /*
+    Las líneas sueltas solo cortan si no hay NINGUNA otra estructura — y a partir
+    de F25, tampoco si el texto DECLARA sus grupos con marcadores. Un contenido
+    con `**Etiqueta**` ya trae su estructura escrita; desmenuzarlo en una fila por
+    línea la destruye antes de que `splitTrainingGroups` llegue a leerla. Caso
+    real (Día 2 del 17-ago): la IA marcó bien los grupos y el corte por línea los
+    borró en 28 filas. Lo declarado le gana a lo adivinado, siempre.
+  */
+  const declaresGroups = contenido
+    .split(/\r\n|\n|\r/)
+    .some((line) => trainingGroupLabel(line) !== null);
   const lineBreaks =
-    paragraphs.length === 0 && cuts.size === 0
+    paragraphs.length === 0 && cuts.size === 0 && !declaresGroups
       ? [...contenido.matchAll(/\r\n|\n|\r/g)]
       : [];
   const breaks =
@@ -189,7 +213,16 @@ export function trainingBlockText(block: string): string {
   propio, no rótulos, y destacarlas sería prometer una sección que no empieza ahí.
 */
 const headingLineRe = () =>
-  new RegExp(`^(?:${SECTION_HEADINGS})(?:\\s*\\([^)\\n]{0,40}\\))?[ \\t]*:?[ \\t]*$`, "i");
+  new RegExp(
+    `^(?:${SECTION_HEADINGS})(?:` +
+      `(?:\\s*\\([^)\\n]{0,40}\\))?[ \\t]*:?` +
+      // Mismo calificador que admite el corte: si vale para abrir un bloque,
+      // vale para ser su rótulo. Si no, "Gymnastics Conditioning:" partiría la
+      // sesión y luego se pintaría como una línea más del cuerpo.
+      `|(?:[ \\t]+[^\\s:]{1,20}){1,3}[ \\t]*:` +
+      `)[ \\t]*$`,
+    "i",
+  );
 
 /**
  * ¿Esta línea es un rótulo de sección? Se usa SOLO para pintarla distinta en la
