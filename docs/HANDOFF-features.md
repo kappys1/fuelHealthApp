@@ -430,7 +430,7 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   (prompt congelado → re-validar F21 y F05). Kcal de sesión **no se recalculan** (verificado:
   `sessionKcal` solo va al contexto de IA como `±25%`, `context.ts:711`; cero en `analytics/`).
   Preparar visita hereda la lesión vigente gratis.
-  **Estado (18-ago): Fase 1 en `main`, sin desplegar.** `Lesion` como episodio (`lib/profile.ts`)
+  **Estado (18-ago): Fase 1 DESPLEGADA** (`b58143c`, `fra1`, build 51 s). `Lesion` como episodio (`lib/profile.ts`)
   con lógica pura testeada (vigente/vencida/+14 d/normalizador); Ajustes parte «Suplementos y
   lesiones» en dos (suplementos siguen chips, lesiones pasan a lista de episodios con cierre
   fechado); `athleteContext` interpola **capacidad** en vez de zona y solo de las vigentes;
@@ -438,9 +438,13 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   (`POST /api/settings/lesion-review`). **Sin migración de BD ni env nuevas.** AC4 y AC5 cerrados
   con tests; **AC1, AC2 y AC3 🖐 pendientes del pulgar de Alex en producción**. Cuatro precisiones
   sobre la spec en DECISIONS **#98** (`desde` nullable, vencida con `<=`, ids deterministas,
-  lesión sin fecha fuera del timeline). Los **dos chips reales** («Molestia hombro derecho»,
-  «Molestia rodilla izquierda») se convierten en la lectura, sin capacidad y vencidos: la primera
-  tarea de Alex es escribirles la capacidad en Ajustes.
+  lesión sin fecha fuera del timeline). Los **dos chips reales** se convirtieron en la lectura y
+  Alex les escribió capacidad el mismo día: **hombro derecho** (desde 18-may, revisión 24-ago,
+  resonancia con labrum/supraespinoso → «bajar la intensidad») y **rodilla izquierda** (sin
+  `desde` → vencida y **fuera del timeline** hasta que tenga fecha). Ojo para la Fase 3: la
+  capacidad escrita es **descriptiva, no operativa** («bajar la intensidad» deja al modelo
+  suponiendo, que es justo lo que la feature quería evitar) — si el Chat sobre-frena, mirar el
+  dato antes que el prompt.
 - 🔴 **Nota de contexto en la MED** (DECISIONS #91) — **única pieza con fecha límite: 16-sep**.
   `med_measurements` no tiene columna de contexto (`schema.ts:294-300`), así que el asterisco de
   la MED del 16-sep no puede viajar con el dato: *Preparar visita* la presentaría como una MED
