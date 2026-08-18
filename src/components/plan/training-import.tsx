@@ -34,6 +34,7 @@ import {
   shiftDayKey,
 } from "@/lib/dates";
 import {
+  type TrainingFormatOutcome,
   TRAINING_TIPO_LABELS,
   type TrainingTipo,
   TRAINING_TIPOS,
@@ -42,6 +43,7 @@ import {
   changeAssignmentDate,
   overrideAssignmentFranja,
 } from "@/lib/training-assignment";
+import { formatNotice, formatOrKeep } from "@/lib/training-format-client";
 import type {
   SessionFranja,
   TrainingByWeekday,
@@ -188,7 +190,19 @@ function ImportSheet({
           ? { files: await Promise.all(files.map(fileToAiFile)) }
           : { texto: texto.trim() };
       const result = await api.importTraining(payload);
-      applyResult(result);
+      /*
+        F25 · Fase 3: el formateo va DENTRO del análisis, no en un botón aparte.
+        Una llamada por sesión, en paralelo y contra el modelo más barato; la
+        vista previa editable que ya existe enseña el resultado con sus `**`
+        antes de guardar. Si alguna falla, esa sesión conserva su texto y solo
+        se avisa: importar no puede depender de que responda un modelo (AC 10).
+      */
+      const outcomes = await Promise.all(
+        result.sesiones.map((s) => formatOrKeep(s.contenido)),
+      );
+      applyResult(result, outcomes);
+      const notice = formatNotice(outcomes);
+      if (notice) toast.warning(notice);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo analizar.");
     } finally {
@@ -196,16 +210,19 @@ function ImportSheet({
     }
   };
 
-  const applyResult = (r: TrainingImportResult) => {
+  const applyResult = (
+    r: TrainingImportResult,
+    outcomes?: TrainingFormatOutcome[],
+  ) => {
     requestIdRef.current = randomUUID();
     if (r.programa) setPrograma(r.programa);
     if (r.etiqueta) setEtiqueta(r.etiqueta);
-    const next: SRow[] = r.sesiones.map((s) => ({
+    const next: SRow[] = r.sesiones.map((s, i) => ({
       key: rowKey(),
       clave: s.clave,
       nombre: s.nombre,
       tipo: toTipo(s.tipo),
-      contenido: s.contenido,
+      contenido: outcomes?.[i]?.contenido ?? s.contenido,
       kcalMin: String(Math.round(s.kcal_min)),
       kcalMax: String(Math.round(s.kcal_max)),
       duracionMin: String(Math.round(s.duracion_min)),

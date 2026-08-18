@@ -18,6 +18,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { api } from "@/lib/client-api";
+import { formatOrKeep } from "@/lib/training-format-client";
 import { labelForKey } from "@/lib/dates";
 import {
   TRAINING_TIPO_LABELS,
@@ -110,18 +111,34 @@ export function TrainingSessionComposer({
     if (!state.wodText.trim()) return;
     setAnalyzing(true);
     try {
-      const result = await api.analyzeWod(state.wodText, date);
+      /*
+        Las dos llamadas van en PARALELO: el formateo (F25) solo necesita el texto
+        pegado, no el análisis, así que no cuesta latencia — el paso tarda lo que
+        tarde la más lenta. El formateo nunca tumba el análisis: `formatOrKeep`
+        devuelve el original si falla.
+      */
+      const [result, formatted] = await Promise.all([
+        api.analyzeWod(state.wodText, date),
+        formatOrKeep(state.wodText),
+      ]);
       patch({
         nombre: result.nombre,
         tipo: result.tipo,
-        // El contenido canónico es el input original, no texto regenerado por IA.
-        contenido: state.wodText,
+        /*
+          El contenido canónico ya NO es literalmente el input original: puede
+          llevar marcadores de grupo `**Etiqueta**` añadidos por IA y verificados
+          carácter a carácter contra lo pegado (DECISIONS #95). Ante cualquier
+          discrepancia gana el original, y el textarea del paso siguiente los
+          enseña para que Alex los edite antes de guardar.
+        */
+        contenido: formatted.contenido,
         duracion: String(Math.round(result.duracion_min)),
         kcalMin: String(Math.round(result.kcal_min)),
         kcalMax: String(Math.round(result.kcal_max)),
         wodComment: result.comentario,
         wodAnalyzed: true,
       });
+      if (formatted.reason) toast.warning(formatted.reason);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No se pudo analizar el WOD.",

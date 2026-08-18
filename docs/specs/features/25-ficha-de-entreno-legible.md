@@ -1,9 +1,15 @@
 # F25 · Ficha de entreno legible: el tercer nivel
 
-**Estado**: **fases 1 y 2 implementadas y desplegadas** (18-ago) · **fase 3 pendiente**
-(cableado en import, composer y «Reformatear»: hoy el endpoint existe y no lo llama nadie,
-así que los marcadores solo se ponen a mano — gate 🖐 del AC 7). Derogación registrada en
-DECISIONS #95. · **Tamaño**: feature (3 fases)
+**Estado**: **las tres fases implementadas y desplegadas** (18-ago). Pendientes solo los AC
+🖐 de Alex (7, 15, 17) y medir el coste real tras la primera semana. Derogación registrada
+en DECISIONS #95; desviación del cableado, en #96. · **Tamaño**: feature (3 fases)
+
+> **Desviación aprobada por Alex (18-ago)**: **no hay botón «Dar formato»**. El formateo es
+> **automático** en los dos caminos que ya llamaban a la IA (import y «Analizar WOD»), y el
+> único botón nuevo es **«Reformatear con IA»**, que vive en la **hoja de edición** de la
+> sesión —no en el menú de la ficha— para reusar entera la vía de guardado existente.
+> Motivo: un botón para pedir lo que siempre quieres es fricción (principio 3), y el caso
+> manual puro ya queda cubierto por «Reformatear» después de guardar.
 **Fecha**: 2026-08-18 · **Origen**: uso real de Alex (18-ago), captura de la sesión de
 jueves — *«no se ve separado y se lee todo junto»*.
 
@@ -126,9 +132,12 @@ ocurre una vez, al importar o al pegar.
 
 1. **Import de semana** (Plan → importar): la vista previa ya existente muestra el contenido
    **ya formateado**. Alex edita si quiere y guarda.
-2. **Pegado a mano** (composer de sesión): al salir del textarea o al pulsar
-   **«Dar formato»**, el contenido se formatea y vuelve al mismo textarea. Editable.
-3. **Sesión ya guardada** (ficha): acción **«Reformatear»** en el menú de la ficha.
+2. **Pegado a mano** (composer de sesión): el formateo va **dentro de «Analizar WOD»**, en
+   paralelo con el análisis (no cuesta latencia: el paso tarda lo que la más lenta de las
+   dos llamadas). El resultado cae en el textarea del paso 2. Editable.
+3. **Sesión ya guardada**: **«Reformatear con IA»** en la hoja de edición, junto al
+   contenido. El texto marcado cae en el mismo textarea y se guarda con el botón de
+   siempre — o se cierra sin guardar y no ha pasado nada.
 4. **Lectura** (ficha de entreno): secciones numeradas, grupos separados por la regla corta.
 
 Nada de esto es una pantalla nueva. Todo vive donde ya vive hoy.

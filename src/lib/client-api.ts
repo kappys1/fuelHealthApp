@@ -17,7 +17,7 @@ import type {
   TrainingImportResult,
   WodResult,
 } from "@/server/ai/schemas";
-import type { TrainingTipo } from "@/lib/training";
+import type { TrainingFormatOutcome, TrainingTipo } from "@/lib/training";
 import type {
   CanonicalSessionFields,
   CanonicalSessionState,
@@ -469,6 +469,15 @@ export const api = {
     req<WodResult>("/api/ai/wod", {
       method: "POST",
       body: JSON.stringify({ texto, date }),
+    }),
+
+  // Entreno · marcar los rótulos de grupo del contenido (F25). Nunca bloquea:
+  // si falla, quien llama se queda con el texto original (ver `formatOrKeep`).
+  formatTraining: (contenido: string, signal?: AbortSignal) =>
+    req<TrainingFormatOutcome>("/api/ai/training-format", {
+      method: "POST",
+      body: JSON.stringify({ contenido }),
+      signal,
     }),
 
   prepareVisit: () =>
