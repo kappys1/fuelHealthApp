@@ -1,6 +1,7 @@
 # F26 · Lesión declarada y sesión adaptada del día
-**Estado**: **APROBADA por Alex (2026-08-18)** · **Fase 1 IMPLEMENTADA** (18-ago, en `main`, sin
-desplegar; AC4-AC5 con tests, AC1-AC3 🖐 pendientes) · Fases 2 y 3 pendientes · **Tamaño**:
+**Estado**: **APROBADA por Alex (2026-08-18)** · **Fase 1 DESPLEGADA** (18-ago; AC4-AC5 con tests,
+AC1-AC3 🖐 pendientes) · **Fase 2 IMPLEMENTADA** (18-ago, en `main`; AC9-AC11 con tests, AC6-AC8
+🖐 pendientes; **requiere `pnpm db:migrate` — migración 0021**) · Fase 3 pendiente · **Tamaño**:
 **feature** (migración aditiva
 en `days` + prompt congelado + superficies nuevas en sheet) · **Fecha**: 2026-08-18
 **Origen**: conversación con Alex (18-ago) que arrancó como «quiero un apartado de lesiones» y
@@ -172,12 +173,16 @@ adapted_at       timestamptz   -- cuándo se generó/guardó
 
 **Fase 2**
 4. Ficha del día (`components/training/training-session-detail.tsx`) → botón **«Adaptar sesión»**.
-5. Sheet: **motivo** (texto libre, prerrellenado con la capacidad de la lesión vigente si la hay)
-   → ✨ generar.
-6. La salida abre **`TrainingSessionComposer`** (`components/training/training-session-composer.tsx`,
-   modo `manual`) **prerrellenado y editable**, con el formateador de F25 (`formatOrKeep`)
-   disponible. Alex revisa, toca lo que quiera, guarda.
-7. Guardar escribe `days.adapted*`. Si ya había una, **pisa con toast de deshacer**.
+5. Sheet: **motivo** (texto libre, prerrellenado con la **zona** de la lesión vigente si la hay —
+   enmienda #99: la capacidad son dos frases y esto es un campo de una línea; la capacidad viaja
+   al prompt desde el servidor) → ✨ generar.
+6. La salida cae en un **textarea editable** de la misma hoja, con el formateador de F25
+   (`formatOrKeep`) aplicado. Alex revisa, toca lo que quiera, guarda.
+   **Enmienda #99**: la hoja es `components/training/adapted-session-sheet.tsx`, NO
+   `TrainingSessionComposer` — aquel guarda en `training_sessions`, justo lo que el NO-alcance
+   prohíbe y el AC9 testea. Guardar con el texto vacío **quita** la adaptada.
+7. Guardar escribe `days.adapted*`. Si ya había una, **pisa con toast de deshacer**. Regenerar
+   parte SIEMPRE de la planificada, nunca de la adaptada anterior (#99).
 8. La ficha pasa a mostrar **planificada + adaptada**, con la planificada marcada como «del plan».
 
 **Fase 3**
