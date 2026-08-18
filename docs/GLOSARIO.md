@@ -79,6 +79,27 @@ hoy: Resumen 7/30 propio · Adherencia 14 d · Impacto flexible 30 d · Racha si
 
 ---
 
+## Lesión vigente / cerrada — **FIJADO** (F26 Fase 1, 2026-08-18)
+
+Una lesión es un **episodio**, no un estado del atleta: `{ zona, capacidad, desde, revisarEl,
+cerradaEl? }`. **Vigente** = sin `cerradaEl`; es la única que entra en el contexto de IA.
+**Cerrada** = con `cerradaEl`; sale del contexto y se queda en el Historial. **Cerrar no es
+borrar** — quitar la lesión al curarte destruye que estuviste lesionado, que es justo el dato
+que Regenera querrá ver en la visita.
+
+**Vencida** = vigente y `revisarEl <= hoy`. No hay fecha de fin, hay fecha de **revisión**: las
+lesiones se difuminan, no terminan un día. El cierre casi nunca es exacto, así que se marca
+`cierreAproximado` — misma obligación que el **episodio en diferido** de arriba.
+
+**Lo que la IA necesita no es la zona, es la capacidad.** `Lesiones: hombro derecho` obliga al
+modelo a suponer y, suponiendo sobre una lesión, **sobre-frena**. Por eso `capacidad` es texto
+libre con lo que SÍ y lo que NO, y es lo que se interpola en `ATHLETE_CONTEXT`.
+
+**Lesión declarada ≠ sesión adaptada.** Declararla no adapta ningún entreno por sí sola; como
+mucho hace que la app pregunte. Adaptar es un acto explícito (F26 Fase 2).
+
+---
+
 ## Comida flexible — **FIJADO** (#78, F16)
 
 Marcador `(fecha, momento)`. **No es una fase** y **no es una exención energética**: sus kcal

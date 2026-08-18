@@ -27,7 +27,7 @@ deporte (texto libre, ej. "CrossFit") · nivel (ej. "avanzado, competitivo")
 programa (ej. "The Progrm 1") · franjaEntreno (ej. "19:30-21:30")
 suplementos: string[]           (hoy: creatina, beta-alanina, citrulina)
 notaClinica (ej. "le cuesta la grasa abdominal baja")
-lesiones?: string[]             (informativo para el coach)
+lesiones?: Lesion[]             (episodios fechados con capacidad — ver nota F26 abajo)
 objetivos: [{ desde: date, texto, pesoObjetivo? }]   // HISTORIAL, orden cronológico
 ```
 
@@ -36,8 +36,20 @@ objetivos: [{ desde: date, texto, pesoObjetivo? }]   // HISTORIAL, orden cronol�
 - **Precarga** con los valores hoy hardcodeados (perfil de Alex + objetivo actual
   "recomposición: perder grasa manteniendo músculo, definición para verano", desde ~mayo-2026).
 - **UI**: tarjeta "Perfil del atleta" en Ajustes (junto al mapeo de sesiones): campos
-  simples, suplementos y lesiones como chips, y sección "Objetivo" con el vigente destacado +
+  simples, **suplementos** como chips, y sección "Objetivo" con el vigente destacado +
   botón "Cambiar objetivo" (añade entrada fechada) + historial plegado debajo.
+
+> **Enmienda F26 (2026-08-18) · las lesiones dejan de ser chips.** `lesiones` pasa a ser un
+> array de **episodios** — `{ id, zona, descripcion?, capacidad, desde|null, revisarEl,
+> cerradaEl?, cierreAproximado? }` (`lib/profile.ts`)— con la misma doctrina que `objetivos[]`:
+> historial que **nunca se borra**; cerrar es poner fecha. `capacidad` es texto libre («qué SÍ y
+> qué NO») porque el consumidor es un LLM: la zona sola le obliga a suponer, y suponiendo
+> sobre una lesión **sobre-frena**. No hay fecha de fin sino de **revisión** (14 d): al vencer,
+> el check-in matinal pregunta una vez (sigue igual · va mejor · ya está). En Ajustes son una
+> **lista de episodios** con las cerradas plegadas debajo; en Progreso · Historial, una entrada
+> `kind: "lesion"`. Los chips viejos se convierten sin pérdida en la lectura del perfil y en
+> `normalizeTrainingSettings` (restore + `migrate:poc`). Detalles finos en DECISIONS **#98**;
+> spec completa en `docs/specs/features/26-*`.
 - `diasEntrenoSemana` NO se guarda: se **deriva** del mapeo `sessionByWeekday` (nº de días
   ≠ Descanso). Una sola fuente de verdad.
 
@@ -49,6 +61,13 @@ Sustituye a la constante en `prompts.ts` y a `04-IA.md` §contexto. Plantilla:
 > {programa}; entrena {franjaEntreno}, {diasEntrenoSemana} días/semana. **Objetivo actual
 > (desde {fecha}): {objetivo}.** Suplementos que toma: {suplementos | "ninguno"}.
 > {notaClinica?} {lesiones?}
+
+La **plantilla no cambia con F26**; cambia el valor de `{lesiones?}`, que pasa de una lista de
+zonas a las lesiones **vigentes** con su capacidad:
+`Lesiones vigentes: {zona} (desde {fecha}) — capacidad: {capacidad} | …`. Las **cerradas no
+entran** (nada de escalar por un hombro curado en marzo) y un episodio sin capacidad entra solo
+con la zona. La versión compacta **no** lleva lesiones: una lesión no altera los macros de un
+alimento.
 
 Versión **compacta** para features de estimación (F-IA-1/2/3/4/9):
 
