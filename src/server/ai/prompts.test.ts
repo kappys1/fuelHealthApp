@@ -2011,6 +2011,110 @@ describe("F21 · trainingWeekContext (arreglo de DATO del bug de origen)", () =>
   });
 });
 
+/*
+  F26 Fase 3 · el contexto pasa a contar lo REALIZADO. Es lo que hace honesto el
+  equilibrio entre sesiones de F21 (AC15) y lo que sostiene el AC12 sin pedirle
+  nada al modelo: la adaptada SUSTITUYE a la planificada en el contexto.
+*/
+describe("F26 · trainingWeekContext con sesión adaptada", () => {
+  const adapted = weekOf([
+    sessionWithDay({
+      id: 2,
+      key: "T2",
+      nombre: "Training 2 · Hombros",
+      assignedDate: "2026-07-11",
+      contenido: "A) Strict Press 5x5\nB) HSPU",
+      adaptedSession: "A) Back Squat 5x5\nB) Walking lunges",
+      adaptedReason: "hombro derecho",
+      adaptedAt: "2026-07-11T07:00:00.000Z",
+    }),
+    sessionWithDay({
+      id: 3,
+      key: "T3",
+      nombre: "Training 3",
+      assignedDate: TODAY,
+      contenido: "A) Back Squat 5x3 @80%",
+    }),
+  ]);
+
+  it("un día adaptado viaja con la ADAPTADA, no con la del plan (AC12/AC15)", () => {
+    const ctx = trainingWeekContext(adapted, TODAY);
+    expect(ctx).toContain("SESIÓN ADAPTADA (motivo: hombro derecho)");
+    expect(ctx).toContain("Back Squat 5x5");
+    expect(ctx).toContain("Walking lunges");
+    // La del plan se cita por su nombre pero NO viaja su contenido: sustituye,
+    // no suma — el coste del turno no cambia.
+    expect(ctx).toContain("La del plan era «Training 2 · Hombros»");
+    expect(ctx).not.toContain("Strict Press 5x5");
+    expect(ctx).not.toContain("HSPU");
+  });
+
+  it("los días sin adaptar siguen igual que en F21", () => {
+    const ctx = trainingWeekContext(adapted, TODAY);
+    expect(ctx).toContain("Training 3");
+    expect(ctx).toContain("Back Squat 5x3 @80%");
+  });
+
+  it("la adaptada también pierde los marcadores de grupo de F25", () => {
+    const ctx = trainingWeekContext(
+      weekOf([
+        sessionWithDay({
+          nombre: "Training 9",
+          assignedDate: TODAY,
+          contenido: "plan",
+          adaptedSession: "**Fuerza**\nRemo 3x10",
+        }),
+      ]),
+      TODAY,
+    );
+    expect(ctx).toContain("Fuerza\nRemo 3x10");
+    expect(ctx).not.toContain("**Fuerza**");
+  });
+
+  /*
+    La condición de «puedes preguntar una vez» es DATO, no ruego (AC13): así no
+    se olvida en el turno 12 ni depende de que el modelo deduzca nada.
+  */
+  it("con lesión vigente y hoy SIN adaptar, el flag entra en el contexto", () => {
+    const ctx = trainingWeekContext(adapted, TODAY, ["hombro derecho"]);
+    expect(ctx).toContain(
+      "lesión vigente (hombro derecho) y la sesión de HOY no está adaptada",
+    );
+  });
+
+  it("con la de hoy YA adaptada no hay flag: no hay nada que preguntar", () => {
+    const hoyAdaptada = weekOf([
+      sessionWithDay({
+        nombre: "Training 3",
+        assignedDate: TODAY,
+        contenido: "A) Back Squat",
+        adaptedSession: "A) Remo",
+        adaptedReason: "hombro",
+      }),
+    ]);
+    expect(trainingWeekContext(hoyAdaptada, TODAY, ["hombro derecho"])).not.toContain(
+      "lesión vigente",
+    );
+  });
+
+  it("sin lesión vigente no hay flag, aunque hoy no esté adaptada", () => {
+    expect(trainingWeekContext(adapted, TODAY, [])).not.toContain("lesión vigente");
+  });
+
+  it("sin sesión hoy no hay flag: preguntar no llevaría a ninguna parte", () => {
+    const noToday = weekOf([
+      sessionWithDay({
+        nombre: "Training 2",
+        assignedDate: "2026-07-11",
+        contenido: "A) Snatch",
+      }),
+    ]);
+    expect(trainingWeekContext(noToday, TODAY, ["hombro derecho"])).not.toContain(
+      "lesión vigente",
+    );
+  });
+});
+
 describe("F21 · chatSystemPrompt · bloque de adaptación (bajo intención)", () => {
   const chatArgs = {
     atleta: athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY),
@@ -2048,9 +2152,16 @@ describe("F21 · chatSystemPrompt · bloque de adaptación (bajo intención)", (
     // AC4 · coach conversacional, no vuelca la semana
     expect(p).toContain("NO vuelques la semana entera");
     expect(p).toContain("deja que él decida");
-    // AC5 · solo lectura, nunca afirma haber guardado
+    /*
+      AC5 REESCRITO por F26 Fase 3 (riesgo 1 de la spec 26): el «nunca guarda ni
+      afirma haber guardado» SIGUE, pero la coletilla «dile que la meta él por el
+      flujo normal» ya es falsa — ahora la app le pinta la acción y la pulsa él.
+      El texto del Chat no cambia de naturaleza: sigue sin emitir ningún comando.
+    */
     expect(p).toContain("SOLO LECTURA");
     expect(p).toContain("NUNCA afirmes que has modificado, guardado o registrado la sesión");
+    expect(p).toContain("la app le ofrece la acción para guardarla y la pulsa él");
+    expect(p).not.toContain("dile que la meta él por el flujo normal");
     // AC7 · seguridad: orientativo, fisio/coach, no diagnostica
     expect(p).toContain("ORIENTATIVA");
     expect(p).toContain("fisio o su coach");
@@ -2076,5 +2187,36 @@ describe("F21 · chatSystemPrompt · bloque de adaptación (bajo intención)", (
     expect(p).toContain(sharedGuardrails());
     expect(p).toContain("criterio REALISTA");
     expect(p).toContain("de solo lectura");
+  });
+
+  /*
+    F26 Fase 3 · las cuatro reglas nuevas viven DENTRO del bloque de adaptación,
+    así que el AC16 (turno sin relación con entreno → coste y prompt idénticos) lo
+    garantiza el mismo mecanismo de F21, ya cubierto por el test de AC8 de arriba.
+  */
+  it("F26: la adaptada manda y el equilibrio va sobre lo realizado", () => {
+    const p = chatSystemPrompt({ ...chatArgs, trainingContext: training });
+    expect(p).toContain("es la sesión REAL de ese día: háblale de ESA");
+    expect(p).toContain("cada día cuenta por lo que de verdad hizo");
+  });
+
+  it("F26: preguntar UNA vez por la lesión, nunca adaptar por su cuenta", () => {
+    const p = chatSystemPrompt({ ...chatArgs, trainingContext: training });
+    expect(p).toContain("puedes preguntarle UNA vez");
+    expect(p).toContain("no en cada respuesta");
+    expect(p).toContain("NUNCA adaptes la sesión por tu cuenta");
+    expect(p).toContain("adaptar es una decisión suya");
+  });
+
+  it("F26: existe una acción de la app y el modelo NO dice haber guardado", () => {
+    const p = chatSystemPrompt({ ...chatArgs, trainingContext: training });
+    expect(p).toContain("la app le ofrecerá un botón para conservarla");
+    expect(p).toContain("NO afirmes haberla guardado");
+  });
+
+  it("AC16: las reglas de F26 no existen fuera del bloque de intención", () => {
+    const p = chatSystemPrompt(chatArgs);
+    expect(p).not.toContain("SESIÓN ADAPTADA");
+    expect(p).not.toContain("puedes preguntarle UNA vez");
   });
 });
