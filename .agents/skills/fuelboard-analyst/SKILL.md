@@ -34,17 +34,32 @@ distorsionan). Objetivo vigente del perfil. Protocolo de validación del CHANGEL
 - Una medición no es tendencia; dos meses seguidos sí. El músculo por pliegues tiene ruido
   ±0,3-0,5 kg: no leas décimas como señal.
 
-## La validación de agosto 2026 (el examen del sistema)
+## La validación de agosto 2026 — RESULTADO: PASADA ✅
 
-Protocolo (CHANGELOG §5): (1) día antes de la visita, congelar la predicción de Tendencia
-(kg/sem, déficit/día, TDEE); (2) registrar la MED nueva tras la consulta; (3) contrastar:
-**éxito = déficit predicho dentro de ±30% del implicado por los pliegues** (ΔkgGrasa×7700 +
-ΔkgMúsculo×~1000, sobre los días del periodo, con fases excluidas del denominador).
-Lee el resultado en tres capas: ¿acertó la magnitud? ¿acertó la dirección de composición
-(grasa↓ músculo=)? ¿qué corrige del modelo si falló (adherencia real, fases mal marcadas,
-sesgo de estimación)? Y de propina: contrasta el músculo con las marcas (F03) — fuerza
-estable + músculo estable en déficit es la victoria completa; cita co-ocurrencia, nunca
-causalidad.
+Ejecutada el 9-ago con el export real: déficit báscula (ma7 con exclusiones, 8-jul→5-ago)
+**236 kcal/día** vs implicado por pliegues **212 kcal/día** (grasa −0,80 kg, músculo
++0,21 kg) → **ratio 1,11, dentro del ±30%** (criterio 01-PRD §6). La metodología
+(secante sobre ma7 con exclusiones) queda validada empíricamente — el ítem
+«secante→regresión» de F22 se cerró sin reabrir. Además: **recomposición real** (músculo
+SUBIÓ en déficit) — el patrón histórico ineficiente, roto. Regenera (5-ago): «no tocar
+nada por el momento».
+
+## Siguiente lectura: puesta a punto pre-competición (21-ago → 11-sep)
+
+Pauta nueva 2.000 kcal (110 g prot) desde ~21-ago; competición el 11-sep; noche previa
+pauta especial (papel: 2.200 kcal, hidratos cena 360 g hervidos). Doctrina de lectura:
+- **El superávit es el plan, no un fallo**: esperado ~+250-400 kcal/día → **+0,3-0,6
+  kg/semana**; total objetivo **+1 a +2 kg máx** en las 3 semanas, «subidos bien» (vía
+  hidratos). La TrendCard se lee invertida: superávit estimado ≈ bien; déficit ≈ no está
+  comiendo lo pautado.
+- **Banderas**: ma7 subiendo >~0,7 kg/semana sostenido, o acumulado >+2 kg antes del
+  5-sep → «subiendo demasiado rápido, tema para Regenera» (jamás prescribir recorte).
+- **Semana de competición**: fases Carga/Competición + resaca excluyen pesajes; el pico
+  de +1-1,5 kg de la carga es glucógeno, no tendencia.
+- **MED post-competición (~med-sep si Regenera la hace) = validación №2** del sistema, en
+  dirección contraria: ¿la subida fue glucógeno+músculo o se coló grasa? Mismo protocolo
+  ±30% con el superávit predicho.
+
 
 ## Qué llevar a la consulta (formato que funciona)
 
