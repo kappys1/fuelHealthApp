@@ -478,6 +478,58 @@ Devuelve el MISMO texto, carácter por carácter, con esas líneas —y solo esa
 Responde SOLO con JSON válido, sin markdown: {"contenido": string}`;
 }
 
+/*
+  ── F26 Fase 2 · Adaptar la sesión del día (`adaptSessionPrompt`) ──
+  CONGELADO al cerrar la fase. Salida en TEXTO PLANO con la forma de
+  `training_sessions.contenido` (bloques separados por línea en blanco): es
+  exactamente lo que ya maneja el composer y lo que después pasa por
+  `formatOrKeep` (F25). Sin esquema a propósito.
+
+  Doctrina, por orden de riesgo real:
+  1. **No sobre-frenar** es el motivo de existir de la feature (spec 26 §1): la
+     capacidad dice lo que SÍ puede, y quitar de más es tan malo como no adaptar.
+     De ahí «no recortes lo que la capacidad permite».
+  2. **Mismo estímulo y misma duración**: adaptar no es rebajar el día.
+  3. **No diagnostica ni trata** (guardarraíl heredado de F21).
+  4. Devuelve SOLO la sesión: el texto entra tal cual en un textarea que Alex
+     revisa; un preámbulo del tipo «Aquí tienes…» acabaría guardado en la BD.
+
+  El motivo NO implica lesión: puede ser «sobrecarga», «dormí fatal» o «solo
+  tengo 40 minutos», y el prompt lo trata igual (AC7).
+*/
+export function adaptSessionPrompt(args: {
+  atleta: string;
+  fecha: string;
+  motivo: string;
+  /** Capacidad de la lesión vigente, si el motivo viene de una; "" si no. */
+  capacidad: string;
+  /** Sesión planificada del día (contenido literal del plan). */
+  planificada: string;
+  /** Nombre de la sesión planificada, para que la adaptada se reconozca. */
+  nombre: string;
+}): string {
+  const capacidadPart = args.capacidad.trim()
+    ? `\n\nLo que hoy PUEDE y NO PUEDE hacer, en sus palabras:\n${args.capacidad.trim()}`
+    : "";
+  return `${args.atleta}
+
+Hoy (${args.fecha}) tiene programada esta sesión, «${args.nombre}»:
+
+${args.planificada}
+
+Necesita adaptarla por este motivo: ${args.motivo}.${capacidadPart}
+
+Reescribe la sesión para que pueda hacerla hoy. Reglas:
+- Conserva el estímulo y la duración aproximada de la original: adaptar no es rebajar el día. Sustituye SOLO lo que el motivo impide, y deja intacto todo lo demás, tal como está escrito.
+- NO recortes lo que la capacidad permite explícitamente: quitar de más es tan malo como no adaptar nada. Si algo no está limitado, se mantiene.
+- Mantén la MISMA forma que el original: mismos bloques, separados por una línea en blanco, mismo estilo de notación (series, repeticiones, cargas, tiempos).
+- Donde cambies algo, que se entienda qué has puesto en su lugar; no expliques por qué al final del texto.
+- NO diagnostiques, no interpretes la lesión ni des consejo médico: trabajas con la capacidad que te ha dado, no con un juicio clínico propio.
+- Si el motivo no permite mantener un bloque de ninguna forma razonable, sustitúyelo por trabajo equivalente que sí pueda hacer; no lo elimines dejando el día más corto.
+
+Responde SOLO con el texto de la sesión adaptada. Sin saludos, sin explicaciones, sin markdown de encabezados, sin comillas envolventes.`;
+}
+
 // ── F-IA-11 · Leer etiqueta nutricional (F07 · Mis productos) ──
 // CONGELADO (04-IA §F-IA-11): se usa TAL CUAL, solo interpola el contexto compacto.
 // Es LECTURA, no estimación: null donde no figura, jamás inventar.

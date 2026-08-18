@@ -39,6 +39,7 @@ import type {
 } from "@/server/db/queries/training";
 import type { ProductDTO } from "@/server/db/queries/lookups";
 import {
+  adaptSessionPrompt,
   athleteContext,
   athleteContextCompact,
   chatSummaryPrompt,
@@ -235,6 +236,65 @@ describe("ATHLETE_CONTEXT dinámico (doc 10 A2)", () => {
     expect(full).toContain("peso reciente no disponible");
     expect(compact).toContain("peso reciente no disponible");
     expect(full).not.toContain("92 kg");
+  });
+});
+
+/*
+  F26 Fase 2 · adaptar la sesión del día. El riesgo de esta feature no es que el
+  modelo no adapte: es que **sobre-frene** (spec 26 §1). Los tests fijan las
+  cláusulas que lo sujetan y que el motivo NO tiene por qué ser una lesión (AC7).
+*/
+describe("F26 · adaptSessionPrompt", () => {
+  const base = {
+    atleta: "Atleta: CrossFit avanzado, 33 años.",
+    fecha: "2026-08-18",
+    nombre: "T3 · Fuerza + Gimnásticos",
+    planificada: "**Fuerza**\nPress militar 5x5\n\n**WOD**\n21-15-9 pull-ups",
+  };
+
+  it("manda la planificada literal, el motivo y la capacidad", () => {
+    const prompt = adaptSessionPrompt({
+      ...base,
+      motivo: "hombro derecho",
+      capacidad: "NO por encima de cabeza. SÍ tirón horizontal, pierna.",
+    });
+    expect(prompt).toContain(base.planificada);
+    expect(prompt).toContain("«T3 · Fuerza + Gimnásticos»");
+    expect(prompt).toContain("adaptarla por este motivo: hombro derecho");
+    expect(prompt).toContain("NO por encima de cabeza");
+    expect(prompt).toContain("2026-08-18");
+  });
+
+  it("prohíbe sobre-frenar y rebajar el día (el fallo que la feature ataca)", () => {
+    const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "y" });
+    expect(prompt).toContain(
+      "NO recortes lo que la capacidad permite explícitamente",
+    );
+    expect(prompt).toContain("adaptar no es rebajar el día");
+    expect(prompt).toContain("no lo elimines dejando el día más corto");
+  });
+
+  it("hereda el guardarraíl de F21: ni diagnostica ni trata", () => {
+    const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "y" });
+    expect(prompt).toContain("NO diagnostiques");
+    expect(prompt).toContain("ni des consejo médico");
+  });
+
+  it("un motivo que no es lesión funciona igual y sin bloque de capacidad (AC7)", () => {
+    const prompt = adaptSessionPrompt({
+      ...base,
+      motivo: "solo tengo 40 minutos",
+      capacidad: "   ",
+    });
+    expect(prompt).toContain("adaptarla por este motivo: solo tengo 40 minutos");
+    expect(prompt).not.toContain("Lo que hoy PUEDE y NO PUEDE hacer");
+  });
+
+  it("pide texto plano con la misma forma: es lo que entra en el composer", () => {
+    const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "" });
+    expect(prompt).toContain("separados por una línea en blanco");
+    expect(prompt).toContain("Responde SOLO con el texto de la sesión adaptada");
+    expect(prompt).not.toContain("JSON");
   });
 });
 
@@ -990,6 +1050,9 @@ describe("dayContext mira el calendario (doc 10 A4)", () => {
         phase: null,
         bloat: null,
         notes: null,
+        adaptedSession: null,
+        adaptedReason: null,
+        adaptedAt: null,
       },
       session: {
         id: 7,
