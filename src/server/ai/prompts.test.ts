@@ -39,6 +39,7 @@ import type {
 } from "@/server/db/queries/training";
 import type { ProductDTO } from "@/server/db/queries/lookups";
 import {
+  ADAPT_SESSION_MAX_OUTPUT_TOKENS,
   adaptSessionPrompt,
   athleteContext,
   athleteContextCompact,
@@ -265,19 +266,55 @@ describe("F26 · adaptSessionPrompt", () => {
     expect(prompt).toContain("2026-08-18");
   });
 
-  it("prohíbe sobre-frenar y rebajar el día (el fallo que la feature ataca)", () => {
+  /*
+    La regla que sujeta el fallo real del 18-ago (DECISIONS #100): el default
+    ante la duda es MANTENER, y no depende de que la capacidad autorice nada —
+    que es justo donde falló la primera redacción con una capacidad descriptiva.
+  */
+  it("ante la duda MANTIENE, sin depender de que la capacidad lo autorice", () => {
     const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "y" });
-    expect(prompt).toContain(
-      "NO recortes lo que la capacidad permite explícitamente",
-    );
+    expect(prompt).toContain("Ante la duda, MANTÉN el ejercicio");
+    expect(prompt).toContain("se mantiene por defecto");
+    expect(prompt).toContain("Quitar de más es el fallo más caro");
+    expect(prompt).not.toContain("permite explícitamente");
+  });
+
+  it("adapta ejercicio por ejercicio: el bloque conserva su objetivo", () => {
+    const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "y" });
+    expect(prompt).toContain("NO rediseñas la sesión");
+    expect(prompt).toContain("Cada bloque conserva su objetivo");
+    expect(prompt).toContain("NO se extiende a lo que no la carga");
+  });
+
+  it("no rebaja el día", () => {
+    const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "y" });
     expect(prompt).toContain("adaptar no es rebajar el día");
     expect(prompt).toContain("no lo elimines dejando el día más corto");
+  });
+
+  /*
+    Regresión del 18-ago: con 4096 la adaptación salía truncada a media frase en
+    cuanto el motivo era largo. El thinking de Gemini sale de `maxOutputTokens` y
+    aquí se reescribe una sesión entera (#48/#52/#59, ahora #100).
+  */
+  it("el techo de salida supera el que ya se demostró insuficiente (4096)", () => {
+    expect(ADAPT_SESSION_MAX_OUTPUT_TOKENS).toBeGreaterThanOrEqual(8192);
+  });
+
+  it("notas en español y nombres de ejercicio en su idioma, sin markdown", () => {
+    const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "y" });
+    expect(prompt).toContain("Escribe en ESPAÑOL **todas** las notas");
+    expect(prompt).toContain("también las que no cambies");
+    expect(prompt).toContain("Los NOMBRES de los ejercicios se dejan tal cual");
+    expect(prompt).toContain("NO uses asteriscos");
   });
 
   it("hereda el guardarraíl de F21: ni diagnostica ni trata", () => {
     const prompt = adaptSessionPrompt({ ...base, motivo: "x", capacidad: "y" });
     expect(prompt).toContain("NO diagnostiques");
     expect(prompt).toContain("ni des consejo médico");
+    // Un nombre clínico en el motivo («supraespinoso») disparó el sobre-frenado.
+    expect(prompt).toContain("Un nombre clínico en el motivo");
   });
 
   it("un motivo que no es lesión funciona igual y sin bloque de capacidad (AC7)", () => {

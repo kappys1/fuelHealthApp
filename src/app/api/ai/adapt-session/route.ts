@@ -7,7 +7,10 @@ import { dateZ } from "@/lib/schemas";
 import { getAthleteContexts } from "@/server/ai/athlete";
 import { runText } from "@/server/ai/client";
 import { aiErrorResponse } from "@/server/ai/errors";
-import { adaptSessionPrompt } from "@/server/ai/prompts";
+import {
+  ADAPT_SESSION_MAX_OUTPUT_TOKENS,
+  adaptSessionPrompt,
+} from "@/server/ai/prompts";
 import { stripTrainingGroupMarkers } from "@/lib/training";
 import { getDayView } from "@/server/db/queries/day";
 
@@ -24,6 +27,7 @@ const bodyZ = z.object({
   date: dateZ.optional(),
   motivo: z.string().min(1).max(300),
 });
+
 
 export async function POST(request: Request) {
   const unauth = await ensureAuth();
@@ -70,7 +74,7 @@ export async function POST(request: Request) {
         planificada: stripTrainingGroupMarkers(planificada),
         nombre: view.session?.nombre ?? "sesión del día",
       }),
-      maxOutputTokens: 4096,
+      maxOutputTokens: ADAPT_SESSION_MAX_OUTPUT_TOKENS,
     });
 
     return Response.json({ contenido: contenido.trim() });
