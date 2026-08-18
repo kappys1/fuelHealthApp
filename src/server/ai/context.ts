@@ -22,7 +22,7 @@ import {
   MEASURE_TYPE_LABELS,
   sortEntriesAsc,
 } from "@/lib/marks";
-import { TRAINING_TIPO_LABELS } from "@/lib/training";
+import { stripTrainingGroupMarkers, TRAINING_TIPO_LABELS } from "@/lib/training";
 import type { ProductDTO } from "@/server/db/queries/lookups";
 import type { MarkDTO } from "@/server/db/queries/marks";
 import type { AdherenceResult } from "@/server/analytics/adherence";
@@ -225,7 +225,13 @@ export function trainingWeekContext(
       date === today ? " · HOY" : date < today ? " · ya pasado" : " · próximo";
     const tipo = TRAINING_TIPO_LABELS[s.tipo];
     const head = `${date} (${weekdayName(date)})${rel}: ${s.nombre} · ${tipo}`;
-    const contenido = s.contenido.trim();
+    /*
+      F25: los marcadores de grupo (`**Etiqueta**`) son PINTURA de la ficha, no
+      dato. El Chat tiene que recibir exactamente el mismo texto que recibía
+      antes de que existieran, para que el comportamiento de F21 (adaptar el
+      entreno ante una limitación) no cambie ni haya que re-validarlo.
+    */
+    const contenido = stripTrainingGroupMarkers(s.contenido).trim();
     return contenido
       ? `${head}\n${contenido}`
       : `${head} (sin contenido detallado importado)`;

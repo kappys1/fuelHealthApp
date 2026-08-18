@@ -199,6 +199,177 @@ export function isTrainingHeadingLine(line: string): boolean {
   return headingLineRe().test(line.trim());
 }
 
+/*
+  ── F25 · El tercer nivel: el grupo ──────────────────────────────────────────
+  Una sesión real tiene sección → grupo → líneas, pero el contrato del contenido
+  canónico solo tenía dos niveles (bloque y línea), así que el del medio se
+  aplanaba: 27 líneas al mismo peso visual. El grupo se DECLARA en el texto con
+  una línea que es ELLA ENTERA `**Etiqueta**`; no se adivina con heurísticas
+  («línea corta sin cifras») porque destacarían `4 rounds` y no `Adaptado`.
+
+  Exigir la línea completa es el mismo criterio que `isTrainingHeadingLine`: un
+  `**5 × 2**` a mitad de frase es énfasis del texto de origen, no estructura.
+*/
+const groupMarkerRe = () => /^\*\*(.+)\*\*$/;
+
+/**
+ * Etiqueta del grupo si la línea es un marcador completo, null si no lo es.
+ * Rechaza el marcador anidado (`**a** y **b**`): si hay más de un par de
+ * asteriscos la línea es texto con énfasis, no un rótulo.
+ */
+export function trainingGroupLabel(line: string): string | null {
+  const inner = groupMarkerRe().exec(line.trim())?.[1]?.trim();
+  if (!inner || inner.includes("**")) return null;
+  return inner;
+}
+
+/**
+ * El rótulo tal como se PINTA: sin los dos puntos finales, que en el texto de
+ * origen son puntuación de la frase ("Si aparece dolor >2/10:") y en mayúsculas
+ * y con letter-spacing sobran. Es presentación pura y vive aparte a propósito:
+ * `trainingGroupLabel` tiene que seguir devolviendo la etiqueta LITERAL, porque
+ * de ella depende reconstruir el texto original sin perder un carácter.
+ */
+export function trainingGroupDisplayLabel(label: string): string {
+  return label.replace(/\s*:$/, "");
+}
+
+export interface TrainingBlockGroup {
+  /** null SOLO en la entradilla del bloque (las líneas previas al 1er marcador). */
+  label: string | null;
+  text: string;
+}
+
+/**
+ * Parte el cuerpo de un bloque en grupos. NO decide cortes de bloque: eso sigue
+ * siendo de `splitTrainingContent` y su invariante F17 no se toca.
+ *
+ * Un cuerpo SIN marcadores devuelve un único grupo con el texto EXACTO recibido
+ * —ni un carácter normalizado, CRLF incluido— para que las sesiones ya guardadas
+ * se pinten byte-idénticas a como se pintan hoy. Solo cuando hay marcadores se
+ * recompone por líneas y se recorta el aire de cada grupo.
+ */
+export function splitTrainingGroups(text: string): TrainingBlockGroup[] {
+  if (text.length === 0) return [];
+  const rows = text.split(/\r\n|\n|\r/);
+  if (!rows.some((row) => trainingGroupLabel(row) !== null)) {
+    return [{ label: null, text }];
+  }
+
+  /*
+    Un rótulo SIN líneas propias no es un rótulo: baja a línea normal. Sale de la
+    IA a diario —marca "Power Clean + Power Jerk" y justo debajo "Power Clean"—
+    y pintarlo como grupo dejaría una etiqueta flotando sobre una regla, sin
+    cuerpo. Bajándolo queda exactamente donde tiene que estar: la entradilla del
+    bloque. Se decide mirando la línea siguiente, no rogándoselo al modelo.
+  */
+  const items = rows.map((row) => {
+    const label = trainingGroupLabel(row);
+    return label === null ? { label: null, line: row } : { label, line: label };
+  });
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]!;
+    const next = items[i + 1];
+    if (item.label !== null && (!next || next.label !== null)) {
+      items[i] = { label: null, line: item.label };
+    }
+  }
+
+  const groups: TrainingBlockGroup[] = [];
+  let label: string | null = null;
+  let buffer: string[] = [];
+  const flush = () => {
+    const text = buffer.join("\n").trim();
+    // Invariante: ningún grupo sale vacío. La entradilla vacía tampoco existe
+    // (un bloque que abre con marcador simplemente no la tiene).
+    if (text) groups.push({ label, text });
+    buffer = [];
+  };
+  for (const item of items) {
+    if (item.label === null) {
+      buffer.push(item.line);
+      continue;
+    }
+    flush();
+    label = item.label;
+  }
+  flush();
+  return groups;
+}
+
+/**
+ * El mismo texto sin marcadores de grupo. Quita SOLO los de línea completa: un
+ * `**5 × 2**` a mitad de frase es énfasis que venía en el origen y se respeta
+ * (quitar todos los `**` a ciegas modificaría el texto de Alex).
+ *
+ * Se usa en dos sitios por dos motivos distintos:
+ * - `context.ts` (F21): el Chat tiene que recibir EXACTAMENTE el mismo texto que
+ *   recibía antes de F25. Los marcadores son pintura de la ficha, no dato.
+ * - el formateador: se limpia ANTES de llamar a la IA, así reformatear es
+ *   idempotente por construcción (el modelo siempre ve texto plano).
+ */
+export function stripTrainingGroupMarkers(text: string): string {
+  return text
+    .split(/(\r\n|\n|\r)/)
+    .map((part) => trainingGroupLabel(part) ?? part)
+    .join("");
+}
+
+/*
+  ── El verificador de fidelidad (F25 · lo que hace segura la feature) ─────────
+  La mutación PERMITIDA es de un solo tipo: envolver una línea completa en `**`.
+  Todo lo demás —una palabra, una cifra, un orden, una línea en blanco entre
+  bloques— tiene que sobrevivir intacto. Se comprueba en código, no se confía al
+  modelo: si no cuadra, se tira el formateo entero y se guarda el original.
+
+  Lo que la clave tolera (ruido de formato, no información): CRLF vs LF, espacios
+  al final de línea, espacios dobles, y líneas en blanco de más. Lo que NO
+  tolera: cambiar un carácter, unir o partir líneas, reordenar, y —importante—
+  BORRAR una línea en blanco, porque esa línea es lo que separa los bloques
+  (contrato F-IA-10) y perderla devolvería la sesión al muro de 27 líneas.
+*/
+function fidelityKey(text: string): string {
+  return stripTrainingGroupMarkers(text)
+    .split(/\r\n|\n|\r/)
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export interface TrainingFormatOutcome {
+  /** El texto que hay que guardar: el marcado si es fiel, el original si no. */
+  contenido: string;
+  /** false = se descartó el formateo y `contenido` es el original intacto. */
+  applied: boolean;
+  /** Cuántos grupos quedaron marcados (0 = la IA no vio ninguno). */
+  groups: number;
+  /** Por qué se descartó, para que el aviso al usuario diga algo real. */
+  reason: string | null;
+}
+
+/**
+ * Decide si el texto que devolvió la IA se puede guardar. Pura y testeada: el
+ * módulo de servidor solo llama al modelo y delega aquí la decisión.
+ */
+export function applyTrainingFormat(
+  original: string,
+  formatted: string,
+): TrainingFormatOutcome {
+  if (fidelityKey(original) !== fidelityKey(formatted)) {
+    return {
+      contenido: original,
+      applied: false,
+      groups: 0,
+      reason: "El formateo no coincidía con el texto original y se ha descartado.",
+    };
+  }
+  const groups = formatted
+    .split(/\r\n|\n|\r/)
+    .filter((line) => trainingGroupLabel(line) !== null).length;
+  return { contenido: formatted, applied: true, groups, reason: null };
+}
+
 /**
  * kcal de sesión para `days.sessionKcal` a partir del rango estimado (F-IA-5):
  * media redondeada; si falta un extremo usa el otro; null si no hay datos.

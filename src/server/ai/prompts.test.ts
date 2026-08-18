@@ -47,6 +47,7 @@ import {
   photoPrompt,
   prepareVisitPrompt,
   sharedGuardrails,
+  trainingFormatPrompt,
   trainingImportPrompt,
   wodPrompt,
 } from "./prompts";
@@ -99,6 +100,43 @@ describe("F17 · contratos congelados de entreno", () => {
     expect(prompt).toContain("saltos de línea simples solo para las líneas de un mismo bloque");
     expect(prompt).toContain("ÚNELA en una sola línea");
     expect(prompt).toContain("nunca el final de un renglón");
+  });
+});
+
+describe("F25 · el formateador solo marca rótulos (contrato mínimo)", () => {
+  const contenido = "Power Clean + Power Jerk\nPower Clean\nMantener normal.";
+
+  it("manda el contenido tal cual y pide el MISMO texto de vuelta", () => {
+    const prompt = trainingFormatPrompt(contenido);
+    expect(prompt).toContain(contenido);
+    expect(prompt).toContain("RÓTULOS DE GRUPO");
+    expect(prompt).toContain("Devuelve el MISMO texto, carácter por carácter");
+    expect(prompt).toContain('{"contenido": string}');
+  });
+
+  // El valor de esta feature depende de que el modelo NO haga nada más. Las
+  // prohibiciones son el prompt; la garantía es applyTrainingFormat.
+  it("prohíbe explícitamente todo lo que no sea envolver una línea completa", () => {
+    const prompt = trainingFormatPrompt(contenido);
+    expect(prompt).toContain("no añadas, quites ni cambies una sola palabra");
+    expect(prompt).toContain("no reordenes nada");
+    expect(prompt).toContain("no resumas, reescribas ni traduzcas");
+    expect(prompt).toContain("incluidas las líneas en blanco que separan bloques");
+    expect(prompt).toContain("no envuelvas nada a mitad de línea, solo líneas completas");
+  });
+
+  it("no marca el rótulo de sección (ya se destaca solo) y admite cero grupos", () => {
+    const prompt = trainingFormatPrompt(contenido);
+    expect(prompt).toContain("no marques la línea que es el nombre de la sección");
+    expect(prompt).toContain("devuelve el texto exactamente igual sin marcar nada");
+  });
+
+  // No es una estimación: no viaja ni contexto de atleta ni pauta. Si algún día
+  // alguien se lo añade "para que entienda mejor", esto lo caza.
+  it("no arrastra contexto de atleta: es una transformación de texto", () => {
+    const prompt = trainingFormatPrompt(contenido);
+    expect(prompt).not.toContain("kcal");
+    expect(prompt).not.toContain("nutricionista");
   });
 });
 
@@ -1747,6 +1785,26 @@ describe("F21 · trainingWeekContext (arreglo de DATO del bug de origen)", () =>
     expect(ctx).toContain("· ya pasado");
     // ordenadas por fecha (ayer antes que hoy)
     expect(ctx.indexOf("Training 2")).toBeLessThan(ctx.indexOf("Training 3"));
+  });
+
+  // F25 · AC 12: los marcadores de grupo son pintura de la ficha. El Chat recibe
+  // el MISMO texto que recibía antes de que existieran → F21 no se re-valida.
+  it("entrega el contenido SIN los marcadores de grupo de F25", () => {
+    const marcada = weekOf([
+      sessionWithDay({
+        id: 4,
+        key: "T4",
+        nombre: "Training 4",
+        assignedDate: TODAY,
+        contenido: "**Power Clean**\nMantener normal.\nHacer **5 × 2** al 40 %.",
+      }),
+    ]);
+    const ctx = trainingWeekContext(marcada, TODAY);
+
+    expect(ctx).toContain("Power Clean\nMantener normal.");
+    expect(ctx).not.toContain("**Power Clean**");
+    // El énfasis a mitad de línea venía en el texto de origen: se respeta.
+    expect(ctx).toContain("Hacer **5 × 2** al 40 %.");
   });
 
   it("sin semana importada → lo dice, no inventa (AC6)", () => {

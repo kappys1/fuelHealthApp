@@ -155,6 +155,13 @@ export const trainingImportZ = z.object({
 export type TrainingImportResult = z.infer<typeof trainingImportZ>;
 export type TrainingImportSession = z.infer<typeof trainingImportSessionZ>;
 
+// ── F25 · Formato de la ficha de entreno ──
+// Un único campo: el MISMO texto con cero o más líneas envueltas en `**`. Que
+// venga un string válido no dice nada de su fidelidad — de eso se encarga
+// `applyTrainingFormat` (lib/training.ts), en código y sin confiar en el modelo.
+export const trainingFormatZ = z.object({ contenido: z.string().min(1) });
+export type TrainingFormatAiResult = z.infer<typeof trainingFormatZ>;
+
 // ── F-IA-11 · Leer etiqueta nutricional (F07 · Mis productos) ──
 // Es una LECTURA, no una estimación: `null` donde el dato NO figura en la etiqueta
 // (base_g y macros nullable). `nombre` y `grupo` siempre vienen (grupo se normaliza
