@@ -1,7 +1,9 @@
 # F26 · Lesión declarada y sesión adaptada del día
-**Estado**: **APROBADA por Alex (2026-08-18)** · **Fase 1 DESPLEGADA** (18-ago; AC4-AC5 con tests,
-AC1-AC3 🖐 pendientes) · **Fase 2 IMPLEMENTADA** (18-ago, en `main`; AC9-AC11 con tests, AC6-AC8
-🖐 pendientes; **requiere `pnpm db:migrate` — migración 0021**) · Fase 3 pendiente · **Tamaño**:
+**Estado**: **APROBADA por Alex (2026-08-18)** · **LAS TRES FASES IMPLEMENTADAS el mismo día**.
+Fase 1 y Fase 2 **desplegadas** (migración 0021 aplicada); Fase 3 en `main`. AC 4-5, 9-11, 16-17
+cerrados con tests; AC 6-7 **validados por Alex en uso real**; AC 8 y 12-14 verificados en vivo,
+pendientes de su pulgar; **AC15 (equilibrio) es el único sin verificar en vivo** — necesita dos
+días de la semana, uno adaptado. **Tamaño**:
 **feature** (migración aditiva
 en `days` + prompt congelado + superficies nuevas en sheet) · **Fecha**: 2026-08-18
 **Origen**: conversación con Alex (18-ago) que arrancó como «quiero un apartado de lesiones» y
@@ -261,16 +263,28 @@ de prompt):
 11. Export/restore y `migrate:poc` transportan `adapted_session/reason/at` (test).
 
 **Fase 3**
-12. 🖐 Con adaptada guardada hoy → el Chat habla de **esa** sesión, no de la planificada.
-13. 🖐 Sin adaptada y con lesión vigente → **como mucho pregunta una vez** si sigue afectando; no
-    adapta solo.
-14. 🖐 Le pido la adaptación al Chat → me la da y aparece **«Guardar como sesión adaptada de
-    hoy»**, que abre el composer editable. El Chat **no afirma** haber guardado nada.
+12. 🖐 **Verificado en vivo (18-ago)**, pendiente del pulgar. Con adaptada guardada hoy → el Chat
+    habla de **esa** sesión, no de la planificada. *Hilo nuevo, «¿qué entreno tengo hoy?» →
+    «Hoy tienes una sesión adaptada por la molestia del hombro derecho…» con el contenido de la
+    adaptada.*
+13. 🖐 **Verificado en vivo**. Sin adaptada y con lesión vigente → **como mucho pregunta una vez**
+    si sigue afectando; no adapta solo. *Presentó la sesión del plan tal cual y cerró con «¿Te
+    sigue limitando el hombro derecho o la rodilla para proponerte adaptaciones, o vas a probarlo
+    tal cual?».*
+14. 🖐 **Verificado en vivo**. Le pido la adaptación al Chat → me la da y aparece **«Guardar como
+    sesión adaptada de hoy»**, que abre el editor prerrellenado. El Chat **no afirma** haber
+    guardado nada *(comprobado por lista de frases prohibidas sobre la respuesta real; tampoco
+    manda copiarla a mano)*.
 15. 🖐 **Equilibrio (el alma de F21, ahora honesto)**: lunes planificado hombros → adapto a
     pierna → el martes el Chat **no me mete pierna otra vez**.
-16. Turno sin relación con entreno → no dispara: contexto y coste idénticos a hoy.
-17. Batería de regresión de **F21 y F05** en verde con el AC5 de F21 reescrito. Sync de doctrina
-    a `04-IA.md`.
+16. ✅ Turno sin relación con entreno → no dispara: contexto y coste idénticos a hoy. *Todo lo
+    nuevo vive DENTRO del bloque que ya se añadía bajo intención, así que lo garantiza el mismo
+    mecanismo de F21: test de prompt byte-idéntico sin `trainingContext`.*
+17. ✅ Batería de regresión de **F21 y F05** en verde con el AC5 de F21 reescrito. Sync de doctrina
+    a `04-IA.md`. *El AC5 pasa a «no guarda ni afirma haber guardado; la app ofrece una acción que
+    Alex pulsa» y se retira la coletilla «dile que la meta él por el flujo normal», que era falsa
+    desde la Fase 2. El texto del Chat no cambia de naturaleza: sigue sin emitir ningún comando —
+    el botón lo pinta la app (patrón F14·B).*
 
 ## Riesgos / decisiones discutibles (para la aprobación)
 
