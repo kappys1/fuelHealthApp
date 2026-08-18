@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -120,6 +121,7 @@ export function ChatClient({
   initialThreadId?: number | null;
   nowIso: string;
 }) {
+  const router = useRouter();
   const online = useOnline();
   const kbOpen = useKeyboardOpen();
   const [threads, setThreads] = useState<ThreadDTO[]>(initialThreads);
@@ -607,7 +609,16 @@ export function ChatClient({
           }}
           date={dayKey()}
           suggestedReason={adaptDraft}
-          onSaved={() => setAdaptDraft(null)}
+          onSaved={() => {
+            /*
+              Guardar desde el Chat te dejaba en el Chat, sin rastro de dónde ha
+              ido la sesión: Alex tuvo que irse a Plan · Entrenos y de ahí a Hoy
+              para verla. Se le lleva a donde vive el día; el toast con «Deshacer»
+              sobrevive a la navegación (el Toaster está en el layout raíz).
+            */
+            setAdaptDraft(null);
+            router.push("/hoy");
+          }}
         />
       ) : null}
     </section>
