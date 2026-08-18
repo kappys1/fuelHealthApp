@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bloatEventImportRow,
+  dayImportRow,
   flexibleMealImportRow,
   mealEntryImportRow,
   planOptionImportRow,
@@ -216,6 +217,67 @@ describe("flexibleMealImportRow — round-trip F16", () => {
     expect(row.date).toBe("2026-07-25");
     expect(row.meal).toBe("cena");
     expect(row.createdAt.toISOString()).toBe("2026-07-25T18:30:00.000Z");
+  });
+});
+
+/*
+  F26 Fase 2 · AC11. Los tres campos de la sesión adaptada viven en `days`, así
+  que el round-trip export → restore tiene que transportarlos — y un backup
+  anterior a F26 tiene que seguir restaurándose sin ellos.
+*/
+describe("dayImportRow — round-trip de la sesión adaptada (F26, AC11)", () => {
+  it("conserva contenido, motivo y marca de tiempo", () => {
+    const exported = {
+      date: "2026-08-18",
+      weight: 92.1,
+      waterL: 2.5,
+      bodyFatPct: null,
+      sessionLabel: "T3 · Fuerza + Gimnásticos",
+      sessionKcal: 620,
+      sessionRef: 12,
+      phase: null,
+      bloat: "leve",
+      notes: "hombro tocado",
+      adaptedSession: "**Fuerza**\nPeso muerto 5x5\n\n**Metcon**\nRemo 3x500 m",
+      adaptedReason: "hombro derecho",
+      adaptedAt: "2026-08-18T07:32:10.000Z",
+    };
+    const row = dayImportRow(exported);
+
+    expect(row.adaptedSession).toBe(exported.adaptedSession);
+    expect(row.adaptedReason).toBe("hombro derecho");
+    expect(row.adaptedAt).toBeInstanceOf(Date);
+    expect(row.adaptedAt?.toISOString()).toBe(exported.adaptedAt);
+    // Y el resto del día sigue intacto (no se pierde nada por el camino).
+    expect(row).toMatchObject({
+      date: "2026-08-18",
+      weight: 92.1,
+      sessionLabel: "T3 · Fuerza + Gimnásticos",
+      sessionRef: 12,
+      notes: "hombro tocado",
+    });
+  });
+
+  it("un backup anterior a F26 restaura el día sin adaptada, no rompe", () => {
+    const row = dayImportRow({
+      date: "2026-07-01",
+      weight: 93,
+      sessionLabel: "T1 · Halterofilia + WOD",
+    });
+    expect(row.adaptedSession).toBeNull();
+    expect(row.adaptedReason).toBeNull();
+    expect(row.adaptedAt).toBeNull();
+    expect(row.weight).toBe(93);
+  });
+
+  it("un día con adaptada vacía se restaura como día sin adaptada", () => {
+    const row = dayImportRow({
+      date: "2026-08-01",
+      adaptedSession: null,
+      adaptedReason: null,
+      adaptedAt: null,
+    });
+    expect(row.adaptedAt).toBeNull();
   });
 });
 

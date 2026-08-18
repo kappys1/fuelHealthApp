@@ -278,6 +278,12 @@ async function main() {
       bloat: mapBloat(l.bloat),
       notes: l.notes ?? null,
     };
+    /*
+      F26 Fase 2: `adapted_session/reason/at` NO están en `row` a propósito. El
+      PoC es anterior a la feature y no tiene nada que traer, y como el upsert
+      hace `set: row`, dejarlos fuera es lo que garantiza que reimportar el PoC
+      sobre un día ya adaptado NO borre la adaptación (AC11, principio 7).
+    */
     await db
       .insert(schema.days)
       .values(row)

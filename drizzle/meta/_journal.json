@@ -148,6 +148,13 @@
       "when": 1785097602752,
       "tag": "0020_tearful_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1787072029146,
+      "tag": "0021_skinny_rhino",
+      "breakpoints": true
     }
   ]
 }

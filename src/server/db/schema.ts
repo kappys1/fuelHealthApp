@@ -171,6 +171,16 @@ export const days = pgTable("days", {
   phase: phaseEnum(),
   bloat: bloatEnum(),
   notes: text(),
+  /*
+    Sesión adaptada del día (F26 Fase 2). Vive AQUÍ y no en `training_sessions`:
+    el plan de The Progrm es la fuente de verdad y sigue intacto, así se
+    distingue «cambió el programa» de «cambié yo por el hombro». 1:1 con el día
+    → columnas, no tabla nueva. `adaptedReason` es texto libre y NO implica
+    lesión (puede ser «sobrecarga» o «solo 40 min»).
+  */
+  adaptedSession: text("adapted_session"),
+  adaptedReason: text("adapted_reason"),
+  adaptedAt: timestamp("adapted_at", { withTimezone: true }),
 });
 
 // ── bloat_events (marcadores temporales del día) ──

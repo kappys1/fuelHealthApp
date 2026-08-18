@@ -7,6 +7,7 @@ import { productImportRow } from "../products-map";
 import { normalizeTrainingSettings } from "../settings-map";
 import {
   bloatEventImportRow,
+  dayImportRow,
   flexibleMealImportRow,
   mealEntryImportRow,
   planOptionImportRow,
@@ -223,6 +224,10 @@ const isNullableDate = (value: unknown) => value == null || isDate(value);
 const isTime = (value: unknown) =>
   typeof value === "string" &&
   /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,6})?)?$/.test(value);
+const isNullableTimestamp = (value: unknown) =>
+  value == null ||
+  value instanceof Date ||
+  (typeof value === "string" && !Number.isNaN(Date.parse(value)));
 const isEnum = (values: readonly string[]) => (value: unknown) =>
   typeof value === "string" && values.includes(value);
 const isNullableEnum = (values: readonly string[]) => (value: unknown) =>
@@ -326,6 +331,10 @@ function validateImportData(data: ImportData): void {
     fields.forEach((field) => assertField(data, table, field, isString)),
   );
   assertField(data, "days", "notes", isNullableString);
+  // F26 Fase 2 · la sesión adaptada viaja en el backup como tres campos del día.
+  assertField(data, "days", "adaptedSession", isNullableString);
+  assertField(data, "days", "adaptedReason", isNullableString);
+  assertField(data, "days", "adaptedAt", isNullableTimestamp);
 
   assertField(data, "planOptions", "meal", isEnum(schema.mealEnum.enumValues));
   assertField(data, "planOptions", "grp", isEnum(schema.grpEnum.enumValues));
@@ -468,22 +477,7 @@ export async function applyImport(data: ImportData): Promise<ImportResult> {
     );
   }
   if (data.days.length) {
-    queries.push(
-      db.insert(schema.days).values(
-        data.days.map((r) => ({
-          date: String(r.date),
-          weight: n(r.weight),
-          waterL: n(r.waterL),
-          bodyFatPct: n(r.bodyFatPct),
-          sessionLabel: s(r.sessionLabel),
-          sessionKcal: n(r.sessionKcal),
-          sessionRef: n(r.sessionRef),
-          phase: (r.phase ?? null) as typeof schema.phaseEnum.enumValues[number] | null,
-          bloat: (r.bloat ?? null) as typeof schema.bloatEnum.enumValues[number] | null,
-          notes: s(r.notes),
-        })),
-      ),
-    );
+    queries.push(db.insert(schema.days).values(data.days.map(dayImportRow)));
   }
   if (data.bloatEvents.length) {
     queries.push(

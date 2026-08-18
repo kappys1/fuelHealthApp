@@ -795,5 +795,8 @@ function emptyDay(date: string) {
     phase: null,
     bloat: null,
     notes: null,
+    adaptedSession: null,
+    adaptedReason: null,
+    adaptedAt: null,
   };
 }

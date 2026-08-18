@@ -200,6 +200,24 @@ export const canonicalTrainingUndoZ = z.object({
   previousSession: canonicalSessionSnapshotZ.nullable(),
 });
 
+/*
+  Sesión adaptada del día (F26 Fase 2). `session` admite cadena vacía a
+  propósito: guardar vacío = quitar la adaptada (la única salida si se guarda
+  una por error y el toast de deshacer ya se fue).
+*/
+export const adaptedSessionSaveZ = z.object({
+  date: dateZ,
+  session: z.string().max(20000),
+  reason: z.string().max(300),
+});
+export const adaptedSessionUndoZ = z.object({
+  date: dateZ,
+  session: z.string().max(20000).nullable(),
+  reason: z.string().max(300).nullable(),
+  at: z.string().nullable(),
+  writtenAt: z.string(),
+});
+
 // Marcas / registros de rendimiento (F03). `value` en unidades guardadas (segundos
 // si el tipo es tiempo). measureType fija la dirección de "mejor" y la unidad.
 export const measureTypeZ = z.enum(MEASURE_TYPES);
