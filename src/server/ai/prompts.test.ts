@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { weekdayName } from "@/lib/dates";
 import { DEFAULT_TRAINING_BY_WEEKDAY } from "@/lib/training-slot";
-import { type AthleteProfile, DEFAULT_ATHLETE_PROFILE } from "@/lib/profile";
+import {
+  type AthleteProfile,
+  DEFAULT_ATHLETE_PROFILE,
+  type Lesion,
+} from "@/lib/profile";
 import type { DatedEntry, DayView } from "@/server/db/queries/day";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
 import type { MarkDTO } from "@/server/db/queries/marks";
@@ -231,6 +235,82 @@ describe("ATHLETE_CONTEXT dinámico (doc 10 A2)", () => {
     expect(full).toContain("peso reciente no disponible");
     expect(compact).toContain("peso reciente no disponible");
     expect(full).not.toContain("92 kg");
+  });
+});
+
+/*
+  F26 Fase 1 · la ranura {lesiones?} lleva CAPACIDAD, no zonas. La plantilla no
+  cambia (sigue congelada): cambia el valor que se interpola. AC1 (el Chat conoce
+  la capacidad en un hilo nuevo) y AC2 (la cerrada sale del contexto).
+*/
+describe("F26 · lesión vigente en el contexto de atleta", () => {
+  const hombro: Lesion = {
+    id: "l1",
+    zona: "hombro derecho",
+    capacidad:
+      "NO: nada por encima de cabeza, press, kipping, snatch. SÍ: tirón horizontal, remo, peso muerto, pierna, cardio sin brazos.",
+    desde: "2026-07-28",
+    revisarEl: "2026-08-11",
+  };
+  const withLesiones = (lesiones: Lesion[]): AthleteProfile => ({
+    ...DEFAULT_ATHLETE_PROFILE,
+    lesiones,
+  });
+
+  it("la vigente entra con su capacidad completa y su fecha de inicio (AC1)", () => {
+    const full = athleteContext(withLesiones([hombro]), 92, 6, TODAY);
+    expect(full).toContain("Lesiones vigentes: hombro derecho (desde 2026-07-28)");
+    expect(full).toContain("nada por encima de cabeza");
+    expect(full).toContain("SÍ: tirón horizontal");
+  });
+
+  it("la cerrada NO entra en el contexto (AC2)", () => {
+    const full = athleteContext(
+      withLesiones([{ ...hombro, cerradaEl: "2026-08-15" }]),
+      92,
+      6,
+      TODAY,
+    );
+    expect(full).not.toContain("hombro");
+    expect(full).not.toContain("Lesiones vigentes");
+  });
+
+  it("sin lesiones vigentes no aparece la frase (contexto y coste de hoy)", () => {
+    expect(athleteContext(DEFAULT_ATHLETE_PROFILE, 92, 6, TODAY)).not.toContain(
+      "Lesiones",
+    );
+  });
+
+  it("un chip migrado sin capacidad entra solo con la zona, sin inventar nada", () => {
+    const full = athleteContext(
+      withLesiones([
+        { id: "legacy-0", zona: "fascitis plantar", capacidad: "", desde: null, revisarEl: TODAY },
+      ]),
+      92,
+      6,
+      TODAY,
+    );
+    expect(full).toContain("Lesiones vigentes: fascitis plantar.");
+    expect(full).not.toContain("capacidad:");
+    expect(full).not.toContain("fascitis plantar (desde");
+  });
+
+  it("varias vigentes se separan sin confundirse con el texto de capacidad", () => {
+    const full = athleteContext(
+      withLesiones([
+        hombro,
+        { id: "l2", zona: "rodilla", capacidad: "NO saltos.", desde: "2026-08-01", revisarEl: "2026-08-15" },
+      ]),
+      92,
+      6,
+      TODAY,
+    );
+    // Las más recientes primero, separadas por " | " (el "; " vive dentro de la
+    // capacidad y confundiría los límites de cada episodio).
+    expect(full).toContain(
+      "Lesiones vigentes: rodilla (desde 2026-08-01) — capacidad: NO saltos. | hombro derecho (desde 2026-07-28)",
+    );
+    expect(full).toMatch(/cardio sin brazos\.(?!\.)/); // sin punto duplicado
   });
 });
 

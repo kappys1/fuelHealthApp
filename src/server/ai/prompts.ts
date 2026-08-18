@@ -4,6 +4,7 @@ import {
   type AthleteProfile,
   currentObjective,
   deriveAge,
+  lesionesVigentes,
 } from "@/lib/profile";
 import type { PlanOptionDTO } from "@/server/db/queries/plan";
 
@@ -39,8 +40,20 @@ export function athleteContext(
     ? ` **Objetivo actual (desde ${obj.desde}): ${obj.texto}.**`
     : "";
   const nota = p.notaClinica?.trim() ? ` ${p.notaClinica.trim()}.` : "";
-  const lesiones = p.lesiones?.length
-    ? ` Lesiones: ${p.lesiones.join(", ")}.`
+  /*
+    F26 Fase 1: la ranura {lesiones?} de la plantilla (doc 10 A2) deja de ser una
+    lista de zonas y pasa a describir la CAPACIDAD del episodio vigente. La zona
+    sola obliga al modelo a suponer, y suponiendo sobre una lesión sobre-frena.
+    Solo las VIGENTES: nada de escalar por un hombro que se curó en marzo.
+  */
+  const vigentes = lesionesVigentes(p).map((l) => {
+    const desde = l.desde ? ` (desde ${l.desde})` : "";
+    const capacidad = l.capacidad.trim();
+    return `${l.zona}${desde}${capacidad ? ` — capacidad: ${capacidad}` : ""}`;
+  });
+  const lesionesBody = vigentes.join(" | ");
+  const lesiones = lesionesBody
+    ? ` Lesiones vigentes: ${lesionesBody}${lesionesBody.endsWith(".") ? "" : "."}`
     : "";
   const pesoPart =
     pesoReciente != null ? `${pesoReciente} kg` : "peso reciente no disponible";
