@@ -26,6 +26,7 @@ import { dayKey, labelForKey, shiftDayKey } from "@/lib/dates";
 import { entryToDuplicateInput } from "@/lib/entry-actions";
 import type { BloatKey, MealKey } from "@/lib/macros";
 import { roundKcal } from "@/lib/macros";
+import type { LesionReview } from "@/lib/profile";
 import { dayTotals } from "@/server/analytics/dayTotals";
 import type { BloatEventDTO } from "@/server/db/queries/bloat";
 import type { EntryDTO } from "@/server/db/queries/day";
@@ -172,6 +173,29 @@ export function HoyClient({
       return;
     }
     await todayState.createBloatEvent(severity, currentMadridTime());
+  };
+
+  /*
+    F26 · respuesta a la revisión de lesión del check-in. Escribe en el perfil
+    (no en el día) y refresca: el payload de Hoy lleva `lesionPorRevisar`, así
+    que al recargar el paso ya no vuelve a aparecer.
+  */
+  const reviewLesion = async (input: {
+    id: string;
+    review: LesionReview;
+    capacidad?: string;
+  }) => {
+    try {
+      await api.reviewLesion(input);
+      todayState.refetch();
+      toast.success(
+        input.review === "cerrada" ? "Lesión cerrada." : "Revisión guardada.",
+      );
+      return true;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "No se pudo guardar.");
+      return false;
+    }
   };
 
   // F13 §B — Duplicar en el día visible (optimista; la fila aparece al cerrar el sheet).
@@ -377,6 +401,7 @@ export function HoyClient({
         data={data}
         onPatch={todayState.patchDay}
         onBloat={saveCurrentBloat}
+        onLesionReview={reviewLesion}
       />
       <CheckinCierre
         key={`cierre-${date}-${cierreOpen ? "open" : "closed"}`}

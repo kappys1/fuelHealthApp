@@ -1,4 +1,5 @@
-import { isoWeekday, shiftDayKey } from "@/lib/dates";
+import { dayKey, isoWeekday, shiftDayKey } from "@/lib/dates";
+import { type Lesion, lesionPorRevisar } from "@/lib/profile";
 import { PHASE_NEXT, type PhaseKey } from "@/lib/macros";
 import type { TrainingByWeekday, TrainingSlot } from "@/lib/training-slot";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
@@ -17,6 +18,7 @@ import {
   phaseOnDate,
 } from "./day";
 import {
+  getAthleteProfile,
   getTrainingByWeekday,
   listProducts,
   listTemplates,
@@ -75,6 +77,12 @@ export interface TodayPayload {
   coachReadings: Record<CoachMode, CoachReadingView | null>;
   /** Marcadores temporales reales; no incluye el resumen legacy sin hora. */
   bloatEvents: BloatEventDTO[];
+  /**
+   * F26 Fase 1: lesión vigente cuya revisión ya toca — el check-in matinal añade
+   * un paso SOLO cuando la hay (nada de tarjeta permanente en Hoy, 09 §6). Solo
+   * se rellena en el día de hoy: revisar desde un día pasado no tiene sentido.
+   */
+  lesionPorRevisar: Lesion | null;
 }
 
 export async function getTodayPayload(date: string): Promise<TodayPayload> {
@@ -97,6 +105,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     previousView,
     previousPlan,
     bloatEvents,
+    athleteProfile,
   ] = await Promise.all([
     getDayView(date),
     getPlanContext(date),
@@ -115,6 +124,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     getDayView(previousDate),
     getPlanContext(previousDate),
     listBloatEvents(date),
+    getAthleteProfile(),
   ]);
 
   const wd = String(isoWeekday(date));
@@ -170,5 +180,7 @@ export async function getTodayPayload(date: string): Promise<TodayPayload> {
     coachReading: coachReadings.hoy,
     coachReadings,
     bloatEvents,
+    lesionPorRevisar:
+      date === dayKey() ? lesionPorRevisar(athleteProfile, date) : null,
   };
 }

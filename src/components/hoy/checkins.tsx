@@ -15,6 +15,7 @@ import {
   roundKcal,
   SESSIONS,
 } from "@/lib/macros";
+import type { Lesion, LesionReview } from "@/lib/profile";
 import { orderedSessionOptions, sessionPatchFor } from "@/lib/training";
 import { cn } from "@/lib/utils";
 import { dayTotals } from "@/server/analytics/dayTotals";
@@ -23,19 +24,29 @@ import type { TodayPayload } from "@/server/db/queries/today";
 
 const BLOATS: BloatKey[] = ["ninguna", "leve", "moderada", "alta"];
 
-/** Check-in matinal: peso → hinchazón → sesión. ≤15 s, un pulgar (09 §5). */
+/**
+ * Check-in matinal: peso → hinchazón → [lesión] → sesión. ≤15 s, un pulgar
+ * (09 §5). El paso de lesión SOLO aparece el día que toca revisarla (F26 AC3):
+ * es un paso condicional de un flujo que ya existe, no una tarjeta en Hoy.
+ */
 export function CheckinMatinal({
   open,
   onOpenChange,
   data,
   onPatch,
   onBloat,
+  onLesionReview,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   data: TodayPayload;
   onPatch: (patch: DayPatch) => void;
   onBloat: (severity: BloatKey) => Promise<void>;
+  onLesionReview: (input: {
+    id: string;
+    review: LesionReview;
+    capacidad?: string;
+  }) => Promise<boolean>;
 }) {
   const [step, setStep] = useState(0);
   const [savingBloat, setSavingBloat] = useState(false);
@@ -43,6 +54,12 @@ export function CheckinMatinal({
   const [weight, setWeight] = useState(
     String(data.view.day?.weight ?? data.lastWeight ?? ""),
   );
+
+  const lesion = data.lesionPorRevisar;
+  const steps = lesion
+    ? (["peso", "hinchazon", "lesion", "sesion"] as const)
+    : (["peso", "hinchazon", "sesion"] as const);
+  const current = steps[step];
 
   const close = () => {
     setStep(0);
@@ -60,12 +77,12 @@ export function CheckinMatinal({
       <SheetContent side="bottom" className="gap-0">
         <SheetHeader>
           <SheetTitle className="card-title text-muted-foreground">
-            Check-in matinal · {step + 1}/3
+            Check-in matinal · {step + 1}/{steps.length}
           </SheetTitle>
         </SheetHeader>
 
         <div className="px-4 py-4">
-          {step === 0 ? (
+          {current === "peso" ? (
             <div className="space-y-4">
               <p className="text-[15px] text-foreground">¿Cuánto pesas hoy? (ayunas)</p>
               <div className="flex justify-center">
@@ -89,7 +106,7 @@ export function CheckinMatinal({
             </div>
           ) : null}
 
-          {step === 1 ? (
+          {current === "hinchazon" ? (
             <div className="space-y-4">
               <p className="text-[15px] text-foreground">¿Cómo amaneces?</p>
               <div className="grid grid-cols-2 gap-2">
@@ -122,7 +139,15 @@ export function CheckinMatinal({
             </div>
           ) : null}
 
-          {step === 2 ? (
+          {current === "lesion" && lesion ? (
+            <LesionReviewStep
+              lesion={lesion}
+              onReview={onLesionReview}
+              onDone={() => setStep(step + 1)}
+            />
+          ) : null}
+
+          {current === "sesion" ? (
             <div className="space-y-3">
               <p className="text-[15px] text-foreground">
                 Sesión de hoy{" "}
@@ -176,6 +201,103 @@ export function CheckinMatinal({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+/*
+  Revisión de una lesión vencida (F26 Fase 1, AC3). Tres salidas y una sola
+  pregunta: sigue igual (+14 d) · va mejor (reescribe la capacidad, +14 d) · ya
+  está (cierra con hoy, marcado aproximado — nunca borra). Se pregunta el día que
+  toca y no vuelve a aparecer hasta la siguiente revisión.
+*/
+function LesionReviewStep({
+  lesion,
+  onReview,
+  onDone,
+}: {
+  lesion: Lesion;
+  onReview: (input: {
+    id: string;
+    review: LesionReview;
+    capacidad?: string;
+  }) => Promise<boolean>;
+  onDone: () => void;
+}) {
+  const [mejor, setMejor] = useState(false);
+  const [capacidad, setCapacidad] = useState(lesion.capacidad);
+  const [saving, setSaving] = useState(false);
+
+  const send = async (review: LesionReview, nueva?: string) => {
+    setSaving(true);
+    try {
+      if (await onReview({ id: lesion.id, review, capacidad: nueva })) onDone();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[15px] text-foreground">
+        ¿Cómo va <b>{lesion.zona}</b>?{" "}
+        {lesion.desde ? (
+          <span className="num text-muted-foreground">desde {lesion.desde}</span>
+        ) : null}
+      </p>
+      {mejor ? (
+        <div className="space-y-3">
+          <p className="text-[13px] text-muted-foreground">
+            Ajusta qué puedes y qué no. Es lo que lee el coach.
+          </p>
+          <textarea
+            value={capacidad}
+            onChange={(e) => setCapacidad(e.target.value)}
+            rows={4}
+            placeholder="NO: nada por encima de cabeza. SÍ: tirón horizontal, pierna."
+            className="w-full rounded-lg border border-input bg-surface-2 px-3 py-2 text-base outline-none focus-visible:border-ring"
+          />
+          <BigNext
+            label={saving ? "Guardando…" : "Guardar y seguir"}
+            disabled={saving}
+            onClick={() => send("mejor", capacidad)}
+          />
+          <SkipLink label="Volver" onClick={() => setMejor(false)} />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {lesion.capacidad.trim() ? (
+            <p className="rounded-lg bg-surface-2 px-3 py-2 text-[13px] text-muted-foreground">
+              {lesion.capacidad}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => send("igual")}
+            className="min-h-11 w-full rounded-xl border border-line bg-surface-2 py-3 text-[15px] disabled:opacity-60"
+          >
+            Sigue igual
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => setMejor(true)}
+            className="min-h-11 w-full rounded-xl border border-line bg-surface-2 py-3 text-[15px] disabled:opacity-60"
+          >
+            Va mejor
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => send("cerrada")}
+            className="min-h-11 w-full rounded-xl border border-primary bg-primary/10 py-3 text-[15px] font-semibold text-primary disabled:opacity-60"
+          >
+            Ya está
+          </button>
+          <SkipLink label="Ahora no" onClick={onDone} />
+        </div>
+      )}
+    </div>
   );
 }
 
