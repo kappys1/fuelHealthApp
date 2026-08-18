@@ -452,8 +452,16 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   de F25 → guardar. La ficha muestra **adaptada arriba + planificada abajo marcada «DEL PLAN»**.
   Pisar la anterior deja toast de deshacer con guarda anti-pisotón; guardar vacío la quita.
   **Desviación aprobada (DECISIONS #99)**: no se reutiliza `TrainingSessionComposer` — escribe en
-  `training_sessions`, justo lo que la feature prohíbe. AC9-AC11 con tests; **AC6, AC7 y AC8 🖐**.
-  Ojo al desplegar: **la migración va ANTES que el código** (sin las columnas, Hoy revienta).
+  `training_sessions`, justo lo que la feature prohíbe. **Desplegada el 18-ago** (migración 0021
+  aplicada a Neon antes del código; sin las columnas, Hoy revienta).
+  **AC9-AC11 con tests · AC6 y AC7 VALIDADOS por Alex en uso real · AC8 ampliado y verificado.**
+  Dos correcciones nacidas del primer uso real, las dos el mismo día:
+  **(a) DECISIONS #100** — sobre-frenado + truncamiento + idioma; la regla anti-sobre-frenado
+  dependía de que la capacidad estuviera bien escrita, y la capacidad de Alex es un diagnóstico.
+  **(b)** la adaptada no salía en **Plan · Entrenos**, que también es una vista por día → la app
+  contaba dos verdades según la pestaña. Ya sale en las dos (en Plan, solo lectura → «Ver en Hoy»).
+  **Pendiente que se lleva la Fase 3**: Alex preguntó *«el HSW por qué lo cambio?»* **dentro del
+  campo de motivo** — el botón devuelve una sesión, no una conversación. Ese es el hueco del Chat.
 - 🔴 **Nota de contexto en la MED** (DECISIONS #91) — **única pieza con fecha límite: 16-sep**.
   `med_measurements` no tiene columna de contexto (`schema.ts:294-300`), así que el asterisco de
   la MED del 16-sep no puede viajar con el dato: *Preparar visita* la presentaría como una MED

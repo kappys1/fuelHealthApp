@@ -357,6 +357,16 @@ export async function createTrainingPlanAtomic(
 export interface TrainingSessionWithDay extends TrainingSessionDTO {
   /** Día al que está asignada esta sesión ('YYYY-MM-DD') o null. */
   assignedDate: string | null;
+  /*
+    F26 Fase 2 · si ESE día tiene sesión adaptada, viaja con la sesión. Plan ·
+    Entrenos es una vista por día (tiene selector de día), así que sin esto la
+    app enseñaba dos verdades según la pestaña: en Hoy la adaptada y aquí la del
+    plan, sin rastro de que la hubieras cambiado.
+  */
+  adaptedSession: string | null;
+  adaptedReason: string | null;
+  /** ISO. */
+  adaptedAt: string | null;
 }
 
 export interface TrainingWeekView {
@@ -395,7 +405,13 @@ export async function getTrainingWeekView(
   const ids = sessions.map((s) => s.id);
   const dayRows = ids.length
     ? await db
-        .select({ date: schema.days.date, sessionRef: schema.days.sessionRef })
+        .select({
+          date: schema.days.date,
+          sessionRef: schema.days.sessionRef,
+          adaptedSession: schema.days.adaptedSession,
+          adaptedReason: schema.days.adaptedReason,
+          adaptedAt: schema.days.adaptedAt,
+        })
         .from(schema.days)
         .where(
           and(
@@ -405,16 +421,22 @@ export async function getTrainingWeekView(
           ),
         )
     : [];
-  const dateBySession = new Map(
-    dayRows.flatMap((r) => (r.sessionRef != null ? [[r.sessionRef, r.date]] : [])),
+  const daysBySession = new Map(
+    dayRows.flatMap((r) => (r.sessionRef != null ? [[r.sessionRef, r] as const] : [])),
   );
 
   return {
     plan: plan as TrainingPlanDTO,
-    sessions: sessions.map((s) => ({
-      ...s,
-      assignedDate: dateBySession.get(s.id) ?? null,
-    })),
+    sessions: sessions.map((s) => {
+      const day = daysBySession.get(s.id);
+      return {
+        ...s,
+        assignedDate: day?.date ?? null,
+        adaptedSession: day?.adaptedSession ?? null,
+        adaptedReason: day?.adaptedReason ?? null,
+        adaptedAt: day?.adaptedAt ? day.adaptedAt.toISOString() : null,
+      };
+    }),
   };
 }
 

@@ -17,6 +17,7 @@ export function AdaptedSessionCard({
   motivo,
   adaptedAt,
   onEdit,
+  editLabel = "Editar",
   className,
 }: {
   contenido: string;
@@ -24,6 +25,9 @@ export function AdaptedSessionCard({
   /** ISO de cuándo se guardó; solo se muestra el día. */
   adaptedAt: string | null;
   onEdit: () => void;
+  /** En Plan la tarjeta es de solo lectura y el botón lleva a Hoy, que es donde
+   *  vive el día y donde se adapta y se edita. */
+  editLabel?: string;
   className?: string;
 }) {
   return (
@@ -43,7 +47,7 @@ export function AdaptedSessionCard({
           className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl px-2 text-[13px] font-semibold text-primary"
         >
           <Pencil className="size-3.5" aria-hidden />
-          Editar
+          {editLabel}
         </button>
       </div>
 

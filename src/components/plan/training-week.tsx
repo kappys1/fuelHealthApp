@@ -12,6 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AdaptedSessionCard } from "@/components/training/adapted-session-card";
 import { TrainingSessionDetail } from "@/components/training/training-session-detail";
 import { TrainingSessionComposer } from "@/components/training/training-session-composer";
 import { Button } from "@/components/ui/button";
@@ -207,10 +208,28 @@ export function TrainingWeek({
         </div>
       </section>
 
+      {/*
+        F26 · si ese día tiene sesión adaptada, va primero: es la que hizo (o
+        va a hacer). Sin esto, Hoy y Plan contaban dos verdades distintas del
+        mismo día. Aquí es SOLO lectura: se adapta y se edita desde Hoy, que es
+        donde vive el día — esta pestaña es la del plan.
+      */}
+      {selectedSession?.adaptedSession?.trim() ? (
+        <AdaptedSessionCard
+          contenido={selectedSession.adaptedSession}
+          motivo={selectedSession.adaptedReason}
+          adaptedAt={selectedSession.adaptedAt}
+          onEdit={() => router.push("/hoy")}
+          editLabel="Ver en Hoy"
+          className="mb-3"
+        />
+      ) : null}
+
       {selectedSession && week ? (
         <TrainingSessionDetail
           session={selectedSession}
           plan={week.plan}
+          badge={selectedSession.adaptedSession?.trim() ? "DEL PLAN" : null}
           actions={
             <>
               {!isPast ? (
