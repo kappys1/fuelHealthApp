@@ -36,7 +36,10 @@ import {
   persistedChatUserText,
 } from "@/lib/chat-turn";
 import { AdaptedSessionSheet } from "@/components/training/adapted-session-sheet";
-import { shouldOfferAdaptedSave } from "@/lib/chat-adapt-action";
+import {
+  adaptMotiveFromChat,
+  shouldOfferAdaptedSave,
+} from "@/lib/chat-adapt-action";
 import { api } from "@/lib/client-api";
 import { dayKey } from "@/lib/dates";
 import { processImage } from "@/lib/image";
@@ -136,9 +139,10 @@ export function ChatClient({
   );
   const [sendError, setSendError] = useState<SendErrorState | null>(null);
   /*
-    F26 Fase 3 · texto de la respuesta que Alex quiere conservar como sesión
-    adaptada de hoy. Abre el MISMO editor que el botón de la ficha: una sola
-    puerta de guardado, tres orígenes. null = cerrado.
+    F26 Fase 3 · MOTIVO con el que abrir el editor de sesión adaptada, sacado de
+    lo que Alex le contó al Chat (editable antes de generar). No es el texto de la
+    respuesta: el Chat conversa, la sesión la produce el ✨ (DECISIONS #101).
+    null = cerrado.
   */
   const [adaptDraft, setAdaptDraft] = useState<string | null>(null);
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
@@ -588,6 +592,13 @@ export function ChatClient({
         onSend={send}
       />
 
+      {/*
+        F26 · el Chat NO produce la sesión: produce la conversación. El botón trae
+        el MOTIVO en las palabras de Alex (editable, por si el agente lo entendió
+        mal) y el contenido vacío; la sesión la genera el ✨ —el mismo generador
+        de la ficha— para que salga con la estructura del plan y no un consejo en
+        prosa. Misma hoja, mismo guardado: una sola puerta (DECISIONS #101).
+      */}
       {adaptDraft != null ? (
         <AdaptedSessionSheet
           open
@@ -595,9 +606,7 @@ export function ChatClient({
             if (!open) setAdaptDraft(null);
           }}
           date={dayKey()}
-          initialContent={adaptDraft}
-          suggestedReason="adaptada en el chat"
-          canGenerate={false}
+          suggestedReason={adaptDraft}
           onSaved={() => setAdaptDraft(null)}
         />
       ) : null}
@@ -835,8 +844,8 @@ function MessageArea({
   loadError: string | null;
   onRetryLoad: () => void;
   onBack: () => void;
-  /** F26 · abre el editor de sesión adaptada con el texto de la respuesta. */
-  onSaveAsAdapted?: (text: string) => void;
+  /** F26 · abre el editor de sesión adaptada con el MOTIVO sacado del hilo. */
+  onSaveAsAdapted?: (motivo: string) => void;
 }) {
   const empty =
     messages.length === 0 &&
@@ -928,11 +937,11 @@ function MessageArea({
       shouldOfferAdaptedSave(messages, { streaming: streaming != null }) ? (
         <button
           type="button"
-          onClick={() => onSaveAsAdapted(messages.at(-1)?.content ?? "")}
+          onClick={() => onSaveAsAdapted(adaptMotiveFromChat(messages))}
           className="inline-flex min-h-11 items-center gap-1.5 self-start rounded-xl border border-primary/25 bg-primary-soft px-3 text-[13px] font-semibold text-primary"
         >
           <Dumbbell className="size-4" aria-hidden />
-          Guardar como sesión adaptada de hoy
+          Adaptar la sesión de hoy
         </button>
       ) : null}
       {error ? (

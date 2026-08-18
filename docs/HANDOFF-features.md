@@ -463,9 +463,12 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   **Fase 3 (18-ago, en `main`).** El contexto del Chat pasa a contar **lo realizado**: si un día
   tiene adaptada, viaja esa y la del plan se cita solo por su nombre (sustituye, no suma → coste
   igual). El flag «lesión vigente y hoy sin adaptar» va como **dato**, no como ruego del prompt.
-  Botón **«Guardar como sesión adaptada de hoy»** bajo la última respuesta, pintado por la app
+  Botón **«Adaptar la sesión de hoy»** bajo la última respuesta, pintado por la app
   (patrón F14·B) con intención sticky de ventana corta (`lib/chat-adapt-action.ts`, puro y
-  testeado); abre el mismo editor. **Se reescribe el AC5 de F21** (riesgo 1 de la spec): se retira
+  testeado); abre el mismo editor con el **motivo en las palabras de Alex**, editable, y el
+  contenido vacío. **Enmienda #101 nacida de probarlo**: la spec quería pegar el texto de la
+  respuesta, pero el Chat conversa y no produce sesiones — pegar su consejo en prosa metía prosa
+  donde va un entreno. La sesión la hace el ✨ de siempre. **Se reescribe el AC5 de F21** (riesgo 1 de la spec): se retira
   «dile que la meta él por el flujo normal», que era falso desde la Fase 2; el «no guarda ni
   afirma haber guardado» queda intacto. **Verificado en vivo contra Neon**: AC12 (hilo nuevo →
   habla de la adaptada), AC13 (sin adaptar → pregunta una vez y no adapta solo), AC14 (da la

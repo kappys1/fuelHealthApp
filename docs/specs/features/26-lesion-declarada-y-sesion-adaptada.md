@@ -191,9 +191,14 @@ adapted_at       timestamptz   -- cuándo se generó/guardó
 9. `src/app/api/ai/chat/route.ts`: el contexto que ya se ensambla por turno añade, bajo la
    detección de intención existente (`detectTrainingAdaptationIntent`), la sesión **adaptada** del
    día si existe, y el flag de lesión vigente sin adaptar.
-10. Bajo una respuesta del Chat cuya intención disparó, la **app pinta** la acción **«Guardar como
-    sesión adaptada de hoy»** → abre el composer del paso 6 prerrellenado con el texto. **El modelo
-    no guarda ni dice que guarda.**
+10. Bajo una respuesta del Chat cuya intención disparó, la **app pinta** una acción. **El modelo no
+    guarda ni dice que guarda** (ni menciona la interfaz).
+    **Enmienda #101, con evidencia de uso el mismo día**: la acción NO es «Guardar como sesión
+    adaptada de hoy» prerrellenando el editor con el texto de la respuesta. **El Chat conversa, no
+    produce sesiones**: su respuesta es consejo en prosa, y pegarlo en `adapted_session` mete prosa
+    donde va un entreno. La acción es **«Adaptar la sesión de hoy»** y abre la misma hoja con el
+    **motivo en las palabras de Alex** (su último mensaje que disparó la intención, editable) y el
+    contenido vacío → la sesión la produce el ✨ del paso 5, que ya sale con la estructura del plan.
 
 ## IA
 
@@ -271,10 +276,11 @@ de prompt):
     si sigue afectando; no adapta solo. *Presentó la sesión del plan tal cual y cerró con «¿Te
     sigue limitando el hombro derecho o la rodilla para proponerte adaptaciones, o vas a probarlo
     tal cual?».*
-14. 🖐 **Verificado en vivo**. Le pido la adaptación al Chat → me la da y aparece **«Guardar como
-    sesión adaptada de hoy»**, que abre el editor prerrellenado. El Chat **no afirma** haber
-    guardado nada *(comprobado por lista de frases prohibidas sobre la respuesta real; tampoco
-    manda copiarla a mano)*.
+14. 🖐 **Reabierto y rehecho el 18-ago tras probarlo Alex (#101)**. Le pido la adaptación al Chat →
+    me la da (en prosa, y está bien que sea prosa) y aparece **«Adaptar la sesión de hoy»**, que
+    abre el editor con **mi motivo** ya escrito y editable; el ✨ genera la sesión de verdad. El
+    Chat **no afirma** haber guardado nada ni habla de la interfaz *(comprobado sobre la respuesta
+    real contra una lista de frases prohibidas)*.
 15. 🖐 **Equilibrio (el alma de F21, ahora honesto)**: lunes planificado hombros → adapto a
     pierna → el martes el Chat **no me mete pierna otra vez**.
 16. ✅ Turno sin relación con entreno → no dispara: contexto y coste idénticos a hoy. *Todo lo

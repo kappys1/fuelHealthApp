@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { shouldOfferAdaptedSave } from "./chat-adapt-action";
+import {
+  adaptMotiveFromChat,
+  shouldOfferAdaptedSave,
+} from "./chat-adapt-action";
 
 const user = (content: string) => ({ role: "user" as const, content });
 const bot = (content: string) => ({ role: "assistant" as const, content });
@@ -64,5 +67,43 @@ describe("F26 Fase 3 · cuándo pinta la app «Guardar como sesión adaptada»",
 
   it("hilo vacío: nada que ofrecer", () => {
     expect(shouldOfferAdaptedSave([], quiet)).toBe(false);
+  });
+});
+
+/*
+  El motivo con el que se abre la hoja son LAS PALABRAS DE ALEX, no un resumen de
+  la IA ni una etiqueta genérica: es lo que va a leer el generador y lo que Alex
+  puede corregir si el agente le entendió mal (DECISIONS #101).
+*/
+describe("F26 Fase 3 · motivo con el que se abre el editor", () => {
+  it("usa el último mensaje de Alex que hablaba de la limitación", () => {
+    expect(
+      adaptMotiveFromChat([
+        user("¿qué entreno tengo hoy?"),
+        bot("Rope climbs, remo…"),
+        user("me sigue limitando el hombro derecho, adáptame la sesión"),
+        bot("Puedes cambiar…"),
+      ]),
+    ).toBe("me sigue limitando el hombro derecho, adáptame la sesión");
+  });
+
+  it("ignora los seguimientos que no dicen nada de la limitación", () => {
+    expect(
+      adaptMotiveFromChat([
+        user("me duele el hombro, adapta la sesión"),
+        bot("Propuesta A"),
+        user("vale"),
+        bot("Perfecto"),
+      ]),
+    ).toBe("me duele el hombro, adapta la sesión");
+  });
+
+  it("recorta al límite del campo del endpoint (300)", () => {
+    const largo = `me duele el hombro ${"y ".repeat(400)}`;
+    expect(adaptMotiveFromChat([user(largo), bot("ok")]).length).toBe(300);
+  });
+
+  it("sin nada que disparara, devuelve vacío (Alex lo escribe)", () => {
+    expect(adaptMotiveFromChat([user("¿qué ceno?"), bot("Salmón")])).toBe("");
   });
 });

@@ -36,10 +36,15 @@ export function AdaptedSessionSheet({
   suggestedReason,
   /** Adaptada ya guardada, si la hay: entonces esto es una edición. */
   current,
-  /** Texto de partida (Fase 3: la propuesta que el Chat acaba de dar). */
+  /** Texto de partida, si quien abre ya tiene uno. Normalmente vacío: la sesión
+   *  la produce el ✨, no se pega desde fuera (DECISIONS #101). */
   initialContent,
-  /** Hay sesión del plan que adaptar; si no, el ✨ no tiene de dónde partir. */
-  canGenerate,
+  /**
+   * ¿Hay sesión del plan de la que partir? Solo se pasa `false` donde se SABE que
+   * no la hay. Por defecto true: si resulta que no la hay, el endpoint responde
+   * con el motivo real y el error se ve (nunca se adivina un «no se puede»).
+   */
+  canGenerate = true,
   onSaved,
 }: {
   open: boolean;
@@ -48,7 +53,7 @@ export function AdaptedSessionSheet({
   suggestedReason?: string | null;
   current?: { session: string; reason: string | null } | null;
   initialContent?: string | null;
-  canGenerate: boolean;
+  canGenerate?: boolean;
   onSaved: () => void | Promise<void>;
 }) {
   const [motivo, setMotivo] = useState(
