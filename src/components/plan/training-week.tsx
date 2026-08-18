@@ -14,6 +14,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { TrainingSessionDetail } from "@/components/training/training-session-detail";
 import { TrainingSessionComposer } from "@/components/training/training-session-composer";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Select,
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/sheet";
 import { api } from "@/lib/client-api";
 import { labelForKey, shiftDayKey } from "@/lib/dates";
+import { formatOrKeep } from "@/lib/training-format-client";
 import {
   createTrainingAssignment,
   type TrainingAssignmentState,
@@ -351,6 +353,32 @@ function SessionEditorSheet({
   );
   const [busy, setBusy] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [formatting, setFormatting] = useState(false);
+
+  /*
+    F25 · «Reformatear» para las sesiones que ya están en la BD. Vive AQUÍ y no en
+    la ficha a propósito: así reusa entera la vía de guardado que ya existe. El
+    resultado cae en el mismo textarea, Alex ve los `**`, los corrige si quiere y
+    guarda con el botón de siempre — o cierra sin guardar y no ha pasado nada.
+    Idempotente por construcción: el servidor limpia los marcadores antes de
+    llamar al modelo, así que reformatear dos veces no los duplica (AC 16).
+  */
+  const reformat = async () => {
+    if (!contenido.trim()) return;
+    setFormatting(true);
+    const outcome = await formatOrKeep(contenido);
+    setFormatting(false);
+    setContenido(outcome.contenido);
+    if (outcome.reason) toast.warning(outcome.reason);
+    else if (outcome.groups === 0)
+      toast.info("La IA no ha visto grupos que marcar en esta sesión.");
+    else
+      toast.success(
+        `${outcome.groups} grupo${outcome.groups === 1 ? "" : "s"} marcado${
+          outcome.groups === 1 ? "" : "s"
+        }. Revisa y guarda.`,
+      );
+  };
 
   const save = async () => {
     if (!nombre.trim()) {
@@ -429,7 +457,19 @@ function SessionEditorSheet({
               />
             </label>
             <label className="block">
-              <span className="ui-label mb-1.5 block">Contenido</span>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <span className="ui-label">Contenido</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={reformat}
+                  disabled={formatting || busy || !contenido.trim()}
+                  className="h-auto py-1 text-[12px]"
+                >
+                  {formatting ? "Dando formato…" : "Reformatear con IA"}
+                </Button>
+              </div>
               <textarea
                 value={contenido}
                 onChange={(event) => setContenido(event.target.value)}
