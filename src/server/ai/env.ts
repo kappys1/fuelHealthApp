@@ -8,7 +8,7 @@
 export type AiProvider = "google" | "anthropic" | "openai";
 
 /** Qué modelo usar por feature (04-IA §"Modelos y coste por feature"). */
-export type ModelKind = "vision" | "text" | "coach" | "chat" | "title";
+export type ModelKind = "vision" | "text" | "coach" | "chat" | "title" | "format";
 
 function required(name: string): string {
   const v = process.env[name];
@@ -50,5 +50,12 @@ export function modelId(kind: ModelKind): string {
       // AI_MODEL_TITLE no está definido, cae al del chat → no rompe deploys; el
       // título es cosmético y su fallback último es el recorte determinista.
       return process.env.AI_MODEL_TITLE ?? modelId("chat");
+    case "format":
+      // Formato de la ficha de entreno (F25): marcar rótulos de grupo. Es la
+      // tarea más mecánica del catálogo (el modelo solo decide "esta línea es
+      // un rótulo") → el modelo más barato disponible. Misma cascada que el
+      // título: si AI_MODEL_FORMAT no está definido, cae al del título (que a
+      // su vez cae al del chat) → no rompe deploys existentes.
+      return process.env.AI_MODEL_FORMAT ?? modelId("title");
   }
 }

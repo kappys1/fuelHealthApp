@@ -3,7 +3,9 @@ import type { ReactNode } from "react";
 import {
   isTrainingHeadingLine,
   splitTrainingContent,
+  splitTrainingGroups,
   trainingBlockText,
+  trainingGroupDisplayLabel,
   TRAINING_TIPO_LABELS,
   type TrainingTipo,
 } from "@/lib/training";
@@ -60,6 +62,10 @@ export function TrainingSessionDetail({
     primera línea es un rótulo de sección se separa del cuerpo: un bloque real puede
     traer 27 líneas y sin el rótulo destacado es un muro. Si no hay rótulo, el bloque
     se pinta entero como antes — no se inventa una cabecera que el texto no tiene.
+
+    F25 añade el tercer nivel: el cuerpo se parte en grupos declarados por el texto
+    (`**Etiqueta**` en línea propia). Un cuerpo sin marcadores devuelve un único
+    grupo con el texto intacto → se pinta exactamente igual que antes.
   */
   const blocks = splitTrainingContent(session.contenido).map((block) => {
     const text = trainingBlockText(block);
@@ -69,7 +75,7 @@ export function TrainingSessionDetail({
     return {
       key: `${block.length}-${text.length}`,
       heading: hasHeading ? firstLine : null,
-      body: hasHeading ? text.slice(cut + 1) : text,
+      groups: splitTrainingGroups(hasHeading ? text.slice(cut + 1) : text),
     };
   });
 
@@ -116,9 +122,47 @@ export function TrainingSessionDetail({
                     {block.heading}
                   </p>
                 ) : null}
-                <p className="whitespace-pre-wrap text-[13px] font-medium leading-relaxed text-foreground">
-                  {block.body}
-                </p>
+                {block.groups.map((group, groupIndex) =>
+                  group.label === null ? (
+                    /*
+                      Entradilla del bloque (siempre la primera, si existe): mismo
+                      <p> de siempre. El aire de abajo solo aparece cuando hay
+                      grupos detrás — un bloque sin marcadores queda idéntico.
+                    */
+                    <p
+                      key={groupIndex}
+                      className={cn(
+                        "whitespace-pre-wrap text-[13px] font-medium leading-relaxed text-foreground",
+                        block.groups.length > 1 && "mb-3",
+                      )}
+                    >
+                      {group.text}
+                    </p>
+                  ) : (
+                    /*
+                      Grupo. Su separador es una regla CORTA y centrada (14 %-86 %),
+                      deliberadamente distinta de la línea a todo el ancho que separa
+                      secciones: se distinguen de un vistazo, sin leer. El primero no
+                      la lleva (ya lo separa la entradilla).
+                    */
+                    <div
+                      key={groupIndex}
+                      className={cn(
+                        "relative",
+                        groupIndex > 0 &&
+                          "mt-3 pt-3 before:absolute before:inset-x-[14%] before:top-0 before:border-t before:border-line before:content-['']",
+                      )}
+                    >
+                      {/* Atenuado a propósito: no compite con el rótulo de sección. */}
+                      <p className="mb-[3px] text-[11px] font-semibold uppercase leading-relaxed tracking-[0.08em] text-muted-foreground">
+                        {trainingGroupDisplayLabel(group.label)}
+                      </p>
+                      <p className="whitespace-pre-wrap text-[13px] font-medium leading-relaxed text-foreground">
+                        {group.text}
+                      </p>
+                    </div>
+                  ),
+                )}
               </div>
             </li>
           ))}

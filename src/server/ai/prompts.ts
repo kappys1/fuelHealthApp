@@ -438,6 +438,33 @@ export function trainingImportPrompt(
   return `${contexto} ${fuente}Extrae CADA sesión de la semana con: clave (ej. "T1"; si no hay, usa "Día 1", "Día 2"…), nombre corto, tipo (EXACTAMENTE uno de: fuerza, halterofilia, gimnasticos, metabolico, aerobico, mixto, descanso, otro), y contenido COMPLETO, fiel y ordenado: conserva todos los bloques relevantes del documento, en su orden original, sin resumir ni omitir ejercicios, series, repeticiones, descansos o accesorios; dentro de "contenido" separa CADA bloque del siguiente con una LÍNEA EN BLANCO (dos saltos de línea seguidos, "\\n\\n") y usa saltos de línea simples solo para las líneas de un mismo bloque. Si el texto de origen trae una frase partida en varias líneas por el ajuste visual del documento, ÚNELA en una sola línea (une también las palabras cortadas con guion al final de línea): un salto de línea marca una línea propia (ejercicio, serie, nota), nunca el final de un renglón. Estima además la duración total en minutos y el gasto energético de la sesión completa como rango (kcal_min/kcal_max) para este atleta, con los criterios de una sesión típica: incluye descansos entre series, sé conservador y NO cuentes EPOC. Si una sesión es de descanso, tipo "descanso", duración 0 y gasto 0. Responde SOLO con JSON válido, sin markdown: {"programa": string|null, "etiqueta": string|null, "sesiones": [{"clave": string, "nombre": string, "tipo": string, "contenido": string, "duracion_min": number, "kcal_min": number, "kcal_max": number}]}`;
 }
 
+// ── F25 · Dar formato a la ficha de entreno (marcar rótulos de grupo) ──
+// Prompt NUEVO (no re-valida AC de ninguna feature). Contrato mínimo A PROPÓSITO:
+// el modelo solo decide "esta línea es un rótulo de grupo". Es la pregunta más
+// fácil de acertar y la única que se puede verificar barato — la fidelidad NO se
+// confía a estas frases, se comprueba en código (applyTrainingFormat) y ante
+// cualquier discrepancia gana el original. Sin contexto de atleta: es una
+// transformación de texto, no una estimación. temperature:0.
+export function trainingFormatPrompt(contenido: string): string {
+  return `Este es el contenido de una sesión de entrenamiento, tal como está guardado:
+
+${contenido}
+
+Tu ÚNICA tarea es marcar qué líneas son RÓTULOS DE GRUPO. Un rótulo de grupo es una línea que da nombre al trabajo que viene debajo: un movimiento o ejercicio ("Power Clean", "Strict Press"), un esquema de trabajo ("4 rounds", "EMOM 12'") o una condición ("Si aparece dolor >2/10"). NO es un rótulo una línea que ya es una instrucción, una serie, una repetición, una carga o una nota.
+
+Hay UN SOLO nivel de grupo, y estos dos casos NUNCA se marcan:
+- Las VARIANTES o alternativas de lo que ya está en marcha ("Original", "Adaptado", "Sustitución", "No hacer", "Escalado", "Opción B"): se quedan como líneas normales dentro del grupo al que modifican, aunque parezcan rótulos. Marca el ejercicio o el esquema del que dependen, no la variante.
+- La línea que nombra la COMBINACIÓN de lo que viene después ("Power Clean + Power Jerk", cuando debajo van "Power Clean" y "Power Jerk" por separado): es la entradilla del bloque, y los rótulos son los de debajo.
+
+En cambio, una CONDICIÓN sí es un rótulo aunque dependa del ejercicio de arriba: marca "Si aparece dolor >2/10", "Si no llegas al tiempo" o similares, porque lo que va debajo solo se aplica en ese caso.
+
+Un rótulo tiene que ir seguido de al menos una línea que no sea otro rótulo: nunca dejes un rótulo sin líneas debajo.
+
+Devuelve el MISMO texto, carácter por carácter, con esas líneas —y solo esas— envueltas en dos asteriscos: **así**. Reglas absolutas: no añadas, quites ni cambies una sola palabra, cifra, unidad o signo; no reordenes nada; no resumas, reescribas ni traduzcas; conserva TODOS los saltos de línea, incluidas las líneas en blanco que separan bloques; no marques la línea que es el nombre de la sección (Calentamiento, Weightlifting / Strength, CrossFit, Accesorios, WOD…), que ya se destaca sola; no envuelvas nada a mitad de línea, solo líneas completas. Si la sesión no tiene grupos, devuelve el texto exactamente igual sin marcar nada: es una respuesta válida. Cualquier cambio que no sea envolver una línea completa en ** invalida tu respuesta entera y se descartará.
+
+Responde SOLO con JSON válido, sin markdown: {"contenido": string}`;
+}
+
 // ── F-IA-11 · Leer etiqueta nutricional (F07 · Mis productos) ──
 // CONGELADO (04-IA §F-IA-11): se usa TAL CUAL, solo interpola el contexto compacto.
 // Es LECTURA, no estimación: null donde no figura, jamás inventar.
