@@ -412,6 +412,35 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   descriptivo honesto con denominador de **días evaluados**, y captura desde el Chat (2ª
   escritura confirmada, patrón F12). **Cero correlaciones** (no-alcance explícito). Migración
   aditiva: `bloat_events.aproximado`. Términos fijados en [`docs/GLOSARIO.md`](./GLOSARIO.md).
+- 🟡 **Lesión declarada y sesión adaptada del día (F26)** (sesión 2026-08-18; hombro derecho vivo
+  desde el 28-jul, el mismo que originó F21) — **FASE 1 IMPLEMENTADA**, fases 2 y 3 pendientes:
+  [`docs/specs/features/26-lesion-declarada-y-sesion-adaptada.md`](./specs/features/26-lesion-declarada-y-sesion-adaptada.md).
+  Es el fast-follow que el NO-alcance de F21 predijo el 29-jul («estoy tocado hasta ~fecha y el
+  Coach lo recuerda»). Hallazgos de origen: el campo `athleteProfile.lesiones` **ya existe y ya
+  llega a toda la IA** (`profile.ts:39`, `prompts.ts:42-47`) pero dice la **zona** en vez de la
+  **capacidad** (el LLM supone → sobre-frena) y es **destructivo** (al curarte borras la
+  historia); y Alex declara «ni me acuerdo de quitarla», lo que mata cualquier diseño con fecha
+  de fin. Arquitectura que aporta Alex y que lo resuelve: **adaptar es un acto explícito, nunca
+  un estado** — la lesión marcada no adapta nada sola, como mucho hace que la app pregunte.
+  3 fases: (1) lesión como episodio con `capacidad` en texto libre + revisión a 14 d en el
+  check-in matinal + Historial, **sin migración de BD** (setting jsonb); (2) botón «Adaptar
+  sesión» → composer prerrellenado y **editable** → `days.adapted_session/reason/at` (migración
+  aditiva), **sin tocar `training_sessions.contenido`**; (3) Chat consciente de la adaptada +
+  acción de guardado tipo F14·B + equilibrio de F21 sobre lo realizado. Reescribe **F21 AC5**
+  (prompt congelado → re-validar F21 y F05). Kcal de sesión **no se recalculan** (verificado:
+  `sessionKcal` solo va al contexto de IA como `±25%`, `context.ts:711`; cero en `analytics/`).
+  Preparar visita hereda la lesión vigente gratis.
+  **Estado (18-ago): Fase 1 en `main`, sin desplegar.** `Lesion` como episodio (`lib/profile.ts`)
+  con lógica pura testeada (vigente/vencida/+14 d/normalizador); Ajustes parte «Suplementos y
+  lesiones» en dos (suplementos siguen chips, lesiones pasan a lista de episodios con cierre
+  fechado); `athleteContext` interpola **capacidad** en vez de zona y solo de las vigentes;
+  entrada `lesion` en el Historial; paso condicional en el check-in matinal
+  (`POST /api/settings/lesion-review`). **Sin migración de BD ni env nuevas.** AC4 y AC5 cerrados
+  con tests; **AC1, AC2 y AC3 🖐 pendientes del pulgar de Alex en producción**. Cuatro precisiones
+  sobre la spec en DECISIONS **#98** (`desde` nullable, vencida con `<=`, ids deterministas,
+  lesión sin fecha fuera del timeline). Los **dos chips reales** («Molestia hombro derecho»,
+  «Molestia rodilla izquierda») se convierten en la lectura, sin capacidad y vencidos: la primera
+  tarea de Alex es escribirles la capacidad en Ajustes.
 - 🔴 **Nota de contexto en la MED** (DECISIONS #91) — **única pieza con fecha límite: 16-sep**.
   `med_measurements` no tiene columna de contexto (`schema.ts:294-300`), así que el asterisco de
   la MED del 16-sep no puede viajar con el dato: *Preparar visita* la presentaría como una MED
