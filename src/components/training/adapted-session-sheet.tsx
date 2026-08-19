@@ -3,6 +3,7 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -63,7 +64,31 @@ export function AdaptedSessionSheet({
     initialContent ?? current?.session ?? "",
   );
   const [generating, setGenerating] = useState(false);
+  const [formatting, setFormatting] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  /*
+    Mismo «Reformatear con IA» que la hoja de edición de sesión (F25 Fase 3): al
+    generar, el formateo ya viaja dentro, pero si Alex edita la adaptada a mano
+    los rótulos de grupo se quedan a medias y esto los rehace. Nunca bloquea:
+    `formatOrKeep` devuelve el original con el motivo si falla.
+  */
+  const reformat = async () => {
+    if (!contenido.trim()) return;
+    setFormatting(true);
+    const outcome = await formatOrKeep(contenido);
+    setFormatting(false);
+    setContenido(outcome.contenido);
+    if (outcome.reason) toast.warning(outcome.reason);
+    else if (outcome.groups === 0)
+      toast.info("La IA no ha visto grupos que marcar en esta sesión.");
+    else
+      toast.success(
+        `${outcome.groups} grupo${outcome.groups === 1 ? "" : "s"} marcado${
+          outcome.groups === 1 ? "" : "s"
+        }. Revisa y guarda.`,
+      );
+  };
 
   const generate = async () => {
     const reason = motivo.trim();
@@ -182,7 +207,19 @@ export function AdaptedSessionSheet({
           )}
 
           <label className="block">
-            <span className="ui-label mb-1.5 block">Sesión adaptada</span>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="ui-label">Sesión adaptada</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={reformat}
+                disabled={formatting || generating || saving || empty}
+                className="h-auto py-1 text-[12px]"
+              >
+                {formatting ? "Dando formato…" : "Reformatear con IA"}
+              </Button>
+            </div>
             <textarea
               value={contenido}
               onChange={(event) => setContenido(event.target.value)}

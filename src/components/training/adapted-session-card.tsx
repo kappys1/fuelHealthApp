@@ -47,7 +47,15 @@ export function AdaptedSessionCard({
         </button>
       </div>
 
-      <h2 className="mt-2 font-display text-[22px] font-semibold leading-tight text-foreground">
+      {/*
+        El motivo puede venir del Chat y ser un párrafo entero (es el mensaje de
+        Alex, y así se le da entero al generador). En el título se acota a dos
+        líneas: completo ocupaba media pantalla antes de llegar a la sesión.
+      */}
+      <h2
+        title={motivo?.trim() || undefined}
+        className="mt-2 line-clamp-2 font-display text-[22px] font-semibold leading-tight text-foreground"
+      >
         {motivo?.trim() ? `Adaptada · ${motivo.trim()}` : "Sesión adaptada"}
       </h2>
 
