@@ -68,14 +68,17 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
     vivo; antes se ignoraba en Hobby → `iad1`); **LCP real ~0,5 s** (el 4,2 s de
     Lighthouse es lab, slow-4G simulado, documentado); **coste IA ~€1,6–1,9/mes** (< 5 €;
     `AI_MODEL_COACH` = Gemini 3.5 Flash).
-- **Sobre la v1 hay 22 features de uso real (F01–F22), todas en `main`.** El detalle
+- **Sobre la v1 hay 26 features de uso real (F01–F26), todas en `main`.** El detalle
   vive en `docs/HANDOFF-features.md` (§B3, una entrada por feature con su spec en
   `docs/specs/features/NN-*.md`) y en `docs/CHANGELOG-v1.md`. Titulares: Coach fiable +
   puente al Chat, Chat con detalle de comidas y grounding web, **Mis productos**,
   gramos como dato de primera clase, variantes de opción, **Marcas** (PRs), comidas
   flexibles, sesión única de entrenos + WOD, franja mañana/tarde, el Chat que adapta el
-  entreno ante una limitación, y **F22 · Progreso: una sola verdad** (ventana canónica de
-  30 d, cobertura declarada, gráfico honesto, trayectoria por meses).
+  entreno ante una limitación, **F22 · Progreso: una sola verdad** (ventana canónica de
+  30 d, cobertura declarada, gráfico honesto, trayectoria por meses), **F25 · el formateador
+  de sesiones** y **F26 · lesión declarada y sesión adaptada del día** (18/19-ago, tres fases,
+  migración 0021; la lesión pasa a ser un episodio con **capacidad** y el día puede guardar su
+  propia sesión adaptada sin tocar el plan).
 - **Validación del método, hecha (DECISIONS #89, 2026-08-09).** La MED del 5-ago contrastó
   la predicción de la báscula contra los pliegues: **ratio 1,11**, recomposición confirmada,
   Regenera «no tocar nada». El gate de sustituir la secante por regresión lineal queda
@@ -88,6 +91,7 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
   **(1) nota de contexto en la MED** — única pieza con fecha límite (**16-sep**), migración
   aditiva `med_measurements.note`; **(2) F23 · Plan mira al futuro**; **(3) F24 · Hinchazón:
   captura y descriptivo**. Specs aprobadas en `docs/specs/features/23-*` y `24-*`.
+  Pendiente suelto de F26: **AC15 🖐** (equilibrio entre días en el Chat).
 - **`docs/GLOSARIO.md`** fija los términos que se pueden leer de dos maneras (episodio de
   hinchazón, día registrado, la cifra que manda, comida flexible, criterio ≠ pauta).
   Consultarlo antes de nombrar o mostrar una cifra nueva.

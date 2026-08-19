@@ -460,7 +460,7 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   dependía de que la capacidad estuviera bien escrita, y la capacidad de Alex es un diagnóstico.
   **(b)** la adaptada no salía en **Plan · Entrenos**, que también es una vista por día → la app
   contaba dos verdades según la pestaña. Ya sale en las dos (en Plan, solo lectura → «Ver en Hoy»).
-  **Fase 3 (18-ago, en `main`).** El contexto del Chat pasa a contar **lo realizado**: si un día
+  **Fase 3 (18-ago, DESPLEGADA).** El contexto del Chat pasa a contar **lo realizado**: si un día
   tiene adaptada, viaja esa y la del plan se cita solo por su nombre (sustituye, no suma → coste
   igual). El flag «lesión vigente y hoy sin adaptar» va como **dato**, no como ruego del prompt.
   Botón **«Adaptar la sesión de hoy»** bajo la última respuesta, pintado por la app
@@ -475,10 +475,21 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
   adaptación, no afirma guardar, aparece el botón y prerrellena el editor). **AC15 (equilibrio
   entre días) es el único sin verificar en vivo**: necesita dos días de la semana con uno
   adaptado; el mecanismo está cubierto por tests del contexto.
+  **CIERRE (19-ago)**: siete correcciones posteriores al despliegue, **todas** salidas de los tres
+  primeros usos de Alex y ninguna de la revisión previa (DECISIONS **#99–#102**). Además de las ya
+  citadas: los saltos de línea (la generada metía 6 en una sesión que tiene 0 → la ficha la partía
+  de más), navegar a Hoy al guardar desde el Chat, la tarjeta de Plan editable en su propio día,
+  **«Reformatear con IA»** también en la hoja de la adaptada, y el título de la tarjeta acotado.
+  **La lección, en una línea**: cuatro de los siete fallos fueron *reutilizar una pieza por lo que
+  parecía y no por para qué se diseñó* — el composer, la cláusula anti-sobre-frenado, el detector
+  de intención y la regla de los saltos de línea. Detalle en el §Cierre de la spec.
+  **Pendiente 🖐 AC15** (equilibrio entre días: adaptar un día a pierna y preguntarle al siguiente).
   **Anotado para quien siga**: Alex preguntó *«el HSW por qué lo cambio?»* **dentro del campo de
   motivo** de la Fase 2. Ahora eso se pregunta en el Chat; si se retoma, mirar si el botón debe
   poder salir también de una pregunta **sobre una adaptada ya guardada** («¿por qué me quitaste
-  X?» → responde y ofrece regenerar), y no solo de una propuesta nueva.
+  X?» → responde y ofrece regenerar), y no solo de una propuesta nueva. Y la **capacidad** del
+  perfil sigue siendo descriptiva: con una operativa (SÍ/NO por movimiento) el generador mantiene
+  lo permitido — verificado en vivo. Es la palanca del dato, no del prompt.
 - 🔴 **Nota de contexto en la MED** (DECISIONS #91) — **única pieza con fecha límite: 16-sep**.
   `med_measurements` no tiene columna de contexto (`schema.ts:294-300`), así que el asterisco de
   la MED del 16-sep no puede viajar con el dato: *Preparar visita* la presentaría como una MED
