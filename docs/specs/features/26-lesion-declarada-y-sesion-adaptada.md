@@ -1,9 +1,11 @@
 # F26 · Lesión declarada y sesión adaptada del día
-**Estado**: **APROBADA por Alex (2026-08-18)** · **LAS TRES FASES IMPLEMENTADAS el mismo día**.
-Fase 1 y Fase 2 **desplegadas** (migración 0021 aplicada); Fase 3 en `main`. AC 4-5, 9-11, 16-17
-cerrados con tests; AC 6-7 **validados por Alex en uso real**; AC 8 y 12-14 verificados en vivo,
-pendientes de su pulgar; **AC15 (equilibrio) es el único sin verificar en vivo** — necesita dos
-días de la semana, uno adaptado. **Tamaño**:
+**Estado**: **CERRADA (2026-08-19)**. Aprobada el 18-ago y **las tres fases implementadas y
+desplegadas** en 18-19 de agosto (migración **0021** aplicada a Neon antes del código). AC 4-5,
+9-11, 16-17 cerrados con tests; **AC 6-7-8, 12, 13 y 14 usados y validados por Alex en producción**
+(el 14 se rehízo tras su feedback, #101); **AC15 (equilibrio entre días) es el único sin verificar
+en vivo** — necesita dos días de la semana con uno adaptado; el mecanismo está cubierto por tests
+del contexto. Siete correcciones posteriores al despliegue, todas nacidas de su uso real
+(DECISIONS **#99–#102**). **Tamaño**:
 **feature** (migración aditiva
 en `days` + prompt congelado + superficies nuevas en sheet) · **Fecha**: 2026-08-18
 **Origen**: conversación con Alex (18-ago) que arrancó como «quiero un apartado de lesiones» y
@@ -324,3 +326,42 @@ de prompt):
   Chat. Cuando se implemente, mirar si la acción «Guardar como sesión adaptada» debe poder
   llegar también **desde una pregunta sobre una adaptada ya guardada** («¿por qué me quitaste
   X?» → responde y ofrece regenerar), y no solo desde una propuesta nueva.
+
+---
+
+## Cierre (2026-08-19)
+
+**Desplegada entera.** Requisitos de deploy consumidos: migración **0021** (aditiva:
+`days.adapted_session/reason/at`), aplicada a Neon **antes** del código — sin ella `Hoy` revienta.
+Sin variables de entorno nuevas. Feature de IA nueva: **F-IA-12** (`adaptSessionPrompt`,
+`AI_MODEL_COACH`, texto plano, `ADAPT_SESSION_MAX_OUTPUT_TOKENS = 8192`).
+
+### Lo que enseñó implementarla
+
+Siete correcciones después de desplegar, **todas** salidas de los tres primeros usos de Alex y
+**ninguna** de la revisión previa. Cuatro comparten la misma forma y por eso la lección es una:
+
+| # | Se reutilizó / decidió… | …por lo que parecía | Lo que de verdad era |
+|---|---|---|---|
+| #99 | `TrainingSessionComposer` | «un editor de sesión» | escribía en `training_sessions`, prohibido por la propia feature |
+| #100 | «no recortes lo que la capacidad permite **explícitamente**» | una regla | dependía de que Alex hubiera escrito bien un campo |
+| #101 | `detectTrainingAdaptationIntent` | «esto va de entreno» | «inyecta contexto, que es barato equivocarse» (recall generoso a propósito) |
+| #102·1 | «bloques separados por una línea en blanco» | una descripción del formato | una orden de **insertar** separadores que el original no tiene |
+
+**Antes de reutilizar una pieza, mirar para qué se diseñó, no a qué se parece.** Y, en las reglas
+de comportamiento de un prompt: **una regla que depende de que el usuario haya rellenado bien un
+campo solo protege a quien no la necesita**.
+
+Dos más, del mismo día: el techo de tokens hay que dimensionarlo por el **tamaño de la salida que
+pide el prompt** (cuarta vez con esa piedra, #48/#52/#59 → #100), y una restricción de producto
+inventada sobre la marcha («el día vive en Hoy», #102·3) que el propio diseño de la pantalla
+desmentía.
+
+### Queda pendiente
+
+- **AC15 🖐** (equilibrio entre días): adaptar un día a pierna y preguntarle al Chat al siguiente.
+- 💡 **Preguntar sobre una adaptada ya guardada** («¿por qué me quitaste X?» → responde y ofrece
+  regenerar). Salió de que Alex escribió esa pregunta **dentro del campo de motivo** de la Fase 2.
+- La **capacidad** del perfil sigue siendo descriptiva, no operativa. No es un fallo del código:
+  con una capacidad SÍ/NO el generador mantiene lo permitido (verificado en vivo). Es la palanca
+  que más mejora el resultado y depende del dato, no del prompt.
