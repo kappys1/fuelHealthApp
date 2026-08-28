@@ -233,6 +233,7 @@ export const api = {
       grp: string;
       name: string;
       baseG: number | null;
+      unit: "g" | "ml" | "ud";
       kcal: number;
       prot: number;
       carb: number;

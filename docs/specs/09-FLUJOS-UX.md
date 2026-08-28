@@ -95,7 +95,11 @@ Listo en ≤15 segundos. Cada paso es saltable; guardar en cada paso (si lo aban
 - **Peso matinal**: estado del día → tap → sheet con SOLO el campo de peso (teclado decimal abierto) + hinchazón opcional → guardar. 10 s. (Shortcut del manifest «Peso de hoy» abre directamente este sheet.)
 - **Foto desde galería**: Compartir → Fuelboard (share target) → sheet de foto ya cargado.
 - **Competición** (fase = Competición): en Hoy aparece la fila de repostaje rápido (doc 07 §4) sobre el timeline; el gauge en modo informativo.
-- **Cambio de dieta**: Plan → «Importar dieta (foto/PDF)» destacado arriba → vista previa → nueva versión.
+- **Cambio de dieta**: Plan → «Importar dieta (foto/PDF)» destacado arriba → vista previa
+  editable que muestra el origen de cada fila (`Etiqueta`, `Dieta anterior`,
+  `Mis productos`, `Estimación IA` o `Editado`) → nueva versión. Cambiar de fuente o leer
+  una etiqueta sucede dentro de la propia fila del sheet; una sola lectura puede corregir
+  la fila y, con consentimiento visible, crear/actualizar `Mis productos`.
 - **Opción recurrente del Plan**: abrir/crear opción → si no tiene variantes, elegir
   «Mis productos» → revisar la copia (nombre, grupo, base, unidad, macros) → guardar.
   El nombre sigue editable; con variantes el selector no aparece.

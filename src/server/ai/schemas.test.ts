@@ -191,6 +191,7 @@ describe("labelReadZ — lectura de etiqueta (F-IA-11)", () => {
   it("acepta una etiqueta por 100 g completa", () => {
     const r = labelReadZ.parse({
       nombre: "Tortitas integrales Hacendado",
+      unidad: "g",
       base_g: 100,
       kcal: 350,
       proteina_g: 12,
@@ -206,6 +207,7 @@ describe("labelReadZ — lectura de etiqueta (F-IA-11)", () => {
   it("acepta null donde el dato no figura (por unidad sin peso, sin fibra…)", () => {
     const r = labelReadZ.parse({
       nombre: "Barrita X",
+      unidad: "ud",
       base_g: null,
       kcal: 90,
       proteina_g: null,
@@ -222,6 +224,7 @@ describe("labelReadZ — lectura de etiqueta (F-IA-11)", () => {
   it("coerciona valores emitidos como string", () => {
     const r = labelReadZ.parse({
       nombre: "Pan",
+      unidad: "g",
       base_g: "100",
       kcal: "250",
       proteina_g: "9",
@@ -231,5 +234,36 @@ describe("labelReadZ — lectura de etiqueta (F-IA-11)", () => {
     });
     expect(r.base_g).toBe(100);
     expect(r.kcal).toBe(250);
+  });
+
+  it("conserva por separado la base y la ración explícita del gazpacho", () => {
+    const r = labelReadZ.parse({
+      nombre: "Gazpacho Lidl",
+      unidad: "ml",
+      base_g: 100,
+      kcal: 37,
+      proteina_g: 0.6,
+      carbohidratos_g: 3,
+      grasa_g: 2.3,
+      racion: {
+        cantidad: 200,
+        unidad: "ml",
+        kcal: 75,
+        proteina_g: 1.2,
+        carbohidratos_g: 6,
+        grasa_g: 4.6,
+      },
+      grupo: "Verdura",
+    });
+    expect(r.unidad).toBe("ml");
+    expect(r.kcal).toBe(37);
+    expect(r.racion).toEqual({
+      cantidad: 200,
+      unidad: "ml",
+      kcal: 75,
+      proteina_g: 1.2,
+      carbohidratos_g: 6,
+      grasa_g: 4.6,
+    });
   });
 });

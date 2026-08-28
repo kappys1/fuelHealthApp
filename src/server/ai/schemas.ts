@@ -166,13 +166,25 @@ export type TrainingFormatAiResult = z.infer<typeof trainingFormatZ>;
 // Es una LECTURA, no una estimación: `null` donde el dato NO figura en la etiqueta
 // (base_g y macros nullable). `nombre` y `grupo` siempre vienen (grupo se normaliza
 // contra el enum en el cliente).
+export const labelServingZ = z.object({
+  cantidad: num,
+  unidad: z.enum(["g", "ml", "ud"]),
+  kcal: num.nullable(),
+  proteina_g: num.nullable(),
+  carbohidratos_g: num.nullable(),
+  grasa_g: num.nullable(),
+});
 export const labelReadZ = z.object({
   nombre: z.string(),
+  unidad: z.enum(["g", "ml", "ud"]),
   base_g: num.nullable(),
   kcal: num.nullable(),
   proteina_g: num.nullable(),
   carbohidratos_g: num.nullable(),
   grasa_g: num.nullable(),
+  // F27: columna de ración impresa. Nunca se deriva desde la columna principal.
+  racion: labelServingZ.nullable().default(null),
   grupo: z.string(),
 });
 export type LabelReadResult = z.infer<typeof labelReadZ>;
+export type LabelServing = z.infer<typeof labelServingZ>;

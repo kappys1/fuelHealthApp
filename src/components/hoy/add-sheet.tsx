@@ -1775,6 +1775,7 @@ function ProductEditorLayer({
         setProt(r.proteina_g != null ? String(r.proteina_g) : "");
         setCarb(r.carbohidratos_g != null ? String(r.carbohidratos_g) : "");
         setFat(r.grasa_g != null ? String(r.grasa_g) : "");
+        setUnit(r.unidad);
         setGrupo(
           (PRODUCT_GROUPS as string[]).includes(r.grupo) ? r.grupo : GRUPO_NONE,
         );

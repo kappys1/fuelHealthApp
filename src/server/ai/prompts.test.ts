@@ -48,6 +48,7 @@ import {
   chatTitlePrompt,
   coachPrompt,
   dayDumpPrompt,
+  labelReadPrompt,
   planOptionsList,
   planOptionPrompt,
   photoPrompt,
@@ -57,6 +58,23 @@ import {
   trainingImportPrompt,
   wodPrompt,
 } from "./prompts";
+
+describe("F27 · F-IA-11 lee unidad y ración sin recalcular", () => {
+  it("separa base principal y ración explícita con unidad g/ml/ud", () => {
+    const prompt = labelReadPrompt("ATLETA");
+    expect(prompt).toContain('"unidad" como EXACTAMENTE "g", "ml" o "ud"');
+    expect(prompt).toContain('"por 100 g" o "por 100 ml"');
+    expect(prompt).toContain('"racion" con su cantidad, su unidad');
+    expect(prompt).toContain("NUNCA obtengas una columna multiplicando");
+    expect(prompt).toContain('"racion": {"cantidad": number');
+  });
+
+  it("mantiene null donde la etiqueta no imprime el valor", () => {
+    const prompt = labelReadPrompt("ATLETA");
+    expect(prompt).toContain('si no existe, "racion": null');
+    expect(prompt).toContain("devuelve null (NUNCA lo inventes ni lo estimes)");
+  });
+});
 
 /*
   ATHLETE_CONTEXT dinámico + guardarraíles del coach (doc 10 A2/A3/A4). Todo esto

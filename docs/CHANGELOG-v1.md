@@ -486,6 +486,18 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   0.3` sin cambio; sin café ×3. 484 tests verdes; F05 re-validada (byte-idéntica sin
   intención). **AC 1-5 validados por Alex en producción (2026-07-29); F21 cerrada.**
 
+### v1.24 · Importar dieta sin perder correcciones conocidas (F27)
+
+- La vista previa reconcilia cada fila con la dieta vigente y `Mis productos`, muestra el
+  origen y conserva alternativas limpias con precedencia y matching conservadores.
+- Unidad, cantidad, macros y variantes siguen editables; el escalado parte siempre de la
+  base inmutable. F-IA-9 no cambia.
+- F-IA-11 lee unidad y ración impresa: una foto corrige la fila y puede guardar/actualizar
+  el producto sin segunda llamada. Gazpacho Lidl ×3 exacto: 200 ml = 75 kcal, nunca 74.
+- Sin migración ni reescritura histórica. 689 tests + typecheck + build verdes. AC 7 y 8
+  validados por Alex en móvil; AC 10 aceptado para cierre sin crear otra versión duplicada.
+  F27 cerrada y despliegue autorizado el 29-ago.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

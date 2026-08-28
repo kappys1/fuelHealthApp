@@ -6,26 +6,17 @@ import {
   Loader2,
   Plus,
   Sparkles,
-  Trash2,
   Upload,
   WifiOff,
 } from "lucide-react";
+import { planVariantToRow } from "./variants-editor";
 import {
-  MiniInput,
-  planVariantToRow,
-  type VariantRow,
-  VariantsEditor,
-} from "./variants-editor";
+  DietImportRowEditor,
+  type DietImportRow,
+} from "./diet-import-row";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -38,35 +29,34 @@ import { api } from "@/lib/client-api";
 import { dayKey } from "@/lib/dates";
 import {
   deriveVariantsForStore,
-  displayMacro,
   GRP_ORDER,
   type GrpKey,
   type MealKey,
   MEAL_LABELS,
   MEAL_ORDER,
 } from "@/lib/macros";
+import {
+  findSafeDietProductMatch,
+  reconcileDietImportOption,
+  selectDietImportSource,
+  type DietImportSource,
+  type DietImportValues,
+} from "@/lib/diet-import-reconciliation";
+import {
+  applyLabelNutritionToDiet,
+  buildLabelProductWrite,
+  isCompleteLabelNutrition,
+  selectLabelNutrition,
+} from "@/lib/label-nutrition";
 import { useOnline } from "@/lib/use-online";
-import type { DietImportResult } from "@/server/ai/schemas";
+import type { DietImportResult, LabelReadResult } from "@/server/ai/schemas";
+import type { ProductDTO } from "@/server/db/queries/lookups";
+import type { PlanOptionDTO } from "@/server/db/queries/plan";
 
 const n = (s: string) => (s === "" ? 0 : Number(s.replace(",", ".")));
 const MAX_FILES = 4;
 
-interface Row {
-  key: string;
-  meal: MealKey;
-  grp: GrpKey;
-  name: string;
-  baseG: string;
-  kcal: string;
-  prot: string;
-  carb: string;
-  fat: string;
-  // Variantes intercambiables (F08). [] = opción normal. Editables en la vista
-  // previa (corregir a la IA antes de crear la versión; Riesgo #2 de la spec). Los
-  // campos planos = 1ª variante (se derivan al guardar). Editar variantes DESPUÉS
-  // en el editor del plan (sin reimportar) = Fase 2.
-  variants: VariantRow[];
-}
+type Row = DietImportRow;
 
 let rowSeq = 0;
 const rowKey = () => `r${rowSeq++}`;
@@ -90,7 +80,60 @@ function toGrp(s: string): GrpKey {
   return found ?? "Opción única";
 }
 
-export function DietImport() {
+function variantToImportRow(
+  variant: DietImportValues["variants"][number],
+): DietImportRow["variants"][number] {
+  const row = planVariantToRow(variant);
+  return {
+    ...row,
+    kcal: String(Math.round(variant.kcal)),
+    prot: String(variant.prot),
+    carb: String(variant.carb),
+    fat: String(variant.fat),
+  };
+}
+
+function rowValues(row: Row): DietImportValues {
+  const { variants, flat } = deriveVariantsForStore(row.variants);
+  return {
+    meal: row.meal,
+    grp: row.grp,
+    name: row.name.trim(),
+    baseG: row.baseG === "" ? null : Math.round(n(row.baseG)),
+    unit: row.unit,
+    kcal: flat ? flat.kcal : Math.round(n(row.kcal)),
+    prot: flat ? flat.prot : n(row.prot),
+    carb: flat ? flat.carb : n(row.carb),
+    fat: flat ? flat.fat : n(row.fat),
+    variants,
+  };
+}
+
+function valuesPatch(values: DietImportValues): Pick<
+  Row,
+  "meal" | "grp" | "name" | "baseG" | "unit" | "kcal" | "prot" | "carb" | "fat" | "variants"
+> {
+  return {
+    meal: values.meal,
+    grp: values.grp,
+    name: values.name,
+    baseG: values.baseG != null ? String(values.baseG) : "",
+    unit: values.unit,
+    kcal: String(Math.round(values.kcal)),
+    prot: String(values.prot),
+    carb: String(values.carb),
+    fat: String(values.fat),
+    variants: values.variants.map(variantToImportRow),
+  };
+}
+
+export function DietImport({
+  previousOptions,
+  products,
+}: {
+  previousOptions: PlanOptionDTO[];
+  products: ProductDTO[];
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -112,12 +155,26 @@ export function DietImport() {
         </span>
         <ArrowRight className="size-[18px] shrink-0 text-primary transition-transform group-hover:translate-x-0.5" aria-hidden />
       </button>
-      {open ? <ImportSheet onClose={() => setOpen(false)} /> : null}
+      {open ? (
+        <ImportSheet
+          previousOptions={previousOptions}
+          products={products}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
     </>
   );
 }
 
-function ImportSheet({ onClose }: { onClose: () => void }) {
+function ImportSheet({
+  previousOptions,
+  products,
+  onClose,
+}: {
+  previousOptions: PlanOptionDTO[];
+  products: ProductDTO[];
+  onClose: () => void;
+}) {
   const router = useRouter();
   const online = useOnline();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -126,7 +183,7 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [effectiveFrom, setEffectiveFrom] = useState(dayKey());
+  const [effectiveFrom, setEffectiveFrom] = useState(dayKey);
   const [kcal, setKcal] = useState("");
   const [prot, setProt] = useState("");
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -161,35 +218,43 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
     for (const comida of r.comidas) {
       const meal = toMeal(comida.comida);
       for (const o of comida.opciones) {
-        // Variantes (F08): macros a los MISMOS gramos pautados de la opción.
-        const variants: VariantRow[] = o.variantes.map((v) =>
-          planVariantToRow({
+        const imported: DietImportValues = {
+          meal,
+          grp: toGrp(o.grupo),
+          name: o.nombre,
+          baseG: o.gramos != null ? Math.round(o.gramos) : null,
+          // F-IA-9 no lee unidad (y su prompt sigue congelado): `g` es solo el
+          // fallback de la estimación. Dieta anterior/productos aportan la real.
+          unit: "g",
+          kcal: Math.round(o.kcal),
+          prot: o.proteina_g,
+          carb: o.carbohidratos_g,
+          fat: o.grasa_g,
+          variants: o.variantes.map((v) => ({
             nombre: v.nombre,
             kcal: v.kcal,
             prot: v.proteina_g,
             carb: v.carbohidratos_g,
             fat: v.grasa_g,
-          }),
-        );
-        // Con variantes, los campos planos = la 1ª (el default). Sin variantes, los
-        // de la opción. Al guardar se re-derivan de la 1ª variante (invariante).
-        const flat = variants[0] ?? {
-          kcal: String(Math.round(o.kcal)),
-          prot: String(displayMacro(o.proteina_g)),
-          carb: String(displayMacro(o.carbohidratos_g)),
-          fat: String(displayMacro(o.grasa_g)),
+          })),
         };
+        // F27 Fase 1: toda la precedencia y aritmética vive en la función pura.
+        // La UI recibe copias limpias y solo gestiona selección/edición.
+        const reconciled = reconcileDietImportOption(
+          imported,
+          previousOptions,
+          products,
+        );
         next.push({
           key: rowKey(),
-          meal,
-          grp: toGrp(o.grupo),
-          name: o.nombre,
-          baseG: o.gramos != null ? String(Math.round(o.gramos)) : "",
-          kcal: flat.kcal,
-          prot: flat.prot,
-          carb: flat.carb,
-          fat: flat.fat,
-          variants,
+          ...valuesPatch(reconciled.values),
+          origin: reconciled.origin,
+          selectedSourceKey: reconciled.selectedKey,
+          sources: reconciled.sources,
+          unitExplicit:
+            reconciled.sources.find((source) => source.key === reconciled.selectedKey)
+              ?.unitExplicit ?? false,
+          labelSave: null,
         });
       }
     }
@@ -200,7 +265,100 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
   };
 
   const patchRow = (key: string, patch: Partial<Row>) =>
-    setRows((rs) => rs?.map((r) => (r.key === key ? { ...r, ...patch } : r)) ?? null);
+    setRows(
+      (rs) =>
+        rs?.map((r) =>
+          r.key === key
+            ? {
+                ...r,
+                ...patch,
+                origin: "edited",
+                unitExplicit: patch.unit != null ? true : r.unitExplicit,
+              }
+            : r,
+        ) ?? null,
+    );
+  const selectSource = (key: string, sourceKey: string) =>
+    setRows(
+      (rs) =>
+        rs?.map((row) => {
+          if (row.key !== key) return row;
+          const selected = selectDietImportSource(row, sourceKey);
+          if (!selected) return row;
+          return {
+            ...row,
+            ...valuesPatch(selected.values),
+            selectedSourceKey: selected.source.key,
+            origin: selected.source.origin,
+            unitExplicit: selected.source.unitExplicit,
+          };
+        }) ?? null,
+    );
+  const applyLabel = (key: string, label: LabelReadResult) =>
+    setRows(
+      (currentRows) =>
+        currentRows?.map((row) => {
+          if (row.key !== key) return row;
+
+          const current = rowValues(row);
+          const choice = selectLabelNutrition(
+            label,
+            current.baseG,
+            row.unitExplicit ? current.unit : null,
+          );
+          const values = applyLabelNutritionToDiet(
+            current,
+            label,
+            choice,
+            toGrp(label.grupo),
+          );
+          const selectedProductId = row.sources.find(
+            (source) => source.key === row.selectedSourceKey,
+          )?.productId;
+          const product =
+            products.find((candidate) => candidate.id === selectedProductId) ??
+            findSafeDietProductMatch(label.nombre, products) ??
+            findSafeDietProductMatch(current.name, products);
+          const source: DietImportSource = {
+            key: "label-read",
+            origin: "label",
+            label: "Etiqueta · Foto",
+            values,
+            unitExplicit: true,
+            ...(product ? { productId: product.id } : {}),
+          };
+          return {
+            ...row,
+            ...valuesPatch(values),
+            selectedSourceKey: source.key,
+            origin: source.origin,
+            unitExplicit: true,
+            sources: [
+              ...row.sources.filter((candidate) => candidate.key !== source.key),
+              source,
+            ],
+            labelSave: {
+              enabled: isCompleteLabelNutrition(choice),
+              complete: isCompleteLabelNutrition(choice),
+              productId: product?.id ?? null,
+              productName: product?.name ?? (label.nombre.trim() || current.name),
+              basis: choice.basis,
+            },
+          };
+        }) ?? null,
+    );
+  const toggleLabelSave = (key: string) =>
+    setRows(
+      (currentRows) =>
+        currentRows?.map((row) =>
+          row.key === key && row.labelSave?.complete
+            ? {
+                ...row,
+                labelSave: { ...row.labelSave, enabled: !row.labelSave.enabled },
+              }
+            : row,
+        ) ?? null,
+    );
   const removeRow = (key: string) =>
     setRows((rs) => rs?.filter((r) => r.key !== key) ?? null);
   const addRow = (meal: MealKey) =>
@@ -212,11 +370,17 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
         grp: "Opción única",
         name: "",
         baseG: "",
+        unit: "g",
         kcal: "",
         prot: "",
         carb: "",
         fat: "",
         variants: [],
+        origin: "edited",
+        selectedSourceKey: "edited",
+        sources: [],
+        unitExplicit: true,
+        labelSave: null,
       },
     ]);
 
@@ -239,24 +403,43 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
         prot: n(prot),
         carb: null,
         fat: null,
-        options: valid.map((r) => {
-          // Invariante F08: los campos planos = la 1ª variante (o los macros planos
-          // de la fila si no hay variantes). Derivación compartida con el editor del plan.
-          const { variants, flat } = deriveVariantsForStore(r.variants);
-          return {
-            meal: r.meal,
-            grp: r.grp,
-            name: r.name.trim(),
-            baseG: r.baseG === "" ? null : Math.round(n(r.baseG)),
-            kcal: flat ? flat.kcal : Math.round(n(r.kcal)),
-            prot: flat ? flat.prot : n(r.prot),
-            carb: flat ? flat.carb : n(r.carb),
-            fat: flat ? flat.fat : n(r.fat),
-            variants,
-          };
-        }),
+        options: valid.map(rowValues),
       });
-      toast.success("Nueva versión de dieta creada.");
+
+      // La versión es el guardado primario. El segundo destino reutiliza la MISMA
+      // lectura después, sin una llamada de IA adicional. Un fallo del catálogo no
+      // invita a reintentar y duplicar una versión ya creada: se informa por separado.
+      const writes = valid
+        .map((row) =>
+          buildLabelProductWrite(rowValues(row), row.selectedSourceKey, row.labelSave),
+        )
+        .filter((write) => write != null);
+      const productResults = await Promise.allSettled(
+        writes.map((write) =>
+          write.productId != null
+            ? api.updateProduct(write.productId, write.fields)
+            : api.createProduct({ ...write.fields, pinned: true }),
+        ),
+      );
+      const failedProducts = productResults.filter(
+        (result) => result.status === "rejected",
+      );
+      if (failedProducts.length > 0) {
+        const first = failedProducts[0];
+        const detail =
+          first?.status === "rejected" && first.reason instanceof Error
+            ? first.reason.message
+            : "error desconocido";
+        toast.error(
+          `Dieta creada, pero ${failedProducts.length} producto(s) no se actualizaron: ${detail}`,
+        );
+      } else {
+        toast.success(
+          writes.length > 0
+            ? "Nueva dieta y Mis productos actualizados."
+            : "Nueva versión de dieta creada.",
+        );
+      }
       router.refresh();
       onClose();
     } catch (err) {
@@ -382,10 +565,14 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
                         </p>
                       ) : (
                         mealRows.map((r) => (
-                          <RowEditor
+                          <DietImportRowEditor
                             key={r.key}
                             row={r}
+                            online={online}
                             onPatch={(p) => patchRow(r.key, p)}
+                            onSelectSource={(sourceKey) => selectSource(r.key, sourceKey)}
+                            onReadLabel={(result) => applyLabel(r.key, result)}
+                            onToggleProductSave={() => toggleLabelSave(r.key)}
                             onRemove={() => removeRow(r.key)}
                           />
                         ))
@@ -408,79 +595,6 @@ function ImportSheet({ onClose }: { onClose: () => void }) {
         </div>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function RowEditor({
-  row,
-  onPatch,
-  onRemove,
-}: {
-  row: Row;
-  onPatch: (p: Partial<Row>) => void;
-  onRemove: () => void;
-}) {
-  return (
-    <div className="space-y-2 px-3 py-2.5">
-      <div className="flex items-center gap-2">
-        <input
-          value={row.name}
-          onChange={(e) => onPatch({ name: e.target.value })}
-          placeholder="Nombre de la opción"
-          className="min-h-11 min-w-0 flex-1 rounded-lg border border-input bg-surface px-2.5 text-base outline-none focus-visible:border-ring"
-          aria-label="Nombre"
-        />
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label="Quitar opción"
-          className="app-icon-button shrink-0 border-0 bg-transparent hover:text-destructive"
-        >
-          <Trash2 className="size-4" aria-hidden />
-        </button>
-      </div>
-      <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
-        <Select value={row.grp} onValueChange={(v) => onPatch({ grp: v as GrpKey })}>
-          <SelectTrigger className="h-11 w-full text-base">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {GRP_ORDER.map((g) => (
-              <SelectItem key={g} value={g}>
-                {g}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <MiniInput label="g" value={row.baseG} onChange={(v) => onPatch({ baseG: v })} />
-      </div>
-      {row.variants.length > 0 ? (
-        // Variantes (F08): EDITABLES en la vista previa para corregir a la IA antes
-        // de crear la versión (falso positivo/negativo, macros mal; Riesgo #2). La
-        // 1ª es el default al registrar. «Sin variantes» = convertir en opción
-        // normal (los campos planos toman los de la 1ª).
-        <VariantsEditor
-          variants={row.variants}
-          onChange={(next) => onPatch({ variants: next })}
-          baseG={row.baseG === "" ? null : Math.round(n(row.baseG))}
-          onFlatten={() => {
-            const v0 = row.variants[0];
-            onPatch(
-              v0
-                ? { variants: [], kcal: v0.kcal, prot: v0.prot, carb: v0.carb, fat: v0.fat }
-                : { variants: [] },
-            );
-          }}
-        />
-      ) : (
-        <div className="grid grid-cols-2 gap-2 min-[380px]:grid-cols-4">
-          <MiniInput label="kcal" value={row.kcal} onChange={(v) => onPatch({ kcal: v })} />
-          <MiniInput label="P" value={row.prot} onChange={(v) => onPatch({ prot: v })} />
-          <MiniInput label="C" value={row.carb} onChange={(v) => onPatch({ carb: v })} />
-          <MiniInput label="F" value={row.fat} onChange={(v) => onPatch({ fat: v })} />
-        </div>
-      )}
-    </div>
   );
 }
 

@@ -132,7 +132,10 @@ export function PlanClient({
 
   return (
     <div className="space-y-7">
-      <DietImport />
+      <DietImport
+        previousOptions={Object.values(optionsByMeal).flat()}
+        products={products}
+      />
 
       {targets && derived ? (
         <section className="wellness-card overflow-hidden" aria-labelledby="daily-target-title">

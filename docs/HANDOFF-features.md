@@ -93,6 +93,17 @@ Detalle largo en `docs/CHANGELOG-v1.md`. Resumen por fases:
 
 > Espacio para que Alex vaya añadiendo. Candidatas mencionadas hasta ahora:
 
+- ✅ **Importar una dieta reaprovechando correcciones conocidas — F27 IMPLEMENTADA Y
+  CERRADA** (2026-08-29), spec
+  [`docs/specs/features/27-import-dieta-reaprovecha-datos-conocidos.md`](./specs/features/27-import-dieta-reaprovecha-datos-conocidos.md).
+  La vista previa reconcilia por precedencia conservadora `Etiqueta → Dieta anterior → IA`,
+  conserva fuentes alternativas y permite unidad/origen/valores editables sin tocar F-IA-9.
+  F-IA-11 añade unidad+ración explícita y reutiliza una lectura para corregir la fila y
+  crear/actualizar opcionalmente `Mis productos`; no hay migración ni reescritura histórica.
+  Etiqueta Gazpacho Lidl ×3 byte-idéntica: `200 ml · 75 kcal · 1,2P · 6C · 4,6G`.
+  Gate final: typecheck + 689 tests + build. **AC 7 y 8 validados por Alex en móvil;
+  AC 10 aceptado para cierre sin crear otra versión duplicada; deploy autorizado.**
+
 - 🔵 **El gasto manual de sesión se descarta siempre** (2026-08-05, sale de validar F22).
   `energyBalance` aplica una regla anti-doble-conteo que asume «si hay `activeKcal`, el
   reloj iba puesto y ya incluye el entreno». Pero el iPhone registra kcal activas solo con
