@@ -498,6 +498,14 @@ Principio 9 («la IA habla con el atleta de hoy»): nada personal a fuego en pro
   validados por Alex en móvil; AC 10 aceptado para cierre sin crear otra versión duplicada.
   F27 cerrada y despliegue autorizado el 29-ago.
 
+### Quick-fix · El Plan reescala al cambiar la cantidad base
+
+- Una opción normal copiada desde `Mis productos` o estimada con IA recalcula kcal y macros
+  al modificar su cantidad base; antes solo cambiaba el número de gramos.
+- El cálculo parte de una referencia estable durante toda la edición, por lo que subir y
+  volver a bajar la cantidad no acumula redondeos. Las opciones con variantes no cambian.
+- Sin migración, prompt ni reescritura de opciones o entradas ya guardadas.
+
 ---
 
 ## 2. Decisiones clave por tema (resumen de `DECISIONS.md`)

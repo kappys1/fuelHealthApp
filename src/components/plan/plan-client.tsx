@@ -16,7 +16,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -42,7 +42,11 @@ import {
   PRODUCT_UNIT_SUFFIX,
   type ProductUnit,
 } from "@/lib/macros";
-import { seedPlanOptionFromProduct } from "@/lib/plan-option-product";
+import {
+  rescalePlanOptionMacros,
+  seedPlanOptionFromProduct,
+  type PlanOptionMacroBasis,
+} from "@/lib/plan-option-product";
 import { cn } from "@/lib/utils";
 import type { DerivedTargets } from "@/server/analytics/planDerived";
 import type { EffectiveTargets, PlanOptionDTO } from "@/server/db/queries/plan";
@@ -534,6 +538,17 @@ function OptionForm({
   const [prot, setProt] = useState(String(option?.prot ?? ""));
   const [carb, setCarb] = useState(String(option?.carb ?? ""));
   const [fat, setFat] = useState(String(option?.fat ?? ""));
+  const macroBasis = useRef<PlanOptionMacroBasis | null>(
+    option
+      ? {
+          baseG: option.baseG,
+          kcal: option.kcal,
+          prot: option.prot,
+          carb: option.carb,
+          fat: option.fat,
+        }
+      : null,
+  );
   const [busy, setBusy] = useState(false);
   const [estimating, setEstimating] = useState(false);
   // Variantes intercambiables (F08), editables a mano (Fase 2). Se inicializan
@@ -568,7 +583,39 @@ function OptionForm({
     setProt(String(seeded.prot));
     setCarb(String(seeded.carb));
     setFat(String(seeded.fat));
+    macroBasis.current = {
+      baseG: seeded.baseG,
+      kcal: seeded.kcal,
+      prot: seeded.prot,
+      carb: seeded.carb,
+      fat: seeded.fat,
+    };
     toast("Opción copiada desde Mis productos. Puedes editarla antes de guardar.");
+  };
+
+  const changeBaseG = (next: string) => {
+    setBaseG(next);
+    if (hasVariants || next === "") return;
+
+    const basis =
+      macroBasis.current ??
+      (baseG === ""
+        ? null
+        : {
+            baseG: Math.round(n(baseG)),
+            kcal: n(kcal),
+            prot: n(prot),
+            carb: n(carb),
+            fat: n(fat),
+          });
+    if (!basis) return;
+    macroBasis.current = basis;
+
+    const scaled = rescalePlanOptionMacros(basis, n(next));
+    setKcal(String(scaled.kcal));
+    setProt(String(scaled.prot));
+    setCarb(String(scaled.carb));
+    setFat(String(scaled.fat));
   };
 
   // Convertir una opción normal en opción con variantes: siembra la 1ª con los
@@ -585,6 +632,13 @@ function OptionForm({
       setProt(v0.prot);
       setCarb(v0.carb);
       setFat(v0.fat);
+      macroBasis.current = {
+        baseG: baseG === "" ? null : Math.round(n(baseG)),
+        kcal: n(v0.kcal),
+        prot: n(v0.prot),
+        carb: n(v0.carb),
+        fat: n(v0.fat),
+      };
     }
     setVariants([]);
   };
@@ -606,6 +660,13 @@ function OptionForm({
       setProt(String(displayMacro(r.proteina_g)));
       setCarb(String(displayMacro(r.carbohidratos_g)));
       setFat(String(displayMacro(r.grasa_g)));
+      macroBasis.current = {
+        baseG: baseG === "" ? null : Math.round(n(baseG)),
+        kcal: Math.round(r.kcal),
+        prot: displayMacro(r.proteina_g),
+        carb: displayMacro(r.carbohidratos_g),
+        fat: displayMacro(r.grasa_g),
+      };
       if (grp === "Opción única" && (GRP_ORDER as readonly string[]).includes(r.grupo)) {
         setGrp(r.grupo as GrpKey);
       }
@@ -733,7 +794,7 @@ function OptionForm({
         <SmallField label={`Base en ${PRODUCT_UNIT_NOUN[unit]} (vacío = fijo)`}>
           <Stepper
             value={baseG}
-            onChange={setBaseG}
+            onChange={changeBaseG}
             step={10}
             suffix={PRODUCT_UNIT_SUFFIX[unit]}
             ariaLabel={`Base en ${PRODUCT_UNIT_NOUN[unit]}`}

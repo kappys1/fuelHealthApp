@@ -1,4 +1,10 @@
-import type { GrpKey, PlanVariant, ProductUnit } from "@/lib/macros";
+import {
+  scaledForStore,
+  type GrpKey,
+  type Macros,
+  type PlanVariant,
+  type ProductUnit,
+} from "@/lib/macros";
 
 export interface PlanOptionSeedFields {
   name: string;
@@ -21,6 +27,30 @@ export interface PlanSeedProduct {
   baseFat: number;
   grupo: GrpKey | null;
   unit: ProductUnit;
+}
+
+export interface PlanOptionMacroBasis extends Macros {
+  baseG: number | null;
+}
+
+/**
+ * Recalcula los macros de una opción normal cuando cambia su cantidad pautada.
+ * La referencia permanece estable durante toda la edición para evitar acumular
+ * redondeos al mover el stepper varias veces (patrón F06 de base inmutable).
+ */
+export function rescalePlanOptionMacros(
+  basis: PlanOptionMacroBasis,
+  nextBaseG: number,
+): Macros {
+  const macros = {
+    kcal: basis.kcal,
+    prot: basis.prot,
+    carb: basis.carb,
+    fat: basis.fat,
+  };
+
+  if (basis.baseG == null || basis.baseG <= 0 || nextBaseG <= 0) return macros;
+  return scaledForStore(macros, nextBaseG, basis.baseG);
 }
 
 /**

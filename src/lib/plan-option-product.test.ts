@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { seedPlanOptionFromProduct, type PlanOptionSeedFields } from "./plan-option-product";
+import {
+  rescalePlanOptionMacros,
+  seedPlanOptionFromProduct,
+  type PlanOptionSeedFields,
+} from "./plan-option-product";
 
 const current = (overrides: Partial<PlanOptionSeedFields> = {}): PlanOptionSeedFields => ({
   name: "Opción manual",
@@ -65,5 +69,41 @@ describe("seedPlanOptionFromProduct — F19 Fase 2", () => {
     });
 
     expect(seedPlanOptionFromProduct(option, product)).toBe(option);
+  });
+});
+
+describe("rescalePlanOptionMacros — quick-fix gramos del Plan", () => {
+  it("reescalada desde la base estable al cambiar los gramos de una opción normal", () => {
+    const basis = {
+      baseG: 10,
+      kcal: 52,
+      prot: 0.4,
+      carb: 11,
+      fat: 0.1,
+    };
+
+    expect(rescalePlanOptionMacros(basis, 20)).toEqual({
+      kcal: 104,
+      prot: 0.8,
+      carb: 22,
+      fat: 0.2,
+    });
+    expect(rescalePlanOptionMacros(basis, 5)).toEqual({
+      kcal: 26,
+      prot: 0.2,
+      carb: 5.5,
+      fat: 0.1,
+    });
+  });
+
+  it("sin una base válida conserva los macros", () => {
+    const fixed = { baseG: null, kcal: 52, prot: 0.4, carb: 11, fat: 0.1 };
+
+    expect(rescalePlanOptionMacros(fixed, 20)).toEqual({
+      kcal: 52,
+      prot: 0.4,
+      carb: 11,
+      fat: 0.1,
+    });
   });
 });
