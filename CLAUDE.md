@@ -67,7 +67,8 @@ y se usan: por *momentos de uso*, no por features). Ante ambigüedad de contenid
     sellada; ver `e2e/README.md`); **región de función fijada a `fra1`** (verificado en
     vivo; antes se ignoraba en Hobby → `iad1`); **LCP real ~0,5 s** (el 4,2 s de
     Lighthouse es lab, slow-4G simulado, documentado); **coste IA ~€1,6–1,9/mes** (< 5 €;
-    `AI_MODEL_COACH` = Gemini 3.5 Flash).
+    entonces `AI_MODEL_COACH` = Gemini 3.5 Flash; **modelos vigentes en `04-IA` §Modelos**,
+    DECISIONS #105: Flash 3.8 + Chat 3.1 Pro + título Flash-Lite, ~1 €/mes).
 - **Sobre la v1 hay 26 features de uso real (F01–F26), todas en `main`.** El detalle
   vive en `docs/HANDOFF-features.md` (§B3, una entrada por feature con su spec en
   `docs/specs/features/NN-*.md`) y en `docs/CHANGELOG-v1.md`. Titulares: Coach fiable +
