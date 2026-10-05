@@ -54,12 +54,13 @@ export async function POST(request: Request) {
   try {
     const result = await runStructured({
       kind: images ? "vision" : "text",
-      task: images ? "vision" : "estimate",
+      task: images ? "extract" : "estimate",
       prompt: trainingImportPrompt(atleta.full, texto ?? null),
       images,
       schema: trainingImportZ,
-      // Extracción grande (semana entera) + thinking de Gemini: margen amplio.
-      maxOutputTokens: 8192,
+      // Extracción grande (semana entera, ~3k tokens de JSON para 6 sesiones):
+      // margen amplio, como diet-import. 8192 se quedaba corto con thinking.
+      maxOutputTokens: 16384,
     });
     return Response.json(result);
   } catch (err) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SESSIONS } from "@/lib/macros";
 import {
   applyTrainingFormat,
+  importedSessionKey,
   isTrainingHeadingLine,
   stripTrainingGroupMarkers,
   orderedSessionOptions,
@@ -605,5 +606,22 @@ describe("helpers de entrenamiento (doc 10 Fase B)", () => {
       expect(out.contenido).toBe(ORIGINAL);
       expect(out.reason).toBeTruthy();
     });
+  });
+});
+
+describe("importedSessionKey (F-IA-10)", () => {
+  it("acorta los rótulos numerados del documento a TN", () => {
+    expect(importedSessionKey("Training 1")).toBe("T1");
+    expect(importedSessionKey(" training 06 ")).toBe("T6");
+    expect(importedSessionKey("Sesión 3")).toBe("T3");
+    expect(importedSessionKey("Session 2")).toBe("T2");
+    expect(importedSessionKey("T4")).toBe("T4");
+  });
+
+  it("deja tal cual lo que no es un rótulo numerado", () => {
+    expect(importedSessionKey("Día 1")).toBe("Día 1");
+    expect(importedSessionKey("Lunes")).toBe("Lunes");
+    expect(importedSessionKey("Training A")).toBe("Training A");
+    expect(importedSessionKey("")).toBe("");
   });
 });

@@ -404,6 +404,17 @@ export function applyTrainingFormat(
 }
 
 /**
+ * Clave corta de sesión al importar (F-IA-10). El prompt pide "T1", pero según el
+ * modelo llega el rótulo literal del documento ("Training 1"); se normaliza en
+ * código para que todas las semanas compartan claves. Lo demás pasa tal cual.
+ */
+export function importedSessionKey(clave: string): string {
+  const k = clave.trim();
+  const m = /^(?:training|session|sesi[oó]n|entreno|workout|t)\s*(\d+)$/i.exec(k);
+  return m ? `T${Number(m[1])}` : k;
+}
+
+/**
  * kcal de sesión para `days.sessionKcal` a partir del rango estimado (F-IA-5):
  * media redondeada; si falta un extremo usa el otro; null si no hay datos.
  */

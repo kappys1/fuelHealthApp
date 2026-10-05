@@ -34,6 +34,7 @@ import {
   shiftDayKey,
 } from "@/lib/dates";
 import {
+  importedSessionKey,
   type TrainingFormatOutcome,
   TRAINING_TIPO_LABELS,
   type TrainingTipo,
@@ -219,7 +220,7 @@ function ImportSheet({
     if (r.etiqueta) setEtiqueta(r.etiqueta);
     const next: SRow[] = r.sesiones.map((s, i) => ({
       key: rowKey(),
-      clave: s.clave,
+      clave: importedSessionKey(s.clave),
       nombre: s.nombre,
       tipo: toTipo(s.tipo),
       contenido: outcomes?.[i]?.contenido ?? s.contenido,

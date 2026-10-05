@@ -54,9 +54,11 @@ export function webSearchTools(): ToolSet {
 /**
  * Nivel de razonamiento por tipo de tarea (04-IA, regla de determinismo):
  * - "estimate": features de estimación (F-IA-2/3/4/5) → coste/latencia bajos.
+ * - "extract": transcribir un documento (PDF/foto) a estructura → thinking low
+ *   + resolución alta. Es copiar, no razonar.
  * - "vision"/"coach": razonamiento por defecto del modelo.
  */
-export type Task = "estimate" | "vision" | "coach";
+export type Task = "estimate" | "extract" | "vision" | "coach";
 
 /**
  * Ajustes de determinismo por proveedor (04-IA / principio 2 «consistencia»):
@@ -86,6 +88,21 @@ export function determinismSettings(task: Task): DeterminismSettings {
         providerOptions: {
           google: {
             thinkingConfig: { thinkingLevel: "medium" },
+            mediaResolution: "MEDIA_RESOLUTION_HIGH",
+          },
+        },
+      };
+    }
+    // Extracción de documento (F-IA-10, importar semana): la salida es una
+    // transcripción larga y fiel. Con "medium", un PDF de 6 sesiones gastaba
+    // ~7,9k tokens pensando y agotaba el tope antes del JSON (No output
+    // generated, 502); con "low": 0 de thinking, mismo contenido, 31 s → 11 s.
+    if (task === "extract") {
+      return {
+        temperature: 0,
+        providerOptions: {
+          google: {
+            thinkingConfig: { thinkingLevel: "low" },
             mediaResolution: "MEDIA_RESOLUTION_HIGH",
           },
         },
