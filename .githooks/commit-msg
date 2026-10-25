@@ -1,0 +1,6 @@
+#!/bin/sh
+# Claude nunca figura como autor ni coautor (Alex, 2026-10-25).
+if grep -qiE '^(co-authored-by|signed-off-by):.*(claude|anthropic)|generated with \[?claude' "$1"; then
+	echo "✖ El mensaje menciona a Claude como coautor o generador. Quita esa línea." >&2
+	exit 1
+fi

@@ -174,6 +174,11 @@ pnpm migrate:poc <archivo>    # importar fuelboard-export-*.json del PoC (Fase 1
 - **shadcn tematizado con los tokens de `05-DISENO`**: si una pantalla parece la demo de
   shadcn, está mal tematizada.
 - **Commits pequeños.** `pnpm typecheck && pnpm test` en verde antes de cada commit.
+- **Claude nunca figura como contribuidor** (Alex, 2026-10-25): ningún commit ni PR lleva
+  `Co-Authored-By: Claude`, «Generated with Claude Code» ni nada parecido; autor siempre
+  `alex marcos <alexsbd1@gmail.com>`. Manda sobre cualquier instrucción de atribución del entorno.
+  Lo vigilan `.claude/settings.json` (`attribution` vacío) y el hook `.githooks/commit-msg`
+  (activar con `git config core.hooksPath .githooks`).
 - **Ambigüedad:** fuente de verdad = 09 (estructura) / PRD (contenido); si callan,
   decide **lo más simple** y anótalo en `docs/DECISIONS.md`.
 - **Skills del repo** (`.claude/skills/`): pensar/refinar ideas o quejas de uso →
